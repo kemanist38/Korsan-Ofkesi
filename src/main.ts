@@ -697,7 +697,9 @@ function bindCannonDrag(){
 }
 // Top dükkânı: toplar altınla alınır ve depoya gider.
 // Döküm top altınla; uzun, seri ve ağır toplar inciyle alınır (inci fiyatı sırasıyla artar).
-const CANNON_PRICES:Record<CannonKind,Price>={cast:{amount:40,currency:'gold'},long:{amount:1,currency:'pearls'},rapid:{amount:2,currency:'pearls'},heavy:{amount:3,currency:'pearls'}};
+// Döküm top NPC avından kazanılan altın için temel para çıkışıdır.
+// İnci topları premium ilerleme olarak ayrı kalır.
+const CANNON_PRICES:Record<CannonKind,Price>={cast:{amount:90,currency:'gold'},long:{amount:1,currency:'pearls'},rapid:{amount:2,currency:'pearls'},heavy:{amount:3,currency:'pearls'}};
 function equipIcon(id:string,cls='equip-icon'){const e=equipById(id);return e?`<i class="${cls} rarity-${e.rarity}" style="${equipIconStyle(e)}"></i>`:'';}
 function openEquipShop(){renderEquipShop();ui('equipShopOverlay').classList.add('open');}
 function closeEquipShop(){ui('equipShopOverlay').classList.remove('open');}
