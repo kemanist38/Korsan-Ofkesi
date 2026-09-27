@@ -677,3 +677,53 @@ body.shop-open .market-overlay,body.shop-open .ship-overlay,body.shop-open .load
 /* Hazine kazma bildirimi: küçük sıradan buton yerine belirgin hazine eylemi. */
 .dig-prompt{border:1px solid #d3a74f!important;background:linear-gradient(145deg,#4a2c14ee,#0a2024ee)!important;box-shadow:0 10px 28px #000c,inset 0 0 15px #e3b45a18!important}
 .dig-prompt img{filter:drop-shadow(0 4px 5px #000c)}.dig-prompt span{color:#ffe0a0!important;text-shadow:0 1px 3px #000}.dig-prompt>i{border-color:#8e6b37!important;background:#071113!important}.dig-prompt>i em{background:linear-gradient(90deg,#8b5b23,#f0c45f)!important;box-shadow:0 0 8px #e3b85e88}
+
+
+/* Approved battle HUD concept pass v3 */
+/* Onaylanan savaş HUD konsepti: koyu deniz, eskitilmiş pirinç, ahşap ve okunaklı savaş hiyerarşisi. */
+.battle-resources{z-index:18;top:10px!important;right:16px!important;gap:5px!important;padding:4px;border:1px solid #a77c3e88;border-radius:7px;background:linear-gradient(#26160dee,#09181cee);box-shadow:0 8px 24px #000b,inset 0 0 12px #d3a34d0d}
+.battle-resources .resource{min-width:108px!important;height:42px!important;border-color:#9c763f66!important;border-radius:4px!important;background:linear-gradient(#15292c,#091417)!important;box-shadow:inset 0 0 12px #0008!important}
+.battle-resources .resource.pearl{border-color:#4f9e9e88!important;background:linear-gradient(#153238,#09171c)!important}
+
+/* Radar / mini harita. */
+.battle-radar{left:18px!important;top:72px!important;width:190px!important;padding:7px;border:1px solid #b4884888;border-radius:8px;background:linear-gradient(145deg,#29170ddd,#07181ddd);box-shadow:0 12px 28px #000b,inset 0 0 16px #d4a44d0b}
+.battle-radar .map-badge{margin:-3px -2px 6px;padding:5px 7px;border-bottom:1px solid #a77b3e55;background:#050c0e88}
+.battle-radar .map-badge strong{color:#f1d18e!important;text-shadow:0 1px 3px #000}.battle-radar .map-badge small{color:#7fa8a6!important}
+.battle-radar #minimap{width:188px!important;height:138px!important;border:2px solid #896638!important;border-radius:3px!important;box-shadow:inset 0 0 18px #000b,0 5px 13px #0008!important}
+.battle-radar .world-map-button{left:198px!important;top:34px!important;border:2px solid #aa8045!important;background:radial-gradient(circle,#264b50,#07171b 70%)!important}
+.battle-radar .quest-bust{left:198px!important;top:96px!important;border-color:#aa8045!important}
+.battle-radar .zoom-controls{margin-top:6px!important;border-color:#8d6b3c66!important;background:#08171be8!important}
+
+/* Hedef paneli, boss ve NPC savaşında daha belirgin. */
+.battle-target-panel{left:auto!important;right:18px!important;top:86px!important;width:282px!important;gap:8px!important}
+.battle-target-panel .combat-target{grid-template-columns:58px 1fr!important;min-height:70px!important;padding:7px!important;border:1px solid #a47a4388!important;border-radius:5px!important;background:linear-gradient(110deg,#2a130feF,#09181ceF 62%)!important;box-shadow:0 10px 24px #000b,inset 0 0 18px #0008!important}
+.battle-target-panel .combat-target.selected{border-color:#dfb45c!important;box-shadow:0 0 0 1px #c68f3e55,0 10px 26px #000c,inset 0 0 20px #9e35191d!important}
+.battle-target-panel .target-portrait{width:54px!important;height:54px!important;border-color:#b4894e88!important;background:radial-gradient(circle,#513023,#11191c 72%)!important}
+.battle-target-panel .target-info strong{font-size:12px!important;color:#f2d294!important}.battle-target-panel .target-info i{height:9px!important;border-color:#35100d!important}.battle-target-panel .target-info em{background:linear-gradient(90deg,#8d201d,#df5a39)!important}.battle-target-panel .target-state{color:#ef8c6e!important}
+
+/* Alt komuta güvertesi: dört durum barı + 12 hızlı slot. */
+.battle-command-deck{pointer-events:none;position:absolute;z-index:16;left:50%!important;bottom:10px!important;transform:translateX(-50%);width:min(760px,72vw);padding:7px 10px 8px;border:1px solid #a57a3d88;border-radius:10px 10px 4px 4px;background:linear-gradient(180deg,#2a170ee8,#08161aeF 48%,#050c0feF);box-shadow:0 13px 32px #000d,inset 0 1px #e6bd6b22}
+.battle-command-deck .dock-status{display:grid!important;grid-template-columns:1fr 66px 1fr!important;align-items:center!important;gap:10px!important}
+.battle-command-deck .status-pair{gap:4px!important}.battle-command-deck .status-line{grid-template-columns:22px 1fr 76px!important;height:14px!important}.battle-command-deck .status-line span{color:#d2b77f!important}.battle-command-deck .status-line>i{height:9px!important;border-color:#65461f!important}
+.battle-command-deck .dock-center{position:relative;display:grid;place-items:center}.battle-command-deck .recenter{pointer-events:auto;width:48px!important;height:48px!important;border-color:#c1944c!important;background:radial-gradient(circle,#725020,#151819 70%)!important}.battle-command-deck .dock-level{position:absolute;right:0;bottom:-2px;display:grid;place-items:center;min-width:20px;height:20px;border:1px solid #d5aa58;border-radius:50%;background:#170e09;color:#ffe099;font-size:9px}
+.battle-command-deck .bottom-command{pointer-events:auto;position:static!important;transform:none!important;margin-top:5px!important}
+.battle-command-deck .quick-inventory{display:grid!important;grid-template-columns:repeat(12,48px)!important;justify-content:center!important;gap:4px!important;padding:5px!important;border-color:#80603577!important;background:#050e11cc!important}
+.battle-command-deck .quick-slot{width:48px!important;height:48px!important;border-color:#725a3888!important;background:linear-gradient(#1a2c2f,#0a1518)!important;box-shadow:inset 0 0 8px #0008}.battle-command-deck .quick-slot.active{border-color:#e2b75d!important;box-shadow:inset 0 0 12px #d6a84b33,0 0 7px #d6a84b44!important}
+
+/* Sağ alt savaş komutları. */
+.battle-actions{right:22px!important;bottom:22px!important;z-index:17!important;display:grid!important;grid-template-columns:repeat(2,70px)!important;gap:7px!important;padding:8px;border:1px solid #9e753c77;border-radius:9px;background:linear-gradient(145deg,#25150ddd,#071519eF);box-shadow:0 12px 30px #000c}
+.battle-actions .combat-action{width:68px!important;height:64px!important;border-radius:7px!important;border:1px solid #8d6b3e88!important;background:radial-gradient(circle at 50% 30%,#28434a,#09171b 72%)!important;box-shadow:inset 0 0 13px #0008,0 4px 9px #0008!important}
+.battle-actions .combat-action.attack{border-color:#c64f3eaa!important;background:radial-gradient(circle at 50% 30%,#65241d,#160e0d 72%)!important}.battle-actions .combat-action.repair{border-color:#6f9c6e99!important}.battle-actions .combat-action b{height:35px!important}.battle-actions .combat-action b img{max-width:35px!important;max-height:35px!important}.battle-actions .combat-action span{color:#ead19a!important;font-size:7px!important}.battle-actions .combat-action small{font-size:6px!important;color:#86aaa8!important}
+
+@media(max-width:980px){
+ .battle-command-deck{width:min(610px,76vw);transform:translateX(-50%) scale(.9);transform-origin:bottom center}
+ .battle-command-deck .quick-inventory{grid-template-columns:repeat(6,44px)!important}.battle-command-deck .quick-slot{width:44px!important;height:44px!important}
+ .battle-target-panel{right:8px!important;width:235px!important}.battle-actions{right:8px!important;transform:scale(.86);transform-origin:bottom right}
+}
+@media(max-width:680px){
+ .battle-radar{left:8px!important;top:64px!important;transform:scale(.76)!important;transform-origin:top left}
+ .battle-target-panel{top:200px!important;right:6px!important;width:205px!important;transform:scale(.86);transform-origin:top right}
+ .battle-command-deck{width:92vw;bottom:3px!important;transform:translateX(-50%) scale(.78)}
+ .battle-actions{bottom:126px!important;grid-template-columns:repeat(5,52px)!important;transform:scale(.78);right:-22px!important}
+ .battle-actions .combat-action{width:52px!important;height:52px!important}
+}
