@@ -60,8 +60,8 @@ const npc=(id:string,name:string,role:'light'|'heavy',tier:number,sprite=`/asset
 };
 const NPC_LIST:Omit<NpcDef,'portrait'>[]=[
   npc('n1-1-light','Kaçak Balıkçı','light',1),npc('n1-1-heavy','Kıyı Yağmacısı','heavy',1,undefined,104),
-  npc('n1-2-light','Kaçakçı Gözcü','light',1,'/assets/enemy-scout-v1.webp'),npc('n1-2-heavy','Yağmacılar','heavy',1,'/assets/enemy-raider-v1.webp',104),
-  npc('n2-1-light','Mercan Avcısı','light',2),npc('n2-1-heavy','Kızıl Savaş Gemisi','heavy',2,'/assets/enemy-warship-v1.webp',104),
+  npc('n1-2-light','Kaçakçı Gözcü','light',1),npc('n1-2-heavy','Yağmacılar','heavy',1,undefined,104),
+  npc('n2-1-light','Mercan Avcısı','light',2),npc('n2-1-heavy','Kızıl Savaş Gemisi','heavy',2,undefined,104),
   npc('n2-2-light','İnci Dalgıcı','light',2),npc('n2-2-heavy','Resif Fırkateyni','heavy',2),
   npc('n3-1-light','Sis Hayaleti','light',3),npc('n3-1-heavy','Sisli Brik','heavy',3,undefined,104),
   npc('n3-2-light','Kemik Kayığı','light',3),npc('n3-2-heavy','Batık Kalyon','heavy',3,undefined,124),
@@ -77,6 +77,21 @@ const NPC_LIST:Omit<NpcDef,'portrait'>[]=[
   npc('n8-2-light','Kasırga Brigi','light',8,undefined,104),npc('n8-2-heavy','Gök Gürültüsü Kalyonu','heavy',8,undefined,124),
 ];
 export const NPCS:Record<string,NpcDef>=Object.fromEntries(NPC_LIST.map((n,i)=>[n.id,{...n,portrait:i}]));
+
+// 1/1 → 8/2 görsel dağılımı. Her seviye kendi deniz atmosferini korur; her alt harita
+// light/heavy silüetini ayrı sprite dosyasından alır. Bu tablo UI/minimap/VFX katmanlarının
+// aynı sanat yönünü paylaşması için tek kaynak olarak kullanılır.
+export const ENCOUNTER_ART={
+  1:{family:'coast',accent:'#c9a56b',wake:'#d9f0e7',monster:'coastal'},
+  2:{family:'coral',accent:'#e05b48',wake:'#7de9e1',monster:'reef'},
+  3:{family:'ghost',accent:'#71d7d1',wake:'#9fd7d0',monster:'spectral'},
+  4:{family:'blood-iron',accent:'#b7352e',wake:'#a7a09a',monster:'armored'},
+  5:{family:'ice',accent:'#a9e8ff',wake:'#d8f5ff',monster:'frost'},
+  6:{family:'plague',accent:'#83b66a',wake:'#9ac9a6',monster:'toxic'},
+  7:{family:'lava',accent:'#ff6a2b',wake:'#e49b66',monster:'magma'},
+  8:{family:'storm',accent:'#78bfff',wake:'#a7cfff',monster:'tempest'},
+} as const;
+export const encounterArt=(tier:number)=>ENCOUNTER_ART[Math.max(1,Math.min(8,tier)) as keyof typeof ENCOUNTER_ART];
 
 // ---------------------------------------------------------------- Canavarlar
 export type MonsterDef={id:string;name:string;sprite:string;span:number;frame:number;anchorY:number;radius:number;tier:number;hp:number;damage:number;reload:number;gold:number;xp:number;portrait:number};
