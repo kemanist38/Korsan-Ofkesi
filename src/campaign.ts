@@ -249,6 +249,6 @@ export const QUESTS:QuestDef[]=MAP_KEYS.flatMap(key=>{
     {id:`q${key}-chest`,map:key,tier:t,title:`${head}: Ganimet Avı`,description:`Bu denizde sürüklenen ${nC} ganimet sandığını topla.`,kind:'chest',ids:[key],required:nC,...pay(nC,{gold:L.gold*4,xp:L.xp*3},1),pearls:4+2*t},
   ];
 });
-// NPC görevleri oyuncunun ana kasılma döngüsüdür; tamamlanan/iptal edilen görev
-// uzun süre oyuncuyu haritadan koparmasın diye kısa bir yeniden açılma süresi kullanır.
-export const QUEST_COOLDOWN_MS=20*60*1000;
+// Görev tamamlandıktan veya iptal edildikten sonra aynı görev 8 saat bekler.
+// Böylece görev ödülleri değerini korur ve oyuncu sürekli görev döngüsüyle aşırı hızlı kasılmaz.
+export const QUEST_COOLDOWN_MS=8*60*60*1000;
