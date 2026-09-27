@@ -34,7 +34,7 @@ type ParticleKind='foam'|'smoke'|'spark'|'damage'|'flash'|'explosion'|'splash'|'
 // z: su üstünden yükseklik (ekranda yukarı kayar); vz ile savrulan parçalar suya düşer
 type Particle = Vec & { vx:number; vy:number; life:number; maxLife:number; kind:ParticleKind; text?:string; z?:number; vz?:number; rot?:number; vr?:number; size?:number; variant?:number };
 type Wreck = Vec & { angle:number; sprite:string; span:number; t:number; bubble:number; heavy?:boolean; boss?:boolean };
-type Monster = Vec & { kind:'monster'; frozen?:number; telegraph?:number; def:MonsterDef; burnTimer?:number; burnDps?:number; phase:number; radius:number; name:string; hp:number; maxHp:number; cooldown:number; aggro:boolean; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
+type Monster = Vec & { kind:'monster'; frozen?:number; telegraph?:number; rage?:boolean; specialCooldown?:number; def:MonsterDef; burnTimer?:number; burnDps?:number; phase:number; radius:number; name:string; hp:number; maxHp:number; cooldown:number; aggro:boolean; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
 type Target = Enemy|Monster;
 type UpgradeKind = 'hull'|'damage'|'range'|'reload'|'speed'|'repair';
 type QuickItemId = 'iron'|'chain'|SpecialAmmo|'mine'|'powder'|'shield'|'repairkit'|'speed';
@@ -540,9 +540,25 @@ function enemyFire(e:Enemy){
   e.cooldown=e.reload+Math.random()*.55;
 }
 function monsterFire(m:Monster){if(stealthTimer>0){m.cooldown=Math.max(m.cooldown,.4);return;}const a=Math.atan2(player.y-m.y,player.x-m.x),tier=m.def.tier;playSplash();
-  // Ateş öncesi kısa görsel hazırlık, mekanik gecikme eklemeden saldırının kaynağını okunur kılar.
   m.telegraph=.34;for(let n=0;n<(tier>=5?6:3);n++){const q=Math.random()*Math.PI*2,r=m.radius*(.3+Math.random()*.5);particles.push({x:m.x+Math.cos(q)*r,y:m.y+Math.sin(q)*r*.55,vx:-Math.cos(q)*18,vy:-Math.sin(q)*12,life:.35,maxLife:.35,kind:tier>=7?'firePuff':tier===6?'poison':'foam',size:18+Math.random()*14,variant:n%2});}
-  for(const off of tier>=5?[-.12,0,.12]:[0])shots.push({x:m.x,y:m.y,vx:Math.cos(a+off)*210,vy:Math.sin(a+off)*210,life:2.4,owner:'enemy',damage:m.def.damage*(.85+Math.random()*.3),hit:false,ammo:tier>=7?'fire':'iron',visual:'spit',sourceTier:tier});m.cooldown=m.def.reload;}
+  const rage=m.rage?1.22:1,spread=tier>=5?[-.12,0,.12]:[0];
+  for(const off of spread)shots.push({x:m.x,y:m.y,vx:Math.cos(a+off)*210,vy:Math.sin(a+off)*210,life:2.4,owner:'enemy',damage:m.def.damage*(.85+Math.random()*.3)*rage,hit:false,ammo:tier>=7?'fire':'iron',visual:'spit',sourceTier:tier});
+  m.cooldown=m.def.reload/(m.rage?1.18:1);
+}
+function monsterSpecial(m:Monster){
+  const tier=m.def.tier,d=dist(m,player);m.specialCooldown=8.5-Math.min(2.5,tier*.25);
+  if(tier<=2){ // Resif yaratığı: yakın mesafede su darbesi.
+    if(d<210){const hit=m.def.damage*.7;state.hp=Math.max(0,state.hp-hit);damageText(player.x,player.y,hit);splashAt(player.x,player.y,155);toast(`${m.name}: Gelgit Darbesi`);}
+  }else if(tier<=4){ // Sis/kan yaratığı: kısa süreli zincirleme salvo.
+    const a=Math.atan2(player.y-m.y,player.x-m.x);for(const off of [-.26,-.13,0,.13,.26])shots.push({x:m.x,y:m.y,vx:Math.cos(a+off)*190,vy:Math.sin(a+off)*190,life:2.7,owner:'enemy',damage:m.def.damage*.48,hit:false,ammo:'iron',visual:'spit',sourceTier:tier});
+    toast(`${m.name}: Avcı Yelpazesi`);
+  }else if(tier<=6){ // Buz/zehir: alan kontrolü ve yavaşlatma.
+    if(d<360){state.speed=Math.max(0,state.speed*.45);state.hp=Math.max(0,state.hp-m.def.damage*.45);for(let n=0;n<14;n++){const q=Math.random()*Math.PI*2;particles.push({x:player.x+Math.cos(q)*Math.random()*90,y:player.y+Math.sin(q)*Math.random()*55,vx:0,vy:-12,life:.8,maxLife:.8,kind:tier===6?'poison':'foam',size:22});}toast(`${m.name}: ${tier===6?'Zehir Bulutu':'Buz Dalgası'}`);}
+  }else{ // Lav/fırtına: sekiz yönlü ağır patlama.
+    for(let n=0;n<8;n++){const a=n*Math.PI/4;shots.push({x:m.x,y:m.y,vx:Math.cos(a)*235,vy:Math.sin(a)*235,life:2.5,owner:'enemy',damage:m.def.damage*.55,hit:false,ammo:'fire',visual:'spit',sourceTier:tier});}
+    burst(m.x,m.y,true);toast(`${m.name}: ${tier===7?'Lav Halkası':'Fırtına Halkası'}`);
+  }
+}
 // Batınca bulunduğun denizde, düşmanlardan uzak rastgele bir noktada %10 gövdeyle yeniden doğ.
 function respawn(){
   const deathMap=currentMap;
@@ -1037,7 +1053,7 @@ function update(dt:number){
   for(let i=salvoQueue.length-1;i>=0;i--){salvoQueue[i].delay-=dt;if(salvoQueue[i].delay<=0){releaseSalvo(salvoQueue[i]);salvoQueue.splice(i,1);}}
   if(state.repairing){state.hp=Math.min(effectiveMaxHp(),state.hp+effectiveMaxHp()*(.035+upgrades.repair*.008)*bonus.repair*(elitePassive('coral')&&playerHitClock>5?2:1)*dt);if(state.hp>=effectiveMaxHp()){state.repairing=false;saveAccount();ui('repair').classList.remove('active');toast('Gövde tamamen onarıldı');}}
   wakeClock-=dt;if(Math.abs(player.speed)>8&&wakeClock<=0){wakeClock=.1;particles.push({x:player.x-Math.sin(player.angle)*22,y:player.y+Math.cos(player.angle)*22,vx:-Math.sin(player.angle)*8,vy:Math.cos(player.angle)*8,life:.75,maxLife:.75,kind:'foam'});}
-  monsters.forEach(m=>{if((m.frozen??0)>0){m.frozen=Math.max(0,m.frozen!-dt);m.cooldown=Math.max(m.cooldown,.5);return;}m.phase+=dt*(m.hp<m.maxHp*.3?1.22:1);m.telegraph=Math.max(0,(m.telegraph??0)-dt);m.cooldown-=dt;m.slowTimer=Math.max(0,m.slowTimer-dt);if(m.aggro){m.combatTimer-=dt;if(m.combatTimer<=0||Math.hypot(m.x-m.homeX,m.y-m.homeY)>720)m.aggro=false;}if(m.aggro&&dist(m,player)<430&&m.cooldown<=0)monsterFire(m);
+  monsters.forEach(m=>{if((m.frozen??0)>0){m.frozen=Math.max(0,m.frozen!-dt);m.cooldown=Math.max(m.cooldown,.5);return;}m.rage=m.hp<m.maxHp*.3;m.phase+=dt*(m.rage?1.22:1);m.telegraph=Math.max(0,(m.telegraph??0)-dt);m.cooldown-=dt;m.specialCooldown=(m.specialCooldown??(5+Math.random()*3))-dt;m.slowTimer=Math.max(0,m.slowTimer-dt);if(m.aggro){m.combatTimer-=dt;if(m.combatTimer<=0||Math.hypot(m.x-m.homeX,m.y-m.homeY)>720)m.aggro=false;}if(m.aggro&&dist(m,player)<430&&m.cooldown<=0)monsterFire(m);if(m.aggro&&dist(m,player)<390&&(m.specialCooldown??0)<=0)monsterSpecial(m);
     // Sürekli ama hafif ortam izi: yaratık denizin üzerinde yapıştırılmış bir resim gibi durmaz.
     const chance=m.aggro?dt*5:dt*1.2;if(Math.random()<chance){const a=Math.random()*Math.PI*2,r=m.radius*(.45+Math.random()*.45),tier=m.def.tier;particles.push({x:m.x+Math.cos(a)*r,y:m.y+Math.sin(a)*r*.55,vx:(Math.random()-.5)*8,vy:(Math.random()-.5)*5,life:.65,maxLife:.65,kind:tier===6?'poison':tier>=7?'firePuff':'foam',size:18+Math.random()*14,variant:Math.floor(Math.random()*2)});}});
   // Saldırı: kaptan hareket etse de hedef menzildeyken ateş sürer; hedef menzilden çıkınca saldırı durur
@@ -1139,7 +1155,7 @@ function defeatMonster(m:Monster){
   const eliteLoot=eliteLootMult();if(bannerTimer>0)spawnCoins(m,player);
   const goldGain=goldGainAch(d.gold*(1+bonus.bounty)*eliteLoot),fame=xpGain(d.xp);state.gold+=goldGain;state.fame+=fame;saveAccount();bumpAch('monster');
   rewardNotice(`+${goldGain} Altın   +${fame} TP`);recordQuestProgress('monster',d.id);
-  const p=randomSeaPoint(900);m.hp=m.maxHp;m.aggro=false;m.burnTimer=0;m.x=p.x;m.y=p.y;m.homeX=m.x;m.homeY=m.y;m.combatTimer=0;selected=null;state.attacking=false;toast(`${m.name} yenildi`);
+  const p=randomSeaPoint(900);m.hp=m.maxHp;m.aggro=false;m.rage=false;m.specialCooldown=5+Math.random()*3;m.burnTimer=0;m.x=p.x;m.y=p.y;m.homeX=m.x;m.homeY=m.y;m.combatTimer=0;selected=null;state.attacking=false;toast(`${m.name} yenildi`);
 }
 function updateTower(e:Enemy,dt:number){
   const d=dist(e,player);e.cooldown-=dt;e.combatTimer=Math.max(0,e.combatTimer-dt);e.slowTimer=0;e.burnTimer=Math.max(0,(e.burnTimer??0));
