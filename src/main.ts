@@ -538,7 +538,7 @@ function enemyFire(e:Enemy){
   else{shots.push({x:e.x,y:e.y,vx:Math.cos(a)*260,vy:Math.sin(a)*260,life:2.2,owner:'enemy',damage:e.damage*(.85+Math.random()*.3),hit:false,ammo:'iron'});muzzleFlash(e.x+Math.cos(a)*16,e.y+Math.sin(a)*16,a,54);}
   e.cooldown=e.reload+Math.random()*.55;
 }
-function monsterFire(m:Monster){if(stealthTimer>0){m.cooldown=Math.max(m.cooldown,.4);return;}const a=Math.atan2(player.y-m.y,player.x-m.x),tier=m.def.tier;playSplash();monsterHitFx(m,0);
+function monsterFire(m:Monster){if(stealthTimer>0){m.cooldown=Math.max(m.cooldown,.4);return;}const a=Math.atan2(player.y-m.y,player.x-m.x),tier=m.def.tier;playSplash();
   // Ateş öncesi kısa görsel hazırlık, mekanik gecikme eklemeden saldırının kaynağını okunur kılar.
   m.telegraph=.34;for(let n=0;n<(tier>=5?6:3);n++){const q=Math.random()*Math.PI*2,r=m.radius*(.3+Math.random()*.5);particles.push({x:m.x+Math.cos(q)*r,y:m.y+Math.sin(q)*r*.55,vx:-Math.cos(q)*18,vy:-Math.sin(q)*12,life:.35,maxLife:.35,kind:tier>=7?'firePuff':tier===6?'poison':'foam',size:18+Math.random()*14,variant:n%2});}
   for(const off of tier>=5?[-.12,0,.12]:[0])shots.push({x:m.x,y:m.y,vx:Math.cos(a+off)*210,vy:Math.sin(a+off)*210,life:2.4,owner:'enemy',damage:m.def.damage*(.85+Math.random()*.3),hit:false,ammo:tier>=7?'fire':'iron',visual:'spit'});m.cooldown=m.def.reload;}
