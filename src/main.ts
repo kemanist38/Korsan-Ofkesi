@@ -544,11 +544,15 @@ function npcSpecial(e:Enemy){
   const tier=e.tier,d=dist(e,player),a=Math.atan2(player.y-e.y,player.x-e.x);
   e.npcSpecialCooldown=Math.max(5.2,9.2-tier*.38)+(Math.random()*1.4);
   if(e.role==='light'){
-    // Hafif NPC: yaklaş, zincir güllesiyle oyuncunun hızını kes ve yeniden pozisyon al.
-    if(d<390){shots.push({x:e.x,y:e.y,vx:Math.cos(a)*285,vy:Math.sin(a)*285,life:2,owner:'enemy',damage:e.damage*.42,hit:false,ammo:'chain'});muzzleFlash(e.x+Math.cos(a)*15,e.y+Math.sin(a)*15,a,48);}
+    // Hafif NPC: zincir güllesi. Tier 5+ gemiler daha uzun menzilden taciz eder.
+    const range=tier>=5?420:390;if(d<range){shots.push({x:e.x,y:e.y,vx:Math.cos(a)*285,vy:Math.sin(a)*285,life:2,owner:'enemy',damage:e.damage*.42,hit:false,ammo:'chain'});muzzleFlash(e.x+Math.cos(a)*15,e.y+Math.sin(a)*15,a,48);}
+    if(tier>=7&&d<360){ // Lav/fırtına korsanları ikinci hızlı atış yapar.
+      const off=(Math.random()-.5)*.1;shots.push({x:e.x,y:e.y,vx:Math.cos(a+off)*300,vy:Math.sin(a+off)*300,life:1.9,owner:'enemy',damage:e.damage*.32,hit:false,ammo:'fire'});
+    }
   }else{
-    // Ağır NPC: kısa menzilde üçlü borda salvosu; yüksek tierlerde ateş güllesi.
-    if(d<420){for(const off of [-.075,0,.075])shots.push({x:e.x,y:e.y,vx:Math.cos(a+off)*255,vy:Math.sin(a+off)*255,life:2.25,owner:'enemy',damage:e.damage*.38,hit:false,ammo:tier>=7?'fire':'iron'});muzzleFlash(e.x+Math.cos(a)*20,e.y+Math.sin(a)*20,a,76);}
+    // Ağır NPC: tier yükseldikçe borda genişler ve tema güllesi kazanır.
+    const spread=tier>=6?[-.11,-.055,0,.055,.11]:[-.075,0,.075],ammo=tier>=7?'fire':tier===6?'leech':'iron';
+    if(d<430){for(const off of spread)shots.push({x:e.x,y:e.y,vx:Math.cos(a+off)*255,vy:Math.sin(a+off)*255,life:2.25,owner:'enemy',damage:e.damage*(tier>=6?.25:.38),hit:false,ammo});muzzleFlash(e.x+Math.cos(a)*20,e.y+Math.sin(a)*20,a,tier>=6?88:76);}
   }
 }
 function monsterFire(m:Monster){if(stealthTimer>0){m.cooldown=Math.max(m.cooldown,.4);return;}const a=Math.atan2(player.y-m.y,player.x-m.x),tier=m.def.tier;playSplash();
