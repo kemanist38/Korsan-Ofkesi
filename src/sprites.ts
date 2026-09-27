@@ -12,6 +12,14 @@ export function preload(srcs:string[]){srcs.forEach(load);}
 // Atlas düzeni 8 sütun × 2 satır, 192 px kare; kaynak kareler 22,5°, oyun yönleri 45°.
 const SHIP={frame:192,dirs:8,legacySourceDirs:16,cols:8,anchorX:96,anchorY:108.35,pxPerUnit:1.23};
 export const shipDrawSize=(span:number)=>span*SHIP.pxPerUnit;
+// Native 8-yön atlas sözleşmesi: 8 sütun x 1 satır. Assetler kademeli değiştirilebilir;
+// renderer eski 8x2/16-kare atlasları otomatik olarak desteklemeye devam eder.
+export const NATIVE_SHIP_ATLAS={dirs:8,cols:8,rows:1,frame:192} as const;
+export function isNativeEightDirectionAtlas(sprite:string){
+  const sheet=load(sprite);if(!ready(sheet))return false;
+  const F=sheet.naturalWidth/NATIVE_SHIP_ATLAS.cols;
+  return Math.round(sheet.naturalHeight/F)===NATIVE_SHIP_ATLAS.rows;
+}
 export const shipLabelOffset=(span:number)=>-Math.round(shipDrawSize(span)*.46);
 export function drawNpcShip(ctx:CanvasRenderingContext2D,sprite:string,span:number,x:number,y:number,angle:number,time:number){
   const sheet=load(sprite);if(!ready(sheet))return false;
