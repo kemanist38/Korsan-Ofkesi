@@ -60,7 +60,7 @@ const npc=(id:string,name:string,role:'light'|'heavy',tier:number,sprite=`/asset
 };
 const NPC_LIST:Omit<NpcDef,'portrait'>[]=[
   npc('n1-1-light','Kaçak Balıkçı','light',1,'/assets/ship-npc-trader-v3.webp'),npc('n1-1-heavy','Kıyı Yağmacısı','heavy',1,'/assets/ship-n1-1-heavy.webp',104),
-  npc('n1-2-light','Kaçakçı Gözcü','light',1,'/assets/ship-n1-1-light.webp'),npc('n1-2-heavy','Yağmacılar','heavy',1,'/assets/ship-n1-1-heavy.webp',104),
+  npc('n1-2-light','Kaçakçı Gözcü','light',1,'/assets/ship-n1-1-light.webp'),npc('n1-2-heavy','Yağmacılar','heavy',1,'/assets/npc-pirate-warship-v4.webp',104),
   npc('n2-1-light','Mercan Avcısı','light',2,'/assets/ship-n2-1-light.webp'),npc('n2-1-heavy','Kızıl Savaş Gemisi','heavy',2,'/assets/ship-n2-2-heavy.webp',104),
   npc('n2-2-light','İnci Dalgıcı','light',2,'/assets/ship-n2-2-light.webp'),npc('n2-2-heavy','Resif Fırkateyni','heavy',2,'/assets/ship-n2-2-heavy.webp'),
   npc('n3-1-light','Sis Hayaleti','light',3,'/assets/ship-n3-1-light.webp'),npc('n3-1-heavy','Sisli Brik','heavy',3,'/assets/ship-n3-1-heavy.webp',104),
