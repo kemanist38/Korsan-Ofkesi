@@ -1627,9 +1627,14 @@ function drawHealthBar(x:number,y:number,width:number,frac:number,color:string){
 // Boss: tema renkli nabız halesi, kara amiral sancağı ve geniş adlı can plakası
 // Normal/ağır NPC sınıfını yalnız boyutla değil, deniz üstündeki silüet diliyle de ayır.
 function drawNpcClassMark(e:Enemy,s:{x:number;y:number}){
-  if(e.tower||e.boss)return;const t=performance.now()/1000,heavy=e.role==='heavy',r=heavy?48:36;
-  ctx.save();ctx.strokeStyle=heavy?'rgba(224,102,72,.42)':'rgba(89,205,215,.26)';ctx.lineWidth=heavy?1.7:1;ctx.setLineDash(heavy?[9,7]:[5,9]);ctx.lineDashOffset=-t*(heavy?20:10);ctx.beginPath();ctx.ellipse(s.x,s.y+8,r,r*FLAT,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
-  if(heavy&&e.aggro){ctx.fillStyle='rgba(218,67,49,.12)';ctx.beginPath();ctx.ellipse(s.x,s.y+8,r*1.22,r*.72,0,0,Math.PI*2);ctx.fill();}ctx.restore();
+  if(e.tower||e.boss)return;const t=performance.now()/1000,heavy=e.role==='heavy',r=heavy?48:36,tier=e.tier;
+  // Harita temasına göre NPC'nin deniz üstü izi: asseti boyamadan sınıf ve bölge okunurluğu sağlar.
+  const tint=tier===2?'rgba(70,220,205,.42)':tier===3?'rgba(155,220,218,.38)':tier===4?'rgba(205,55,48,.46)':tier===5?'rgba(160,225,255,.48)':tier===6?'rgba(112,190,92,.48)':tier===7?'rgba(255,104,42,.52)':tier===8?'rgba(105,174,255,.52)':heavy?'rgba(224,102,72,.42)':'rgba(89,205,215,.26)';
+  ctx.save();ctx.strokeStyle=tint;ctx.lineWidth=heavy?1.8:1.15;ctx.setLineDash(heavy?[9,7]:[5,9]);ctx.lineDashOffset=-t*(heavy?20:10);ctx.beginPath();ctx.ellipse(s.x,s.y+8,r,r*FLAT,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+  if(e.aggro){ctx.globalAlpha=heavy?.18:.1;ctx.fillStyle=tint;ctx.beginPath();ctx.ellipse(s.x,s.y+8,r*1.22,r*.72,0,0,Math.PI*2);ctx.fill();}
+  ctx.restore();
+  // Yüksek seviye NPC'ler assetin çevresinde hafif çevresel parçacık bırakır; oyuncu/elit gemilere uygulanmaz.
+  if(e.aggro&&tier>=5&&Math.random()<.035){const kind:ParticleKind=tier===6?'poison':tier===7?'firePuff':'foam';particles.push({x:e.x+(Math.random()-.5)*34,y:e.y+(Math.random()-.5)*20,vx:(Math.random()-.5)*8,vy:-8-Math.random()*8,life:.65,maxLife:.65,kind,size:18+Math.random()*10,variant:Math.floor(Math.random()*2)});}
 }
 function drawBossAura(e:Enemy,s:{x:number;y:number}){const t=performance.now()/1000,tint=e.tier===6?'#83b66a':e.tier===7?'#ff6a2b':e.tier===8?'#78bfff':theme().tint,g=ctx.createRadialGradient(s.x,s.y,30,s.x,s.y,170);
   g.addColorStop(0,tint+'00');g.addColorStop(.62,tint+Math.round((.09+Math.sin(t*2.6)*.04)*255).toString(16).padStart(2,'0'));g.addColorStop(1,tint+'00');ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(s.x,s.y+8,170,170*FLAT,0,0,Math.PI*2);ctx.fill();
