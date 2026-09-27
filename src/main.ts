@@ -26,7 +26,7 @@ type AmmoKind = 'iron'|'chain'|SpecialAmmo;
 const isSpecial=(a:string):a is SpecialAmmo=>a in SPECIAL_AMMO;
 type CannonKind = 'cast'|'long'|'rapid'|'heavy';
 type CannonStock=Record<CannonKind,number>;
-type Shot = Vec & { vx:number; vy:number; life:number; owner:'player'|'enemy'; damage:number; hit:boolean; ammo:AmmoKind; target?:Target; slow?:number; splash?:number; visual?:'spit'; age?:number; flight?:number; arc?:number; trail?:number };
+type Shot = Vec & { vx:number; vy:number; life:number; owner:'player'|'enemy'; damage:number; hit:boolean; ammo:AmmoKind; target?:Target; slow?:number; splash?:number; visual?:'spit'; sourceTier?:number; age?:number; flight?:number; arc?:number; trail?:number };
 type SalvoRound = { delay:number; target:Target; side:number; slot:number; damage:number; ammo:AmmoKind };
 type EnemyRole='light'|'heavy';
 type Enemy = Vec & { kind:'ship'; frozen?:number; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
@@ -541,7 +541,7 @@ function enemyFire(e:Enemy){
 function monsterFire(m:Monster){if(stealthTimer>0){m.cooldown=Math.max(m.cooldown,.4);return;}const a=Math.atan2(player.y-m.y,player.x-m.x),tier=m.def.tier;playSplash();
   // Ateş öncesi kısa görsel hazırlık, mekanik gecikme eklemeden saldırının kaynağını okunur kılar.
   m.telegraph=.34;for(let n=0;n<(tier>=5?6:3);n++){const q=Math.random()*Math.PI*2,r=m.radius*(.3+Math.random()*.5);particles.push({x:m.x+Math.cos(q)*r,y:m.y+Math.sin(q)*r*.55,vx:-Math.cos(q)*18,vy:-Math.sin(q)*12,life:.35,maxLife:.35,kind:tier>=7?'firePuff':tier===6?'poison':'foam',size:18+Math.random()*14,variant:n%2});}
-  for(const off of tier>=5?[-.12,0,.12]:[0])shots.push({x:m.x,y:m.y,vx:Math.cos(a+off)*210,vy:Math.sin(a+off)*210,life:2.4,owner:'enemy',damage:m.def.damage*(.85+Math.random()*.3),hit:false,ammo:tier>=7?'fire':'iron',visual:'spit'});m.cooldown=m.def.reload;}
+  for(const off of tier>=5?[-.12,0,.12]:[0])shots.push({x:m.x,y:m.y,vx:Math.cos(a+off)*210,vy:Math.sin(a+off)*210,life:2.4,owner:'enemy',damage:m.def.damage*(.85+Math.random()*.3),hit:false,ammo:tier>=7?'fire':'iron',visual:'spit',sourceTier:tier});m.cooldown=m.def.reload;}
 // Batınca bulunduğun denizde, düşmanlardan uzak rastgele bir noktada %10 gövdeyle yeniden doğ.
 function respawn(){
   const deathMap=currentMap;
@@ -1072,7 +1072,7 @@ function update(dt:number){
       if(s.splash&&aim)particles.push({x:aim.x,y:aim.y,vx:0,vy:0,life:s.flight,maxLife:s.flight,kind:'target',size:120});}
     s.age=(s.age??0)+dt;s.trail=(s.trail??0)-dt;
     if(s.trail<=0){s.trail=s.ammo==='fire'?.03:.05;const z=shotHeight(s);
-      if(s.visual==='spit')particles.push({x:s.x,y:s.y,vx:(Math.random()-.5)*10,vy:(Math.random()-.5)*10,life:.4,maxLife:.4,kind:'bubble',z,size:14});
+      if(s.visual==='spit'){const tier=s.sourceTier??1;particles.push({x:s.x,y:s.y,vx:(Math.random()-.5)*10,vy:(Math.random()-.5)*10,life:.4,maxLife:.4,kind:tier>=7?'firePuff':tier===6?'poison':'bubble',z,size:tier>=6?20:14});}
       else if(s.ammo==='fire')particles.push({x:s.x,y:s.y,vx:(Math.random()-.5)*12,vy:(Math.random()-.5)*12,life:.4,maxLife:.4,kind:'firePuff',z,size:30});
       else if(s.ammo==='explosive')particles.push({x:s.x,y:s.y,vx:(Math.random()-.5)*30,vy:(Math.random()-.5)*30,life:.3,maxLife:.3,kind:'spark',z:z+10,size:14});
       else if(s.ammo==='leech')particles.push({x:s.x,y:s.y,vx:(Math.random()-.5)*10,vy:(Math.random()-.5)*10,life:.45,maxLife:.45,kind:'soul',z,size:16});
@@ -1523,7 +1523,11 @@ function targetExistsOrPlayer(t:Target|typeof player){return t===player||targetE
 function shotHeight(s:Shot){if(!s.flight)return 0;const p=Math.min(1,(s.age??0)/s.flight);return (s.arc??0)*4*p*(1-p);}
 function drawShotShadow(s:Shot){const p=worldToScreen(s),h=shotHeight(s),k=1-Math.min(.5,h/160);drawVfx(ctx,'shadow',p.x,p.y+2,46*k,{alpha:.9*k});}
 function drawShotBall(s:Shot){const p=worldToScreen(s),y=p.y-shotHeight(s),spin=(s.age??0)*16;
-  if(s.visual==='spit'){drawVfx(ctx,'spit',p.x,y,46,{rot:spin*.2});return;}
+  if(s.visual==='spit'){const tier=s.sourceTier??1;
+    if(tier>=7){drawVfx(ctx,'fire',p.x,y,54,{rot:spin*.3});drawVfx(ctx,'spit',p.x,y,38,{rot:spin*.2,alpha:.72});}
+    else if(tier===6){drawVfx(ctx,'spit',p.x,y,50,{rot:spin*.2});drawVfx(ctx,'poison',p.x,y,32,{rot:-spin*.12,alpha:.82});}
+    else{drawVfx(ctx,'spit',p.x,y,tier>=4?50:44,{rot:spin*.2});}
+    return;}
   if(s.owner==='enemy'){if(s.ammo==='fire')drawVfx(ctx,'fire',p.x,y,52,{rot:spin*.3});else drawVfx(ctx,'enemy',p.x,y,40);return;}
   if(s.ammo==='fire')drawVfx(ctx,'fire',p.x,y,54,{rot:spin*.3});
   else if(s.ammo==='chain')drawVfx(ctx,'chain',p.x,y,62,{rot:spin});
