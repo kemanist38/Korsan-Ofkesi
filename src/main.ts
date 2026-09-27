@@ -34,7 +34,7 @@ type ParticleKind='foam'|'smoke'|'spark'|'damage'|'flash'|'explosion'|'splash'|'
 // z: su üstünden yükseklik (ekranda yukarı kayar); vz ile savrulan parçalar suya düşer
 type Particle = Vec & { vx:number; vy:number; life:number; maxLife:number; kind:ParticleKind; text?:string; z?:number; vz?:number; rot?:number; vr?:number; size?:number; variant?:number };
 type Wreck = Vec & { angle:number; sprite:string; span:number; t:number; bubble:number; heavy?:boolean; boss?:boolean };
-type Monster = Vec & { kind:'monster'; frozen?:number; def:MonsterDef; burnTimer?:number; burnDps?:number; phase:number; radius:number; name:string; hp:number; maxHp:number; cooldown:number; aggro:boolean; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
+type Monster = Vec & { kind:'monster'; frozen?:number; telegraph?:number; def:MonsterDef; burnTimer?:number; burnDps?:number; phase:number; radius:number; name:string; hp:number; maxHp:number; cooldown:number; aggro:boolean; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
 type Target = Enemy|Monster;
 type UpgradeKind = 'hull'|'damage'|'range'|'reload'|'speed'|'repair';
 type QuickItemId = 'iron'|'chain'|SpecialAmmo|'mine'|'powder'|'shield'|'repairkit'|'speed';
@@ -535,7 +535,10 @@ function enemyFire(e:Enemy){
   else{shots.push({x:e.x,y:e.y,vx:Math.cos(a)*260,vy:Math.sin(a)*260,life:2.2,owner:'enemy',damage:e.damage*(.85+Math.random()*.3),hit:false,ammo:'iron'});muzzleFlash(e.x+Math.cos(a)*16,e.y+Math.sin(a)*16,a,54);}
   e.cooldown=e.reload+Math.random()*.55;
 }
-function monsterFire(m:Monster){if(stealthTimer>0){m.cooldown=Math.max(m.cooldown,.4);return;}const a=Math.atan2(player.y-m.y,player.x-m.x),tier=m.def.tier;playSplash();monsterHitFx(m,0);for(const off of tier>=5?[-.12,0,.12]:[0])shots.push({x:m.x,y:m.y,vx:Math.cos(a+off)*210,vy:Math.sin(a+off)*210,life:2.4,owner:'enemy',damage:m.def.damage*(.85+Math.random()*.3),hit:false,ammo:tier>=7?'fire':'iron',visual:'spit'});m.cooldown=m.def.reload;}
+function monsterFire(m:Monster){if(stealthTimer>0){m.cooldown=Math.max(m.cooldown,.4);return;}const a=Math.atan2(player.y-m.y,player.x-m.x),tier=m.def.tier;playSplash();monsterHitFx(m,0);
+  // Ateş öncesi kısa görsel hazırlık, mekanik gecikme eklemeden saldırının kaynağını okunur kılar.
+  m.telegraph=.34;for(let n=0;n<(tier>=5?6:3);n++){const q=Math.random()*Math.PI*2,r=m.radius*(.3+Math.random()*.5);particles.push({x:m.x+Math.cos(q)*r,y:m.y+Math.sin(q)*r*.55,vx:-Math.cos(q)*18,vy:-Math.sin(q)*12,life:.35,maxLife:.35,kind:tier>=7?'firePuff':tier===6?'poison':'foam',size:18+Math.random()*14,variant:n%2});}
+  for(const off of tier>=5?[-.12,0,.12]:[0])shots.push({x:m.x,y:m.y,vx:Math.cos(a+off)*210,vy:Math.sin(a+off)*210,life:2.4,owner:'enemy',damage:m.def.damage*(.85+Math.random()*.3),hit:false,ammo:tier>=7?'fire':'iron',visual:'spit'});m.cooldown=m.def.reload;}
 // Batınca bulunduğun denizde, düşmanlardan uzak rastgele bir noktada %10 gövdeyle yeniden doğ.
 function respawn(){
   const deathMap=currentMap;
@@ -1030,7 +1033,7 @@ function update(dt:number){
   for(let i=salvoQueue.length-1;i>=0;i--){salvoQueue[i].delay-=dt;if(salvoQueue[i].delay<=0){releaseSalvo(salvoQueue[i]);salvoQueue.splice(i,1);}}
   if(state.repairing){state.hp=Math.min(effectiveMaxHp(),state.hp+effectiveMaxHp()*(.035+upgrades.repair*.008)*bonus.repair*(elitePassive('coral')&&playerHitClock>5?2:1)*dt);if(state.hp>=effectiveMaxHp()){state.repairing=false;saveAccount();ui('repair').classList.remove('active');toast('Gövde tamamen onarıldı');}}
   wakeClock-=dt;if(Math.abs(player.speed)>8&&wakeClock<=0){wakeClock=.1;particles.push({x:player.x-Math.sin(player.angle)*22,y:player.y+Math.cos(player.angle)*22,vx:-Math.sin(player.angle)*8,vy:Math.cos(player.angle)*8,life:.75,maxLife:.75,kind:'foam'});}
-  monsters.forEach(m=>{if((m.frozen??0)>0){m.frozen=Math.max(0,m.frozen!-dt);m.cooldown=Math.max(m.cooldown,.5);return;}m.phase+=dt;m.cooldown-=dt;m.slowTimer=Math.max(0,m.slowTimer-dt);if(m.aggro){m.combatTimer-=dt;if(m.combatTimer<=0||Math.hypot(m.x-m.homeX,m.y-m.homeY)>720)m.aggro=false;}if(m.aggro&&dist(m,player)<430&&m.cooldown<=0)monsterFire(m);
+  monsters.forEach(m=>{if((m.frozen??0)>0){m.frozen=Math.max(0,m.frozen!-dt);m.cooldown=Math.max(m.cooldown,.5);return;}m.phase+=dt*(m.hp<m.maxHp*.3?1.22:1);m.telegraph=Math.max(0,(m.telegraph??0)-dt);m.cooldown-=dt;m.slowTimer=Math.max(0,m.slowTimer-dt);if(m.aggro){m.combatTimer-=dt;if(m.combatTimer<=0||Math.hypot(m.x-m.homeX,m.y-m.homeY)>720)m.aggro=false;}if(m.aggro&&dist(m,player)<430&&m.cooldown<=0)monsterFire(m);
     // Sürekli ama hafif ortam izi: yaratık denizin üzerinde yapıştırılmış bir resim gibi durmaz.
     const chance=m.aggro?dt*5:dt*1.2;if(Math.random()<chance){const a=Math.random()*Math.PI*2,r=m.radius*(.45+Math.random()*.45),tier=m.def.tier;particles.push({x:m.x+Math.cos(a)*r,y:m.y+Math.sin(a)*r*.55,vx:(Math.random()-.5)*8,vy:(Math.random()-.5)*5,life:.65,maxLife:.65,kind:tier===6?'poison':tier>=7?'firePuff':'foam',size:18+Math.random()*14,variant:Math.floor(Math.random()*2)});}});
   // Saldırı: kaptan hareket etse de hedef menzildeyken ateş sürer; hedef menzilden çıkınca saldırı durur
@@ -1498,6 +1501,8 @@ function drawMonster(m:Monster){const s=worldToScreen(m),t=performance.now()/100
   // saldırgan olduğunda halka hızlanır ve yüksek seviye yaratıklar tema izi bırakır.
   ctx.save();ctx.translate(s.x,s.y+7);ctx.fillStyle='rgba(1,12,18,.30)';ctx.beginPath();ctx.ellipse(0,0,m.radius*.9,m.radius*.42,0,0,Math.PI*2);ctx.fill();
   ctx.strokeStyle=tier>=7?'rgba(255,120,72,.55)':tier===6?'rgba(125,205,126,.48)':'rgba(176,210,224,.36)';ctx.lineWidth=m.aggro?2.4:1.4;ctx.setLineDash([8,7]);ctx.lineDashOffset=-t*(m.aggro?30:12);ctx.beginPath();ctx.ellipse(0,0,m.radius*(1.05+.04*Math.sin(t*2+m.phase)),m.radius*.52,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.restore();
+  if((m.telegraph??0)>0){const q=(m.telegraph??0)/.34;ctx.save();ctx.strokeStyle=tier>=7?`rgba(255,116,64,${q})`:`rgba(214,185,111,${q*.85})`;ctx.lineWidth=2+q*3;ctx.beginPath();ctx.arc(s.x,s.y,m.radius*(1.15+(1-q)*.55),0,Math.PI*2);ctx.stroke();ctx.restore();}
+  if(m.hp<m.maxHp*.3){ctx.save();ctx.globalAlpha=.16+.08*Math.sin(t*8);ctx.fillStyle=tier>=7?'#ff6a38':tier===6?'#7fd16f':'#9f76d8';ctx.beginPath();ctx.ellipse(s.x,s.y,m.radius*1.05,m.radius*.58,0,0,Math.PI*2);ctx.fill();ctx.restore();}
   if(drawMonsterSheet(ctx,m.def,s.x,s.y,m.phase)){ctx.fillStyle=theme().label;ctx.shadowColor='#000';ctx.shadowBlur=4;ctx.font='600 11px Cinzel';ctx.textAlign='center';ctx.fillText(m.name,s.x,s.y-m.radius-18);ctx.shadowBlur=0;if(m.hp<m.maxHp){ctx.fillStyle='#07161c';ctx.fillRect(s.x-30,s.y-m.radius-12,60,5);ctx.fillStyle=tier>=7?'#ef6845':tier===6?'#77bd72':'#b070ff';ctx.fillRect(s.x-30,s.y-m.radius-12,60*m.hp/m.maxHp,5);}return;}ctx.save();ctx.translate(s.x,s.y);ctx.strokeStyle='#477f72';ctx.lineWidth=9;ctx.lineCap='round';for(let n=0;n<6;n++){const a=n/6*Math.PI*2+m.phase*.12;ctx.beginPath();ctx.moveTo(Math.cos(a)*12,Math.sin(a)*12);ctx.quadraticCurveTo(Math.cos(a+.5)*50,Math.sin(a+.5)*50,Math.cos(a+Math.sin(m.phase+n)*.35)*m.radius,Math.sin(a+Math.sin(m.phase+n)*.35)*m.radius);ctx.stroke();}ctx.fillStyle='#38675f';ctx.beginPath();ctx.arc(0,0,25,0,7);ctx.fill();ctx.fillStyle='#d5cc71';ctx.beginPath();ctx.arc(-8,-5,4,0,7);ctx.arc(8,-5,4,0,7);ctx.fill();ctx.restore();ctx.fillStyle='#89b0a8';ctx.font='600 10px Cinzel';ctx.textAlign='center';ctx.fillText(m.name,s.x,s.y-66);}
 function drawFleetIsland(){
   if(!hasFleetIsland())return;const f=mapDef().fleet,s=worldToScreen(f),th=theme().fleet,owned=fleetOwner()==='player';
