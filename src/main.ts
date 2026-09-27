@@ -1634,16 +1634,20 @@ let lastCoord='';
 function updateCoordBadge(){const text=`${currentMap} - ${coordLabel(player)}`;if(text!==lastCoord){lastCoord=text;ui('mapCoord').textContent=text;}}
 function drawMinimap(){const W=170,H=125,sx=(x:number)=>x/WORLD_WIDTH*W,sy=(y:number)=>y/WORLD_HEIGHT*H,th=theme();
   mini.fillStyle=th.sea[1];mini.fillRect(0,0,W,H);mini.strokeStyle='#9fc2bd22';mini.strokeRect(.5,.5,W-1,H-1);
+  // NPC/canavar görsel ailesiyle aynı mini-harita dili: gemiler yönlü üçgen, ağır gemi daha iri,
+  // boss altın halkalı, canavar mor elmas. Böylece hareket yönü ve tehdit sınıfı tek bakışta okunur.
+  const shipMark=(x:number,y:number,a:number,size:number,color:string,boss=false)=>{mini.save();mini.translate(sx(x),sy(y));mini.rotate(a);if(boss){mini.strokeStyle='#f1c662';mini.lineWidth=1.3;mini.beginPath();mini.arc(0,0,size+2.4,0,Math.PI*2);mini.stroke();}mini.fillStyle=color;mini.beginPath();mini.moveTo(0,-size);mini.lineTo(size*.72,size*.78);mini.lineTo(0,size*.45);mini.lineTo(-size*.72,size*.78);mini.closePath();mini.fill();mini.restore();};
+  const monsterMark=(x:number,y:number,size:number)=>{mini.save();mini.translate(sx(x),sy(y));mini.rotate(Math.PI/4);mini.fillStyle='#a96dff';mini.fillRect(-size/2,-size/2,size,size);mini.strokeStyle='#e3caff';mini.lineWidth=.8;mini.strokeRect(-size/2,-size/2,size,size);mini.restore();};
   for(const dir of ['north','south','east','west'] as Dir[]){const to=neighbor(currentMap,dir);if(!to)continue;mini.fillStyle=state.level>=MAPS[to].tier?'#6fd6c4aa':'#e07a5f88';if(dir==='north')mini.fillRect(W/2-14,0,28,2);if(dir==='south')mini.fillRect(W/2-14,H-2,28,2);if(dir==='west')mini.fillRect(0,H/2-12,2,24);if(dir==='east')mini.fillRect(W-2,H/2-12,2,24);}
   mini.save();mini.scale(W/WORLD_WIDTH,H/WORLD_HEIGHT);
   for(const i of islands)drawIslandSprite(mini,i,i.x,i.y);
   if(hasFleetIsland()){const f=mapDef().fleet;drawFleetBase(mini,th.fleet,f.x,f.y);}
   mini.restore();
-  for(const m of monsters){mini.fillStyle='#b070ff';mini.beginPath();mini.arc(sx(m.x),sy(m.y),2.5,0,7);mini.fill();}
+  for(const m of monsters)monsterMark(m.x,m.y,m.def.tier>=7?5.5:4.5);
   mini.fillStyle='#f4f8ff';for(const g of sparkles)mini.fillRect(sx(g.x)-.5,sy(g.y)-.5,1.5,1.5);
   for(const c of lootChests){mini.fillStyle=c.kind==='gilded'?'#ffd46b':'#d9a95b';mini.fillRect(sx(c.x)-1,sy(c.y)-1,2,2);}
-  for(const e of enemies){if(e.tower)continue;mini.fillStyle=e.boss?'#f1c662':'#c34e3d';const r=e.boss?5:3;mini.fillRect(sx(e.x)-r/2,sy(e.y)-r/2,r,r);}
-  mini.fillStyle='#f4dd9d';mini.beginPath();mini.arc(sx(player.x),sy(player.y),3,0,7);mini.fill();}
+  for(const e of enemies){if(e.tower)continue;const heavy=e.role==='heavy';shipMark(e.x,e.y,e.angle,e.boss?5.2:heavy?4.1:3.2,e.boss?'#d83d32':heavy?'#d45a3e':'#e09a57',!!e.boss);}
+  shipMark(player.x,player.y,player.angle,4.2,'#65c7ff');
 // manualClock (yalnızca geliştirme): tanıtım videosu kare kare çekilirken oyun dışarıdan adımlanır
 let manualClock=false;
 let last=performance.now();function loop(now:number){const dt=Math.min(.033,(now-last)/1000);last=now;if(!manualClock){update(dt);draw();}requestAnimationFrame(loop);}renderQuickSlots();updateUI();requestAnimationFrame(loop);
