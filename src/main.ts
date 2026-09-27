@@ -26,7 +26,7 @@ type AmmoKind = 'iron'|'chain'|SpecialAmmo;
 const isSpecial=(a:string):a is SpecialAmmo=>a in SPECIAL_AMMO;
 type CannonKind = 'cast'|'long'|'rapid'|'heavy';
 type CannonStock=Record<CannonKind,number>;
-type Shot = Vec & { vx:number; vy:number; life:number; owner:'player'|'enemy'; damage:number; hit:boolean; ammo:AmmoKind; target?:Target; slow?:number; splash?:number; visual?:'spit'; sourceTier?:number; age?:number; flight?:number; arc?:number; trail?:number };
+type Shot = Vec & { vx:number; vy:number; life:number; owner:'player'|'enemy'; damage:number; hit:boolean; ammo:AmmoKind; target?:Target; slow?:number; splash?:number; visual?:'spit'; sourceTier?:number; bossShot?:boolean; age?:number; flight?:number; arc?:number; trail?:number };
 type SalvoRound = { delay:number; target:Target; side:number; slot:number; damage:number; ammo:AmmoKind };
 type EnemyRole='light'|'heavy';
 type Enemy = Vec & { kind:'ship'; frozen?:number; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
@@ -354,7 +354,7 @@ function bossFire(e:Enemy){
   // Boss bordası normal NPC'den daha ağır okunur; toplam hasar formülü korunur.
   for(const side of (enraged?[-32,32]:[-25,25]))muzzleFlash(e.x-Math.sin(base)*side+Math.cos(base)*28,e.y+Math.cos(base)*side+Math.sin(base)*28,base,92);
   const offsets=enraged?[-.24,-.12,0,.12,.24]:[-.15,0,.15];
-  for(const off of offsets)shots.push({x:e.x,y:e.y,vx:Math.cos(base+off)*280,vy:Math.sin(base+off)*280,life:2.2,owner:'enemy',damage:e.damage*(.85+Math.random()*.3)*(enraged?.8:1),hit:false,ammo:tier===7?'fire':'iron'});
+  for(const off of offsets)shots.push({x:e.x,y:e.y,vx:Math.cos(base+off)*280,vy:Math.sin(base+off)*280,life:2.2,owner:'enemy',damage:e.damage*(.85+Math.random()*.3)*(enraged?.8:1),hit:false,ammo:tier===7?'fire':'iron',sourceTier:tier,bossShot:true});
   if(enraged&&Math.random()<.65)particles.push({x:e.x,y:e.y,vx:0,vy:0,life:.5,maxLife:.5,kind:'shock',size:165});
   e.cooldown=e.reload*(enraged?.8:1);
   if(enraged&&!e.escortsCalled){e.escortsCalled=true;const def=NPCS[mapDef().npcs[1]];for(let k=0;k<2;k++){const ship=makeShip(def,e.x+(k?70:-70),e.y+50,e.angle);ship.aggro=true;ship.combatTimer=20;ship.summoned=true;ship.name=`${e.name} Muhafızı`;enemies.push(ship);}toast(`${e.name} muhafızlarını çağırdı!`);}
@@ -1076,7 +1076,7 @@ function update(dt:number){
       else if(s.ammo==='fire')particles.push({x:s.x,y:s.y,vx:(Math.random()-.5)*12,vy:(Math.random()-.5)*12,life:.4,maxLife:.4,kind:'firePuff',z,size:30});
       else if(s.ammo==='explosive')particles.push({x:s.x,y:s.y,vx:(Math.random()-.5)*30,vy:(Math.random()-.5)*30,life:.3,maxLife:.3,kind:'spark',z:z+10,size:14});
       else if(s.ammo==='leech')particles.push({x:s.x,y:s.y,vx:(Math.random()-.5)*10,vy:(Math.random()-.5)*10,life:.45,maxLife:.45,kind:'soul',z,size:16});
-      else if(s.ammo!=='grape')particles.push({x:s.x,y:s.y,vx:0,vy:0,life:.35,maxLife:.35,kind:'smoke',z,size:16,variant:Math.floor(Math.random()*4)});}
+      else if(s.bossShot){const tier=s.sourceTier??1;particles.push({x:s.x,y:s.y,vx:(Math.random()-.5)*8,vy:(Math.random()-.5)*8,life:.42,maxLife:.42,kind:tier===7?'firePuff':tier===6?'poison':'smoke',z,size:24,variant:Math.floor(Math.random()*4)});}else if(s.ammo!=='grape')particles.push({x:s.x,y:s.y,vx:0,vy:0,life:.35,maxLife:.35,kind:'smoke',z,size:16,variant:Math.floor(Math.random()*4)});}
     s.x+=s.vx*dt;s.y+=s.vy*dt;s.life-=dt;
     if(s.owner==='player'){
       for(let j=enemies.length-1;j>=0&&s.life>0;j--){
@@ -1528,7 +1528,7 @@ function drawShotBall(s:Shot){const p=worldToScreen(s),y=p.y-shotHeight(s),spin=
     else if(tier===6){drawVfx(ctx,'spit',p.x,y,50,{rot:spin*.2});drawVfx(ctx,'poison',p.x,y,32,{rot:-spin*.12,alpha:.82});}
     else{drawVfx(ctx,'spit',p.x,y,tier>=4?50:44,{rot:spin*.2});}
     return;}
-  if(s.owner==='enemy'){if(s.ammo==='fire')drawVfx(ctx,'fire',p.x,y,52,{rot:spin*.3});else drawVfx(ctx,'enemy',p.x,y,40);return;}
+  if(s.owner==='enemy'){if(s.bossShot){const tier=s.sourceTier??1;ctx.save();ctx.globalAlpha=.34+.12*Math.sin(spin*.22);ctx.fillStyle=tier===6?'#83b66a':tier===7?'#ff6a2b':tier===8?'#78bfff':'#f1c662';ctx.beginPath();ctx.arc(p.x,y,tier>=7?16:14,0,Math.PI*2);ctx.fill();ctx.restore();if(s.ammo==='fire')drawVfx(ctx,'fire',p.x,y,62,{rot:spin*.3});else drawVfx(ctx,'enemy',p.x,y,50);}else if(s.ammo==='fire')drawVfx(ctx,'fire',p.x,y,52,{rot:spin*.3});else drawVfx(ctx,'enemy',p.x,y,40);return;}
   if(s.ammo==='fire')drawVfx(ctx,'fire',p.x,y,54,{rot:spin*.3});
   else if(s.ammo==='chain')drawVfx(ctx,'chain',p.x,y,62,{rot:spin});
   else if(s.ammo==='explosive')drawVfx(ctx,'bomb',p.x,y,46,{rot:Math.sin(spin*.3)*.4});
