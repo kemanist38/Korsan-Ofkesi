@@ -1122,7 +1122,7 @@ function sinkEnemy(e:Enemy){
   const j=enemies.indexOf(e);if(j<0)return;
   enemies.splice(j,1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}
   burst(e.x,e.y,true);playExplosion();playSink(earGain(e));splashAt(e.x,e.y,190);
-  if(e.def&&!e.tower){wrecks.push({x:e.x,y:e.y,angle:e.angle,sprite:e.def.sprite,span:e.def.span,t:0,bubble:0,heavy:e.role==='heavy',boss:!!e.boss});if(e.role==='heavy')for(let n=0;n<5;n++)particles.push({x:e.x+(Math.random()-.5)*55,y:e.y+(Math.random()-.5)*30,vx:(Math.random()-.5)*10,vy:(Math.random()-.5)*8,life:1.2+Math.random(),maxLife:2.2,kind:'bubble',size:18+Math.random()*18});}
+  if(!e.tower&&(e.def||e.boss)){const art=e.boss??e.def!;wrecks.push({x:e.x,y:e.y,angle:e.angle,sprite:art.sprite,span:art.span,t:0,bubble:0,heavy:e.role==='heavy',boss:!!e.boss});if(e.role==='heavy')for(let n=0;n<(e.boss?9:5);n++)particles.push({x:e.x+(Math.random()-.5)*(e.boss?80:55),y:e.y+(Math.random()-.5)*(e.boss?44:30),vx:(Math.random()-.5)*10,vy:(Math.random()-.5)*8,life:1.2+Math.random(),maxLife:2.2,kind:'bubble',size:18+Math.random()*(e.boss?24:18)});}
   if(e.tower){destroyTower();return;}
   if(e.boss){defeatBoss(e);return;}
   // NPC ve canavar yalnızca tecrübe puanı ve altın verir (Seafight'taki gibi); savaş puanı sadece rakip oyuncu batırınca gelir.
@@ -1543,7 +1543,7 @@ function drawParticle(p:Particle){const s=worldToScreen(p),a=Math.max(0,Math.min
 // Batan gemi: yan yatar, suya gömülür, kabarcıklar çıkarır
 function drawWreck(w:Wreck){const s=worldToScreen(w),k=Math.min(1,w.t/WRECK_TIME),heavy=!!w.heavy;
   // İki aşamalı batış: önce yan yatma ve su alma, sonra kıç/pruva aşağı gömülme.
-  const roll=Math.sin(Math.min(1,k/.55)*Math.PI*.5)*(heavy?.48:.38),sink=k<.42?k*10:4+(k-.42)*(heavy?42:34),fade=k<.62?1:1-(k-.62)/.38;
+  const roll=Math.sin(Math.min(1,k/.55)*Math.PI*.5)*(w.boss?.58:heavy?.48:.38),sink=k<.42?k*(w.boss?14:10):4+(k-.42)*(w.boss?56:heavy?42:34),fade=k<.62?1:1-(k-.62)/.38;
   ctx.save();ctx.globalAlpha=Math.max(0,fade);ctx.translate(s.x,s.y+sink);ctx.rotate(roll+Math.sin(w.t*5)*.018*(1-k));ctx.scale(1-k*.12,1-Math.pow(k,1.5)*.72);drawNpcShip(ctx,w.sprite,w.span,0,0,w.angle,performance.now());ctx.restore();
   if(k>.18&&k<.82){ctx.save();ctx.strokeStyle=`rgba(235,250,248,${.34*(1-k)})`;ctx.lineWidth=heavy?3:2;ctx.beginPath();ctx.ellipse(s.x,s.y+8,(heavy?58:43)*(1+k*.45),(heavy?23:17)*(1+k*.4),0,0,Math.PI*2);ctx.stroke();ctx.restore();}
 }
@@ -1633,7 +1633,7 @@ function draw(){
   drawCoordGrid();drawMapEdges();islands.forEach(drawIsland);drawFleetIsland();lootChests.forEach(drawLootChest);drawTreasureMark();sparkles.forEach(drawSparkle);mines.forEach(m=>{const p=worldToScreen(m);drawMineSprite(ctx,p.x,p.y,performance.now(),m.arm>0,m.life<5);});monsters.forEach(drawMonster);
   wrecks.forEach(drawWreck);drawAbilityFxUnder(ctx,worldToScreen);particles.forEach(p=>{if(UNDER.has(p.kind))drawParticle(p);});shots.forEach(drawShotShadow);
   wakes.forEach((_,o)=>drawWake(o));
-  [...enemies].sort((a,b)=>a.y-b.y).forEach(e=>{const s=worldToScreen(e);if(e.boss)drawBossAura(e,s);else drawNpcClassMark(e,s);if(!e.tower)drawHullWater(e,hullLength(e),shipMoving(e));const raster=e.tower?drawBastion(ctx,e.towerIndex??0,s.x,s.y):e.def?drawNpcShip(ctx,e.def.sprite,e.def.span,s.x,s.y,e.angle,performance.now()):false;if(!raster)drawShip(e,e.angle,e.color);const top=raster?(e.tower?TOWER_LABEL_OFFSET:shipLabelOffset(e.def!.span)):-42;if(e.boss){drawBossFlag(s,top);drawBossPlate(e,s,top);return;}const bw=e.tower||e.role==='heavy'?72:56;drawHealthBar(s.x,s.y+top,bw,e.hp/e.maxHp,e.tower?'#f09a4f':e.role==='heavy'?'#f0584a':'#4fd0da');ctx.fillStyle='#e6dccb';ctx.font='600 10px Inter';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText(e.name,s.x,s.y+top-7);ctx.shadowBlur=0;});
+  [...enemies].sort((a,b)=>a.y-b.y).forEach(e=>{const s=worldToScreen(e);if(e.boss)drawBossAura(e,s);else drawNpcClassMark(e,s);if(!e.tower)drawHullWater(e,hullLength(e),shipMoving(e));const raster=e.tower?drawBastion(ctx,e.towerIndex??0,s.x,s.y):e.boss?drawNpcShip(ctx,e.boss.sprite,e.boss.span,s.x,s.y,e.angle,performance.now()):e.def?drawNpcShip(ctx,e.def.sprite,e.def.span,s.x,s.y,e.angle,performance.now()):false;if(!raster)drawShip(e,e.angle,e.color);const top=raster?(e.tower?TOWER_LABEL_OFFSET:shipLabelOffset(e.boss?.span??e.def?.span??100)):-42;if(e.boss){drawBossFlag(s,top);drawBossPlate(e,s,top);return;}const bw=e.tower||e.role==='heavy'?72:56;drawHealthBar(s.x,s.y+top,bw,e.hp/e.maxHp,e.tower?'#f09a4f':e.role==='heavy'?'#f0584a':'#4fd0da');ctx.fillStyle='#e6dccb';ctx.font='600 10px Inter';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText(e.name,s.x,s.y+top-7);ctx.shadowBlur=0;});
   if(selected&&targetExists(selected)){const t=worldToScreen(selected);ctx.strokeStyle='#f1c662';ctx.lineWidth=2;ctx.beginPath();ctx.arc(t.x,t.y,selected.kind==='monster'?selected.radius+10:34,0,7);ctx.stroke();}
   drawHullWater(player,hullLength(player),shipMoving(player));
   if(ghostTimer>0){const px=player.x,py=player.y;ghostTrail.forEach((p,i)=>{ghostFade=(i+1)/(ghostTrail.length+1)*.35;player.x=p.x;player.y=p.y;drawPlayerShip();});ghostFade=0;player.x=px;player.y=py;}
