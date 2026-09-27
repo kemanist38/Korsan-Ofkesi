@@ -533,7 +533,7 @@ function enemyFire(e:Enemy){
   const a=Math.atan2(player.y-e.y,player.x-e.x);playEnemyCannon(dist(e,player),(e.x-player.x)/600);
   shots.push({x:e.x,y:e.y,vx:Math.cos(a)*260,vy:Math.sin(a)*260,life:2.2,owner:'enemy',damage:e.damage*(.85+Math.random()*.3),hit:false,ammo:'iron'}); e.cooldown=e.reload+Math.random()*.55;muzzleFlash(e.x+Math.cos(a)*16,e.y+Math.sin(a)*16,a,54);
 }
-function monsterFire(m:Monster){if(stealthTimer>0){m.cooldown=Math.max(m.cooldown,.4);return;}const a=Math.atan2(player.y-m.y,player.x-m.x);playSplash();for(const off of m.def.tier>=5?[-.12,0,.12]:[0])shots.push({x:m.x,y:m.y,vx:Math.cos(a+off)*210,vy:Math.sin(a+off)*210,life:2.4,owner:'enemy',damage:m.def.damage*(.85+Math.random()*.3),hit:false,ammo:'iron',visual:'spit'});m.cooldown=m.def.reload;}
+function monsterFire(m:Monster){if(stealthTimer>0){m.cooldown=Math.max(m.cooldown,.4);return;}const a=Math.atan2(player.y-m.y,player.x-m.x),tier=m.def.tier;playSplash();monsterHitFx(m,0);for(const off of tier>=5?[-.12,0,.12]:[0])shots.push({x:m.x,y:m.y,vx:Math.cos(a+off)*210,vy:Math.sin(a+off)*210,life:2.4,owner:'enemy',damage:m.def.damage*(.85+Math.random()*.3),hit:false,ammo:tier>=7?'fire':'iron',visual:'spit'});m.cooldown=m.def.reload;}
 // Batınca bulunduğun denizde, düşmanlardan uzak rastgele bir noktada %10 gövdeyle yeniden doğ.
 function respawn(){
   const deathMap=currentMap;
@@ -558,6 +558,23 @@ function burst(x:number,y:number,large=false){
 // Oyuncuya uzaklığa göre ses seviyesi (0..1)
 function earGain(p:Vec){return Math.max(0,Math.min(1,1.15-dist(p,player)/900));}
 function splashAt(x:number,y:number,size=110){const eg=earGain({x,y});if(eg>.05)playSplash(eg*.8);particles.push({x,y,vx:0,vy:0,life:.75,maxLife:.75,kind:'splash',size});for(let n=0;n<3;n++)particles.push({x:x+(Math.random()-.5)*18,y:y+(Math.random()-.5)*10,vx:(Math.random()-.5)*16,vy:(Math.random()-.5)*10,life:.9,maxLife:.9,kind:'foam',size:34,variant:n%2});}
+// NPC/canavar isabeti artık yalnızca genel patlama değil, hedef sınıfına göre okunur.
+// Gemilerde borda kıymığı+duman; canavarda su/zehir/kor benzeri organik sıçrama; bosslarda daha ağır salvo izi.
+function npcHitFx(e:Enemy,hit:number){
+  const heavy=e.role==='heavy'||!!e.boss,scale=Math.min(1.5,.65+hit/6000);
+  burst(e.x,e.y,!!e.boss);
+  for(let n=0;n<(heavy?3:2);n++)particles.push({x:e.x+(Math.random()-.5)*24,y:e.y+(Math.random()-.5)*16,vx:(Math.random()-.5)*22,vy:-8-Math.random()*18,life:.8+Math.random()*.5,maxLife:1.3,kind:'smoke',z:12,size:(heavy?54:38)*scale,variant:n%4,rot:Math.random()*6});
+  if(heavy)splashAt(e.x,e.y,70);
+}
+function monsterHitFx(m:Monster,hit:number){
+  const tier=m.def.tier,hot=tier===7||tier===8,toxic=tier===6,scale=Math.min(1.45,.7+hit/5000);
+  splashAt(m.x,m.y,90+(tier*4));
+  for(let n=0;n<4;n++){const a=Math.random()*Math.PI*2,sp=24+Math.random()*48;particles.push({x:m.x,y:m.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp*.65,life:.45+Math.random()*.45,maxLife:.9,kind:hot?'firePuff':toxic?'poison':'foam',z:10,size:(24+Math.random()*18)*scale,variant:n%2});}
+}
+function monsterDefeatFx(m:Monster){
+  splashAt(m.x,m.y,220);burst(m.x,m.y,m.def.tier>=6);
+  for(let n=0;n<10;n++){const a=Math.random()*Math.PI*2,sp=35+Math.random()*95;particles.push({x:m.x,y:m.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp*.55,life:.8+Math.random()*.8,maxLife:1.6,kind:m.def.tier>=7?'firePuff':m.def.tier===6?'poison':'foam',z:8,size:32+Math.random()*30,variant:n%2});}
+}
 // Özel güllelerin isabet etkisi: patlayıcı çevreye alan hasarı, can emici oyuncuyu onarır
 function ammoImpact(s:Shot,target:Target,hit:number){
   if(s.owner!=='player')return;
@@ -1052,13 +1069,13 @@ function update(dt:number){
     if(s.owner==='player'){
       for(let j=enemies.length-1;j>=0&&s.life>0;j--){
         const e=enemies[j];
-        if(dist(s,e)<(e.hitRadius??25)){const hit=eliteOnHit(e,s.damage*(s.ammo==='breaker'&&e.tower?SPECIAL_AMMO.breaker.towerFactor:1));s.hit=true;if(s.slow)e.slowTimer=Math.max(e.slowTimer,s.slow);if(s.splash)towerSplash(s,e);e.aggro=true;e.combatTimer=12;if(s.ammo==='chain')e.slowTimer=3;if(s.ammo==='fire'){e.burnTimer=SPECIAL_AMMO.fire.burnSeconds;e.burnDps=Math.max(e.burnDps??0,hit*FIRE_DOT_SHARE*bonus.burn/SPECIAL_AMMO.fire.burnSeconds);}e.hp-=hit;damageText(e.x,e.y,hit);burst(e.x,e.y);playHit();ammoImpact(s,e,hit);s.life=0;
+        if(dist(s,e)<(e.hitRadius??25)){const hit=eliteOnHit(e,s.damage*(s.ammo==='breaker'&&e.tower?SPECIAL_AMMO.breaker.towerFactor:1));s.hit=true;if(s.slow)e.slowTimer=Math.max(e.slowTimer,s.slow);if(s.splash)towerSplash(s,e);e.aggro=true;e.combatTimer=12;if(s.ammo==='chain')e.slowTimer=3;if(s.ammo==='fire'){e.burnTimer=SPECIAL_AMMO.fire.burnSeconds;e.burnDps=Math.max(e.burnDps??0,hit*FIRE_DOT_SHARE*bonus.burn/SPECIAL_AMMO.fire.burnSeconds);}e.hp-=hit;damageText(e.x,e.y,hit);npcHitFx(e,hit);playHit();ammoImpact(s,e,hit);s.life=0;
           if(e.hp<=0)sinkEnemy(e);
         }
       }
       for(let j=monsters.length-1;j>=0&&s.life>0;j--){
         const m=monsters[j];
-        if(dist(s,m)<m.radius){const hit=eliteOnHit(m,s.damage);s.hit=true;if(s.slow)m.slowTimer=Math.max(m.slowTimer,s.slow);if(s.splash)towerSplash(s,m);m.aggro=true;m.combatTimer=12;if(s.ammo==='chain')m.slowTimer=3;if(s.ammo==='fire'){m.burnTimer=SPECIAL_AMMO.fire.burnSeconds;m.burnDps=Math.max(m.burnDps??0,hit*FIRE_DOT_SHARE*bonus.burn/SPECIAL_AMMO.fire.burnSeconds);}m.hp-=hit;damageText(m.x,m.y,hit);burst(m.x,m.y);playHit();ammoImpact(s,m,hit);s.life=0;
+        if(dist(s,m)<m.radius){const hit=eliteOnHit(m,s.damage);s.hit=true;if(s.slow)m.slowTimer=Math.max(m.slowTimer,s.slow);if(s.splash)towerSplash(s,m);m.aggro=true;m.combatTimer=12;if(s.ammo==='chain')m.slowTimer=3;if(s.ammo==='fire'){m.burnTimer=SPECIAL_AMMO.fire.burnSeconds;m.burnDps=Math.max(m.burnDps??0,hit*FIRE_DOT_SHARE*bonus.burn/SPECIAL_AMMO.fire.burnSeconds);}m.hp-=hit;damageText(m.x,m.y,hit);monsterHitFx(m,hit);playHit();ammoImpact(s,m,hit);s.life=0;
           if(m.hp<=0)defeatMonster(m);
         }
       }
@@ -1105,7 +1122,7 @@ function sinkEnemy(e:Enemy){
   rewardNotice(`+${goldGain} Altın   +${fame} TP`);toast(`${e.name} batırıldı`);if(e.def)recordQuestProgress('npc',e.def.id);countBossKill(e);if(!e.summoned)setTimeout(spawnEnemy,1800);
 }
 function defeatMonster(m:Monster){
-  playExplosion();const d=m.def;
+  monsterDefeatFx(m);playExplosion();const d=m.def;
   const eliteLoot=eliteLootMult();if(bannerTimer>0)spawnCoins(m,player);
   const goldGain=goldGainAch(d.gold*(1+bonus.bounty)*eliteLoot),fame=xpGain(d.xp);state.gold+=goldGain;state.fame+=fame;saveAccount();bumpAch('monster');
   rewardNotice(`+${goldGain} Altın   +${fame} TP`);recordQuestProgress('monster',d.id);
