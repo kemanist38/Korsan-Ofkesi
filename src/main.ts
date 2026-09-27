@@ -350,9 +350,12 @@ function countBossKill(e:Enemy){
   st.kills++;if(st.kills>=BOSS_KILLS){st.kills=0;st.pending=true;spawnBoss();}saveBosses();
 }
 function bossFire(e:Enemy){
-  const base=Math.atan2(player.y-e.y,player.x-e.x),enraged=e.hp<e.maxHp*.5;playEnemyCannon(dist(e,player)*.6,(e.x-player.x)/600);
-  muzzleFlash(e.x+Math.cos(base)*30,e.y+Math.sin(base)*30,base,84);
-  for(const off of enraged?[-.24,-.12,0,.12,.24]:[-.15,0,.15])shots.push({x:e.x,y:e.y,vx:Math.cos(base+off)*280,vy:Math.sin(base+off)*280,life:2.2,owner:'enemy',damage:e.damage*(.85+Math.random()*.3)*(enraged?.8:1),hit:false,ammo:'iron'});
+  const base=Math.atan2(player.y-e.y,player.x-e.x),enraged=e.hp<e.maxHp*.5,tier=e.tier;playEnemyCannon(dist(e,player)*.6,(e.x-player.x)/600);
+  // Boss bordası normal NPC'den daha ağır okunur; toplam hasar formülü korunur.
+  for(const side of (enraged?[-32,32]:[-25,25]))muzzleFlash(e.x-Math.sin(base)*side+Math.cos(base)*28,e.y+Math.cos(base)*side+Math.sin(base)*28,base,92);
+  const offsets=enraged?[-.24,-.12,0,.12,.24]:[-.15,0,.15];
+  for(const off of offsets)shots.push({x:e.x,y:e.y,vx:Math.cos(base+off)*280,vy:Math.sin(base+off)*280,life:2.2,owner:'enemy',damage:e.damage*(.85+Math.random()*.3)*(enraged?.8:1),hit:false,ammo:tier===7?'fire':'iron'});
+  if(enraged&&Math.random()<.65)particles.push({x:e.x,y:e.y,vx:0,vy:0,life:.5,maxLife:.5,kind:'shock',size:165});
   e.cooldown=e.reload*(enraged?.8:1);
   if(enraged&&!e.escortsCalled){e.escortsCalled=true;const def=NPCS[mapDef().npcs[1]];for(let k=0;k<2;k++){const ship=makeShip(def,e.x+(k?70:-70),e.y+50,e.angle);ship.aggro=true;ship.combatTimer=20;ship.summoned=true;ship.name=`${e.name} Muhafızı`;enemies.push(ship);}toast(`${e.name} muhafızlarını çağırdı!`);}
 }
@@ -1591,7 +1594,7 @@ function drawNpcClassMark(e:Enemy,s:{x:number;y:number}){
   ctx.save();ctx.strokeStyle=heavy?'rgba(224,102,72,.42)':'rgba(89,205,215,.26)';ctx.lineWidth=heavy?1.7:1;ctx.setLineDash(heavy?[9,7]:[5,9]);ctx.lineDashOffset=-t*(heavy?20:10);ctx.beginPath();ctx.ellipse(s.x,s.y+8,r,r*FLAT,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
   if(heavy&&e.aggro){ctx.fillStyle='rgba(218,67,49,.12)';ctx.beginPath();ctx.ellipse(s.x,s.y+8,r*1.22,r*.72,0,0,Math.PI*2);ctx.fill();}ctx.restore();
 }
-function drawBossAura(e:Enemy,s:{x:number;y:number}){const t=performance.now()/1000,tint=theme().tint,g=ctx.createRadialGradient(s.x,s.y,30,s.x,s.y,170);
+function drawBossAura(e:Enemy,s:{x:number;y:number}){const t=performance.now()/1000,tint=e.tier===6?'#83b66a':e.tier===7?'#ff6a2b':e.tier===8?'#78bfff':theme().tint,g=ctx.createRadialGradient(s.x,s.y,30,s.x,s.y,170);
   g.addColorStop(0,tint+'00');g.addColorStop(.62,tint+Math.round((.09+Math.sin(t*2.6)*.04)*255).toString(16).padStart(2,'0'));g.addColorStop(1,tint+'00');ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(s.x,s.y+8,170,170*FLAT,0,0,Math.PI*2);ctx.fill();
   ctx.strokeStyle=tint+'88';ctx.lineWidth=2;ctx.setLineDash([14,10]);ctx.lineDashOffset=t*30;ctx.beginPath();ctx.ellipse(s.x,s.y+8,150,150*FLAT,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
   if(Math.random()<.25)particles.push({x:e.x+(Math.random()-.5)*60,y:e.y-20-Math.random()*30,vx:(Math.random()-.5)*8,vy:-22,life:1.6,maxLife:1.6,kind:'smoke',variant:Math.floor(Math.random()*4)} as Particle);}
