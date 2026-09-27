@@ -241,7 +241,7 @@ export type QuestDef={id:string;map:MapKey;tier:number;title:string;description:
 export const QUEST_BONUS=1.5;
 export const QUESTS:QuestDef[]=MAP_KEYS.flatMap(key=>{
   const m=MAPS[key],t=m.tier,L=NPCS[m.npcs[0]],H=NPCS[m.npcs[1]],Mo=MONSTERS[m.monster],pay=(n:number,u:{gold:number;xp:number},k=QUEST_BONUS)=>({gold:Math.round(n*u.gold*k),xp:Math.round(n*u.xp*k)});
-  const nL=8+t*2,nH=4+t,nM=t<5?2:3,nC=5+t,head=`${key} ${m.name}`;
+  const nL=6+t,nH=3+Math.ceil(t/2),nM=t<5?2:3,nC=5+t,head=`${key} ${m.name}`;
   return[
     {id:`q${key}-light`,map:key,tier:t,title:`${head}: Devriye Avı`,description:`${L.name} gemilerinden ${nL} tanesini batır.`,kind:'npc',ids:[L.id],required:nL,...pay(nL,L),pearls:2+t},
     {id:`q${key}-heavy`,map:key,tier:t,title:`${head}: Ağır Filo`,description:`${H.name} gemilerinden ${nH} tanesini denizin dibine gönder.`,kind:'npc',ids:[H.id],required:nH,...pay(nH,H),pearls:3+2*t},
@@ -249,4 +249,6 @@ export const QUESTS:QuestDef[]=MAP_KEYS.flatMap(key=>{
     {id:`q${key}-chest`,map:key,tier:t,title:`${head}: Ganimet Avı`,description:`Bu denizde sürüklenen ${nC} ganimet sandığını topla.`,kind:'chest',ids:[key],required:nC,...pay(nC,{gold:L.gold*4,xp:L.xp*3},1),pearls:4+2*t},
   ];
 });
-export const QUEST_COOLDOWN_MS=2*60*60*1000;
+// NPC görevleri oyuncunun ana kasılma döngüsüdür; tamamlanan/iptal edilen görev
+// uzun süre oyuncuyu haritadan koparmasın diye kısa bir yeniden açılma süresi kullanır.
+export const QUEST_COOLDOWN_MS=20*60*1000;
