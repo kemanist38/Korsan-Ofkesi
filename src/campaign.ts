@@ -55,8 +55,8 @@ export const killReward=(hp:number,tier:number)=>({xp:Math.round(hp*XP_PER_HP(ti
 export const hpScale=(tier:number)=>Math.pow(1.6,tier-1);
 export const dmgScale=(tier:number)=>1+.5*(tier-1);
 const npc=(id:string,name:string,role:'light'|'heavy',tier:number,sprite=`/assets/ship-${id}.webp`,span=role==='light'?98:122):Omit<NpcDef,'portrait'>=>{
-  const dmg=role==='light'?750:1650,t=tier-1,hp=Math.round((role==='light'?2500:6000)*hpScale(tier)),r=killReward(hp,tier);
-  return{id,name,sprite,span,role,tier,hp,damage:Math.round(dmg*dmgScale(tier)),reload:role==='light'?2.6:2.7,speed:(role==='light'?50:34)+t*1.5,gold:r.gold,xp:r.xp};
+  const dmg=role==='light'?750:1650,t=tier-1,hp=Math.round((role==='light'?2500:6000)*hpScale(tier)),r=killReward(hp,tier),progress=1+(tier-1)*.06,roleReward=role==='heavy'?1.12:1;
+  return{id,name,sprite,span,role,tier,hp,damage:Math.round(dmg*dmgScale(tier)),reload:role==='light'?2.6:2.7,speed:(role==='light'?50:34)+t*1.5,gold:Math.round(r.gold*progress*roleReward),xp:Math.round(r.xp*progress*roleReward)};
 };
 const NPC_LIST:Omit<NpcDef,'portrait'>[]=[
   npc('n1-1-light','Kaçak Balıkçı','light',1,'/assets/npc-fleet-v4.webp?row=0'),npc('n1-1-heavy','Kıyı Yağmacısı','heavy',1,'/assets/npc-fleet-v4.webp?row=1',104),
