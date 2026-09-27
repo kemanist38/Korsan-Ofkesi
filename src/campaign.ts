@@ -137,9 +137,13 @@ export const BOSS_SPRITES:Record<MapKey,string>={
   '7/1':'/assets/boss-7-1.webp','7/2':'/assets/boss-7-2.webp',
   '8/1':'/assets/boss-8-1.webp','8/2':'/assets/boss-8-2.webp'
 };
-export const bossSpriteFor=(key:MapKey)=>BOSS_SPRITES[key];
+export const BOSS_ASSET_MANIFEST:Record<MapKey,{sprite:string;atlas:'directional-ship';directions:8;theme:string}>=Object.fromEntries(
+  MAP_KEYS.map(key=>[key,{sprite:BOSS_SPRITES[key],atlas:'directional-ship' as const,directions:8 as const,theme:encounterArt(MAPS[key].tier).family}])
+) as Record<MapKey,{sprite:string;atlas:'directional-ship';directions:8;theme:string}>;
+export const bossSpriteFor=(key:MapKey)=>BOSS_ASSET_MANIFEST[key].sprite;
 export const bossFor=(key:MapKey):BossDef=>{const m=MAPS[key],h=NPCS[m.npcs[1]],hp=h.hp*30,i=MAP_KEYS.indexOf(key);
-  return{key,id:`boss-${key.replace('/','-')}`,name:BOSS_NAMES[key],sprite:bossSpriteFor(key),atlas:'directional-ship',directions:8,span:285,role:'heavy',tier:m.tier,hp,damage:h.damage*2,reload:2.2,speed:Math.round(h.speed*.8),gold:0,
+  const asset=BOSS_ASSET_MANIFEST[key];
+  return{key,id:`boss-${key.replace('/','-')}`,name:BOSS_NAMES[key],sprite:asset.sprite,atlas:asset.atlas,directions:asset.directions,span:285,role:'heavy',tier:m.tier,hp,damage:h.damage*2,reload:2.2,speed:Math.round(h.speed*.8),gold:0,
     xp:Math.round(hp/60),pearls:50*m.tier,portrait:i,trigger:h.id};};
 
 // ---------------------------------------------------------------- Koordinat ızgarası
