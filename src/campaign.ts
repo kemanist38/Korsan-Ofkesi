@@ -119,7 +119,7 @@ export const PORTRAIT_ATLAS='/assets/portraits-v2.webp';
 // Boss yalnızca tecrübe puanı ve inci verir. Can: ağır NPC ×30, hasar ×2 (3 güllelik yelpaze), canı yarıya inince 2 muhafız çağırır.
 export const BOSS_KILLS=200;
 export const BOSS_ATLAS='/assets/boss-portraits-v1.webp',BOSS_ATLAS_COLS=8;
-export type BossDef={key:MapKey;id:string;name:string;sprite:string;span:number;role:'heavy';tier:number;hp:number;damage:number;reload:number;speed:number;gold:number;xp:number;pearls:number;portrait:number;trigger:string};
+export type BossDef={key:MapKey;id:string;name:string;sprite:string;atlas:'directional-ship';directions:8;span:number;role:'heavy';tier:number;hp:number;damage:number;reload:number;speed:number;gold:number;xp:number;pearls:number;portrait:number;trigger:string};
 const BOSS_NAMES:Record<MapKey,string>={
   '1/1':'Yosunbıyık Reis','1/2':'Kara Martı Reis','2/1':'Kızıl Mercan Amirali','2/2':'İnci Kraliçesi Nerissa',
   '3/1':'Sis Lordu Morvan','3/2':'Solgun Kaptan Elias','4/1':'Kanlı Barones','4/2':'Demir Ejder Hanı',
@@ -136,7 +136,7 @@ const BOSS_SPRITES:Record<MapKey,string>={
   '8/1':'/assets/boss-8-1.webp','8/2':'/assets/boss-8-2.webp'
 };
 export const bossFor=(key:MapKey):BossDef=>{const m=MAPS[key],h=NPCS[m.npcs[1]],hp=h.hp*30,i=MAP_KEYS.indexOf(key);
-  return{key,id:`boss-${key.replace('/','-')}`,name:BOSS_NAMES[key],sprite:BOSS_SPRITES[key],span:285,role:'heavy',tier:m.tier,hp,damage:h.damage*2,reload:2.2,speed:Math.round(h.speed*.8),gold:0,
+  return{key,id:`boss-${key.replace('/','-')}`,name:BOSS_NAMES[key],sprite:BOSS_SPRITES[key],atlas:'directional-ship',directions:8,span:285,role:'heavy',tier:m.tier,hp,damage:h.damage*2,reload:2.2,speed:Math.round(h.speed*.8),gold:0,
     xp:Math.round(hp/60),pearls:50*m.tier,portrait:i,trigger:h.id};};
 
 // ---------------------------------------------------------------- Koordinat ızgarası
