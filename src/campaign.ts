@@ -125,7 +125,9 @@ const BOSS_NAMES:Record<MapKey,string>={
   '3/1':'Sis Lordu Morvan','3/2':'Solgun Kaptan Elias','4/1':'Kanlı Barones','4/2':'Demir Ejder Hanı',
   '5/1':'Ayaz Hükümdarı','5/2':'Kutup Amirali Borealis','6/1':'Zehirdiş','6/2':'Veba Piskoposu',
   '7/1':'Kül Amirali Pyros','7/2':'Magma Sultanı','8/1':'Şimşek Lordu','8/2':'Kasırga İmparatoru'};
-const BOSS_SPRITES:Record<MapKey,string>={
+// Boss atlasları repoda fiziksel dosya olarak tutulur. Yeni 8x1 atlaslar aynı anahtarlar üzerinden
+// tek tek değiştirilebilir; renderer eski 8x2 atlasları da geçiş boyunca destekler.
+export const BOSS_SPRITES:Record<MapKey,string>={
   '1/1':'/assets/boss-1-1.webp','1/2':'/assets/boss-1-2.webp',
   '2/1':'/assets/boss-2-1.webp','2/2':'/assets/boss-2-2.webp',
   '3/1':'/assets/boss-3-1.webp','3/2':'/assets/boss-3-2.webp',
@@ -135,8 +137,9 @@ const BOSS_SPRITES:Record<MapKey,string>={
   '7/1':'/assets/boss-7-1.webp','7/2':'/assets/boss-7-2.webp',
   '8/1':'/assets/boss-8-1.webp','8/2':'/assets/boss-8-2.webp'
 };
+export const bossSpriteFor=(key:MapKey)=>BOSS_SPRITES[key];
 export const bossFor=(key:MapKey):BossDef=>{const m=MAPS[key],h=NPCS[m.npcs[1]],hp=h.hp*30,i=MAP_KEYS.indexOf(key);
-  return{key,id:`boss-${key.replace('/','-')}`,name:BOSS_NAMES[key],sprite:BOSS_SPRITES[key],atlas:'directional-ship',directions:8,span:285,role:'heavy',tier:m.tier,hp,damage:h.damage*2,reload:2.2,speed:Math.round(h.speed*.8),gold:0,
+  return{key,id:`boss-${key.replace('/','-')}`,name:BOSS_NAMES[key],sprite:bossSpriteFor(key),atlas:'directional-ship',directions:8,span:285,role:'heavy',tier:m.tier,hp,damage:h.damage*2,reload:2.2,speed:Math.round(h.speed*.8),gold:0,
     xp:Math.round(hp/60),pearls:50*m.tier,portrait:i,trigger:h.id};};
 
 // ---------------------------------------------------------------- Koordinat ızgarası
