@@ -29,7 +29,7 @@ type CannonStock=Record<CannonKind,number>;
 type Shot = Vec & { vx:number; vy:number; life:number; owner:'player'|'enemy'; damage:number; hit:boolean; ammo:AmmoKind; target?:Target; slow?:number; splash?:number; visual?:'spit'; sourceTier?:number; bossShot?:boolean; age?:number; flight?:number; arc?:number; trail?:number };
 type SalvoRound = { delay:number; target:Target; side:number; slot:number; damage:number; ammo:AmmoKind };
 type EnemyRole='light'|'heavy';
-type Enemy = Vec & { kind:'ship'; frozen?:number; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
+type Enemy = Vec & { kind:'ship'; frozen?:number; npcSpecialCooldown?:number; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
 type ParticleKind='foam'|'smoke'|'spark'|'damage'|'flash'|'explosion'|'splash'|'splinter'|'bubble'|'plank'|'firePuff'|'target'|'poison'|'soul'|'shock';
 // z: su üstünden yükseklik (ekranda yukarı kayar); vz ile savrulan parçalar suya düşer
 type Particle = Vec & { vx:number; vy:number; life:number; maxLife:number; kind:ParticleKind; text?:string; z?:number; vz?:number; rot?:number; vr?:number; size?:number; variant?:number };
@@ -538,6 +538,18 @@ function enemyFire(e:Enemy){
   if(heavy){const total=e.damage*(.85+Math.random()*.3),side=18;for(const off of [-.035,.035])shots.push({x:e.x-Math.sin(a)*side*off/.035,y:e.y+Math.cos(a)*side*off/.035,vx:Math.cos(a+off)*260,vy:Math.sin(a+off)*260,life:2.2,owner:'enemy',damage:total/2,hit:false,ammo:'iron'});muzzleFlash(e.x+Math.cos(a)*18,e.y+Math.sin(a)*18,a,68);}
   else{shots.push({x:e.x,y:e.y,vx:Math.cos(a)*260,vy:Math.sin(a)*260,life:2.2,owner:'enemy',damage:e.damage*(.85+Math.random()*.3),hit:false,ammo:'iron'});muzzleFlash(e.x+Math.cos(a)*16,e.y+Math.sin(a)*16,a,54);}
   e.cooldown=e.reload+Math.random()*.55;
+}
+function npcSpecial(e:Enemy){
+  if(e.boss||e.tower||!e.def)return;
+  const tier=e.tier,d=dist(e,player),a=Math.atan2(player.y-e.y,player.x-e.x);
+  e.npcSpecialCooldown=Math.max(5.2,9.2-tier*.38)+(Math.random()*1.4);
+  if(e.role==='light'){
+    // Hafif NPC: yaklaş, zincir güllesiyle oyuncunun hızını kes ve yeniden pozisyon al.
+    if(d<390){shots.push({x:e.x,y:e.y,vx:Math.cos(a)*285,vy:Math.sin(a)*285,life:2,owner:'enemy',damage:e.damage*.42,hit:false,ammo:'chain'});muzzleFlash(e.x+Math.cos(a)*15,e.y+Math.sin(a)*15,a,48);}
+  }else{
+    // Ağır NPC: kısa menzilde üçlü borda salvosu; yüksek tierlerde ateş güllesi.
+    if(d<420){for(const off of [-.075,0,.075])shots.push({x:e.x,y:e.y,vx:Math.cos(a+off)*255,vy:Math.sin(a+off)*255,life:2.25,owner:'enemy',damage:e.damage*.38,hit:false,ammo:tier>=7?'fire':'iron'});muzzleFlash(e.x+Math.cos(a)*20,e.y+Math.sin(a)*20,a,76);}
+  }
 }
 function monsterFire(m:Monster){if(stealthTimer>0){m.cooldown=Math.max(m.cooldown,.4);return;}const a=Math.atan2(player.y-m.y,player.x-m.x),tier=m.def.tier;playSplash();
   m.telegraph=.34;for(let n=0;n<(tier>=5?6:3);n++){const q=Math.random()*Math.PI*2,r=m.radius*(.3+Math.random()*.5);particles.push({x:m.x+Math.cos(q)*r,y:m.y+Math.sin(q)*r*.55,vx:-Math.cos(q)*18,vy:-Math.sin(q)*12,life:.35,maxLife:.35,kind:tier>=7?'firePuff':tier===6?'poison':'foam',size:18+Math.random()*14,variant:n%2});}
@@ -1074,13 +1086,13 @@ function update(dt:number){
   for(const e of enemies){
     if(e.tower){updateTower(e,dt);continue;}
     if((e.frozen??0)>0){e.frozen=Math.max(0,e.frozen!-dt);e.cooldown=Math.max(e.cooldown,.5);continue;}
-    const d=dist(e,player);e.wander+=dt;e.slowTimer=Math.max(0,e.slowTimer-dt);if(e.aggro){e.combatTimer-=dt;if(e.combatTimer<=0||Math.hypot(e.x-e.homeX,e.y-e.homeY)>680)e.aggro=false;}
+    const d=dist(e,player);e.wander+=dt;e.npcSpecialCooldown=(e.npcSpecialCooldown??(4+Math.random()*4))-dt;e.slowTimer=Math.max(0,e.slowTimer-dt);if(e.aggro){e.combatTimer-=dt;if(e.combatTimer<=0||Math.hypot(e.x-e.homeX,e.y-e.homeY)>680)e.aggro=false;}
     const homeDistance=Math.hypot(e.x-e.homeX,e.y-e.homeY);
     const target=e.aggro?Math.atan2(player.y-e.y,player.x-e.x)+Math.PI/2:homeDistance>90?Math.atan2(e.homeY-e.y,e.homeX-e.x)+Math.PI/2:e.angle+Math.sin(e.wander*.35)*.008;
     e.angle+=Math.atan2(Math.sin(target-e.angle),Math.cos(target-e.angle))*dt*(e.aggro?.8:.25);
     if(!e.aggro||d>240){const slow=e.slowTimer>0?.55:1;e.x=clamp(e.x+Math.sin(e.angle)*e.speed*(e.aggro?1:.45)*slow*dt,40,WORLD_WIDTH-40);e.y=clamp(e.y-Math.cos(e.angle)*e.speed*(e.aggro?1:.45)*slow*dt,40,WORLD_HEIGHT-40);if(Math.random()<dt*3)particles.push({x:e.x-Math.sin(e.angle)*18,y:e.y+Math.cos(e.angle)*18,vx:0,vy:0,life:.55,maxLife:.55,kind:'foam'});}
     if(e.hp<e.maxHp*.55&&Math.random()<dt*(e.hp<e.maxHp*.25?5:2)){particles.push({x:e.x+(Math.random()-.5)*22,y:e.y+(Math.random()-.5)*12,vx:(Math.random()-.5)*7,vy:-12-Math.random()*9,life:1.1,maxLife:1.1,kind:'smoke',z:12,size:e.role==='heavy'?48:36,variant:Math.floor(Math.random()*4),rot:Math.random()*6});}
-    if(e.aggro&&d<440&&e.cooldown<=0)enemyFire(e);e.cooldown-=dt;
+    if(e.aggro&&d<440&&e.cooldown<=0)enemyFire(e);if(e.aggro&&(e.npcSpecialCooldown??0)<=0)npcSpecial(e);e.cooldown-=dt;
   }
   for(let i=shots.length-1;i>=0;i--){
     const s=shots[i];
