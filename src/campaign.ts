@@ -100,13 +100,13 @@ const mon=(id:string,name:string,tier:number,radius=54,sprite=`/assets/monster-$
   return{id,name,sprite,span,frame:256,anchorY,radius,tier,hp,damage:Math.round(1500*dmgScale(tier)),reload:2.8-t*.08,gold:r.gold,xp:r.xp};};
 const MONSTER_LIST:Omit<MonsterDef,'portrait'>[]=[
   mon('m1-1','Yosun Yengeci',1,50),mon('m1-2','Kıyı Yılanı',1,56),
-  mon('m2-1','Derinlik Leviathanı',2,54,'/assets/leviathan-v1.webp',132,130.9),mon('m2-2','İnci Denizanası',2,50),
+  mon('m2-1','Derinlik Leviathanı',2,54,'/assets/leviathan-v1.webp',168,130.9),mon('m2-2','İnci Denizanası',2,50),
   mon('m3-1','Sis Yılanı',3,58),mon('m3-2','Kemik Hidrası',3,56),
   mon('m4-1','Kızıl Yengeç',4,54),mon('m4-2','Pas Kaplumbağası',4,58),
   mon('m5-1','Buz Yılanı',5,60),mon('m5-2','Buzul Kaplumbağası',5,60),
   mon('m6-1','Zehir Denizanası',6,54),mon('m6-2','Bataklık Hidrası',6,60),
   mon('m7-1','Magma Yengeci',7,58),mon('m7-2','Alev Yılanı',7,62),
-  mon('m8-1','Fırtına Leviathanı',8,62,'/assets/leviathan-storm-v1.webp',132,130.9),mon('m8-2','Kasırga Denizanası',8,58),
+  mon('m8-1','Fırtına Leviathanı',8,62,'/assets/leviathan-storm-v1.webp',196,130.9),mon('m8-2','Kasırga Denizanası',8,58),
 ];
 export const MONSTERS:Record<string,MonsterDef>=Object.fromEntries(MONSTER_LIST.map((m,i)=>[m.id,{...m,portrait:NPC_LIST.length+i}]));
 // Portre atlasının son karesi (eski Hayalet Amiral) şimdilik kullanılmıyor; yeni boss eklenince kullanılabilir.
