@@ -28,7 +28,9 @@ export function neighbor(key:MapKey,dir:Dir):MapKey|null{
 export const tierOf=(key:MapKey)=>Number(key.split('/')[0]);
 
 // Seviye atlamak için gereken tecrübe (TP). Hızlı değil ama emekle ulaşılabilir.
-export const LEVEL_XP=[0,2000,5000,10000,18000,30000,48000,72000,105000];
+// Seviye eğrisi NPC avı ana gelişim yolu olacak şekilde ayarlandı:
+// düşük seviyeler hızlı açılır, üst denizlerde gereken av sayısı kademeli artar.
+export const LEVEL_XP=[0,120,300,650,1200,2100,3400,5200,7600];
 export const xpNeed=(level:number)=>level>=MAX_LEVEL?Infinity:LEVEL_XP[level];
 
 type Theme={name:string;sea:[string,string];tint:string;look:IslandLook;fleet:FleetTheme;weather:Weather;label:string};
@@ -239,7 +241,7 @@ export type QuestDef={id:string;map:MapKey;tier:number;title:string;description:
 export const QUEST_BONUS=1.5;
 export const QUESTS:QuestDef[]=MAP_KEYS.flatMap(key=>{
   const m=MAPS[key],t=m.tier,L=NPCS[m.npcs[0]],H=NPCS[m.npcs[1]],Mo=MONSTERS[m.monster],pay=(n:number,u:{gold:number;xp:number},k=QUEST_BONUS)=>({gold:Math.round(n*u.gold*k),xp:Math.round(n*u.xp*k)});
-  const nL=15+t*3,nH=8+t*2,nM=t<5?2:3,nC=5+t,head=`${key} ${m.name}`;
+  const nL=8+t*2,nH=4+t,nM=t<5?2:3,nC=5+t,head=`${key} ${m.name}`;
   return[
     {id:`q${key}-light`,map:key,tier:t,title:`${head}: Devriye Avı`,description:`${L.name} gemilerinden ${nL} tanesini batır.`,kind:'npc',ids:[L.id],required:nL,...pay(nL,L),pearls:2+t},
     {id:`q${key}-heavy`,map:key,tier:t,title:`${head}: Ağır Filo`,description:`${H.name} gemilerinden ${nH} tanesini denizin dibine gönder.`,kind:'npc',ids:[H.id],required:nH,...pay(nH,H),pearls:3+2*t},
