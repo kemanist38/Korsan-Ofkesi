@@ -7,14 +7,17 @@ function load(src:string){let image=cache.get(src);if(!image){image=new Image();
 const ready=(image:HTMLImageElement)=>image.complete&&image.naturalWidth>0;
 export function preload(srcs:string[]){srcs.forEach(load);}
 
-// NPC gemileri: 16 yön, 8 sütun × 2 satır, 192 px kare; kare 0 = kuzey, saat yönünde 22,5°.
-// span: karenin kapsadığı dünya birimi. Oyunda 1 birim ≈ 1,23 px.
-const SHIP={frame:192,dirs:16,cols:8,anchorX:96,anchorY:108.35,pxPerUnit:1.23};
+// NPC gemileri oyun içinde 8 yön kullanır. Mevcut 16-kare atlaslardan her ikinci yön seçilir;
+// böylece hareketli NPC'ler N, NE, E, SE, S, SW, W, NW görünümüne gerçek sprite değişimiyle döner.
+// Atlas düzeni 8 sütun × 2 satır, 192 px kare; kaynak kareler 22,5°, oyun yönleri 45°.
+const SHIP={frame:192,dirs:8,sourceDirs:16,cols:8,anchorX:96,anchorY:108.35,pxPerUnit:1.23};
 export const shipDrawSize=(span:number)=>span*SHIP.pxPerUnit;
 export const shipLabelOffset=(span:number)=>-Math.round(shipDrawSize(span)*.46);
 export function drawNpcShip(ctx:CanvasRenderingContext2D,sprite:string,span:number,x:number,y:number,angle:number,time:number){
   const sheet=load(sprite);if(!ready(sheet))return false;
-  const step=Math.PI*2/SHIP.dirs,index=((Math.round(angle/step)%SHIP.dirs)+SHIP.dirs)%SHIP.dirs;
+  const step=Math.PI*2/SHIP.dirs,dir=((Math.round(angle/step)%SHIP.dirs)+SHIP.dirs)%SHIP.dirs;
+  // 16 yönlü kaynak atlasın 0,2,4...14 kareleri = oyundaki sekiz ana yön.
+  const index=(dir*2)%SHIP.sourceDirs;
   // Kare boyu sayfadan okunur (NPC 192 px, boss 224 px); çapa karenin aynı oranındadır.
   const F=sheet.naturalWidth/SHIP.cols,size=shipDrawSize(span),k=size/F;void time;
   ctx.save();ctx.shadowColor='#000a';ctx.shadowBlur=11;ctx.shadowOffsetY=3;
