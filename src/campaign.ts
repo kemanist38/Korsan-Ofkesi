@@ -59,7 +59,7 @@ const npc=(id:string,name:string,role:'light'|'heavy',tier:number,sprite=`/asset
   return{id,name,sprite,span,role,tier,hp,damage:Math.round(dmg*dmgScale(tier)),reload:role==='light'?2.6:2.7,speed:(role==='light'?50:34)+t*1.5,gold:r.gold,xp:r.xp};
 };
 const NPC_LIST:Omit<NpcDef,'portrait'>[]=[
-  npc('n1-1-light','Kaçak Balıkçı','light',1),npc('n1-1-heavy','Kıyı Yağmacısı','heavy',1,undefined,104),
+  npc('n1-1-light','Kaçak Balıkçı','light',1,'/assets/ship-npc-trader-v3.webp'),npc('n1-1-heavy','Kıyı Yağmacısı','heavy',1,undefined,104),
   npc('n1-2-light','Kaçakçı Gözcü','light',1,'/assets/enemy-scout-v1.webp'),npc('n1-2-heavy','Yağmacılar','heavy',1,'/assets/enemy-raider-v1.webp',104),
   npc('n2-1-light','Mercan Avcısı','light',2),npc('n2-1-heavy','Kızıl Savaş Gemisi','heavy',2,'/assets/enemy-warship-v1.webp',104),
   npc('n2-2-light','İnci Dalgıcı','light',2),npc('n2-2-heavy','Resif Fırkateyni','heavy',2),
