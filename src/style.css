@@ -637,3 +637,43 @@ body.shop-open .market-overlay,body.shop-open .ship-overlay,body.shop-open .load
 .cargo-window .inv-tile{border-color:#8d6837;background:radial-gradient(circle at 50% 35%,#624126,#29170d 72%);box-shadow:inset 0 0 12px #0008}
 .cargo-window .inv-tile.selected{border-color:#f1c662;box-shadow:0 0 0 2px #f1c66266,0 0 18px #d9a64b55}
 .cargo-window .inv-info{background:linear-gradient(#101a1b,#180e09)}
+
+
+/* Seven Seas navigation, captain and quest pass v2 */
+/* Dünya haritası: eski denizci parşömeni + atlas paftası hissi. */
+.world-overlay{backdrop-filter:blur(2px);background:radial-gradient(circle at 50% 45%,#12343a66,#010608dd 72%)}
+.seven-seas-chart{filter:drop-shadow(0 24px 35px #000e) sepia(.08);transform-origin:center}
+.seven-seas-chart:before{content:"YEDİ DENİZ ATLASI";position:absolute;z-index:2;left:50%;top:5.8%;transform:translateX(-50%);color:#53371e;font:800 clamp(9px,1.2vw,14px) Cinzel;letter-spacing:.2em;text-shadow:0 1px #e8cf9a99;white-space:nowrap}
+.seven-seas-chart:after{content:"✦  KUZEY  ✦";position:absolute;z-index:2;left:50%;bottom:5.4%;transform:translateX(-50%);color:#694824;font:800 8px Cinzel;letter-spacing:.16em}
+.seven-seas-chart .world-grid{border-color:#65431f;box-shadow:0 0 0 1px #29180b,0 5px 18px #0007,inset 0 0 28px #5a351c33!important}
+.seven-seas-chart .world-grid>*{position:relative;overflow:hidden;box-shadow:inset 0 0 16px #40261044}
+.seven-seas-chart .world-grid>*:after{content:"";pointer-events:none;position:absolute;inset:0;background:linear-gradient(135deg,#fff1c60a,transparent 35%,#32170712)}
+.seven-seas-chart .world-grid button:hover{filter:brightness(1.13) saturate(1.08);z-index:1}
+.world-overlay .scroll-close{border-color:#8a5d2e;background:radial-gradient(circle,#4b301a,#1c1008);color:#f0d39a;box-shadow:0 3px 9px #000b,inset 0 0 8px #c6964a22}
+
+/* Kaptan kamarası: portreyi ana odak, istatistikleri pirinç gösterge kartları yap. */
+.captain-cabin-window{width:min(940px,94vw);max-height:90vh;overflow:auto;background:radial-gradient(circle at 18% 20%,#4b2c1740,transparent 26%),radial-gradient(circle at 82% 16%,#123e4544,transparent 30%),linear-gradient(145deg,#170d08,#0a1e22 55%,#140b07)!important}
+.captain-cabin-window .captain-tab{padding:16px}
+.captain-cabin-window .captain-identity{position:relative;min-height:150px;padding:18px 22px 18px 176px;border:1px solid #bd914b66;border-radius:10px;background:radial-gradient(circle at 18% 40%,#23454b88,transparent 27%),linear-gradient(100deg,#0a1719,#21130c);box-shadow:inset 0 0 35px #0008,0 8px 22px #0005}
+.captain-cabin-window .captain-portrait{position:absolute;left:22px;bottom:0;width:138px;height:146px;border:0;background:radial-gradient(ellipse at 50% 65%,#31555a88,transparent 62%)}
+.captain-cabin-window .captain-portrait img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 8px 8px #000c)}
+.captain-cabin-window .captain-portrait b{position:absolute;right:2px;bottom:10px;min-width:30px;padding:5px;border:1px solid #f0c86a;border-radius:50%;background:#1a1009;color:#ffe29a;text-align:center;box-shadow:0 3px 8px #000b}
+.captain-cabin-window .captain-identity span{color:#b79760;letter-spacing:.18em}.captain-cabin-window .captain-identity strong{color:#f4d48e;text-shadow:0 2px 6px #000}
+.captain-cabin-window .captain-stat-grid{gap:10px}.captain-cabin-window .captain-stat-grid article{border:1px solid #9e783f66;border-radius:8px;background:linear-gradient(145deg,#10282c,#0b1516 60%,#23130b);box-shadow:inset 0 0 16px #0008}
+.captain-cabin-window .captain-medals{border:1px solid #a37b4066;border-radius:10px;background:linear-gradient(#0c1b1e,#160e09);box-shadow:inset 0 0 24px #0008}
+.captain-cabin-window .ach-grid>*{transition:transform .15s,filter .15s}.captain-cabin-window .ach-grid>*:hover{transform:translateY(-2px);filter:brightness(1.12)}
+@media(max-width:650px){.captain-cabin-window .captain-identity{padding-left:118px}.captain-cabin-window .captain-portrait{width:96px;height:120px;left:12px}}
+
+/* Görev defteri: koyu deri kaplı seyir defteri ve mühürlü görev kartları. */
+.quest-book-window{width:min(860px,94vw);max-height:88vh;overflow:auto;background:radial-gradient(circle at 50% 0,#6a3b1c33,transparent 35%),linear-gradient(135deg,#241208,#0d1b1d 52%,#190d07)!important}
+.quest-book-window>header{padding:16px 18px!important}
+.quest-book-window .quest-intro{margin:12px 4px;padding:10px 14px;border-left:3px solid #bd914b;background:#0a1719aa;color:#b7c6bf;font-style:italic}
+.quest-book-window .quest-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.quest-book-window .quest-list>*{position:relative;border-color:#9d753e77!important;background:linear-gradient(145deg,#322013dd,#0d1c1eee)!important;box-shadow:inset 0 0 20px #0007,0 6px 15px #0005}
+.quest-book-window .quest-list>*:before{content:"";position:absolute;left:8px;top:8px;bottom:8px;width:2px;background:linear-gradient(transparent,#c3974f66,transparent)}
+.quest-book-window .quest-list button{border-color:#b78b47!important;background:linear-gradient(#67401d,#2d190c)!important;color:#ffe0a0!important}
+@media(max-width:720px){.quest-book-window .quest-list{grid-template-columns:1fr}}
+
+/* Hazine kazma bildirimi: küçük sıradan buton yerine belirgin hazine eylemi. */
+.dig-prompt{border:1px solid #d3a74f!important;background:linear-gradient(145deg,#4a2c14ee,#0a2024ee)!important;box-shadow:0 10px 28px #000c,inset 0 0 15px #e3b45a18!important}
+.dig-prompt img{filter:drop-shadow(0 4px 5px #000c)}.dig-prompt span{color:#ffe0a0!important;text-shadow:0 1px 3px #000}.dig-prompt>i{border-color:#8e6b37!important;background:#071113!important}.dig-prompt>i em{background:linear-gradient(90deg,#8b5b23,#f0c45f)!important;box-shadow:0 0 8px #e3b85e88}
