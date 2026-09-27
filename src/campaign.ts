@@ -59,22 +59,22 @@ const npc=(id:string,name:string,role:'light'|'heavy',tier:number,sprite=`/asset
   return{id,name,sprite,span,role,tier,hp,damage:Math.round(dmg*dmgScale(tier)),reload:role==='light'?2.6:2.7,speed:(role==='light'?50:34)+t*1.5,gold:r.gold,xp:r.xp};
 };
 const NPC_LIST:Omit<NpcDef,'portrait'>[]=[
-  npc('n1-1-light','Kaçak Balıkçı','light',1,'/assets/ship-npc-trader-v3.webp'),npc('n1-1-heavy','Kıyı Yağmacısı','heavy',1,'/assets/ship-n1-1-heavy.webp',104),
-  npc('n1-2-light','Kaçakçı Gözcü','light',1,'/assets/ship-n1-1-light.webp'),npc('n1-2-heavy','Yağmacılar','heavy',1,'/assets/npc-pirate-warship-v4.webp',104),
-  npc('n2-1-light','Mercan Avcısı','light',2,'/assets/ship-n2-1-light.webp'),npc('n2-1-heavy','Kızıl Savaş Gemisi','heavy',2,'/assets/ship-n2-2-heavy.webp',104),
-  npc('n2-2-light','İnci Dalgıcı','light',2,'/assets/ship-n2-2-light.webp'),npc('n2-2-heavy','Resif Fırkateyni','heavy',2,'/assets/ship-n2-2-heavy.webp'),
-  npc('n3-1-light','Sis Hayaleti','light',3,'/assets/ship-n3-1-light.webp'),npc('n3-1-heavy','Sisli Brik','heavy',3,'/assets/ship-n3-1-heavy.webp',104),
-  npc('n3-2-light','Kemik Kayığı','light',3,'/assets/ship-n3-2-light.webp'),npc('n3-2-heavy','Batık Kalyon','heavy',3,'/assets/ship-n3-2-heavy.webp',124),
-  npc('n4-1-light','Kan Korsanı','light',4,'/assets/ship-n4-1-light.webp',104),npc('n4-1-heavy','Kanlı Fırkateyn','heavy',4,'/assets/ship-n4-1-heavy.webp'),
-  npc('n4-2-light','Pas Yağmacısı','light',4,'/assets/ship-n4-2-light.webp'),npc('n4-2-heavy','Demir Ejder','heavy',4,'/assets/ship-n4-2-heavy.webp'),
-  npc('n5-1-light','Ayaz Avcısı','light',5,'/assets/ship-n5-1-light.webp'),npc('n5-1-heavy','Buz Kırıcı','heavy',5,'/assets/ship-n5-1-heavy.webp',104),
-  npc('n5-2-light','Kristal Kayık','light',5,'/assets/ship-n5-2-light.webp'),npc('n5-2-heavy','Kutup Kalyonu','heavy',5,'/assets/ship-n5-2-heavy.webp',124),
-  npc('n6-1-light','Bataklık Kaçakçısı','light',6,'/assets/ship-n6-1-light.webp'),npc('n6-1-heavy','Zehir Brigi','heavy',6,'/assets/ship-n6-1-heavy.webp',104),
-  npc('n6-2-light','Çürük Kürekçi','light',6,'/assets/ship-n6-2-light.webp'),npc('n6-2-heavy','Veba Kalyonu','heavy',6,'/assets/ship-n6-2-heavy.webp',124),
-  npc('n7-1-light','Kül Korsanı','light',7,'/assets/ship-n7-1-light.webp',104),npc('n7-1-heavy','Alev Fırkateyni','heavy',7,'/assets/ship-n7-1-heavy.webp'),
-  npc('n7-2-light','Ateş Kayığı','light',7,'/assets/ship-n7-2-light.webp'),npc('n7-2-heavy','Lav Ejderi','heavy',7,'/assets/ship-n7-2-heavy.webp'),
-  npc('n8-1-light','Fırtına Avcısı','light',8,'/assets/ship-n8-1-light.webp'),npc('n8-1-heavy','Şimşek Fırkateyni','heavy',8,'/assets/ship-n8-1-heavy.webp'),
-  npc('n8-2-light','Kasırga Brigi','light',8,'/assets/ship-n8-2-light.webp',104),npc('n8-2-heavy','Gök Gürültüsü Kalyonu','heavy',8,'/assets/ship-n8-2-heavy.webp',124),
+  npc('n1-1-light','Kaçak Balıkçı','light',1,'/assets/npc-fleet-v4.webp?row=0'),npc('n1-1-heavy','Kıyı Yağmacısı','heavy',1,'/assets/npc-fleet-v4.webp?row=1',104),
+  npc('n1-2-light','Kaçakçı Gözcü','light',1,'/assets/npc-fleet-v4.webp?row=0'),npc('n1-2-heavy','Yağmacılar','heavy',1,'/assets/npc-fleet-v4.webp?row=1',104),
+  npc('n2-1-light','Mercan Avcısı','light',2,'/assets/npc-fleet-v4.webp?row=2'),npc('n2-1-heavy','Kızıl Savaş Gemisi','heavy',2,'/assets/npc-fleet-v4.webp?row=3',104),
+  npc('n2-2-light','İnci Dalgıcı','light',2,'/assets/npc-fleet-v4.webp?row=2'),npc('n2-2-heavy','Resif Fırkateyni','heavy',2,'/assets/npc-fleet-v4.webp?row=3'),
+  npc('n3-1-light','Sis Hayaleti','light',3,'/assets/npc-fleet-v4.webp?row=4'),npc('n3-1-heavy','Sisli Brik','heavy',3,'/assets/npc-fleet-v4.webp?row=5',104),
+  npc('n3-2-light','Kemik Kayığı','light',3,'/assets/npc-fleet-v4.webp?row=4'),npc('n3-2-heavy','Batık Kalyon','heavy',3,'/assets/npc-fleet-v4.webp?row=5',124),
+  npc('n4-1-light','Kan Korsanı','light',4,'/assets/npc-fleet-v4.webp?row=6',104),npc('n4-1-heavy','Kanlı Fırkateyn','heavy',4,'/assets/npc-fleet-v4.webp?row=7'),
+  npc('n4-2-light','Pas Yağmacısı','light',4,'/assets/npc-fleet-v4.webp?row=6'),npc('n4-2-heavy','Demir Ejder','heavy',4,'/assets/npc-fleet-v4.webp?row=7'),
+  npc('n5-1-light','Ayaz Avcısı','light',5,'/assets/npc-fleet-v4.webp?row=8'),npc('n5-1-heavy','Buz Kırıcı','heavy',5,'/assets/npc-fleet-v4.webp?row=9',104),
+  npc('n5-2-light','Kristal Kayık','light',5,'/assets/npc-fleet-v4.webp?row=8'),npc('n5-2-heavy','Kutup Kalyonu','heavy',5,'/assets/npc-fleet-v4.webp?row=9',124),
+  npc('n6-1-light','Bataklık Kaçakçısı','light',6,'/assets/npc-fleet-v4.webp?row=10'),npc('n6-1-heavy','Zehir Brigi','heavy',6,'/assets/npc-fleet-v4.webp?row=11',104),
+  npc('n6-2-light','Çürük Kürekçi','light',6,'/assets/npc-fleet-v4.webp?row=10'),npc('n6-2-heavy','Veba Kalyonu','heavy',6,'/assets/npc-fleet-v4.webp?row=11',124),
+  npc('n7-1-light','Kül Korsanı','light',7,'/assets/npc-fleet-v4.webp?row=12',104),npc('n7-1-heavy','Alev Fırkateyni','heavy',7,'/assets/npc-fleet-v4.webp?row=13'),
+  npc('n7-2-light','Ateş Kayığı','light',7,'/assets/npc-fleet-v4.webp?row=12'),npc('n7-2-heavy','Lav Ejderi','heavy',7,'/assets/npc-fleet-v4.webp?row=13'),
+  npc('n8-1-light','Fırtına Avcısı','light',8,'/assets/npc-fleet-v4.webp?row=14'),npc('n8-1-heavy','Şimşek Fırkateyni','heavy',8,'/assets/npc-fleet-v4.webp?row=15'),
+  npc('n8-2-light','Kasırga Brigi','light',8,'/assets/npc-fleet-v4.webp?row=14',104),npc('n8-2-heavy','Gök Gürültüsü Kalyonu','heavy',8,'/assets/npc-fleet-v4.webp?row=15',124),
 ];
 export const NPCS:Record<string,NpcDef>=Object.fromEntries(NPC_LIST.map((n,i)=>[n.id,{...n,portrait:i}]));
 

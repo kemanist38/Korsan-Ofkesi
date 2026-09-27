@@ -15,23 +15,34 @@ export const shipDrawSize=(span:number)=>span*SHIP.pxPerUnit;
 // Native 8-yön atlas sözleşmesi: 8 sütun x 1 satır. Assetler kademeli değiştirilebilir;
 // renderer eski 8x2/16-kare atlasları otomatik olarak desteklemeye devam eder.
 export const NATIVE_SHIP_ATLAS={dirs:8,cols:8,rows:1,frame:192} as const;
+function npcAtlasRef(sprite:string){
+  const query=sprite.indexOf('?'),src=query>=0?sprite.slice(0,query):sprite;
+  const params=new URLSearchParams(query>=0?sprite.slice(query+1):'');
+  const raw=params.get('row'),row=raw===null?null:Math.max(0,Number(raw)||0);
+  return{src,row};
+}
 export function isNativeEightDirectionAtlas(sprite:string){
-  const sheet=load(sprite);if(!ready(sheet))return false;
-  const F=sheet.naturalWidth/NATIVE_SHIP_ATLAS.cols;
-  return Math.round(sheet.naturalHeight/F)===NATIVE_SHIP_ATLAS.rows;
+  const ref=npcAtlasRef(sprite),sheet=load(ref.src);if(!ready(sheet))return false;
+  const F=sheet.naturalWidth/NATIVE_SHIP_ATLAS.cols,rows=Math.max(1,Math.round(sheet.naturalHeight/F));
+  return ref.row!==null?ref.row<rows:rows===NATIVE_SHIP_ATLAS.rows;
 }
 export const shipLabelOffset=(span:number)=>-Math.round(shipDrawSize(span)*.46);
 export function drawNpcShip(ctx:CanvasRenderingContext2D,sprite:string,span:number,x:number,y:number,angle:number,time:number){
-  const sheet=load(sprite);if(!ready(sheet))return false;
+  const ref=npcAtlasRef(sprite),sheet=load(ref.src);if(!ready(sheet))return false;
   const step=Math.PI*2/SHIP.dirs,dir=((Math.round(angle/step)%SHIP.dirs)+SHIP.dirs)%SHIP.dirs;
-  // Yeni gerçek atlas: 8 yön = 8x1. Eski 16 yönlü 8x2 atlaslar geçişte otomatik desteklenir.
   const F=sheet.naturalWidth/SHIP.cols,rows=Math.max(1,Math.round(sheet.naturalHeight/F));
-  const sourceDirs=rows>=2?SHIP.legacySourceDirs:SHIP.dirs;
-  const index=sourceDirs===SHIP.dirs?dir:(dir*2)%sourceDirs;
-  // Kare boyu sayfadan okunur; çapa karenin aynı oranındadır.
+  let sx:number,sy:number;
+  if(ref.row!==null){
+    // NPC master atlas: 16 satır; her satır aynı geminin 8 yönünü içerir.
+    sx=dir*F;sy=Math.min(rows-1,ref.row)*F;
+  }else{
+    // Tek satırlı 8-yön atlası + eski 16-yön/8x2 atlaslar için geriye uyumluluk.
+    const sourceDirs=rows>=2?SHIP.legacySourceDirs:SHIP.dirs,index=sourceDirs===SHIP.dirs?dir:(dir*2)%sourceDirs;
+    sx=(index%SHIP.cols)*F;sy=Math.floor(index/SHIP.cols)*F;
+  }
   const size=shipDrawSize(span),k=size/F;void time;
   ctx.save();ctx.shadowColor='#000a';ctx.shadowBlur=11;ctx.shadowOffsetY=3;
-  ctx.drawImage(sheet,(index%SHIP.cols)*F,Math.floor(index/SHIP.cols)*F,F,F,x-F*SHIP.anchorX/SHIP.frame*k,y-F*SHIP.anchorY/SHIP.frame*k,size,size);
+  ctx.drawImage(sheet,sx,sy,F,F,x-F*SHIP.anchorX/SHIP.frame*k,y-F*SHIP.anchorY/SHIP.frame*k,size,size);
   ctx.restore();return true;
 }
 
