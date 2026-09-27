@@ -343,7 +343,7 @@ const activeBoss=()=>enemies.find(e=>e.boss);
 function spawnBoss(){
   if(activeBoss())return;const b=bossFor(currentMap),p=randomSeaPoint(700);
   const e=makeShip(b as unknown as NpcDef,p.x,p.y,Math.random()*6);e.boss=b;e.hitRadius=64;e.speed=b.speed;e.color='#2f5a4a';enemies.push(e);
-  toast(`${b.name} ${mapDef().name} sularında belirdi!`);rewardNotice(`BOSS   ${b.name.toLocaleUpperCase('tr')} BELİRDİ`);playBossHorn();playBossMusic(mapDef().tier);
+  toast(`${b.name} ${mapDef().name} sularında belirdi!`);rewardNotice(`BOSS   ${b.name.toLocaleUpperCase('tr')} BELİRDİ`);for(let n=0;n<3;n++)particles.push({x:e.x+(Math.random()-.5)*90,y:e.y+(Math.random()-.5)*55,vx:(Math.random()-.5)*18,vy:-18-Math.random()*18,life:1.2,maxLife:1.2,kind:'smoke',z:10,size:46,variant:n%4});particles.push({x:e.x,y:e.y,vx:0,vy:0,life:.8,maxLife:.8,kind:'shock',size:210});playBossHorn();playBossMusic(mapDef().tier);
 }
 function countBossKill(e:Enemy){
   const b=bossFor(currentMap);if(e.def?.id!==b.trigger||e.summoned)return;const st=bossOf(currentMap);if(st.pending)return;
@@ -1610,10 +1610,11 @@ function drawBossFlag(s:{x:number;y:number},top:number){const t=performance.now(
   ctx.fillStyle='#0c0c0e';ctx.beginPath();ctx.moveTo(x,y);for(let i=0;i<=10;i++){const u=i/10;ctx.lineTo(x+u*46,y+Math.sin(t*5+u*4)*3*u);}for(let i=10;i>=0;i--){const u=i/10;ctx.lineTo(x+u*46,y+28+Math.sin(t*5+u*4)*3*u);}ctx.closePath();ctx.fill();
   ctx.fillStyle='#e8dcc0';const cx=x+20,cy=y+12+Math.sin(t*5+1.7)*1.5;ctx.beginPath();ctx.arc(cx,cy,5.5,0,Math.PI*2);ctx.fill();ctx.fillRect(cx-3.5,cy+3,7,4);ctx.fillStyle='#0c0c0e';ctx.beginPath();ctx.arc(cx-2,cy,1.5,0,7);ctx.arc(cx+2,cy,1.5,0,7);ctx.fill();
   ctx.strokeStyle='#e8dcc0';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx-8,cy+6);ctx.lineTo(cx+8,cy+12);ctx.moveTo(cx+8,cy+6);ctx.lineTo(cx-8,cy+12);ctx.stroke();ctx.restore();}
-function drawBossPlate(e:Enemy,s:{x:number;y:number},top:number){const W=190,x=s.x,y=s.y+top-10;
-  ctx.save();ctx.fillStyle='rgba(8,10,12,.82)';ctx.strokeStyle='#f1c662';ctx.lineWidth=1.5;ctx.beginPath();ctx.roundRect(x-W/2,y-24,W,34,6);ctx.fill();ctx.stroke();
-  ctx.fillStyle='#f1c662';ctx.font='700 12px Cinzel';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(e.name,x,y-13);
-  drawHealthBar(x,y-3,W-24,e.hp/e.maxHp,'#e0463a');ctx.fillStyle='#fff';ctx.font='700 8px Inter';ctx.fillText(`${Math.ceil(e.hp).toLocaleString('tr-TR')} / ${e.maxHp.toLocaleString('tr-TR')}`,x,y);ctx.restore();}
+function drawBossPlate(e:Enemy,s:{x:number;y:number},top:number){const W=202,x=s.x,y=s.y+top-10,r=e.hp/e.maxHp,enraged=r<.5,t=performance.now()/1000,tint=e.tier===6?'#83b66a':e.tier===7?'#ff6a2b':e.tier===8?'#78bfff':'#f1c662';
+  ctx.save();if(enraged){ctx.shadowColor='#e0463a';ctx.shadowBlur=10+Math.sin(t*7)*4;}ctx.fillStyle='rgba(8,10,12,.86)';ctx.strokeStyle=enraged?'#e85a47':tint;ctx.lineWidth=enraged?2.2:1.5;ctx.beginPath();ctx.roundRect(x-W/2,y-28,W,40,7);ctx.fill();ctx.stroke();ctx.shadowBlur=0;
+  ctx.fillStyle=tint;ctx.font='700 12px Cinzel';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(e.name,x,y-16);
+  drawHealthBar(x,y-4,W-24,r,enraged?'#ff4938':'#e0463a');ctx.fillStyle='#fff';ctx.font='700 8px Inter';ctx.fillText(`${Math.ceil(e.hp).toLocaleString('tr-TR')} / ${e.maxHp.toLocaleString('tr-TR')}`,x,y-1);
+  if(enraged){ctx.fillStyle='#ff9b7e';ctx.font='800 8px Cinzel';ctx.fillText('ÖFKELİ',x,y+8);}ctx.restore();}
 // Güneş parıltıları: dünya ızgarasına bağlı rastgele noktalarda kısa süreli yanıp sönen ışık kırpıntıları
 function drawSeaGlints(w:number,h:number){const t=performance.now()/1000,C=70,vw=w/camera.zoom,vh=h/camera.zoom,x0=camera.x-vw/2,y0=camera.y-vh/2,dark=theme().weather==='fog'||theme().weather==='motes'||theme().weather==='storm';
   ctx.save();ctx.globalCompositeOperation='lighter';
