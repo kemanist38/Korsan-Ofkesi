@@ -362,6 +362,7 @@ function bossFire(e:Enemy){
 function defeatBoss(e:Enemy){
   const b=e.boss!;stopBossMusic();state.fame+=xpGain(b.xp);bumpAch('boss');state.pearls+=b.pearls;bossOf(currentMap).pending=false;saveBosses();saveAccount();
   for(let n=0;n<3;n++)setTimeout(()=>{burst(e.x+(Math.random()-.5)*80,e.y+(Math.random()-.5)*50,true);playExplosion();},n*260);
+  for(let n=0;n<12;n++){const a=Math.random()*Math.PI*2,sp=30+Math.random()*85;particles.push({x:e.x,y:e.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp*.55,life:1+Math.random()*.8,maxLife:1.8,kind:n%3===0?'plank':'bubble',z:n%3===0?18:0,size:n%3===0?28:18,rot:Math.random()*6});}
   rewardNotice(`${b.name.toLocaleUpperCase('tr')} BATIRILDI   +${b.xp.toLocaleString('tr-TR')} TP   +${b.pearls} İnci`);toast(`${b.name} denizin dibine gönderildi!`);
 }
 function populateMap(){
@@ -1555,7 +1556,8 @@ function drawWreck(w:Wreck){const s=worldToScreen(w),k=Math.min(1,w.t/WRECK_TIME
   // İki aşamalı batış: önce yan yatma ve su alma, sonra kıç/pruva aşağı gömülme.
   const roll=Math.sin(Math.min(1,k/.55)*Math.PI*.5)*(w.boss?.58:heavy?.48:.38),sink=k<.42?k*(w.boss?14:10):4+(k-.42)*(w.boss?56:heavy?42:34),fade=k<.62?1:1-(k-.62)/.38;
   ctx.save();ctx.globalAlpha=Math.max(0,fade);ctx.translate(s.x,s.y+sink);ctx.rotate(roll+Math.sin(w.t*5)*.018*(1-k));ctx.scale(1-k*.12,1-Math.pow(k,1.5)*.72);drawNpcShip(ctx,w.sprite,w.span,0,0,w.angle,performance.now());ctx.restore();
-  if(k>.18&&k<.82){ctx.save();ctx.strokeStyle=`rgba(235,250,248,${.34*(1-k)})`;ctx.lineWidth=heavy?3:2;ctx.beginPath();ctx.ellipse(s.x,s.y+8,(heavy?58:43)*(1+k*.45),(heavy?23:17)*(1+k*.4),0,0,Math.PI*2);ctx.stroke();ctx.restore();}
+  if(k>.18&&k<.82){ctx.save();ctx.strokeStyle=`rgba(235,250,248,${.34*(1-k)})`;ctx.lineWidth=w.boss?4:heavy?3:2;ctx.beginPath();ctx.ellipse(s.x,s.y+8,(w.boss?82:heavy?58:43)*(1+k*.45),(w.boss?32:heavy?23:17)*(1+k*.4),0,0,Math.PI*2);ctx.stroke();ctx.restore();}
+  if(w.boss&&k>.38){const q=Math.min(1,(k-.38)/.62);ctx.save();ctx.globalAlpha=(1-q)*.38;ctx.fillStyle='#07151b';ctx.beginPath();ctx.ellipse(s.x,s.y+18,74+q*42,25+q*16,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle=`rgba(241,198,98,${(1-q)*.55})`;ctx.lineWidth=2;ctx.setLineDash([10,8]);ctx.lineDashOffset=-w.t*26;ctx.beginPath();ctx.ellipse(s.x,s.y+18,82+q*50,29+q*20,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.restore();}
 }
 // ---------------------------------------------------------------- Gemi–su etkileşimi
 // Her geminin altında yumuşak su gölgesi ve bordasında köpük halkası; hareket ederken kıçtan V biçiminde açılan
