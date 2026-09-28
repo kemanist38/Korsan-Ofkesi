@@ -7,42 +7,18 @@ function load(src:string){let image=cache.get(src);if(!image){image=new Image();
 const ready=(image:HTMLImageElement)=>image.complete&&image.naturalWidth>0;
 export function preload(srcs:string[]){srcs.forEach(load);}
 
-// NPC gemileri oyun içinde 8 yön kullanır. Mevcut 16-kare atlaslardan her ikinci yön seçilir;
-// böylece hareketli NPC'ler N, NE, E, SE, S, SW, W, NW görünümüne gerçek sprite değişimiyle döner.
-// Atlas düzeni 8 sütun × 2 satır, 192 px kare; kaynak kareler 22,5°, oyun yönleri 45°.
-const SHIP={frame:192,dirs:8,legacySourceDirs:16,cols:8,anchorX:96,anchorY:108.35,pxPerUnit:1.23};
+// NPC gemileri: 16 yön, 8 sütun × 2 satır, 192 px kare; kare 0 = kuzey, saat yönünde 22,5°.
+// span: karenin kapsadığı dünya birimi. Oyunda 1 birim ≈ 1,23 px.
+const SHIP={frame:192,dirs:16,cols:8,anchorX:96,anchorY:108.35,pxPerUnit:1.23};
 export const shipDrawSize=(span:number)=>span*SHIP.pxPerUnit;
-// Native 8-yön atlas sözleşmesi: 8 sütun x 1 satır. Assetler kademeli değiştirilebilir;
-// renderer eski 8x2/16-kare atlasları otomatik olarak desteklemeye devam eder.
-export const NATIVE_SHIP_ATLAS={dirs:8,cols:8,rows:1,frame:192} as const;
-function npcAtlasRef(sprite:string){
-  const query=sprite.indexOf('?'),src=query>=0?sprite.slice(0,query):sprite;
-  const params=new URLSearchParams(query>=0?sprite.slice(query+1):'');
-  const raw=params.get('row'),row=raw===null?null:Math.max(0,Number(raw)||0);
-  return{src,row};
-}
-export function isNativeEightDirectionAtlas(sprite:string){
-  const ref=npcAtlasRef(sprite),sheet=load(ref.src);if(!ready(sheet))return false;
-  const F=sheet.naturalWidth/NATIVE_SHIP_ATLAS.cols,rows=Math.max(1,Math.round(sheet.naturalHeight/F));
-  return ref.row!==null?ref.row<rows:rows===NATIVE_SHIP_ATLAS.rows;
-}
 export const shipLabelOffset=(span:number)=>-Math.round(shipDrawSize(span)*.46);
 export function drawNpcShip(ctx:CanvasRenderingContext2D,sprite:string,span:number,x:number,y:number,angle:number,time:number){
-  const ref=npcAtlasRef(sprite),sheet=load(ref.src);if(!ready(sheet))return false;
-  const step=Math.PI*2/SHIP.dirs,dir=((Math.round(angle/step)%SHIP.dirs)+SHIP.dirs)%SHIP.dirs;
-  const F=sheet.naturalWidth/SHIP.cols,rows=Math.max(1,Math.round(sheet.naturalHeight/F));
-  let sx:number,sy:number;
-  if(ref.row!==null){
-    // NPC master atlas: 16 satır; her satır aynı geminin 8 yönünü içerir.
-    sx=dir*F;sy=Math.min(rows-1,ref.row)*F;
-  }else{
-    // Tek satırlı 8-yön atlası + eski 16-yön/8x2 atlaslar için geriye uyumluluk.
-    const sourceDirs=rows>=2?SHIP.legacySourceDirs:SHIP.dirs,index=sourceDirs===SHIP.dirs?dir:(dir*2)%sourceDirs;
-    sx=(index%SHIP.cols)*F;sy=Math.floor(index/SHIP.cols)*F;
-  }
-  const size=shipDrawSize(span),k=size/F;void time;
+  const sheet=load(sprite);if(!ready(sheet))return false;
+  const step=Math.PI*2/SHIP.dirs,index=((Math.round(angle/step)%SHIP.dirs)+SHIP.dirs)%SHIP.dirs;
+  // Kare boyu sayfadan okunur (NPC 192 px, boss 224 px); çapa karenin aynı oranındadır.
+  const F=sheet.naturalWidth/SHIP.cols,size=shipDrawSize(span),k=size/F;void time;
   ctx.save();ctx.shadowColor='#000a';ctx.shadowBlur=11;ctx.shadowOffsetY=3;
-  ctx.drawImage(sheet,sx,sy,F,F,x-F*SHIP.anchorX/SHIP.frame*k,y-F*SHIP.anchorY/SHIP.frame*k,size,size);
+  ctx.drawImage(sheet,(index%SHIP.cols)*F,Math.floor(index/SHIP.cols)*F,F,F,x-F*SHIP.anchorX/SHIP.frame*k,y-F*SHIP.anchorY/SHIP.frame*k,size,size);
   ctx.restore();return true;
 }
 
@@ -58,7 +34,7 @@ export function drawMonsterSheet(ctx:CanvasRenderingContext2D,def:{sprite:string
 }
 
 // Adalar: görünüm başına 2 varyantlı sayfa (512 px). Çizim boyu = 2.36 × ada yarıçapı.
-export function islandSheetUrl(_look:string){return'/assets/islands-seven-seas-v2.webp';}
+export function islandSheetUrl(_look:string){return'/assets/islands-seven-seas-v1.webp';}
 export function drawIslandSprite(ctx:CanvasRenderingContext2D,island:{look:string;variant:number;r:number;flip?:boolean},x:number,y:number){
   const sheet=load(islandSheetUrl(island.look));if(!ready(sheet))return false;
   const size=island.r*2.36;ctx.save();ctx.translate(x,y);if(island.flip)ctx.scale(-1,1);
@@ -67,58 +43,29 @@ export function drawIslandSprite(ctx:CanvasRenderingContext2D,island:{look:strin
   ctx.drawImage(sheet,(frame%4)*cw,Math.floor(frame/4)*ch,cw,ch,-size/2,-size/2,size,size);ctx.restore();return true;
 }
 
-// Harita temasına göre değişen 4×2 filo adası atlası.
-// Kuleler bu görselin parçası DEĞİLDİR; sonradan dikilen bağımsız dünya nesneleridir.
-const FLEET_BASE_THEMES=['verdant','coral','misty','crimson','ice','storm','abyss','lava'];
-export const fleetBaseUrl=(_theme:string)=>'/assets/fleet-bases-v2.webp';
+// Onaylı raster ada (1000 dünya birimi) ve bağımsız dört kule türü.
+export const fleetBaseUrl=(_theme:string)=>'/assets/fleet-base-approved-v1.webp';
+export const fleetTowerUrl=(_theme:string)=>'/assets/fleet-towers-approved-v1.webp';
 export function drawFleetBase(ctx:CanvasRenderingContext2D,theme:string,x:number,y:number){
+  // Approved raster base: transparent sea/lagoon and eight empty foundations.
   const sheet=load(fleetBaseUrl(theme));if(!ready(sheet))return false;
-  const frame=Math.max(0,FLEET_BASE_THEMES.indexOf(theme)),cw=sheet.naturalWidth/4,ch=sheet.naturalHeight/2;
-  ctx.drawImage(sheet,(frame%4)*cw,Math.floor(frame/4)*ch,cw,ch,x-500,y-500,1000,1000);return true;
+  ctx.drawImage(sheet,x-500,y-500,1000,1000);return true;
 }
-
-export type FleetTowerVisual='cannon'|'mortar'|'chain'|'beacon';
-// Temadan bağımsız prosedürel kule çizimi: filo adası atlasına gömülü değildir.
-// Böylece boş kaide gerçekten boş kalır; kule yalnızca inşa/işgal state'i varsa çizilir.
-export const fleetTowerUrl=(_theme:string)=>'procedural:fleet-tower-v2';
-const towerPalette={
-  cannon:{stone:'#55565a',stoneHi:'#77777a',metal:'#24272b',brass:'#b98a43',roof:'#4b2921',glow:'#f0a54b'},
-  mortar:{stone:'#56565a',stoneHi:'#7c7b7d',metal:'#25282d',brass:'#c0944d',roof:'#392d28',glow:'#ffb35a'},
-  chain:{stone:'#50545a',stoneHi:'#747b83',metal:'#20262d',brass:'#8e7144',roof:'#243849',glow:'#69b9d5'},
-  beacon:{stone:'#55565a',stoneHi:'#7b7976',metal:'#292725',brass:'#c19a55',roof:'#473328',glow:'#78e4b5'}
-} as const;
-function poly(ctx:CanvasRenderingContext2D,pts:[number,number][],fill:string,stroke='#17191b'){
-  ctx.beginPath();pts.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.closePath();ctx.fillStyle=fill;ctx.fill();ctx.strokeStyle=stroke;ctx.lineWidth=2;ctx.stroke();
+// Rakip adanın varsayılan top kuleleri; oyuncu kuleleriyle aynı yerleşim.
+export function drawBastion(ctx:CanvasRenderingContext2D,slot:number,x:number,y:number,alpha=1){
+  return drawBuiltTower(ctx,0,slot,x,y,alpha);
 }
-export function drawBuiltTower(ctx:CanvasRenderingContext2D,type:FleetTowerVisual|number,_slot:number,x:number,y:number,alpha=1){
-  const kind:FleetTowerVisual=typeof type==='number'?(['cannon','mortar','chain','beacon'][Math.max(0,Math.min(3,type))] as FleetTowerVisual):type;
-  const p=towerPalette[kind];ctx.save();ctx.translate(x,y);ctx.globalAlpha=alpha;ctx.lineJoin='round';ctx.lineCap='round';
-  // Kaide gölgesi ve taş gövde: ayağı tam (0,0) inşa noktasına basar.
-  ctx.fillStyle='#07101466';ctx.beginPath();ctx.ellipse(0,5,42,13,0,0,Math.PI*2);ctx.fill();
-  poly(ctx,[[-34,0],[-29,-58],[-23,-71],[23,-71],[29,-58],[34,0]],p.stone);
-  ctx.fillStyle=p.stoneHi;ctx.globalAlpha=alpha*.38;ctx.fillRect(-24,-62,8,54);ctx.globalAlpha=alpha;
-  for(let yy=-48;yy<-4;yy+=18){ctx.strokeStyle='#33363a';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(-30,yy);ctx.lineTo(30,yy);ctx.stroke();}
-  // Mazgallı üst platform.
-  poly(ctx,[[-39,-65],[-39,-82],[-29,-82],[-29,-72],[-17,-72],[-17,-84],[-6,-84],[-6,-73],[6,-73],[6,-84],[17,-84],[17,-72],[29,-72],[29,-82],[39,-82],[39,-65]],p.stoneHi);
-  ctx.fillStyle='#1b1d20';ctx.fillRect(-30,-66,60,7);
-  // Tipi 48–60 px ölçekte dahi ayıran büyük silüet.
-  if(kind==='cannon'){
-    ctx.save();ctx.translate(0,-76);ctx.rotate(-.12);ctx.fillStyle=p.metal;ctx.fillRect(-8,-8,45,14);ctx.fillStyle=p.brass;ctx.fillRect(20,-10,7,18);ctx.beginPath();ctx.arc(-10,0,13,0,Math.PI*2);ctx.fill();ctx.restore();
-  }else if(kind==='mortar'){
-    ctx.save();ctx.translate(0,-75);ctx.rotate(-.78);ctx.fillStyle=p.metal;ctx.fillRect(-11,-8,38,19);ctx.fillStyle=p.brass;ctx.fillRect(17,-10,8,23);ctx.restore();ctx.fillStyle=p.brass;ctx.fillRect(-25,-68,50,5);
-  }else if(kind==='chain'){
-    ctx.fillStyle=p.metal;ctx.fillRect(-28,-81,56,11);ctx.fillStyle=p.brass;ctx.fillRect(-4,-88,8,24);ctx.strokeStyle=p.glow;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-24,-76);ctx.lineTo(24,-76);ctx.stroke();
-  }else{
-    poly(ctx,[[-17,-70],[-13,-113],[13,-113],[17,-70]],p.metal);
-    ctx.strokeStyle=p.brass;ctx.lineWidth=3;ctx.strokeRect(-12,-108,24,31);
-    const g=ctx.createRadialGradient(0,-94,1,0,-94,22);g.addColorStop(0,'#eaffd8');g.addColorStop(.25,p.glow);g.addColorStop(1,'#78e4b500');ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,-94,22,0,Math.PI*2);ctx.fill();
-  }
-  // Pirinç filo rozeti kuleleri aynı ailede tutar.
-  ctx.fillStyle=p.brass;ctx.beginPath();ctx.arc(0,-42,7,0,Math.PI*2);ctx.fill();ctx.fillStyle='#25282b';ctx.beginPath();ctx.arc(0,-42,3,0,Math.PI*2);ctx.fill();
+// Filonun diktiği tam kuleler (top, havan, zincir, fener): taş dikme kaidesinin merkezine oturur.
+// Dört eşit sütunlu sayfa; ayak çapası her sütunun ortasında, yüksekliğin %92'sinde.
+export function drawBuiltTower(ctx:CanvasRenderingContext2D,frame:number,slot:number,x:number,y:number,alpha=1){
+  const sheet=load(fleetTowerUrl(''));if(slot<0||slot>=8||!ready(sheet))return false;
+  const cellW=sheet.naturalWidth/4,cellH=sheet.naturalHeight,width=110,height=width*cellH/cellW;
+  ctx.save();ctx.globalAlpha=alpha;
+  ctx.drawImage(sheet,frame*cellW,0,cellW,cellH,x-width/2,y-height*.92+8,width,height);
   ctx.restore();return true;
 }
-export function drawBastion(ctx:CanvasRenderingContext2D,slot:number,x:number,y:number,alpha=1){return drawBuiltTower(ctx,'cannon',slot,x,y,alpha);}
-export const TOWER_LABEL_OFFSET=-126;
+// Kuleler adanın görselinden bağımsızdır: surdaki yuvarlak kaidelerin üstüne dikilir (200 px çizim).
+export const TOWER_LABEL_OFFSET=-135;
 
 // Ganimet sandıkları: 2 kare (tahta, yaldızlı), 128 px.
 const CHEST={frame:128,anchorX:64,anchorY:70.8,size:46};

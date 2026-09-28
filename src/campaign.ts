@@ -28,9 +28,7 @@ export function neighbor(key:MapKey,dir:Dir):MapKey|null{
 export const tierOf=(key:MapKey)=>Number(key.split('/')[0]);
 
 // Seviye atlamak için gereken tecrübe (TP). Hızlı değil ama emekle ulaşılabilir.
-// Seviye eğrisi NPC avı ana gelişim yolu olacak şekilde ayarlandı:
-// düşük seviyeler hızlı açılır, üst denizlerde gereken av sayısı kademeli artar.
-export const LEVEL_XP=[0,120,300,650,1200,2100,3400,5200,7600];
+export const LEVEL_XP=[0,2000,5000,10000,18000,30000,48000,72000,105000];
 export const xpNeed=(level:number)=>level>=MAX_LEVEL?Infinity:LEVEL_XP[level];
 
 type Theme={name:string;sea:[string,string];tint:string;look:IslandLook;fleet:FleetTheme;weather:Weather;label:string};
@@ -40,9 +38,9 @@ export const THEMES:Record<number,Theme>={
   3:{name:'Azurya Denizi',sea:['#14566e','#083343'],tint:'#82cbdc',look:'verdant',fleet:'misty',weather:'sparkle',label:'#c8eaf0'},
   4:{name:'Hayalet Denizi',sea:['#24443f','#0a2225'],tint:'#9fb8b4',look:'misty',fleet:'crimson',weather:'fog',label:'#c8d4ce'},
   5:{name:'Buzmahzen Denizi',sea:['#3e6d86','#17304a'],tint:'#bfe6ff',look:'ice',fleet:'ice',weather:'snow',label:'#e8f6ff'},
-  6:{name:'Fırtına Denizi',sea:['#1d3546','#0a1c2b'],tint:'#9fb4e0',look:'storm',fleet:'storm',weather:'storm',label:'#c8d4f0'},
-  7:{name:'Karanlık Uçurum Denizi',sea:['#202737','#090f1e'],tint:'#a79bdb',look:'abyss',fleet:'abyss',weather:'motes',label:'#d8c0ff'},
-  8:{name:'Alev Denizi',sea:['#343d3e','#121e24'],tint:'#ff8a3a',look:'lava',fleet:'lava',weather:'embers',label:'#ffc090'},
+  6:{name:'Fırtına Denizi',sea:['#1d3546','#0a1c2b'],tint:'#9fb4e0',look:'storm',fleet:'toxic',weather:'storm',label:'#c8d4f0'},
+  7:{name:'Karanlık Uçurum Denizi',sea:['#202737','#090f1e'],tint:'#a79bdb',look:'abyss',fleet:'lava',weather:'motes',label:'#d8c0ff'},
+  8:{name:'Alev Denizi',sea:['#343d3e','#121e24'],tint:'#ff8a3a',look:'lava',fleet:'storm',weather:'embers',label:'#ffc090'},
 };
 
 // ---------------------------------------------------------------- NPC gemileri
@@ -56,59 +54,44 @@ export const GOLD_PER_HP=.65/60;
 export const killReward=(hp:number,tier:number)=>({xp:Math.round(hp*XP_PER_HP(tier)),gold:Math.round(hp*GOLD_PER_HP)});
 export const hpScale=(tier:number)=>Math.pow(1.6,tier-1);
 export const dmgScale=(tier:number)=>1+.5*(tier-1);
-const npc=(id:string,name:string,role:'light'|'heavy',tier:number,sprite=`/assets/ship-${id}.webp`,span=role==='light'?98:122):Omit<NpcDef,'portrait'>=>{
-  const dmg=role==='light'?750:1650,t=tier-1,hp=Math.round((role==='light'?2500:6000)*hpScale(tier)),r=killReward(hp,tier),progress=1+(tier-1)*.06,roleReward=role==='heavy'?1.12:1;
-  return{id,name,sprite,span,role,tier,hp,damage:Math.round(dmg*dmgScale(tier)),reload:role==='light'?2.6:2.7,speed:(role==='light'?50:34)+t*1.5,gold:Math.round(r.gold*progress*roleReward),xp:Math.round(r.xp*progress*roleReward)};
+const npc=(id:string,name:string,role:'light'|'heavy',tier:number,sprite=`/assets/ship-${id}.webp`,span=role==='light'?104:112):Omit<NpcDef,'portrait'>=>{
+  const dmg=role==='light'?750:1650,t=tier-1,hp=Math.round((role==='light'?2500:6000)*hpScale(tier)),r=killReward(hp,tier);
+  return{id,name,sprite,span,role,tier,hp,damage:Math.round(dmg*dmgScale(tier)),reload:role==='light'?2.6:2.7,speed:(role==='light'?50:34)+t*1.5,gold:r.gold,xp:r.xp};
 };
 const NPC_LIST:Omit<NpcDef,'portrait'>[]=[
-  npc('n1-1-light','Kaçak Balıkçı','light',1,'/assets/npc-fleet-v4.webp?row=0'),npc('n1-1-heavy','Kıyı Yağmacısı','heavy',1,'/assets/npc-fleet-v4.webp?row=1',104),
-  npc('n1-2-light','Kaçakçı Gözcü','light',1,'/assets/npc-fleet-v4.webp?row=0'),npc('n1-2-heavy','Yağmacılar','heavy',1,'/assets/npc-fleet-v4.webp?row=1',104),
-  npc('n2-1-light','Mercan Avcısı','light',2,'/assets/npc-fleet-v4.webp?row=2'),npc('n2-1-heavy','Kızıl Savaş Gemisi','heavy',2,'/assets/npc-fleet-v4.webp?row=3',104),
-  npc('n2-2-light','İnci Dalgıcı','light',2,'/assets/npc-fleet-v4.webp?row=2'),npc('n2-2-heavy','Resif Fırkateyni','heavy',2,'/assets/npc-fleet-v4.webp?row=3'),
-  npc('n3-1-light','Sis Hayaleti','light',3,'/assets/npc-fleet-v4.webp?row=4'),npc('n3-1-heavy','Sisli Brik','heavy',3,'/assets/npc-fleet-v4.webp?row=5',104),
-  npc('n3-2-light','Kemik Kayığı','light',3,'/assets/npc-fleet-v4.webp?row=4'),npc('n3-2-heavy','Batık Kalyon','heavy',3,'/assets/npc-fleet-v4.webp?row=5',124),
-  npc('n4-1-light','Kan Korsanı','light',4,'/assets/npc-fleet-v4.webp?row=6',104),npc('n4-1-heavy','Kanlı Fırkateyn','heavy',4,'/assets/npc-fleet-v4.webp?row=7'),
-  npc('n4-2-light','Pas Yağmacısı','light',4,'/assets/npc-fleet-v4.webp?row=6'),npc('n4-2-heavy','Demir Ejder','heavy',4,'/assets/npc-fleet-v4.webp?row=7'),
-  npc('n5-1-light','Ayaz Avcısı','light',5,'/assets/npc-fleet-v4.webp?row=8'),npc('n5-1-heavy','Buz Kırıcı','heavy',5,'/assets/npc-fleet-v4.webp?row=9',104),
-  npc('n5-2-light','Kristal Kayık','light',5,'/assets/npc-fleet-v4.webp?row=8'),npc('n5-2-heavy','Kutup Kalyonu','heavy',5,'/assets/npc-fleet-v4.webp?row=9',124),
-  npc('n6-1-light','Bataklık Kaçakçısı','light',6,'/assets/npc-fleet-v4.webp?row=10'),npc('n6-1-heavy','Zehir Brigi','heavy',6,'/assets/npc-fleet-v4.webp?row=11',104),
-  npc('n6-2-light','Çürük Kürekçi','light',6,'/assets/npc-fleet-v4.webp?row=10'),npc('n6-2-heavy','Veba Kalyonu','heavy',6,'/assets/npc-fleet-v4.webp?row=11',124),
-  npc('n7-1-light','Kül Korsanı','light',7,'/assets/npc-fleet-v4.webp?row=12',104),npc('n7-1-heavy','Alev Fırkateyni','heavy',7,'/assets/npc-fleet-v4.webp?row=13'),
-  npc('n7-2-light','Ateş Kayığı','light',7,'/assets/npc-fleet-v4.webp?row=12'),npc('n7-2-heavy','Lav Ejderi','heavy',7,'/assets/npc-fleet-v4.webp?row=13'),
-  npc('n8-1-light','Fırtına Avcısı','light',8,'/assets/npc-fleet-v4.webp?row=14'),npc('n8-1-heavy','Şimşek Fırkateyni','heavy',8,'/assets/npc-fleet-v4.webp?row=15'),
-  npc('n8-2-light','Kasırga Brigi','light',8,'/assets/npc-fleet-v4.webp?row=14',104),npc('n8-2-heavy','Gök Gürültüsü Kalyonu','heavy',8,'/assets/npc-fleet-v4.webp?row=15',124),
+  npc('n1-1-light','Kaçak Balıkçı','light',1),npc('n1-1-heavy','Kıyı Yağmacısı','heavy',1,undefined,104),
+  npc('n1-2-light','Kaçakçı Gözcü','light',1,'/assets/enemy-scout-v1.webp'),npc('n1-2-heavy','Yağmacılar','heavy',1,'/assets/enemy-raider-v1.webp',104),
+  npc('n2-1-light','Mercan Avcısı','light',2),npc('n2-1-heavy','Kızıl Savaş Gemisi','heavy',2,'/assets/enemy-warship-v1.webp',104),
+  npc('n2-2-light','İnci Dalgıcı','light',2),npc('n2-2-heavy','Resif Fırkateyni','heavy',2),
+  npc('n3-1-light','Sis Hayaleti','light',3),npc('n3-1-heavy','Sisli Brik','heavy',3,undefined,104),
+  npc('n3-2-light','Kemik Kayığı','light',3),npc('n3-2-heavy','Batık Kalyon','heavy',3,undefined,124),
+  npc('n4-1-light','Kan Korsanı','light',4,undefined,104),npc('n4-1-heavy','Kanlı Fırkateyn','heavy',4),
+  npc('n4-2-light','Pas Yağmacısı','light',4),npc('n4-2-heavy','Demir Ejder','heavy',4),
+  npc('n5-1-light','Ayaz Avcısı','light',5),npc('n5-1-heavy','Buz Kırıcı','heavy',5,undefined,104),
+  npc('n5-2-light','Kristal Kayık','light',5),npc('n5-2-heavy','Kutup Kalyonu','heavy',5,undefined,124),
+  npc('n6-1-light','Bataklık Kaçakçısı','light',6),npc('n6-1-heavy','Zehir Brigi','heavy',6,undefined,104),
+  npc('n6-2-light','Çürük Kürekçi','light',6),npc('n6-2-heavy','Veba Kalyonu','heavy',6,undefined,124),
+  npc('n7-1-light','Kül Korsanı','light',7,undefined,104),npc('n7-1-heavy','Alev Fırkateyni','heavy',7),
+  npc('n7-2-light','Ateş Kayığı','light',7),npc('n7-2-heavy','Lav Ejderi','heavy',7),
+  npc('n8-1-light','Fırtına Avcısı','light',8),npc('n8-1-heavy','Şimşek Fırkateyni','heavy',8),
+  npc('n8-2-light','Kasırga Brigi','light',8,undefined,104),npc('n8-2-heavy','Gök Gürültüsü Kalyonu','heavy',8,undefined,124),
 ];
 export const NPCS:Record<string,NpcDef>=Object.fromEntries(NPC_LIST.map((n,i)=>[n.id,{...n,portrait:i}]));
-
-// 1/1 → 8/2 görsel dağılımı. Her seviye kendi deniz atmosferini korur; her alt harita
-// light/heavy silüetini ayrı sprite dosyasından alır. Bu tablo UI/minimap/VFX katmanlarının
-// aynı sanat yönünü paylaşması için tek kaynak olarak kullanılır.
-export const ENCOUNTER_ART={
-  1:{family:'coast',accent:'#c9a56b',wake:'#d9f0e7',monster:'coastal'},
-  2:{family:'coral',accent:'#e05b48',wake:'#7de9e1',monster:'reef'},
-  3:{family:'ghost',accent:'#71d7d1',wake:'#9fd7d0',monster:'spectral'},
-  4:{family:'blood-iron',accent:'#b7352e',wake:'#a7a09a',monster:'armored'},
-  5:{family:'ice',accent:'#a9e8ff',wake:'#d8f5ff',monster:'frost'},
-  6:{family:'plague',accent:'#83b66a',wake:'#9ac9a6',monster:'toxic'},
-  7:{family:'lava',accent:'#ff6a2b',wake:'#e49b66',monster:'magma'},
-  8:{family:'storm',accent:'#78bfff',wake:'#a7cfff',monster:'tempest'},
-} as const;
-export const encounterArt=(tier:number)=>ENCOUNTER_ART[Math.max(1,Math.min(8,tier)) as keyof typeof ENCOUNTER_ART];
 
 // ---------------------------------------------------------------- Canavarlar
 export type MonsterDef={id:string;name:string;sprite:string;span:number;frame:number;anchorY:number;radius:number;tier:number;hp:number;damage:number;reload:number;gold:number;xp:number;portrait:number};
 // Canavar, aynı denizin ağır NPC'sinden yaklaşık 2,2 kat daha dayanıklıdır (Seafight'ta canavarlar ağır NPC'lerin 1,5–2 katı).
-const mon=(id:string,name:string,tier:number,radius=54,sprite=`/assets/monster-${id}.webp`,span=168,anchorY=133.4):Omit<MonsterDef,'portrait'>=>{const t=tier-1,hp=Math.round(13000*hpScale(tier)),r=killReward(hp,tier);
+const mon=(id:string,name:string,tier:number,radius=54,sprite=`/assets/monster-${id}.webp`,span=140,anchorY=133.4):Omit<MonsterDef,'portrait'>=>{const t=tier-1,hp=Math.round(13000*hpScale(tier)),r=killReward(hp,tier);
   return{id,name,sprite,span,frame:256,anchorY,radius,tier,hp,damage:Math.round(1500*dmgScale(tier)),reload:2.8-t*.08,gold:r.gold,xp:r.xp};};
 const MONSTER_LIST:Omit<MonsterDef,'portrait'>[]=[
   mon('m1-1','Yosun Yengeci',1,50),mon('m1-2','Kıyı Yılanı',1,56),
-  mon('m2-1','Derinlik Leviathanı',2,54,'/assets/leviathan-v1.webp',168,130.9),mon('m2-2','İnci Denizanası',2,50),
+  mon('m2-1','Derinlik Leviathanı',2,54,'/assets/leviathan-v1.webp',132,130.9),mon('m2-2','İnci Denizanası',2,50),
   mon('m3-1','Sis Yılanı',3,58),mon('m3-2','Kemik Hidrası',3,56),
   mon('m4-1','Kızıl Yengeç',4,54),mon('m4-2','Pas Kaplumbağası',4,58),
   mon('m5-1','Buz Yılanı',5,60),mon('m5-2','Buzul Kaplumbağası',5,60),
   mon('m6-1','Zehir Denizanası',6,54),mon('m6-2','Bataklık Hidrası',6,60),
   mon('m7-1','Magma Yengeci',7,58),mon('m7-2','Alev Yılanı',7,62),
-  mon('m8-1','Fırtına Leviathanı',8,62,'/assets/leviathan-storm-v1.webp',196,130.9),mon('m8-2','Kasırga Denizanası',8,58),
+  mon('m8-1','Fırtına Leviathanı',8,62,'/assets/leviathan-storm-v1.webp',132,130.9),mon('m8-2','Kasırga Denizanası',8,58),
 ];
 export const MONSTERS:Record<string,MonsterDef>=Object.fromEntries(MONSTER_LIST.map((m,i)=>[m.id,{...m,portrait:NPC_LIST.length+i}]));
 // Portre atlasının son karesi (eski Hayalet Amiral) şimdilik kullanılmıyor; yeni boss eklenince kullanılabilir.
@@ -121,34 +104,14 @@ export const PORTRAIT_ATLAS='/assets/portraits-v2.webp';
 // Boss yalnızca tecrübe puanı ve inci verir. Can: ağır NPC ×30, hasar ×2 (3 güllelik yelpaze), canı yarıya inince 2 muhafız çağırır.
 export const BOSS_KILLS=200;
 export const BOSS_ATLAS='/assets/boss-portraits-v1.webp',BOSS_ATLAS_COLS=8;
-export type BossDef={key:MapKey;id:string;name:string;sprite:string;atlas:'directional-ship';directions:8;span:number;role:'heavy';tier:number;hp:number;damage:number;reload:number;speed:number;gold:number;xp:number;pearls:number;portrait:number;trigger:string};
+export type BossDef={key:MapKey;id:string;name:string;sprite:string;span:number;role:'heavy';tier:number;hp:number;damage:number;reload:number;speed:number;gold:number;xp:number;pearls:number;portrait:number;trigger:string};
 const BOSS_NAMES:Record<MapKey,string>={
   '1/1':'Yosunbıyık Reis','1/2':'Kara Martı Reis','2/1':'Kızıl Mercan Amirali','2/2':'İnci Kraliçesi Nerissa',
   '3/1':'Sis Lordu Morvan','3/2':'Solgun Kaptan Elias','4/1':'Kanlı Barones','4/2':'Demir Ejder Hanı',
   '5/1':'Ayaz Hükümdarı','5/2':'Kutup Amirali Borealis','6/1':'Zehirdiş','6/2':'Veba Piskoposu',
   '7/1':'Kül Amirali Pyros','7/2':'Magma Sultanı','8/1':'Şimşek Lordu','8/2':'Kasırga İmparatoru'};
-// Boss atlasları repoda fiziksel dosya olarak tutulur. Yeni 8x1 atlaslar aynı anahtarlar üzerinden
-// tek tek değiştirilebilir; renderer eski 8x2 atlasları da geçiş boyunca destekler.
-export const BOSS_SPRITES:Record<MapKey,string>={
-  '1/1':'/assets/boss-1-1.webp','1/2':'/assets/boss-1-2.webp',
-  '2/1':'/assets/boss-2-1.webp','2/2':'/assets/boss-2-2.webp',
-  '3/1':'/assets/boss-3-1.webp','3/2':'/assets/boss-3-2.webp',
-  '4/1':'/assets/boss-4-1.webp','4/2':'/assets/boss-4-2.webp',
-  '5/1':'/assets/boss-5-1.webp','5/2':'/assets/boss-5-2.webp',
-  '6/1':'/assets/boss-6-1.webp','6/2':'/assets/boss-6-2.webp',
-  '7/1':'/assets/boss-7-1.webp','7/2':'/assets/boss-7-2.webp',
-  '8/1':'/assets/boss-8-1.webp','8/2':'/assets/boss-8-2.webp'
-};
-export type BossAsset={sprite:string;atlas:'directional-ship';directions:8;theme:string;frame:number;span:number};
-export const BOSS_ASSET_MANIFEST:Record<MapKey,BossAsset>=Object.fromEntries(
-  MAP_KEYS.map(key=>[key,{sprite:BOSS_SPRITES[key],atlas:'directional-ship' as const,directions:8 as const,theme:encounterArt(MAPS[key].tier).family,frame:224,span:285}])
-) as Record<MapKey,BossAsset>;
-// Tek doğruluk kaynağı: yeni raster Boss atlası eklendiğinde yalnızca manifest yolu/ölçeği değiştirilir.
-export const bossAssetFor=(key:MapKey)=>BOSS_ASSET_MANIFEST[key];
-export const bossSpriteFor=(key:MapKey)=>bossAssetFor(key).sprite;
 export const bossFor=(key:MapKey):BossDef=>{const m=MAPS[key],h=NPCS[m.npcs[1]],hp=h.hp*30,i=MAP_KEYS.indexOf(key);
-  const asset=bossAssetFor(key);
-  return{key,id:`boss-${key.replace('/','-')}`,name:BOSS_NAMES[key],sprite:asset.sprite,atlas:asset.atlas,directions:asset.directions,span:asset.span,role:'heavy',tier:m.tier,hp,damage:h.damage*2,reload:2.2,speed:Math.round(h.speed*.8),gold:0,
+  return{key,id:`boss-${key.replace('/','-')}`,name:BOSS_NAMES[key],sprite:`/assets/boss-${key.replace('/','-')}.webp`,span:260,role:'heavy',tier:m.tier,hp,damage:h.damage*2,reload:2.2,speed:Math.round(h.speed*.8),gold:0,
     xp:Math.round(hp/60),pearls:50*m.tier,portrait:i,trigger:h.id};};
 
 // ---------------------------------------------------------------- Koordinat ızgarası
@@ -165,10 +128,10 @@ export function coordLabel(p:{x:number;y:number}){const g=gridCell(p);return`${c
 // tools/asset-studio/fleet-raster-mask.py ile seyir maskesi yeniden üretilir.
 // Filo adası görseli (fleet-base-approved-v1, 1000 birim): güneyden kanalla girilen lagün kalesi. Seyir alanı src/fleetMask.ts
 // maskesinden gelir; kuleler görseldeki 8 sur kulesinin üzerindedir. lagoon: lagünün ortası (rota hedefi).
-export const FLEET={islandR:410,wallR:305,gap:.56,lagoon:{x:0,y:58,r:112},channelW:55,keep:{x:0,y:-220},
-  // V2 temalı filo adaları: sekiz kule yuvasının sırası korunur, böylece kayıtlı kuleler doğru slota taşınır.
-  towers:[[-180,-286],[-286,-145],[-278,48],[-116,188],[120,188],[278,48],[286,-145],[180,-286]] as [number,number][],
-  base:{frame:512,span:1000},tower:{frame:256,span:120,anchorY:0}};
+export const FLEET={islandR:500,wallR:370,gap:.56,lagoon:{x:0,y:60,r:150},channelW:70,keep:{x:0,y:-280},
+  // Approved v1 base, 1000 world units. Preserve slot order for saved guild towers.
+  towers:[[-230,-360],[-364,-189],[-328,70],[-121,214],[146,214],[337,70],[361,-193],[242,-360]] as [number,number][],
+  base:{frame:1024,span:1000},tower:{frame:256,span:120,anchorY:0}};
 // Kuleler filo savaşı ölçeğinde: tek gemi yıkamaz, saldırı kesilince hızla onarılır.
 export const fleetTower=(tier:number)=>{return{hp:Math.round(150000*hpScale(tier)),damage:Math.round(1050*dmgScale(tier)),reload:2.2,range:460,ownDamage:Math.round(1500*hpScale(tier))};};
 export const fleetReward=(tier:number)=>({gold:300*tier,xp:Math.round(500*Math.pow(tier,1.2))});
@@ -241,7 +204,7 @@ export type QuestDef={id:string;map:MapKey;tier:number;title:string;description:
 export const QUEST_BONUS=1.5;
 export const QUESTS:QuestDef[]=MAP_KEYS.flatMap(key=>{
   const m=MAPS[key],t=m.tier,L=NPCS[m.npcs[0]],H=NPCS[m.npcs[1]],Mo=MONSTERS[m.monster],pay=(n:number,u:{gold:number;xp:number},k=QUEST_BONUS)=>({gold:Math.round(n*u.gold*k),xp:Math.round(n*u.xp*k)});
-  const nL=6+t,nH=3+Math.ceil(t/2),nM=t<5?2:3,nC=5+t,head=`${key} ${m.name}`;
+  const nL=15+t*3,nH=8+t*2,nM=t<5?2:3,nC=5+t,head=`${key} ${m.name}`;
   return[
     {id:`q${key}-light`,map:key,tier:t,title:`${head}: Devriye Avı`,description:`${L.name} gemilerinden ${nL} tanesini batır.`,kind:'npc',ids:[L.id],required:nL,...pay(nL,L),pearls:2+t},
     {id:`q${key}-heavy`,map:key,tier:t,title:`${head}: Ağır Filo`,description:`${H.name} gemilerinden ${nH} tanesini denizin dibine gönder.`,kind:'npc',ids:[H.id],required:nH,...pay(nH,H),pearls:3+2*t},
@@ -249,6 +212,4 @@ export const QUESTS:QuestDef[]=MAP_KEYS.flatMap(key=>{
     {id:`q${key}-chest`,map:key,tier:t,title:`${head}: Ganimet Avı`,description:`Bu denizde sürüklenen ${nC} ganimet sandığını topla.`,kind:'chest',ids:[key],required:nC,...pay(nC,{gold:L.gold*4,xp:L.xp*3},1),pearls:4+2*t},
   ];
 });
-// Görev tamamlandıktan veya iptal edildikten sonra aynı görev 8 saat bekler.
-// Böylece görev ödülleri değerini korur ve oyuncu sürekli görev döngüsüyle aşırı hızlı kasılmaz.
-export const QUEST_COOLDOWN_MS=8*60*60*1000;
+export const QUEST_COOLDOWN_MS=2*60*60*1000;
