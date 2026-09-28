@@ -5,7 +5,7 @@ import type {Price} from './arsenal';
 export type EquipSlot='sail'|'figure'|'armor'|'carriage';
 export type EquipStats={speed?:number;damage?:number;hp?:number;reload?:number;range?:number};
 export type EquipDef={id:string;slot:EquipSlot;rarity:0|1|2;name:string;price:Price;stats:EquipStats};
-export const EQUIP_ATLAS='/assets/equip-atlas-v3.webp';
+export const EQUIP_ATLAS='/assets/equip-atlas-v3.webp?v=20260928';
 export const EQUIP_SLOTS:{id:EquipSlot;name:string}[]=[{id:'sail',name:'Yelken'},{id:'figure',name:'Pruva Heykeli'},{id:'armor',name:'Gövde Zırhı'},{id:'carriage',name:'Top Kundağı'}];
 export const RARITY_NAMES=['Sıradan','Nadir','Destansı'] as const;
 const g=(amount:number):Price=>({amount,currency:'gold'}),p=(amount:number):Price=>({amount,currency:'pearls'});
