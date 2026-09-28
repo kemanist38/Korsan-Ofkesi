@@ -1728,6 +1728,7 @@ function drawMinimap(){const W=170,H=125,sx=(x:number)=>x/WORLD_WIDTH*W,sy=(y:nu
   for(const c of lootChests){mini.fillStyle=c.kind==='gilded'?'#ffd46b':'#d9a95b';mini.fillRect(sx(c.x)-1,sy(c.y)-1,2,2);}
   for(const e of enemies){if(e.tower)continue;const heavy=e.role==='heavy';shipMark(e.x,e.y,e.angle,e.boss?5.2:heavy?4.1:3.2,e.boss?'#d83d32':heavy?'#d45a3e':'#e09a57',!!e.boss);}
   shipMark(player.x,player.y,player.angle,4.2,'#65c7ff');
+}
 // manualClock (yalnızca geliştirme): tanıtım videosu kare kare çekilirken oyun dışarıdan adımlanır
 let manualClock=false;
 let last=performance.now();function loop(now:number){const dt=Math.min(.033,(now-last)/1000);last=now;if(!manualClock){update(dt);draw();}requestAnimationFrame(loop);}renderQuickSlots();updateUI();requestAnimationFrame(loop);
