@@ -389,7 +389,7 @@ body.shop-open .market-overlay,body.shop-open .ship-overlay,body.shop-open .load
 .world-overlay{background:#02090d8c}
 .world-overlay .world-scroll{position:relative;width:min(400px,88vw,calc(88vh * .75));aspect-ratio:480/640;background:url(/assets/world-scroll-v1.webp) center/100% 100% no-repeat;filter:drop-shadow(0 14px 30px #000c)}
 .world-overlay .scroll-close{position:absolute;right:2%;top:.5%;z-index:3;width:30px;height:30px;padding:0;border:2px solid #6a4a22;border-radius:50%;background:radial-gradient(circle,#3a2a1a,#1a1008);color:#f0d9a8;font:700 18px/1 Inter;cursor:pointer;box-shadow:0 2px 6px #000a}
-.world-overlay .world-chart{position:absolute;left:9.5%;right:9.5%;top:11%;bottom:11%;margin:0;padding:0;background:none;border:0;box-shadow:none;outline:0;aspect-ratio:auto;width:auto}
+.world-overlay .world-chart{position:absolute;left:14%;right:14%;top:11%;bottom:11%;margin:0;padding:0;background:none;border:0;box-shadow:none;outline:0;aspect-ratio:auto;width:auto}
 .world-overlay .world-grid{height:100%;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr);gap:0;border:2px solid #7a5628;box-shadow:0 0 0 1px #3a2410}
 .world-overlay .world-tile{position:relative;display:grid;grid-template-rows:auto 1fr auto;justify-items:center;align-content:stretch;gap:0;aspect-ratio:auto;padding:3px 3px 5px;border:1px solid #7a5628;border-radius:0;cursor:default;filter:none;outline:0;
   background:repeating-linear-gradient(135deg,rgba(90,55,20,.08) 0 2px,transparent 2px 6px),linear-gradient(160deg,#d9b57c,#b88a4e);color:#5a2a0e}
