@@ -381,8 +381,7 @@ function enterMap(key:MapKey,at:Vec){
   currentMap=key;try{localStorage.setItem(WORLD_STORAGE,key);}catch{}populateMap();
   player.x=at.x;player.y=at.y;player.speed=0;destination=null;selected=null;state.attacking=false;ui('attack').classList.remove('active');
   camera.x=player.x;camera.y=player.y;jumpPrompt=null;mapFade=1;updateJumpPrompt();playMapJump();
-  const tier=mapDef().tier,progress=tier<=1?'Başlangıç av sahası':`Seviye ${tier} av sahası · daha güçlü NPC ve daha yüksek ödül`;
-  rewardNotice(`${mapDef().key}  ${mapDef().name.toLocaleUpperCase('tr')}   ${mapDef().safe?'SAVAŞA KAPALI':progress}`);
+  rewardNotice(`${mapDef().key}  ${mapDef().name.toLocaleUpperCase('tr')}   ${mapDef().safe?'SAVAŞA KAPALI':'SEVİYE '+mapDef().tier}`);
 }
 function inCombat(){return enemies.some(e=>e.aggro&&!e.tower&&dist(e,player)<520)||monsters.some(m=>m.aggro&&dist(m,player)<520);}
 // Harita kenarına yanaşınca komşu denize atlama
@@ -399,8 +398,8 @@ function updateJumpPrompt(){
   const dir=edgeDir(),to=dir?neighbor(currentMap,dir):null,next=dir&&to?{dir,to}:null,el=ui('portalPrompt');
   if(!next){jumpPrompt=null;el.classList.remove('visible');el.innerHTML='';return;}
   if(next.to===jumpPrompt?.to&&next.dir===jumpPrompt?.dir)return;jumpPrompt=next;
-  const target=MAPS[next.to],locked=state.level<target.tier,arrow={north:'↑',south:'↓',east:'→',west:'←'}[next.dir],progress=target.tier<=1?'Başlangıç av sahası':`Seviye ${target.tier} · daha güçlü NPC / daha yüksek ödül`;
-  el.innerHTML=`<span>HARİTA ATLA ${arrow}</span><strong>${target.key} · ${target.name}</strong><small>${locked?`KİLİTLİ · Seviye ${target.tier} gerekli`:target.safe?'Savaşa kapalı deniz':`${THEMES[target.tier].name} · ${progress}`}</small><button ${locked?'disabled':''}>HARİTA ATLA <kbd>${keyLabel(settings.binds.jump)}</kbd></button>`;
+  const target=MAPS[next.to],locked=state.level<target.tier,arrow={north:'↑',south:'↓',east:'→',west:'←'}[next.dir];
+  el.innerHTML=`<span>HARİTA ATLA ${arrow}</span><strong>${target.key} · ${target.name}</strong><small>${locked?`Seviye ${target.tier} gerekli`:target.safe?'Savaşa kapalı deniz':`${THEMES[target.tier].name} · Seviye ${target.tier}`}</small><button ${locked?'disabled':''}>HARİTA ATLA <kbd>${keyLabel(settings.binds.jump)}</kbd></button>`;
   el.classList.add('visible');el.querySelector('button')!.onclick=()=>useJump();
 }
 populateMap();
