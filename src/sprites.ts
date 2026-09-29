@@ -5,7 +5,7 @@ export type ChestKind='wood'|'gilded';
 const cache=new Map<string,HTMLImageElement>();
 function load(src:string){let image=cache.get(src);if(!image){image=new Image();image.decoding='async';image.src=src;cache.set(src,image);}return image;}
 const ready=(image:HTMLImageElement)=>image.complete&&image.naturalWidth>0;
-export function preload(srcs:string[]){srcs.forEach(load);}
+export function preload(srcs:string[]){srcs.filter(Boolean).forEach(load);}
 
 // NPC gemileri: 16 yön, 8 sütun × 2 satır, 192 px kare; kare 0 = kuzey, saat yönünde 22,5°.
 // span: karenin kapsadığı dünya birimi. Oyunda 1 birim ≈ 1,23 px.
@@ -13,6 +13,7 @@ const SHIP={frame:192,dirs:16,cols:8,anchorX:96,anchorY:108.35,pxPerUnit:1.23};
 export const shipDrawSize=(span:number)=>span*SHIP.pxPerUnit;
 export const shipLabelOffset=(span:number)=>-Math.round(shipDrawSize(span)*.46);
 export function drawNpcShip(ctx:CanvasRenderingContext2D,sprite:string,span:number,x:number,y:number,angle:number,time:number){
+  if(!sprite)return false;
   const sheet=load(sprite);if(!ready(sheet))return false;
   const step=Math.PI*2/SHIP.dirs,index=((Math.round(angle/step)%SHIP.dirs)+SHIP.dirs)%SHIP.dirs;
   // Kare boyu sayfadan okunur (NPC 192 px, boss 224 px); çapa karenin aynı oranındadır.
@@ -24,6 +25,7 @@ export function drawNpcShip(ctx:CanvasRenderingContext2D,sprite:string,span:numb
 
 // Canavarlar: 8 karelik döngü, 4 × 2, 256 px kare; geçişli çizilir.
 export function drawMonsterSheet(ctx:CanvasRenderingContext2D,def:{sprite:string;span:number;anchorY:number;radius:number},x:number,y:number,phase:number,angle=0){
+  if(!def.sprite)return false;
   const sheet=load(def.sprite);if(!ready(sheet))return false;
   // Trial sheets contain eight facing directions, not animation frames.
   if(def.sprite.startsWith('/assets/trial-coast-')){
@@ -115,8 +117,10 @@ export function seaTilePattern(ctx:CanvasRenderingContext2D){const tile=load('/a
 
 // Portre atlası: hücre indeksinden CSS arka plan konumu.
 export function portraitStyle(atlas:string,index:number,count:number,cols:number){
+  if(!atlas)return '';
   const trialPortraits:Record<number,number>={0:0,1:1,2:1,3:2,32:3,33:4};
-  if(atlas==='/assets/portraits-v2.webp'&&index in trialPortraits){
+  if(atlas==='/assets/trial-coast-portraits-v1.webp'){
+    if(!(index in trialPortraits))return '';
     atlas='/assets/trial-coast-portraits-v1.webp';index=trialPortraits[index];count=5;cols=5;
   }
   const rows=Math.ceil(count/cols),c=index%cols,r=Math.floor(index/cols);
