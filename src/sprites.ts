@@ -23,8 +23,15 @@ export function drawNpcShip(ctx:CanvasRenderingContext2D,sprite:string,span:numb
 }
 
 // Canavarlar: 8 karelik döngü, 4 × 2, 256 px kare; geçişli çizilir.
-export function drawMonsterSheet(ctx:CanvasRenderingContext2D,def:{sprite:string;span:number;anchorY:number;radius:number},x:number,y:number,phase:number){
+export function drawMonsterSheet(ctx:CanvasRenderingContext2D,def:{sprite:string;span:number;anchorY:number;radius:number},x:number,y:number,phase:number,angle=0){
   const sheet=load(def.sprite);if(!ready(sheet))return false;
+  // Trial sheets contain eight facing directions, not animation frames.
+  if(def.sprite.startsWith('/assets/trial-coast-')){
+    const F=sheet.naturalWidth/4,index=((Math.round(angle/(Math.PI/4))%8)+8)%8;
+    const size=def.span*def.radius/55,k=size/256;
+    ctx.drawImage(sheet,(index%4)*F,Math.floor(index/4)*F,F,F,x-size/2,y-def.anchorY*k+Math.sin(phase*1.3)*1.5,size,size);
+    return true;
+  }
   const F=256,fps=5,t=phase*fps,a=Math.floor(t)%8,b=(a+1)%8,blend=t-Math.floor(t);
   const size=def.span*def.radius/55,k=size/F,dx=x-128*k,dy=y-def.anchorY*k+Math.sin(phase*1.3)*1.5;
   ctx.save();
@@ -108,6 +115,10 @@ export function seaTilePattern(ctx:CanvasRenderingContext2D){const tile=load('/a
 
 // Portre atlası: hücre indeksinden CSS arka plan konumu.
 export function portraitStyle(atlas:string,index:number,count:number,cols:number){
+  const trialPortraits:Record<number,number>={0:0,1:1,2:1,3:2,32:3,33:4};
+  if(atlas==='/assets/portraits-v2.webp'&&index in trialPortraits){
+    atlas='/assets/trial-coast-portraits-v1.webp';index=trialPortraits[index];count=5;cols=5;
+  }
   const rows=Math.ceil(count/cols),c=index%cols,r=Math.floor(index/cols);
   return`background-image:url(${atlas});background-size:${cols*100}% ${rows*100}%;background-position:${cols>1?c/(cols-1)*100:0}% ${rows>1?r/(rows-1)*100:0}%`;
 }
