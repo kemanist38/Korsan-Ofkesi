@@ -57,7 +57,7 @@ test('every map has its own boss, summoned by 200 of the map\'s strongest NPC',(
   keys.forEach((key,i)=>{const b=bossFor(key),heavy=NPCS[maps[key].npcs[1]];
     assert.equal(b.trigger,heavy.id);assert.equal(b.hp,heavy.hp*30);assert.equal(b.gold,0);
     assert.equal(b.pearls,50*maps[key].tier);assert.ok(b.xp>0);assert.equal(b.portrait,i);names.add(b.name);
-    assert.equal(b.sprite,`/assets/boss-t${maps[key].tier}-v1.webp`);});
+    assert.equal(b.sprite,`/assets/boss-t${maps[key].tier}-v${maps[key].tier>=5?2:1}.webp`);});
   // Her denizin iki haritası aynı bossu paylaşır; denizler arasında isimler benzersizdir.
   assert.equal(names.size,keys.length/2,'unique boss name per sea');
 });
