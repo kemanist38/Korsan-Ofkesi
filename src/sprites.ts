@@ -49,7 +49,8 @@ export function drawIslandSprite(ctx:CanvasRenderingContext2D,island:{look:strin
 }
 
 // Onaylı raster ada (1000 dünya birimi) ve bağımsız dört kule türü.
-export const fleetBaseUrl=(_theme:string)=>'/assets/fleet-base-approved-v1.webp';
+const FLEET_BASE_THEMES=new Set(['coral','verdant','misty','ice','storm','abyss','lava']);
+export const fleetBaseUrl=(theme:string)=>`/assets/fleet-base-${FLEET_BASE_THEMES.has(theme)?theme:'coral'}-v2.webp`;
 export const fleetTowerUrl=(_theme:string)=>'/assets/fleet-towers-approved-v1.webp';
 export function drawFleetBase(ctx:CanvasRenderingContext2D,theme:string,x:number,y:number){
   // Approved raster base: transparent sea/lagoon and eight empty foundations.

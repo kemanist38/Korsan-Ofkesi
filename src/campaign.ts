@@ -35,12 +35,12 @@ type Theme={name:string;sea:[string,string];tint:string;look:IslandLook;fleet:Fl
 export const THEMES:Record<number,Theme>={
   1:{name:'Güvenli Harita',sea:['#12505a','#0a2f38'],tint:'#6fd6c4',look:'haven',fleet:'verdant',weather:null,label:'#b7d9d1'},
   2:{name:'İnciyolu Denizi',sea:['#0f6068','#063a44'],tint:'#8ff0dc',look:'coral',fleet:'coral',weather:'sparkle',label:'#c8f4ea'},
-  3:{name:'Azurya Denizi',sea:['#14566e','#083343'],tint:'#82cbdc',look:'verdant',fleet:'misty',weather:'sparkle',label:'#c8eaf0'},
-  4:{name:'Hayalet Denizi',sea:['#24443f','#0a2225'],tint:'#9fb8b4',look:'misty',fleet:'crimson',weather:'fog',label:'#c8d4ce'},
+  3:{name:'Azurya Denizi',sea:['#14566e','#083343'],tint:'#82cbdc',look:'verdant',fleet:'verdant',weather:'sparkle',label:'#c8eaf0'},
+  4:{name:'Hayalet Denizi',sea:['#24443f','#0a2225'],tint:'#9fb8b4',look:'misty',fleet:'misty',weather:'fog',label:'#c8d4ce'},
   5:{name:'Buzmahzen Denizi',sea:['#3e6d86','#17304a'],tint:'#bfe6ff',look:'ice',fleet:'ice',weather:'snow',label:'#e8f6ff'},
-  6:{name:'Fırtına Denizi',sea:['#1d3546','#0a1c2b'],tint:'#9fb4e0',look:'storm',fleet:'toxic',weather:'storm',label:'#c8d4f0'},
-  7:{name:'Karanlık Uçurum Denizi',sea:['#202737','#090f1e'],tint:'#a79bdb',look:'abyss',fleet:'lava',weather:'motes',label:'#d8c0ff'},
-  8:{name:'Alev Denizi',sea:['#343d3e','#121e24'],tint:'#ff8a3a',look:'lava',fleet:'storm',weather:'embers',label:'#ffc090'},
+  6:{name:'Fırtına Denizi',sea:['#1d3546','#0a1c2b'],tint:'#9fb4e0',look:'storm',fleet:'storm',weather:'storm',label:'#c8d4f0'},
+  7:{name:'Karanlık Uçurum Denizi',sea:['#202737','#090f1e'],tint:'#a79bdb',look:'abyss',fleet:'abyss',weather:'motes',label:'#d8c0ff'},
+  8:{name:'Alev Denizi',sea:['#343d3e','#121e24'],tint:'#ff8a3a',look:'lava',fleet:'lava',weather:'embers',label:'#ffc090'},
 };
 
 // ---------------------------------------------------------------- NPC gemileri
@@ -126,10 +126,10 @@ export function coordLabel(p:{x:number;y:number}){const g=gridCell(p);return`${c
 // Seafight tarzı: düzensiz kumsallı ada (islandR), koyu sur halkası (wallR, açıklık güneyde),
 // sur içinde lagün (lagoon) ve lagünü denize bağlayan kanal (|x|<channelW). Burç lagünün kuzeyinde.
 // tools/asset-studio/fleet-raster-mask.py ile seyir maskesi yeniden üretilir.
-// Filo adası görseli (fleet-base-approved-v1, 1000 birim): güneyden kanalla girilen lagün kalesi. Seyir alanı src/fleetMask.ts
+// Filo adası görseli (haritaya özel fleet-base-*-v2, 1000 birim): güneyden kanalla girilen lagün kalesi. Seyir alanı src/fleetMask.ts
 // maskesinden gelir; kuleler görseldeki 8 sur kulesinin üzerindedir. lagoon: lagünün ortası (rota hedefi).
 export const FLEET={islandR:500,wallR:370,gap:.56,lagoon:{x:0,y:60,r:150},channelW:70,keep:{x:0,y:-280},
-  // Approved v1 base, 1000 world units. Preserve slot order for saved guild towers.
+  // Shared foundation layout, 1000 world units. Preserve slot order for saved guild towers.
   towers:[[-230,-360],[-364,-189],[-328,70],[-121,214],[146,214],[337,70],[361,-193],[242,-360]] as [number,number][],
   base:{frame:1024,span:1000},tower:{frame:256,span:120,anchorY:0}};
 // Kuleler filo savaşı ölçeğinde: tek gemi yıkamaz, saldırı kesilince hızla onarılır.
@@ -186,7 +186,7 @@ export function islandLayout(key:MapKey,fleet:{x:number;y:number}):WorldIsland[]
   const spawn={x:fleet.x,y:Math.min(WORLD_HEIGHT-200,fleet.y+900)};
   for(let attempt=0;attempt<1000&&result.length<count;attempt++){
     const r=90+Math.floor(random()*65),x=Math.round(300+random()*(WORLD_WIDTH-600)),y=Math.round(300+random()*(WORLD_HEIGHT-600));
-    if(tier>=5&&Math.hypot(x-fleet.x,y-fleet.y)<FLEET.islandR+r+400)continue;
+    if(tier>=2&&Math.hypot(x-fleet.x,y-fleet.y)<FLEET.islandR+r+400)continue;
     if(Math.hypot(x-spawn.x,y-spawn.y)<r+300)continue;
     if(result.some(i=>Math.hypot(x-i.x,y-i.y)<i.r+r+230))continue;
     result.push(I(x,y,r,`${THEMES[tier].name} · Adacık ${result.length+1}`,THEMES[tier].look,variants[result.length%variants.length],false));

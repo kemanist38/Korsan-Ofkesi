@@ -11,7 +11,7 @@ import {EQUIPMENT,EQUIP_SLOTS,RARITY_NAMES,equipById,equipStatText,equipTotals,e
 import {BALL_DAMAGE,CHAIN_FACTOR,FIRE_DOT_SHARE,ELITE_POINTS_PER_BALL,ELITE_MAX_LEVEL,eliteLevelEp,eliteLevelFromEp,ABILITIES,SPECIAL_AMMO,MINE,SPEED_BOOST,CONSUMABLES,AMMO_PRICES,SUPPLY_PRICES,loadArsenal,saveArsenal,type AbilityId,type SpecialAmmo,type ConsumableId,type SupplyId,type Price,priceOf} from './arsenal';
 import {loadFleetOwners,saveFleetOwners} from './conquest';
 import {TALENTS,OFFICERS,OFFICER_MAX_RANK,officerCost,officerSlots,talentPoints,loadCrew,saveCrew,spentPoints,computeBonus,type TalentId,type OfficerId} from './crew';
-import {FLEET_MASK} from './fleetMask';
+import {FLEET_MASKS} from './fleetMask';
 import {drawVfx,drawVfxAnim,EXPLOSION_ROW,SPLASH_ROW} from './vfx';
 import {towerContains,towerMuzzle} from './towerGeometry';
 import {loadGuild,saveGuild,islandSlots,towerTypeCost,tagError,canBuild,TOWER_TYPES,ROLE_NAMES,TOWER_SLOTS,type TowerType,type GuildRole,GUILD_NAME_MAX,GUILD_TAG_MAX,type Guild} from './guild';
@@ -177,7 +177,7 @@ const WORLD_STORAGE='yedi-deniz-world-v2';
 let currentMap:MapKey=(()=>{try{const k=(storedAccount?.currentMap||localStorage.getItem(WORLD_STORAGE)) as MapKey|null;if(k&&k in MAPS&&tierOf(k)<=state.level)return k;}catch{}return'1/1';})();
 const mapDef=()=>MAPS[currentMap];
 const theme=()=>THEMES[mapDef().tier];
-const hasFleetIsland=()=>mapDef().tier>=5;
+const hasFleetIsland=()=>mapDef().tier>=2;
 const monsters:Monster[]=[];
 function createMonsters(){monsters.length=0;const def=MONSTERS[mapDef().monster];for(let k=0;k<(mapDef().safe?1:2);k++){const p=randomSeaPoint(700);monsters.push({kind:'monster',def,x:p.x,y:p.y,phase:Math.random()*6,radius:def.radius,name:def.name,hp:def.hp,maxHp:def.hp,cooldown:0,aggro:false,slowTimer:0,homeX:p.x,homeY:p.y,combatTimer:0});}}
 const lootChests:LootChest[]=[];
@@ -374,7 +374,7 @@ function populateMap(){
   ui('mapName').textContent=`${map.key} · ${map.name}`;ui('mapSubtitle').textContent=map.safe?'SAVAŞA KAPALI':`${theme().name.toLocaleUpperCase('tr')} · SEVİYE ${map.tier}`;ui('mapBadge').className=`map-badge ${map.safe?'safe':'danger-'+Math.min(3,Math.ceil(map.tier/3))}`;
 }
 function enterMap(key:MapKey,at:Vec){
-  currentMap=key;try{localStorage.setItem(WORLD_STORAGE,key);}catch{}populateMap();
+  currentMap=key;fleetSafe=null;fleetField=null;try{localStorage.setItem(WORLD_STORAGE,key);}catch{}populateMap();
   player.x=at.x;player.y=at.y;player.speed=0;destination=null;selected=null;state.attacking=false;ui('attack').classList.remove('active');
   camera.x=player.x;camera.y=player.y;jumpPrompt=null;mapFade=1;updateJumpPrompt();playMapJump();
   rewardNotice(`${mapDef().key}  ${mapDef().name.toLocaleUpperCase('tr')}   ${mapDef().safe?'SAVAŞA KAPALI':'SEVİYE '+mapDef().tier}`);
@@ -414,11 +414,16 @@ function dist(a:Vec,b:Vec){return Math.hypot(a.x-b.x,a.y-b.y);}
 // Filo adası: görselden üretilen seyir maskesi (src/fleetMask.ts). Kara hücreleri geçilmez; açık deniz, kanal ve
 // lagün suyu seyredilebilir. Test süresince tüm filo adalarına girilebilir (FLEET_TEST_ENTRY).
 const FLEET_TEST_ENTRY=true;
-const FM_N=FLEET_MASK.n,FM_CELL=FLEET_MASK.cell,FM_HALF=FM_N*FM_CELL/2;
-const fleetGrid=(()=>{const g=new Uint8Array(FM_N*FM_N);let k=0;for(const part of FLEET_MASK.rle.split(',')){const v=+part[0],n=parseInt(part.slice(1),36);g.fill(v,k,k+n);k+=n;}return g;})();
+const FM_N=125,FM_CELL=8,FM_HALF=FM_N*FM_CELL/2;
+const fleetGrids:Record<string,Uint8Array>=Object.fromEntries(Object.entries(FLEET_MASKS).map(([key,mask])=>{
+  const g=new Uint8Array(FM_N*FM_N);let k=0;
+  for(const part of mask.rle.split(',')){const v=+part[0],n=parseInt(part.slice(1),36);g.fill(v,k,k+n);k+=n;}
+  return[key,g];
+}));
+const fleetGrid=()=>fleetGrids[theme().fleet]??fleetGrids.coral;
 const fleetEnterable=()=>hasFleetIsland()&&(fleetOwner()==='player'||FLEET_TEST_ENTRY);
 function fleetCellOf(p:Vec){const f=mapDef().fleet;return{i:Math.floor((p.x-f.x+FM_HALF)/FM_CELL),j:Math.floor((p.y-f.y+FM_HALF)/FM_CELL)};}
-function fleetCellValue(i:number,j:number){return i<0||j<0||i>=FM_N||j>=FM_N?1:fleetGrid[j*FM_N+i];}
+function fleetCellValue(i:number,j:number){return i<0||j<0||i>=FM_N||j>=FM_N?1:fleetGrid()[j*FM_N+i];}
 // 0 kara, 1 açık deniz, 2 lagün/kanal (adanın içi)
 function fleetNav(p:Vec){if(!hasFleetIsland())return 1;const c=fleetCellOf(p);return fleetCellValue(c.i,c.j);}
 function fleetCellCenter(i:number,j:number):Vec{const f=mapDef().fleet;return{x:f.x-FM_HALF+(i+.5)*FM_CELL,y:f.y-FM_HALF+(j+.5)*FM_CELL};}
@@ -438,18 +443,31 @@ function fleetClearLine(a:Vec,b:Vec){const d=dist(a,b),n=Math.ceil(d/6);for(let 
 // Maske üzerinde yol bulma: ızgara çevresine deniz payı eklenir (PAD); maliyet kıyıya yakın hücrelerde artar, böylece
 // rota kıyıdan uzak ve dar geçitlerin ortasından geçer. Hedef değişmedikçe mesafe alanı önbellekte tutulur.
 const FM_PAD=16,PN=FM_N+FM_PAD*2;
-const padGrid=(()=>{const g=new Uint8Array(PN*PN).fill(1);for(let j=0;j<FM_N;j++)for(let i=0;i<FM_N;i++)g[(j+FM_PAD)*PN+i+FM_PAD]=fleetGrid[j*FM_N+i];return g;})();
-const padClear=(()=>{const c=new Uint8Array(PN*PN);for(let j=0;j<PN;j++)for(let i=0;i<PN;i++){if(!padGrid[j*PN+i])continue;let r=1;search:for(;r<=4;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){const x=i+dx,y=j+dy;if(x>=0&&y>=0&&x<PN&&y<PN&&!padGrid[y*PN+x])break search;}c[j*PN+i]=r;}return c;})();
+const fleetPads:Record<string,{grid:Uint8Array;clear:Uint8Array}>=Object.fromEntries(Object.entries(fleetGrids).map(([key,source])=>{
+  const grid=new Uint8Array(PN*PN).fill(1);
+  for(let j=0;j<FM_N;j++)for(let i=0;i<FM_N;i++)grid[(j+FM_PAD)*PN+i+FM_PAD]=source[j*FM_N+i];
+  const clear=new Uint8Array(PN*PN);
+  for(let j=0;j<PN;j++)for(let i=0;i<PN;i++){
+    if(!grid[j*PN+i])continue;let r=1;
+    search:for(;r<=4;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){
+      const x=i+dx,y=j+dy;if(x>=0&&y>=0&&x<PN&&y<PN&&!grid[y*PN+x])break search;
+    }
+    clear[j*PN+i]=r;
+  }
+  return[key,{grid,clear}];
+}));
+const padGrid=()=> (fleetPads[theme().fleet]??fleetPads.coral).grid;
+const padClear=()=> (fleetPads[theme().fleet]??fleetPads.coral).clear;
 function padCellOf(p:Vec){const c=fleetCellOf(p);return{i:clamp(c.i+FM_PAD,0,PN-1),j:clamp(c.j+FM_PAD,0,PN-1)};}
 function padCenter(i:number,j:number){return fleetCellCenter(i-FM_PAD,j-FM_PAD);}
-function padNearestOpen(c:{i:number;j:number}){if(padGrid[c.j*PN+c.i])return c;for(let r=1;r<30;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){const i=c.i+dx,j=c.j+dy;if(i>=0&&j>=0&&i<PN&&j<PN&&padGrid[j*PN+i])return{i,j};}return c;}
+function padNearestOpen(c:{i:number;j:number}){if(padGrid()[c.j*PN+c.i])return c;for(let r=1;r<30;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){const i=c.i+dx,j=c.j+dy;if(i>=0&&j>=0&&i<PN&&j<PN&&padGrid()[j*PN+i])return{i,j};}return c;}
 let fleetField:{key:string;dist:Float32Array}|null=null;
 function buildFleetField(t:{i:number;j:number}){
   const D=new Float32Array(PN*PN).fill(Infinity),heap:number[]=[],push=(k:number)=>{heap.push(k);let n=heap.length-1;while(n>0){const p=(n-1)>>1;if(D[heap[p]]<=D[heap[n]])break;[heap[p],heap[n]]=[heap[n],heap[p]];n=p;}},
     pop=()=>{const top=heap[0],last=heap.pop()!;if(heap.length){heap[0]=last;let n=0;for(;;){const l=n*2+1,r=l+1;let m=n;if(l<heap.length&&D[heap[l]]<D[heap[m]])m=l;if(r<heap.length&&D[heap[r]]<D[heap[m]])m=r;if(m===n)break;[heap[m],heap[n]]=[heap[n],heap[m]];n=m;}}return top;};
   const s0=t.j*PN+t.i;D[s0]=0;push(s0);
-  while(heap.length){const k=pop(),x=k%PN,y=(k-x)/PN;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy)continue;const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=PN||ny>=PN)continue;const j=ny*PN+nx;if(!padGrid[j])continue;if(dx&&dy&&(!padGrid[y*PN+nx]||!padGrid[ny*PN+x]))continue;
-    const cl=padClear[j],cost=(dx&&dy?1.414:1)*(cl>=3?1:cl===2?1.8:3.5),nd=D[k]+cost;if(nd<D[j]){D[j]=nd;push(j);}}}
+  while(heap.length){const k=pop(),x=k%PN,y=(k-x)/PN;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy)continue;const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=PN||ny>=PN)continue;const j=ny*PN+nx;if(!padGrid()[j])continue;if(dx&&dy&&(!padGrid()[y*PN+nx]||!padGrid()[ny*PN+x]))continue;
+    const cl=padClear()[j],cost=(dx&&dy?1.414:1)*(cl>=3?1:cl===2?1.8:3.5),nd=D[k]+cost;if(nd<D[j]){D[j]=nd;push(j);}}}
   return D;
 }
 function routeVia(target:Vec):Vec{
@@ -865,7 +883,7 @@ function drawPlayerLabel(){
 // ---------------------------------------------------------------- Filo: hazine, bağış ve kule dikme
 function openGuild(){renderGuild();ui('guildOverlay').classList.add('open');}
 function closeGuild(){ui('guildOverlay').classList.remove('open');focusedFoundation=null;}
-function ownedFleetIslands(){return(Object.keys(MAPS) as MapKey[]).filter(k=>MAPS[k].tier>=5&&fleetOwner(k)==='player');}
+function ownedFleetIslands(){return(Object.keys(MAPS) as MapKey[]).filter(k=>MAPS[k].tier>=2&&fleetOwner(k)==='player');}
 function renderGuild(){
   const panel=ui('guildPanel');
   if(!guild){panel.innerHTML=`<div class="guild-create"><p>Henüz bir filon yok. Filo kurduğunda <b>filo başkanı</b> sen olursun. Filo üyeleri hazineye <b>inci bağışlar</b>. Başkan da bu hazineyle filo adalarındaki boş kaidelere kule diker.</p><div class="guild-create-row"><label>Kısaltma (tag)<input id="guildTag" maxlength="${GUILD_TAG_MAX}" placeholder="Ör. TC★"/></label><label>Filo adı<input id="guildName" maxlength="${GUILD_NAME_MAX}" placeholder="Ör. Türk Korsanları"/></label></div><small class="guild-hint">Kısaltma gemi adının önünde görünür: <b>[TC★]${escapeHtml(profile.nick)}</b></small><button id="guildCreate">FİLO KUR</button></div>`;
