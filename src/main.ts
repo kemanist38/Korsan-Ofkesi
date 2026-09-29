@@ -1520,7 +1520,7 @@ function drawParticle(p:Particle){const s=worldToScreen(p),a=Math.max(0,Math.min
     case 'damage':ctx.globalAlpha=a;ctx.fillStyle='#ffd878';ctx.font='700 14px Inter';ctx.textAlign='center';ctx.fillText(p.text||'',s.x,y);ctx.globalAlpha=1;return;
     case 'explosion':drawVfxAnim(ctx,EXPLOSION_ROW,1-a,s.x,y-(size??90)*.12,size??90);return;
     case 'splash':drawVfxAnim(ctx,SPLASH_ROW,1-a,s.x,y-(size??70)*.28,size??70);return;
-    case 'flash':drawVfx(ctx,'flash',s.x,y,(size??40)*(.75+.5*(1-a)),{rot:p.rot,alpha:a});return;
+    case 'flash':{const sz=(size??40)*(1+.4*(1-a)),r=p.rot??0;drawVfx(ctx,'muzzle',s.x+Math.cos(r)*sz*.3,y+Math.sin(r)*sz*.3,sz,{rot:r,alpha:a,variant:(p.variant??0)%2});return;}
     case 'smoke':drawVfx(ctx,'smoke',s.x,y,(size??22)*(1+(1-a)*1.1),{alpha:a*.75,variant:p.variant??0,rot:p.rot});return;
     case 'spark':drawVfx(ctx,'ember',s.x,y,size??12,{alpha:a});return;
     case 'foam':drawVfx(ctx,'foam',s.x,y,(size??18)*(1+(1-a)*.8),{alpha:a*.85,variant:p.variant??0});return;
