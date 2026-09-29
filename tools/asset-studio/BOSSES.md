@@ -8,5 +8,5 @@ Portraits: public/assets/boss-portraits-v2.webp, 8×2 128px cells, cell i = MAP_
 Tiers 1–4 come from full 8-direction sheets (fixes: İnci Kraliçesi SE mirrored
 from SW and label digits removed; Kadim Azur sheet unlabelled, directions by
 figurehead, SE mirrored from SW; Gece Dehşet sheet unlabelled, NE mirrored from NW).
-Tiers 5–8 only had one view (facing SW) in the overview sheet: left-facing slots
-use it, right-facing slots use its mirror. Replace with 8-direction sheets later.
+Tiers 5–8 (v2) come from 8-direction sheets too: Kış Zıpkın E/W swapped, SE mirrored
+from SW; Şimşek NW mirrored from NE; Hiçlik SE = labelled W, W mirrored from E; Cehennem SE/NW mirrored.

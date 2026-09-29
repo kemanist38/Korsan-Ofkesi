@@ -112,7 +112,7 @@ const BOSS_NAMES:Record<MapKey,string>={
   '5/1':'Kış Zıpkın İmparatoru','5/2':'Kış Zıpkın İmparatoru','6/1':'Şimşek İmparatoru','6/2':'Şimşek İmparatoru',
   '7/1':'Hiçlik İmparatoru','7/2':'Hiçlik İmparatoru','8/1':'Cehennem Lordu','8/2':'Cehennem Lordu'};
 export const bossFor=(key:MapKey):BossDef=>{const m=MAPS[key],h=NPCS[m.npcs[1]],hp=h.hp*30,i=MAP_KEYS.indexOf(key);
-  return{key,id:`boss-${key.replace('/','-')}`,name:BOSS_NAMES[key],sprite:`/assets/boss-t${m.tier}-v1.webp`,span:260,role:'heavy',tier:m.tier,hp,damage:h.damage*2,reload:2.2,speed:Math.round(h.speed*.8),gold:0,
+  return{key,id:`boss-${key.replace('/','-')}`,name:BOSS_NAMES[key],sprite:`/assets/boss-t${m.tier}-v${m.tier>=5?2:1}.webp`,span:260,role:'heavy',tier:m.tier,hp,damage:h.damage*2,reload:2.2,speed:Math.round(h.speed*.8),gold:0,
     xp:Math.round(hp/60),pearls:50*m.tier,portrait:i,trigger:h.id};};
 
 // ---------------------------------------------------------------- Koordinat ızgarası
