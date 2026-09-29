@@ -28,7 +28,7 @@ export function drawMonsterSheet(ctx:CanvasRenderingContext2D,def:{sprite:string
   if(!def.sprite)return false;
   const sheet=load(def.sprite);if(!ready(sheet))return false;
   // Trial sheets contain eight facing directions, not animation frames.
-  if((def.sprite.startsWith('/assets/trial-coast-')||def.sprite.startsWith('/assets/pearl-')||def.sprite.startsWith('/assets/azur-')||def.sprite.startsWith('/assets/haunt-'))){
+  if((def.sprite.startsWith('/assets/trial-coast-')||def.sprite.startsWith('/assets/pearl-')||def.sprite.startsWith('/assets/azur-')||def.sprite.startsWith('/assets/haunt-')||def.sprite.startsWith('/assets/frost-'))){
     const F=sheet.naturalWidth/4,index=((Math.round(angle/(Math.PI/4))%8)+8)%8;
     const size=def.span*def.radius/55,k=size/256;
     ctx.drawImage(sheet,(index%4)*F,Math.floor(index/4)*F,F,F,x-size/2,y-def.anchorY*k+Math.sin(phase*1.3)*1.5,size,size);
@@ -118,12 +118,14 @@ export function seaTilePattern(ctx:CanvasRenderingContext2D){const tile=load('/a
 // Portre atlası: hücre indeksinden CSS arka plan konumu.
 export function portraitStyle(atlas:string,index:number,count:number,cols:number){
   if(!atlas)return '';
+  const frostPortraits:Record<number,number>={16:0,17:1,18:1,19:2,40:3,41:4};
   const hauntPortraits:Record<number,number>={12:0,13:1,14:1,15:2,38:3,39:4};
   const azurPortraits:Record<number,number>={8:0,9:1,10:1,11:2,36:3,37:4};
   const pearlPortraits:Record<number,number>={4:0,5:1,6:1,7:2,34:3,35:4};
   const trialPortraits:Record<number,number>={0:0,1:1,2:1,3:2,32:3,33:4};
   if(atlas==='/assets/trial-coast-portraits-v1.webp'){
-    if(index in hauntPortraits){atlas='/assets/haunt-portraits-v1.webp';index=hauntPortraits[index];}
+    if(index in frostPortraits){atlas='/assets/frost-portraits-v1.webp';index=frostPortraits[index];}
+    else if(index in hauntPortraits){atlas='/assets/haunt-portraits-v1.webp';index=hauntPortraits[index];}
     else if(index in azurPortraits){atlas='/assets/azur-portraits-v1.webp';index=azurPortraits[index];}
     else if(index in pearlPortraits){atlas='/assets/pearl-portraits-v1.webp';index=pearlPortraits[index];}
     else if(index in trialPortraits){index=trialPortraits[index];}
