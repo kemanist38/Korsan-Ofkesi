@@ -103,15 +103,16 @@ export const PORTRAIT_ATLAS='/assets/trial-coast-portraits-v1.webp';
 // Her haritada o haritanın en güçlü NPC'sinden (ağır gemi) 200 tane batırılınca haritanın bossu çıkar.
 // Boss yalnızca tecrübe puanı ve inci verir. Can: ağır NPC ×30, hasar ×2 (3 güllelik yelpaze), canı yarıya inince 2 muhafız çağırır.
 export const BOSS_KILLS=200;
-export const BOSS_ATLAS='',BOSS_ATLAS_COLS=8;
+// Boss görselleri denize göre: aynı denizin iki haritası aynı boss gemisini kullanır. Portre atlası 8×2, hücre i = harita sırası.
+export const BOSS_ATLAS='/assets/boss-portraits-v2.webp',BOSS_ATLAS_COLS=8;
 export type BossDef={key:MapKey;id:string;name:string;sprite:string;span:number;role:'heavy';tier:number;hp:number;damage:number;reload:number;speed:number;gold:number;xp:number;pearls:number;portrait:number;trigger:string};
 const BOSS_NAMES:Record<MapKey,string>={
-  '1/1':'Yosunbıyık Reis','1/2':'Kara Martı Reis','2/1':'Kızıl Mercan Amirali','2/2':'İnci Kraliçesi Nerissa',
-  '3/1':'Sis Lordu Morvan','3/2':'Solgun Kaptan Elias','4/1':'Kanlı Barones','4/2':'Demir Ejder Hanı',
-  '5/1':'Ayaz Hükümdarı','5/2':'Kutup Amirali Borealis','6/1':'Zehirdiş','6/2':'Veba Piskoposu',
-  '7/1':'Kül Amirali Pyros','7/2':'Magma Sultanı','8/1':'Şimşek Lordu','8/2':'Kasırga İmparatoru'};
+  '1/1':'İmparatorluk Fırkateyni','1/2':'İmparatorluk Fırkateyni','2/1':'İnci Kraliçesi','2/2':'İnci Kraliçesi',
+  '3/1':'Kadim Azur İmparatoru','3/2':'Kadim Azur İmparatoru','4/1':'Gece Dehşet İmparatoru','4/2':'Gece Dehşet İmparatoru',
+  '5/1':'Kış Zıpkın İmparatoru','5/2':'Kış Zıpkın İmparatoru','6/1':'Şimşek İmparatoru','6/2':'Şimşek İmparatoru',
+  '7/1':'Hiçlik İmparatoru','7/2':'Hiçlik İmparatoru','8/1':'Cehennem Lordu','8/2':'Cehennem Lordu'};
 export const bossFor=(key:MapKey):BossDef=>{const m=MAPS[key],h=NPCS[m.npcs[1]],hp=h.hp*30,i=MAP_KEYS.indexOf(key);
-  return{key,id:`boss-${key.replace('/','-')}`,name:BOSS_NAMES[key],sprite:'',span:260,role:'heavy',tier:m.tier,hp,damage:h.damage*2,reload:2.2,speed:Math.round(h.speed*.8),gold:0,
+  return{key,id:`boss-${key.replace('/','-')}`,name:BOSS_NAMES[key],sprite:`/assets/boss-t${m.tier}-v1.webp`,span:260,role:'heavy',tier:m.tier,hp,damage:h.damage*2,reload:2.2,speed:Math.round(h.speed*.8),gold:0,
     xp:Math.round(hp/60),pearls:50*m.tier,portrait:i,trigger:h.id};};
 
 // ---------------------------------------------------------------- Koordinat ızgarası
