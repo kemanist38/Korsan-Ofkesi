@@ -61,8 +61,8 @@ const npc=(id:string,name:string,role:'light'|'heavy',tier:number,sprite='',span
 const NPC_LIST:Omit<NpcDef,'portrait'>[]=[
   npc('n1-1-light','Kıyı Sandalı','light',1,'/assets/trial-coast-boat-v1.webp'),npc('n1-1-heavy','Tüccar Yelkenlisi','heavy',1,'/assets/trial-coast-merchant-v1.webp',104),
   npc('n1-2-light','Tüccar Yelkenlisi','light',1,'/assets/trial-coast-merchant-v1.webp'),npc('n1-2-heavy','Kraliyet Firkateyni','heavy',1,'/assets/trial-coast-frigate-v1.webp',104),
-  npc('n2-1-light','Mercan Avcısı','light',2),npc('n2-1-heavy','Kızıl Savaş Gemisi','heavy',2,'',104),
-  npc('n2-2-light','İnci Dalgıcı','light',2),npc('n2-2-heavy','Resif Fırkateyni','heavy',2),
+  npc('n2-1-light','Sedef Kayığı','light',2,'/assets/pearl-boat-v1.webp'),npc('n2-1-heavy','Mercan Kesici','heavy',2,'/assets/pearl-cutter-v1.webp',104),
+  npc('n2-2-light','Mercan Kesici','light',2,'/assets/pearl-cutter-v1.webp'),npc('n2-2-heavy','İnci Kraliçe Kalyonu','heavy',2,'/assets/pearl-galleon-v1.webp'),
   npc('n3-1-light','Sis Hayaleti','light',3),npc('n3-1-heavy','Sisli Brik','heavy',3,undefined,104),
   npc('n3-2-light','Kemik Kayığı','light',3),npc('n3-2-heavy','Batık Kalyon','heavy',3,undefined,124),
   npc('n4-1-light','Kan Korsanı','light',4,undefined,104),npc('n4-1-heavy','Kanlı Fırkateyn','heavy',4),
@@ -85,7 +85,7 @@ const mon=(id:string,name:string,tier:number,radius=54,sprite='',span=140,anchor
   return{id,name,sprite,span,frame:256,anchorY,radius,tier,hp,damage:Math.round(1500*dmgScale(tier)),reload:2.8-t*.08,gold:r.gold,xp:r.xp};};
 const MONSTER_LIST:Omit<MonsterDef,'portrait'>[]=[
   mon('m1-1','Zümrüt Kaplumbağa',1,50,'/assets/trial-coast-turtle-v1.webp'),mon('m1-2','Dev Mavi Yılan',1,56,'/assets/trial-coast-serpent-v1.webp'),
-  mon('m2-1','Derinlik Leviathanı',2,54,'',132,130.9),mon('m2-2','İnci Denizanası',2,50),
+  mon('m2-1','Pembe Resif Yengeci',2,54,'/assets/pearl-crab-v1.webp',132,130.9),mon('m2-2','Partayan İnci Ejderi',2,50,'/assets/pearl-dragon-v1.webp'),
   mon('m3-1','Sis Yılanı',3,58),mon('m3-2','Kemik Hidrası',3,56),
   mon('m4-1','Kızıl Yengeç',4,54),mon('m4-2','Pas Kaplumbağası',4,58),
   mon('m5-1','Buz Yılanı',5,60),mon('m5-2','Buzul Kaplumbağası',5,60),
@@ -141,15 +141,15 @@ export type MapDef={key:MapKey;tier:number;name:string;description:string;safe:b
 const I=(x:number,y:number,r:number,name:string,look:IslandLook,variant:0|1|2|3|4|5,flip=false):WorldIsland=>({x,y,r,name,look,variant,flip});
 function sea(key:MapKey,name:string,description:string,opts:{islands:[number,number,number,string,0|1,boolean?][];fleet:[number,number,string];labels?:[string,number,number][];safe?:boolean;look?:IslandLook;count?:number;heavy?:number}):MapDef{
   const tier=tierOf(key),look=opts.look??THEMES[tier].look,sub=key.split('/')[1];
-  return{key,tier,name,description,safe:!!opts.safe,npcs:[`n${tier}-${sub}-light`,`n${tier}-${sub}-heavy`,...(tier===1?[sub==='1'?'n1-2-heavy':'n1-1-light']:[])],monster:`m${tier}-${sub}`,monsters:tier===1?['m1-1','m1-2']:[`m${tier}-${sub}`],npcCount:tier===1?3:opts.count??(7+Math.min(4,tier-1)),heavyShare:opts.heavy??(.3+tier*.03),
+  return{key,tier,name,description,safe:!!opts.safe,npcs:[`n${tier}-${sub}-light`,`n${tier}-${sub}-heavy`,...(tier<=2?[sub==='1'?`n${tier}-2-heavy`:`n${tier}-1-light`]:[])],monster:`m${tier}-${sub}`,monsters:tier<=2?[`m${tier}-1`,`m${tier}-2`]:[`m${tier}-${sub}`],npcCount:tier<=2?3:opts.count??(7+Math.min(4,tier-1)),heavyShare:opts.heavy??(.3+tier*.03),
     islands:opts.islands.map(([x,y,r,n,v,f])=>I(x,y,r,n,look,v,!!f)),fleet:{x:opts.fleet[0],y:opts.fleet[1],name:opts.fleet[2]},labels:(opts.labels??[]).map(([text,x,y])=>({text,x,y})),spawn:{x:opts.fleet[0],y:opts.fleet[1]+530}};
 }
 export const MAPS:Record<MapKey,MapDef>={
   '1/1':{...sea('1/1','Sığınak Koyu','Savaşa kapalı başlangıç denizi. Filo adanın lagününde gövde kendiliğinden onarılır; buradaki gemiler sen saldırmadıkça ateş açmaz.',
     {islands:[[640,700,170,'Martı Kayası',1],[2520,820,190,'Yosunlu Burun',0,true],[2560,2560,160,'Sakin Resif',1]],fleet:[1500,1900,'Sığınak Filo Adası'],labels:[['SAKİN SULAR',1600,700]],safe:true,count:6,heavy:.25}),islands:[I(640,700,170,'Martı Kayası','haven',1),I(2520,820,190,'Yosunlu Burun','verdant',0,true),I(2560,2560,160,'Sakin Resif','coral',1)]},
   '1/2':sea('1/2','Martı Kıyıları','Kıyı Sandalı, Tüccar Yelkenlisi ve Kraliyet Firkateyni bu sularda gezer. Zümrüt Kaplumbağa ve Dev Mavi Yılan sığlıklarda bulunur.',{safe:true,islands:[[700,650,180,'Fırtına Burnu',0],[2500,700,210,'Ölü Adam Adası',1],[650,2500,200,'Sis Kayalıkları',0,true]],fleet:[2150,2150,'Martı Filo Adası'],labels:[['KIYI SULARI',1400,1000]]}),
-  '2/1':sea('2/1','Mercan Geçidi','Mercan resifleri arasında savaş gemileri devriye gezer. Derinlik Leviathanı buradadır.',{islands:[[650,700,190,'Mercan Kalesi',0],[2550,600,160,'Pembe Resif',1],[600,2550,170,'Deniz Kabuğu',1,true]],fleet:[2050,2100,'Mercan Filo Adası'],labels:[['MERCAN GEÇİDİ',1300,900]]}),
-  '2/2':sea('2/2','İnci Resifleri','İnci dalgıçlarının ve resif fırkateynlerinin sığ, parlak suları.',{islands:[[2550,700,180,'İnci Adası',1],[700,650,200,'Lagün Adası',0,true],[2600,2550,150,'Midye Kayası',0]],fleet:[1150,2100,'İnci Filo Adası'],labels:[['İNCİ SIĞLIĞI',1900,1000]]}),
+  '2/1':sea('2/1','Mercan Geçidi','Sedef Kayığı, Mercan Kesici ve İnci Kraliçe Kalyonu mercan resiflerinde gezer. Pembe Resif Yengeci ve Partayan İnci Ejderi bu sularda bulunur.',{islands:[[650,700,190,'Mercan Kalesi',0],[2550,600,160,'Pembe Resif',1],[600,2550,170,'Deniz Kabuğu',1,true]],fleet:[2050,2100,'Mercan Filo Adası'],labels:[['MERCAN GEÇİDİ',1300,900]]}),
+  '2/2':sea('2/2','İnci Resifleri','Sedef Kayığı, Mercan Kesici ve İnci Kraliçe Kalyonu ile iki resif canavarının parlak suları.',{islands:[[2550,700,180,'İnci Adası',1],[700,650,200,'Lagün Adası',0,true],[2600,2550,150,'Midye Kayası',0]],fleet:[1150,2100,'İnci Filo Adası'],labels:[['İNCİ SIĞLIĞI',1900,1000]]}),
   '3/1':sea('3/1','Sis Kayalıkları','Görüşün kısaldığı gri sular. Sis Yılanı dalgaların arasından çıkar.',{islands:[[650,650,200,'Sis Burnu',0],[2550,650,180,'Kayıp Fener',1],[2550,2550,190,'Yankı Kayası',0,true]],fleet:[1200,2150,'Sis Filo Adası'],labels:[['SİS DENİZİ',2000,1300]]}),
   '3/2':sea('3/2','Hayalet Boğazı','Batık gemilerin dirildiği boğaz. Kemik Hidrası derinlerden yükselir.',{islands:[[700,2550,210,'Mezar Adası',1],[2500,2550,170,'Kemik Kıyısı',0],[2550,650,190,'Batıklar Burnu',1,true]],fleet:[1200,1100,'Hayalet Filo Adası'],labels:[['HAYALET BOĞAZI',2000,1800]]}),
   '4/1':sea('4/1','Kan Körfezi','Kan korsanlarının ve kanlı fırkateynlerin kızıl körfezi.',{islands:[[650,650,190,'Kan Kayası',0],[2550,700,160,'Kızıl Diş',1],[650,2550,200,'Kırık Sütunlar',0,true]],fleet:[2050,2100,'Kızıl Filo Adası'],labels:[['KAN KÖRFEZİ',1300,1000]]}),
