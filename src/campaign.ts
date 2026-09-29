@@ -4,7 +4,7 @@ export type MapKey='1/1'|'1/2'|'2/1'|'2/2'|'3/1'|'3/2'|'4/1'|'4/2'|'5/1'|'5/2'|'
 export type IslandLook='verdant'|'misty'|'coral'|'haven'|'crimson'|'storm'|'ice'|'toxic'|'lava'|'abyss';
 export type FleetTheme='verdant'|'coral'|'misty'|'crimson'|'ice'|'toxic'|'lava'|'storm'|'abyss';
 export type Weather='fog'|'snow'|'embers'|'spores'|'storm'|'motes'|'sparkle'|'dust'|null;
-export type WorldIsland={x:number;y:number;r:number;name:string;look:IslandLook;variant:0|1;flip?:boolean};
+export type WorldIsland={x:number;y:number;r:number;name:string;look:IslandLook;variant:0|1|2|3|4|5;flip?:boolean};
 
 export const WORLD_WIDTH=6000,WORLD_HEIGHT=4000;
 export const MAX_LEVEL=8;
@@ -138,7 +138,7 @@ export const fleetReward=(tier:number)=>({gold:300*tier,xp:Math.round(500*Math.p
 
 // ---------------------------------------------------------------- Denizler
 export type MapDef={key:MapKey;tier:number;name:string;description:string;safe:boolean;npcs:[string,string];monster:string;npcCount:number;heavyShare:number;islands:WorldIsland[];fleet:{x:number;y:number;name:string};labels:{text:string;x:number;y:number}[];spawn:{x:number;y:number}};
-const I=(x:number,y:number,r:number,name:string,look:IslandLook,variant:0|1,flip=false):WorldIsland=>({x,y,r,name,look,variant,flip});
+const I=(x:number,y:number,r:number,name:string,look:IslandLook,variant:0|1|2|3|4|5,flip=false):WorldIsland=>({x,y,r,name,look,variant,flip});
 function sea(key:MapKey,name:string,description:string,opts:{islands:[number,number,number,string,0|1,boolean?][];fleet:[number,number,string];labels?:[string,number,number][];safe?:boolean;look?:IslandLook;count?:number;heavy?:number}):MapDef{
   const tier=tierOf(key),look=opts.look??THEMES[tier].look,sub=key.split('/')[1];
   return{key,tier,name,description,safe:!!opts.safe,npcs:[`n${tier}-${sub}-light`,`n${tier}-${sub}-heavy`],monster:`m${tier}-${sub}`,npcCount:opts.count??(7+Math.min(4,tier-1)),heavyShare:opts.heavy??(.3+tier*.03),
@@ -177,14 +177,19 @@ const SEA_LORE:Record<number,string>={
   8:'Alev Suları efsanesi: volkanların kızgın lavlarıyla çevrili kayalıklar.',
 };
 export function islandLayout(key:MapKey,fleet:{x:number;y:number}):WorldIsland[]{
-  let seed=2166136261;for(const c of `seven-seas-v1:${key}`)seed=Math.imul(seed^c.charCodeAt(0),16777619);
+  let seed=2166136261;for(const c of `island-art-v2:${key}`)seed=Math.imul(seed^c.charCodeAt(0),16777619);
   const random=()=>{seed^=seed<<13;seed^=seed>>>17;seed^=seed<<5;return(seed>>>0)/4294967296;};
   const result:WorldIsland[]=[],tier=tierOf(key),count=8+Math.floor(random()*4);
+  // Shuffle all six supplied variants first; repeats follow only after each has appeared.
+  const variants:WorldIsland['variant'][]=[0,1,2,3,4,5];
+  for(let i=variants.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[variants[i],variants[j]]=[variants[j],variants[i]];}
+  const spawn={x:fleet.x,y:Math.min(WORLD_HEIGHT-200,fleet.y+900)};
   for(let attempt=0;attempt<1000&&result.length<count;attempt++){
     const r=90+Math.floor(random()*65),x=Math.round(300+random()*(WORLD_WIDTH-600)),y=Math.round(300+random()*(WORLD_HEIGHT-600));
     if(tier>=5&&Math.hypot(x-fleet.x,y-fleet.y)<FLEET.islandR+r+400)continue;
+    if(Math.hypot(x-spawn.x,y-spawn.y)<r+300)continue;
     if(result.some(i=>Math.hypot(x-i.x,y-i.y)<i.r+r+230))continue;
-    result.push(I(x,y,r,`${THEMES[tier].name} · Adacık ${result.length+1}`,THEMES[tier].look,random()<.5?0:1,random()<.5));
+    result.push(I(x,y,r,`${THEMES[tier].name} · Adacık ${result.length+1}`,THEMES[tier].look,variants[result.length%variants.length],false));
   }
   return result;
 }
