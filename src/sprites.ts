@@ -28,7 +28,7 @@ export function drawMonsterSheet(ctx:CanvasRenderingContext2D,def:{sprite:string
   if(!def.sprite)return false;
   const sheet=load(def.sprite);if(!ready(sheet))return false;
   // Trial sheets contain eight facing directions, not animation frames.
-  if((def.sprite.startsWith('/assets/trial-coast-')||def.sprite.startsWith('/assets/pearl-')||def.sprite.startsWith('/assets/azur-')||def.sprite.startsWith('/assets/haunt-')||def.sprite.startsWith('/assets/frost-')||def.sprite.startsWith('/assets/storm-')||def.sprite.startsWith('/assets/void-'))){
+  if((def.sprite.startsWith('/assets/trial-coast-')||def.sprite.startsWith('/assets/pearl-')||def.sprite.startsWith('/assets/azur-')||def.sprite.startsWith('/assets/haunt-')||def.sprite.startsWith('/assets/frost-')||def.sprite.startsWith('/assets/storm-')||def.sprite.startsWith('/assets/void-')||def.sprite.startsWith('/assets/lava-'))){
     const F=sheet.naturalWidth/4,index=((Math.round(angle/(Math.PI/4))%8)+8)%8;
     const size=def.span*def.radius/55,k=size/256;
     ctx.drawImage(sheet,(index%4)*F,Math.floor(index/4)*F,F,F,x-size/2,y-def.anchorY*k+Math.sin(phase*1.3)*1.5,size,size);
@@ -118,6 +118,7 @@ export function seaTilePattern(ctx:CanvasRenderingContext2D){const tile=load('/a
 // Portre atlası: hücre indeksinden CSS arka plan konumu.
 export function portraitStyle(atlas:string,index:number,count:number,cols:number){
   if(!atlas)return '';
+  const lavaPortraits:Record<number,number>={28:0,29:1,30:1,31:2,46:3,47:4};
   const voidPortraits:Record<number,number>={24:0,25:1,26:1,27:2,44:3,45:4};
   const stormPortraits:Record<number,number>={20:0,21:1,22:1,23:2,42:3,43:4};
   const frostPortraits:Record<number,number>={16:0,17:1,18:1,19:2,40:3,41:4};
@@ -126,7 +127,8 @@ export function portraitStyle(atlas:string,index:number,count:number,cols:number
   const pearlPortraits:Record<number,number>={4:0,5:1,6:1,7:2,34:3,35:4};
   const trialPortraits:Record<number,number>={0:0,1:1,2:1,3:2,32:3,33:4};
   if(atlas==='/assets/trial-coast-portraits-v1.webp'){
-    if(index in voidPortraits){atlas='/assets/void-portraits-v1.webp';index=voidPortraits[index];}
+    if(index in lavaPortraits){atlas='/assets/lava-portraits-v1.webp';index=lavaPortraits[index];}
+    else if(index in voidPortraits){atlas='/assets/void-portraits-v1.webp';index=voidPortraits[index];}
     else if(index in stormPortraits){atlas='/assets/storm-portraits-v1.webp';index=stormPortraits[index];}
     else if(index in frostPortraits){atlas='/assets/frost-portraits-v1.webp';index=frostPortraits[index];}
     else if(index in hauntPortraits){atlas='/assets/haunt-portraits-v1.webp';index=hauntPortraits[index];}
