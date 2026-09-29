@@ -73,8 +73,8 @@ const NPC_LIST:Omit<NpcDef,'portrait'>[]=[
   npc('n6-2-light','Yağmur Yaran','light',6,'/assets/storm-sail-v1.webp'),npc('n6-2-heavy','Şimşek Lordu','heavy',6,'/assets/storm-galleon-v1.webp',124),
   npc('n7-1-light','Karanlık İzci','light',7,'/assets/void-boat-v1.webp'),npc('n7-1-heavy','Obsidyen Bıçağı','heavy',7,'/assets/void-sail-v1.webp',104),
   npc('n7-2-light','Obsidyen Bıçağı','light',7,'/assets/void-sail-v1.webp'),npc('n7-2-heavy','Hiçlik Savaşçısı','heavy',7,'/assets/void-galleon-v1.webp',124),
-  npc('n8-1-light','Fırtına Avcısı','light',8),npc('n8-1-heavy','Şimşek Fırkateyni','heavy',8),
-  npc('n8-2-light','Kasırga Brigi','light',8,undefined,104),npc('n8-2-heavy','Gök Gürültüsü Kalyonu','heavy',8,undefined,124),
+  npc('n8-1-light','Kül Sandalı','light',8,'/assets/lava-boat-v1.webp'),npc('n8-1-heavy','Lav Yaran','heavy',8,'/assets/lava-sail-v1.webp',104),
+  npc('n8-2-light','Lav Yaran','light',8,'/assets/lava-sail-v1.webp'),npc('n8-2-heavy','Cehennem Kalyonu','heavy',8,'/assets/lava-galleon-v1.webp',124),
 ];
 export const NPCS:Record<string,NpcDef>=Object.fromEntries(NPC_LIST.map((n,i)=>[n.id,{...n,portrait:i}]));
 
@@ -91,7 +91,7 @@ const MONSTER_LIST:Omit<MonsterDef,'portrait'>[]=[
   mon('m5-1','Buzul Yengeci',5,60,'/assets/frost-crab-v1.webp'),mon('m5-2','Dev Donmuş Mors',5,60,'/assets/frost-walrus-v1.webp'),
   mon('m6-1','Elektrik Yılanı',6,54,'/assets/storm-eel-v1.webp'),mon('m6-2','Fırtına Ejderi',6,60,'/assets/storm-dragon-v1.webp'),
   mon('m7-1','Gölge Yengeci',7,58,'/assets/void-crab-v1.webp'),mon('m7-2','Uçurum Krakeni',7,62,'/assets/void-kraken-v1.webp'),
-  mon('m8-1','Fırtına Leviathanı',8,62,'',132,130.9),mon('m8-2','Kasırga Denizanası',8,58),
+  mon('m8-1','Magma Kaplumbağası',8,62,'/assets/lava-turtle-v1.webp'),mon('m8-2','Alev Leviathanı',8,58,'/assets/lava-leviathan-v1.webp'),
 ];
 export const MONSTERS:Record<string,MonsterDef>=Object.fromEntries(MONSTER_LIST.map((m,i)=>[m.id,{...m,portrait:NPC_LIST.length+i}]));
 // Portre atlasının son karesi (eski Hayalet Amiral) şimdilik kullanılmıyor; yeni boss eklenince kullanılabilir.
@@ -141,7 +141,7 @@ export type MapDef={key:MapKey;tier:number;name:string;description:string;safe:b
 const I=(x:number,y:number,r:number,name:string,look:IslandLook,variant:0|1|2|3|4|5,flip=false):WorldIsland=>({x,y,r,name,look,variant,flip});
 function sea(key:MapKey,name:string,description:string,opts:{islands:[number,number,number,string,0|1,boolean?][];fleet:[number,number,string];labels?:[string,number,number][];safe?:boolean;look?:IslandLook;count?:number;heavy?:number}):MapDef{
   const tier=tierOf(key),look=opts.look??THEMES[tier].look,sub=key.split('/')[1];
-  return{key,tier,name,description,safe:!!opts.safe,npcs:[`n${tier}-${sub}-light`,`n${tier}-${sub}-heavy`,...(tier<=7?[sub==='1'?`n${tier}-2-heavy`:`n${tier}-1-light`]:[])],monster:`m${tier}-${sub}`,monsters:tier<=7?[`m${tier}-1`,`m${tier}-2`]:[`m${tier}-${sub}`],npcCount:tier<=7?3:opts.count??(7+Math.min(4,tier-1)),heavyShare:opts.heavy??(.3+tier*.03),
+  return{key,tier,name,description,safe:!!opts.safe,npcs:[`n${tier}-${sub}-light`,`n${tier}-${sub}-heavy`,...(tier<=8?[sub==='1'?`n${tier}-2-heavy`:`n${tier}-1-light`]:[])],monster:`m${tier}-${sub}`,monsters:tier<=8?[`m${tier}-1`,`m${tier}-2`]:[`m${tier}-${sub}`],npcCount:tier<=8?3:opts.count??(7+Math.min(4,tier-1)),heavyShare:opts.heavy??(.3+tier*.03),
     islands:opts.islands.map(([x,y,r,n,v,f])=>I(x,y,r,n,look,v,!!f)),fleet:{x:opts.fleet[0],y:opts.fleet[1],name:opts.fleet[2]},labels:(opts.labels??[]).map(([text,x,y])=>({text,x,y})),spawn:{x:opts.fleet[0],y:opts.fleet[1]+530}};
 }
 export const MAPS:Record<MapKey,MapDef>={
@@ -160,8 +160,8 @@ export const MAPS:Record<MapKey,MapDef>={
   '6/2':sea('6/2','Çürük Lagün','Rüzgar Gülü, Yağmur Yaran ve Şimşek Lordu ile fırtına canavarlarının şimşekli lagünü.',{islands:[[2550,650,190,'Çürük Ada',0],[650,700,180,'Balçık Kayası',1,true],[2500,2550,200,'Veba Kıyısı',1]],fleet:[1150,2100,'Lagün Filo Adası'],labels:[['ÇÜRÜK LAGÜN',1900,1000]]}),
   '7/1':sea('7/1','Kül Adaları','Karanlık İzci, Obsidyen Bıçağı ve Hiçlik Savaşçısı bu karanlık sularda gezer. Gölge Yengeci ve Uçurum Krakeni derinliklerden yükselir.',{islands:[[650,650,210,'Kül Dağı',0],[2550,650,180,'Duman Kayası',1],[650,2550,170,'Kor Adası',1,true]],fleet:[2050,2100,'Alev Filo Adası'],labels:[['KÜL ADALARI',1300,1000]]}),
   '7/2':sea('7/2','Magma Boğazı','Karanlık İzci, Obsidyen Bıçağı ve Hiçlik Savaşçısı ile uçurum canavarlarının karanlık boğazı.',{islands:[[2550,650,200,'Magma Kapısı',1],[650,700,180,'Yanık Kıyı',0,true],[2550,2550,190,'Ateş Çukuru',0]],fleet:[1150,2100,'Magma Filo Adası'],labels:[['MAGMA BOĞAZI',1900,1000]]}),
-  '8/1':sea('8/1','Şimşek Denizi','Şimşeklerin hiç dinmediği kara sular. Fırtına Leviathanı burada hüküm sürer.',{islands:[[650,650,200,'Şimşek Kayalıkları',0],[2550,650,170,'Gök Kulesi',1],[650,2550,190,'Sessiz Mezar',1,true]],fleet:[2050,2100,'Fırtına Filo Adası'],labels:[['ŞİMŞEK DENİZİ',1300,1000]]}),
-  '8/2':sea('8/2','Kasırga Gözü','Kasırganın ortasında sakin ama ölümcül bir göz.',{islands:[[2550,650,190,'Kasırga Burnu',1],[650,700,180,'Rüzgâr Kayası',0,true],[2550,2550,200,'Gürültü Adası',0]],fleet:[1150,2100,'Kasırga Filo Adası'],labels:[['KASIRGA GÖZÜ',1900,1000]]}),
+  '8/1':sea('8/1','Şimşek Denizi','Kül Sandalı, Lav Yaran ve Cehennem Kalyonu kaynayan sularda gezer. Magma Kaplumbağası ve Alev Leviathanı burada hüküm sürer.',{islands:[[650,650,200,'Şimşek Kayalıkları',0],[2550,650,170,'Gök Kulesi',1],[650,2550,190,'Sessiz Mezar',1,true]],fleet:[2050,2100,'Fırtına Filo Adası'],labels:[['ŞİMŞEK DENİZİ',1300,1000]]}),
+  '8/2':sea('8/2','Kasırga Gözü','Kül Sandalı, Lav Yaran ve Cehennem Kalyonu ile lav canavarlarının ölümcül suları.',{islands:[[2550,650,190,'Kasırga Burnu',1],[650,700,180,'Rüzgâr Kayası',0,true],[2550,2550,200,'Gürültü Adası',0]],fleet:[1150,2100,'Kasırga Filo Adası'],labels:[['KASIRGA GÖZÜ',1900,1000]]}),
 };
 export const MAP_KEYS=Object.keys(MAPS) as MapKey[];
 
