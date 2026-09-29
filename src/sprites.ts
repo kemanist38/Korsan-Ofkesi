@@ -57,10 +57,10 @@ export function drawIslandSprite(ctx:CanvasRenderingContext2D,island:{look:strin
   ctx.drawImage(sheet,(frame%3)*cw,Math.floor(frame/3)*ch,cw,ch,-size/2,-size/2,size,size);ctx.restore();return true;
 }
 
-// Onaylı raster ada (1000 dünya birimi) ve bağımsız dört kule türü.
+// Onaylı raster ada (1000 dünya birimi) ve tek tip filo kulesi.
 const FLEET_BASE_THEMES=new Set(['coral','verdant','misty','ice','storm','abyss','lava']);
 export const fleetBaseUrl=(theme:string)=>`/assets/fleet-base-${FLEET_BASE_THEMES.has(theme)?theme:'coral'}-v2.webp`;
-export const fleetTowerUrl=(_theme:string)=>'/assets/fleet-towers-approved-v1.webp';
+export const fleetTowerUrl=(_theme:string)=>'/assets/fleet-tower-v1.webp';
 export function drawFleetBase(ctx:CanvasRenderingContext2D,theme:string,x:number,y:number){
   // Approved raster base: transparent sea/lagoon and eight empty foundations.
   const sheet=load(fleetBaseUrl(theme));if(!ready(sheet))return false;
@@ -70,17 +70,17 @@ export function drawFleetBase(ctx:CanvasRenderingContext2D,theme:string,x:number
 export function drawBastion(ctx:CanvasRenderingContext2D,slot:number,x:number,y:number,alpha=1){
   return drawBuiltTower(ctx,0,slot,x,y,alpha);
 }
-// Filonun diktiği tam kuleler (top, havan, zincir, fener): taş dikme kaidesinin merkezine oturur.
-// Dört eşit sütunlu sayfa; ayak çapası her sütunun ortasında, yüksekliğin %92'sinde.
-export function drawBuiltTower(ctx:CanvasRenderingContext2D,frame:number,slot:number,x:number,y:number,alpha=1){
-  const sheet=load(fleetTowerUrl(''));if(slot<0||slot>=8||!ready(sheet))return false;
-  const cellW=sheet.naturalWidth/4,cellH=sheet.naturalHeight,width=110,height=width*cellH/cellW;
+// Tek tip filo kulesi (512 px kare görsel, 160 dünya birimi): zemin elipsinin merkezi (256,452 px)
+// surdaki beşgen kaidenin merkezine oturur. frame parametresi eski kayıtlar için yok sayılır.
+export const TOWER_ART={size:160,anchorX:256/512,anchorY:452/512,dy:33};
+export function drawBuiltTower(ctx:CanvasRenderingContext2D,_frame:number,slot:number,x:number,y:number,alpha=1){
+  const img=load(fleetTowerUrl(''));if(slot<0||slot>=8||!ready(img))return false;const S=TOWER_ART.size;
   ctx.save();ctx.globalAlpha=alpha;
-  ctx.drawImage(sheet,frame*cellW,0,cellW,cellH,x-width/2,y-height*.92+8,width,height);
+  ctx.drawImage(img,x-S*TOWER_ART.anchorX,y+TOWER_ART.dy-S*TOWER_ART.anchorY,S,S);
   ctx.restore();return true;
 }
 // Kuleler adanın görselinden bağımsızdır: surdaki yuvarlak kaidelerin üstüne dikilir (200 px çizim).
-export const TOWER_LABEL_OFFSET=-135;
+export const TOWER_LABEL_OFFSET=-121;
 
 // Ganimet sandıkları: 2 kare (tahta, yaldızlı), 128 px.
 const CHEST={frame:128,anchorX:64,anchorY:70.8,size:46};

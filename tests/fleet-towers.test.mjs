@@ -34,21 +34,16 @@ function scene(type){
   vm.runInContext(updateCode,context);
   return context;
 }
-for(const type of ['cannon','mortar','chain'])test(`${type} fires from its artwork with the correct effect and cooldown`,()=>{
+test('the single fleet tower type is the cannon tower',()=>{assert.deepEqual(Object.keys(TOWER_TYPES),['cannon']);});
+for(const type of ['cannon'])test(`${type} fires from its artwork with the correct effect and cooldown`,()=>{
   const c=scene(type);vm.runInContext('updateOwnTowers(.1)',c);
   assert.equal(c.shots.length,1);
   const shot=c.shots[0],muzzle=geometry.towerMuzzle(c.ownTowers[0],type);
   assert.equal(shot.x,muzzle.x);assert.equal(shot.y,muzzle.y);
   assert.equal(shot.target,c.enemies[0]);
   assert.equal(shot.damage,40*TOWER_TYPES[type].damage);
-  assert.equal(shot.splash,type==='mortar'?90:undefined);
-  assert.equal(shot.slow,type==='chain'?3:undefined);
+  assert.equal(shot.splash,undefined);assert.equal(shot.slow,undefined);
   vm.runInContext('updateOwnTowers(.1)',c);assert.equal(c.shots.length,1);
-});
-test('beacon heals nearby friendly ship without firing',()=>{
-  const c=scene('beacon');vm.runInContext('updateOwnTowers(1)',c);
-  assert.equal(c.state.hp,53);assert.equal(c.shots.length,0);
-  c.player.x=3000;vm.runInContext('updateOwnTowers(1)',c);assert.equal(c.state.hp,53);
 });
 test('unowned island does not activate player towers',()=>{
   const c=scene('cannon');c.fleetOwner=()=>'npc';

@@ -894,9 +894,8 @@ function renderGuild(){
     const tagInput=ui('guildTag') as HTMLInputElement;tagInput.oninput=()=>{tagInput.value=tagInput.value.toLocaleUpperCase('tr').replace(/\*/g,'★');};
     ui('guildCreate').onclick=()=>{const name=(ui('guildName') as HTMLInputElement).value.trim(),tag=tagInput.value.trim(),te=tagError(tag);if(te){toast(te);return;}if(name.length<3){toast('Filo adı en az 3 harf olmalı');return;}const g:Guild={name,tag,role:'leader',treasury:0,donated:0,created:Date.now(),towers:{}};guild=g;for(const k of ownedFleetIslands())islandSlots(g,k);saveGuild(g);setupFleetIsland();rewardNotice(`[${tag}] ${name.toLocaleUpperCase('tr')} FİLOSU KURULDU`);renderGuild();};return;}
   const g=guild,islands=ownedFleetIslands(),map=mapDef(),here=hasFleetIsland()?map.fleet.name:'',allowed=canBuild(g.role);
-  // Kule resmi: 4 karelik sayfada ilgili kareye yakınlaştırılmış (560% × 140%) kırpma
-  const art=(_slot:number,type:TowerType,ghost=false)=>`<i class="tower-art ${ghost?'ghost':''}" style="background-position:${TOWER_TYPES[type].frame/3*100}% 50%"></i>`;
-  const typeCards=(Object.keys(TOWER_TYPES) as TowerType[]).map(t=>{const d=TOWER_TYPES[t];return`<button class="tower-type ${buildType===t?'active':''}" data-type="${t}">${art(3,t)}<div><b>${d.name}</b><small>${d.desc}</small><em>Maliyet ×${d.cost} · Hasar ×${d.damage} · Menzil ×${d.range}</em></div></button>`;}).join('');
+  // Kule resmi: tek tip filo kulesi
+  const art=(_slot:number,_type:TowerType,ghost=false)=>`<i class="tower-art ${ghost?'ghost':''}"></i>`;
   const islandHtml=islands.length?islands.map(k=>{const m=MAPS[k],slots=islandSlots(g,k),cost=towerTypeCost(m.tier,buildType),built=slots.filter(Boolean).length;
     return`<article class="guild-island"><header><div><span class="eyebrow">${m.key} · Seviye ${m.tier}</span><h4>${m.fleet.name}</h4></div><b>${built} / ${TOWER_SLOTS} kule</b></header><div class="tower-slots">${slots.map((t,i)=>t?`<div class="tower-slot built">${art(i,t.type)}<small>${TOWER_TYPES[t.type].name}</small><em><span style="width:${Math.round(t.hp/t.maxHp*100)}%"></span></em></div>`:`<button class="tower-slot empty" data-build="${k}:${i}" ${!allowed||g.treasury<cost?'disabled':''}>${art(i,buildType,true)}<small>Kaide ${i+1}</small><b>${allowed?`DİK · ${cost} İnci`:'YETKİ YOK'}</b></button>`).join('')}</div></article>`;}).join('')
     :`<p class="guild-empty">Filonun henüz bir adası yok. Adalar 5. seviye ve üstü denizlerdedir. Bir adanın bütün kulelerini yıkınca ada filona katılır ve kaideleri boşalır.</p>`;
@@ -905,7 +904,6 @@ function renderGuild(){
   panel.innerHTML=`<div class="guild-head"><div><span class="eyebrow">Filo</span><h3><em class="guild-tag">[${escapeHtml(g.tag)}]</em> ${escapeHtml(g.name)}</h3><small>${ROLE_NAMES[g.role]}: ${escapeHtml(profile.nick)} (sen) · Üye: 1</small></div><div class="guild-treasury"><span>FİLO HAZİNESİ</span><strong><i class="sprite icon-pearl"></i>${g.treasury} İnci</strong><small>Senin bağışın: ${g.donated} İnci</small></div></div>
     <div class="guild-members"><span class="eyebrow">Filo üyeleri ve yetkiler</span><div class="member-row"><b>[${escapeHtml(g.tag)}]${escapeHtml(profile.nick)}</b><em class="role ${g.role}">${ROLE_NAMES[g.role]}</em><small>Bağış: ${g.donated} İnci</small></div><p>Kule dikme yetkisi yalnızca <b>Filo Başkanı</b> ve <b>Başkan Yardımcısı</b>ndadır. Başkan, üyelerden birini yardımcı atar. Diğer üyeler hazineye inci bağışlar.</p>${testRole}</div>
     <div class="guild-donate"><span>İnci bağışla <small>(elindeki: ${state.pearls})</small></span>${[10,50,100].map(n=>`<button data-donate="${n}" ${state.pearls<n?'disabled':''}>+${n}</button>`).join('')}<input id="donateAmount" type="number" min="1" max="${state.pearls}" placeholder="Miktar"/><button id="donateCustom">BAĞIŞLA</button></div>
-    <div class="guild-types"><span class="eyebrow">Dikilecek kule tipi</span><div class="tower-types">${typeCards}</div></div>
     ${testClaim}<div class="guild-islands">${islandHtml}</div>`;
   const donate=(n:number)=>{n=Math.floor(n);if(!(n>0)){toast('Geçerli bir miktar gir');return;}if(state.pearls<n){toast('Yeterli incin yok');return;}state.pearls-=n;g.treasury+=n;g.donated+=n;saveGuild(g);saveAccount();updateUI();playCoins();rewardNotice(`FİLO HAZİNESİNE +${n} İNCİ BAĞIŞLANDI`);renderGuild();};
   // Restore the selected foundation after type changes, donations and construction.
@@ -917,7 +915,6 @@ function renderGuild(){
   });
   panel.querySelectorAll<HTMLButtonElement>('[data-donate]').forEach(b=>b.onclick=()=>donate(Number(b.dataset.donate)));
   ui('donateCustom').onclick=()=>donate(Number((ui('donateAmount') as HTMLInputElement).value));
-  panel.querySelectorAll<HTMLButtonElement>('[data-type]').forEach(b=>b.onclick=()=>{buildType=b.dataset.type as TowerType;renderGuild();});
   panel.querySelectorAll<HTMLButtonElement>('[data-build]').forEach(b=>b.onclick=()=>{if(!canBuild(g.role)){toast('Kule dikme yetkisi yalnızca başkan ve yardımcısında');return;}
     const [k,i]=b.dataset.build!.split(':') as [MapKey,string],m=MAPS[k],type=buildType,cost=towerTypeCost(m.tier,type),slots=islandSlots(g,k);
     if(slots[+i]){toast('Bu kaidede zaten bir kule var');renderGuild();return;}
@@ -1148,16 +1145,14 @@ function destroyTower(){
   fleetOwners[currentMap]='player';saveFleetOwners(fleetOwners);if(guild){guild.towers[currentMap]=Array(TOWER_SLOTS).fill(null);saveGuild(guild);}const r=fleetReward(mapDef().tier);state.gold+=r.gold;state.fame+=r.xp;saveAccount();
   setupFleetIsland();rewardNotice(`${f.name.toLocaleUpperCase('tr')} FİLONA KATILDI   +${r.gold} Altın   +${r.xp} TP`);
 }
-// Filonun diktiği kuleler: tipine göre top, havan (alan hasarı), zincir (yavaşlatma) ya da fener (dost onarımı).
+// Filonun diktiği kuleler: tek tip filo kulesi, menzildeki en yakın düşmana top atar.
 function updateOwnTowers(dt:number){
   if(!hasFleetIsland()||fleetOwner()!=='player')return;const t=fleetTower(mapDef().tier);
   for(const tw of ownTowers){const def=TOWER_TYPES[tw.type],range=t.range*def.range;
-    if(tw.type==='beacon'){if(dist(player,tw)<range&&state.hp<effectiveMaxHp()){state.hp=Math.min(effectiveMaxHp(),state.hp+effectiveMaxHp()*.03*dt);if(Math.random()<dt*6)particles.push({x:player.x+(Math.random()-.5)*40,y:player.y+(Math.random()-.5)*30,vx:0,vy:-20,life:.6,maxLife:.6,kind:'foam'});}continue;}
     tw.cooldown-=dt;if(tw.cooldown>0)continue;
     const target=enemies.filter(e=>!e.tower&&dist(e,tw)<range).sort((a,b)=>dist(a,tw)-dist(b,tw))[0]??monsters.find(m=>dist(m,tw)<range);
-    if(!target)continue;tw.cooldown=t.reload*def.reload;const muzzle=towerMuzzle(tw,tw.type),a=Math.atan2(target.y-muzzle.y,target.x-muzzle.x),speed=tw.type==='mortar'?300:420;
-    muzzleFlash(muzzle.x,muzzle.y,a,60);shots.push({x:muzzle.x,y:muzzle.y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life:2.8,owner:'player',damage:t.ownDamage*def.damage,hit:false,ammo:tw.type==='chain'?'chain':theme().fleet==='lava'?'fire':'iron',target,
-      slow:tw.type==='chain'?3:undefined,splash:tw.type==='mortar'?90:undefined});}
+    if(!target)continue;tw.cooldown=t.reload*def.reload;const muzzle=towerMuzzle(tw),a=Math.atan2(target.y-muzzle.y,target.x-muzzle.x),speed=420;
+    muzzleFlash(muzzle.x,muzzle.y,a,60);shots.push({x:muzzle.x,y:muzzle.y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life:2.8,owner:'player',damage:t.ownDamage*def.damage,hit:false,ammo:theme().fleet==='lava'?'fire':'iron',target});}
 }
 // Havan: isabet noktasının çevresindeki diğer düşmanlara %60 hasar
 function towerSplash(s:Shot,hit:Target){burst(hit.x,hit.y,true);

@@ -2,18 +2,15 @@
 // filo başkanı hazinedeki inciyle boş kaidelere kule diker. Çok oyunculu mod gelene kadar başkan oyuncunun kendisidir.
 import type {MapKey} from './campaign';
 
-export type TowerType='cannon'|'mortar'|'chain'|'beacon';
+export type TowerType='cannon';
 export type TowerSlot={hp:number;maxHp:number;type:TowerType};
 export type GuildRole='leader'|'deputy'|'member';
 export const ROLE_NAMES:Record<GuildRole,string>={leader:'Filo Başkanı',deputy:'Başkan Yardımcısı',member:'Üye'};
 // Kule dikme yetkisi: başkan ve yardımcısı
 export const canBuild=(r:GuildRole)=>r==='leader'||r==='deputy';
-// Dikilebilir kuleler: fleet-towers-approved-v1 sayfasında bu sırayla, ayrı raster görseller ve savaş etkileri.
+// Tek tip filo kulesi (fleet-tower-v1). Eski kayıtlardaki havan/zincir/fener kuleleri top kulesine dönüşür.
 export const TOWER_TYPES:Record<TowerType,{name:string;desc:string;cost:number;damage:number;range:number;reload:number;frame:number}>={
-  cannon:{name:'Top Kulesi',desc:'Çift namlulu ağır top. Dengeli hasar ve menzil.',cost:1,damage:1,range:1,reload:1,frame:0},
-  mortar:{name:'Havan Kulesi',desc:'Uzun menzil; isabet ettiği yerde 90 birimlik alan hasarı. Yavaş dolum.',cost:1.5,damage:1.5,range:1.35,reload:1.9,frame:1},
-  chain:{name:'Zincir Kulesi',desc:'Zincirli zıpkın atar: az hasar, vurduğu gemiyi 3 sn %45 yavaşlatır.',cost:1.2,damage:.5,range:1.1,reload:1.2,frame:2},
-  beacon:{name:'Fener Kulesi',desc:'Ateş etmez. 520 birim içindeki dost gemileri saniyede %3 onarır.',cost:1.3,damage:0,range:1.13,reload:1,frame:3},
+  cannon:{name:'Filo Kulesi',desc:'Ağır top taşıyan filo kulesi. Dengeli hasar ve menzil.',cost:1,damage:1,range:1,reload:1,frame:0},
 };
 export const towerTypeCost=(tier:number,t:TowerType)=>Math.round(towerCost(tier)*TOWER_TYPES[t].cost);
 export type Guild={name:string;tag:string;role:GuildRole;treasury:number;donated:number;created:number;towers:Partial<Record<MapKey,(TowerSlot|null)[]>>};
