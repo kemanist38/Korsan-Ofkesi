@@ -1591,6 +1591,36 @@ function drawSeaGlints(w:number,h:number){const t=performance.now()/1000,C=70,vw
     const s=worldToScreen({x:gx*C+f*C*2.1%C,y:gy*C+(f*7.3%1)*C}),len=5+f*10,a=b*(dark?.25:.55);
     ctx.fillStyle=`rgba(255,250,225,${a})`;ctx.beginPath();ctx.ellipse(s.x,s.y,len,1.2,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(s.x,s.y,1.1,len*.35,0,0,Math.PI*2);ctx.fill();}
   ctx.restore();}
+// Seçim halkaları (geminin altında, deniz üstünde; hafif perspektif için elips).
+// Hedef: mavi parlayan halka + 4 çentik + dönen sarı noktalı iç çember. Oyuncu: yeşil kesikli halka + mor rün çemberi.
+const RING_Y=.62;
+function drawTargetMarker(t:Target){
+  const s=worldToScreen(t),R=t.kind==='monster'?t.radius+22:(t.boss?100:Math.max(40,(t.def?.span??90)*.56)),now=performance.now()/1000;
+  ctx.save();ctx.translate(s.x,s.y+R*.18);ctx.scale(1,RING_Y);
+  const g=ctx.createRadialGradient(0,0,R*.55,0,0,R*1.05);g.addColorStop(0,'rgba(40,90,255,0)');g.addColorStop(.8,'rgba(40,110,255,.28)');g.addColorStop(1,'rgba(40,110,255,0)');
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,R*1.05,0,Math.PI*2);ctx.fill();
+  ctx.shadowColor='#3d8bff';ctx.shadowBlur=14;ctx.strokeStyle='#4f95ff';ctx.lineWidth=4;ctx.beginPath();ctx.arc(0,0,R,0,Math.PI*2);ctx.stroke();
+  ctx.shadowBlur=0;ctx.strokeStyle='#bcd6ff';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(0,0,R-3,0,Math.PI*2);ctx.stroke();
+  for(let k=0;k<4;k++){const a=k*Math.PI/2+Math.PI/4;ctx.save();ctx.rotate(a);ctx.fillStyle='#2a63d8';ctx.strokeStyle='#bcd6ff';ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(R-7,0);ctx.lineTo(R+6,-6);ctx.lineTo(R+10,0);ctx.lineTo(R+6,6);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();}
+  ctx.rotate(now*.6);ctx.strokeStyle='#f5d03a';ctx.lineWidth=3.2;ctx.lineCap='round';ctx.setLineDash([.1,9]);ctx.beginPath();ctx.arc(0,0,R*.8,0,Math.PI*2);ctx.stroke();
+  ctx.restore();
+}
+const RUNES='ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃ';
+function drawPlayerMarker(){
+  const s=worldToScreen(player),R=104,now=performance.now()/1000;
+  ctx.save();ctx.translate(s.x,s.y+10);ctx.scale(1,RING_Y);
+  // mor rün çemberi
+  const g=ctx.createRadialGradient(0,0,R*.7,0,0,R*1.12);g.addColorStop(0,'rgba(170,60,255,0)');g.addColorStop(.75,'rgba(170,60,255,.22)');g.addColorStop(1,'rgba(170,60,255,0)');
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,R*1.12,0,Math.PI*2);ctx.fill();
+  ctx.shadowColor='#c060ff';ctx.shadowBlur=12;ctx.strokeStyle='#c46bff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,R,0,Math.PI*2);ctx.stroke();
+  ctx.lineWidth=1.4;ctx.strokeStyle='#e0b3ff';ctx.beginPath();ctx.arc(0,0,R-12,0,Math.PI*2);ctx.stroke();ctx.shadowBlur=0;
+  ctx.save();ctx.rotate(now*.25);ctx.fillStyle='rgba(235,200,255,.85)';ctx.font='700 11px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  for(let k=0;k<24;k++){const a=k/24*Math.PI*2;ctx.save();ctx.rotate(a);ctx.translate(0,-(R-6));ctx.fillText(RUNES[k%RUNES.length],0,0);ctx.restore();}ctx.restore();
+  ctx.save();ctx.rotate(-now*.15);for(let k=0;k<8;k++){ctx.save();ctx.rotate(k*Math.PI/4);ctx.translate(R+4,0);ctx.shadowColor='#d080ff';ctx.shadowBlur=8;ctx.fillStyle='#b057ff';ctx.strokeStyle='#f0d4ff';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(-6,0);ctx.lineTo(0,-4);ctx.lineTo(7,0);ctx.lineTo(0,4);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();}ctx.restore();
+  // yeşil kesikli halka
+  ctx.rotate(-now*.4);ctx.strokeStyle='#3fe06a';ctx.shadowColor='#2bff5f';ctx.shadowBlur=6;ctx.lineWidth=3;ctx.setLineDash([12,8]);ctx.beginPath();ctx.arc(0,0,R*.84,0,Math.PI*2);ctx.stroke();
+  ctx.restore();
+}
 function draw(){
   const w=innerWidth,h=innerHeight,map=mapDef(),th=theme();const sea=ctx.createLinearGradient(0,0,0,h);sea.addColorStop(0,th.sea[0]);sea.addColorStop(1,th.sea[1]);ctx.fillStyle=sea;ctx.fillRect(0,0,w,h);
   ctx.save();ctx.translate(w/2,h/2);ctx.scale(camera.zoom,camera.zoom);ctx.translate(-w/2,-h/2);
@@ -1602,9 +1632,9 @@ function draw(){
   drawCoordGrid();drawMapEdges();islands.forEach(drawIsland);drawFleetIsland();lootChests.forEach(drawLootChest);drawTreasureMark();sparkles.forEach(drawSparkle);mines.forEach(m=>{const p=worldToScreen(m);drawMineSprite(ctx,p.x,p.y,performance.now(),m.arm>0,m.life<5);});monsters.forEach(drawMonster);
   wrecks.forEach(drawWreck);drawAbilityFxUnder(ctx,worldToScreen);particles.forEach(p=>{if(UNDER.has(p.kind))drawParticle(p);});shots.forEach(drawShotShadow);
   wakes.forEach((_,o)=>drawWake(o));
+  if(selected&&targetExists(selected))drawTargetMarker(selected);
   [...enemies].sort((a,b)=>a.y-b.y).forEach(e=>{const s=worldToScreen(e);if(e.boss)drawBossAura(e,s);if(!e.tower)drawHullWater(e,hullLength(e),shipMoving(e));const raster=e.tower?drawBastion(ctx,e.towerIndex??0,s.x,s.y):e.def?drawNpcShip(ctx,e.def.sprite,e.def.span,s.x,s.y,e.angle,performance.now()):false;if(!raster)return;const top=raster?(e.tower?TOWER_LABEL_OFFSET:shipLabelOffset(e.def!.span)):-42;if(e.boss){drawBossFlag(s,top);drawBossPlate(e,s,top);return;}const bw=e.tower||e.role==='heavy'?72:56;drawHealthBar(s.x,s.y+top,bw,e.hp/e.maxHp,e.tower?'#f09a4f':e.role==='heavy'?'#f0584a':'#4fd0da');ctx.fillStyle='#e6dccb';ctx.font='600 10px Inter';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText(e.name,s.x,s.y+top-7);ctx.shadowBlur=0;});
-  if(selected&&targetExists(selected)){const t=worldToScreen(selected);ctx.strokeStyle='#f1c662';ctx.lineWidth=2;ctx.beginPath();ctx.arc(t.x,t.y,selected.kind==='monster'?selected.radius+10:34,0,7);ctx.stroke();}
-  drawHullWater(player,hullLength(player),shipMoving(player));
+  drawPlayerMarker();drawHullWater(player,hullLength(player),shipMoving(player));
   if(ghostTimer>0){const px=player.x,py=player.y;ghostTrail.forEach((p,i)=>{ghostFade=(i+1)/(ghostTrail.length+1)*.35;player.x=p.x;player.y=p.y;drawPlayerShip();});ghostFade=0;player.x=px;player.y=py;}
   drawPlayerShip();drawPlayerLabel();
   particles.forEach(p=>{if(!UNDER.has(p.kind))drawParticle(p);});shots.forEach(drawShotBall);
