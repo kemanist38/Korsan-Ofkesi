@@ -33,14 +33,14 @@ export const xpNeed=(level:number)=>level>=MAX_LEVEL?Infinity:LEVEL_XP[level];
 
 type Theme={name:string;sea:[string,string];tint:string;look:IslandLook;fleet:FleetTheme;weather:Weather;label:string};
 export const THEMES:Record<number,Theme>={
-  1:{name:'Güvenli Harita',sea:['#12505a','#0a2f38'],tint:'#6fd6c4',look:'haven',fleet:'verdant',weather:null,label:'#b7d9d1'},
-  2:{name:'İnciyolu Denizi',sea:['#0f6068','#063a44'],tint:'#8ff0dc',look:'coral',fleet:'coral',weather:'sparkle',label:'#c8f4ea'},
-  3:{name:'Azurya Denizi',sea:['#14566e','#083343'],tint:'#82cbdc',look:'verdant',fleet:'verdant',weather:'sparkle',label:'#c8eaf0'},
-  4:{name:'Hayalet Denizi',sea:['#24443f','#0a2225'],tint:'#9fb8b4',look:'misty',fleet:'misty',weather:'fog',label:'#c8d4ce'},
-  5:{name:'Buzmahzen Denizi',sea:['#3e6d86','#17304a'],tint:'#bfe6ff',look:'ice',fleet:'ice',weather:'snow',label:'#e8f6ff'},
-  6:{name:'Fırtına Denizi',sea:['#1d3546','#0a1c2b'],tint:'#9fb4e0',look:'storm',fleet:'storm',weather:'storm',label:'#c8d4f0'},
-  7:{name:'Karanlık Uçurum Denizi',sea:['#202737','#090f1e'],tint:'#a79bdb',look:'abyss',fleet:'abyss',weather:'motes',label:'#d8c0ff'},
-  8:{name:'Alev Denizi',sea:['#343d3e','#121e24'],tint:'#ff8a3a',look:'lava',fleet:'lava',weather:'embers',label:'#ffc090'},
+  1:{name:'Güvenli Harita',sea:['#04304f','#032844'],tint:'#6fd6c4',look:'haven',fleet:'verdant',weather:null,label:'#b7d9d1'},
+  2:{name:'İnciyolu Denizi',sea:['#04304f','#032844'],tint:'#8ff0dc',look:'coral',fleet:'coral',weather:'sparkle',label:'#c8f4ea'},
+  3:{name:'Azurya Denizi',sea:['#04304f','#032844'],tint:'#82cbdc',look:'verdant',fleet:'verdant',weather:'sparkle',label:'#c8eaf0'},
+  4:{name:'Hayalet Denizi',sea:['#04304f','#032844'],tint:'#9fb8b4',look:'misty',fleet:'misty',weather:'fog',label:'#c8d4ce'},
+  5:{name:'Buzmahzen Denizi',sea:['#04304f','#032844'],tint:'#bfe6ff',look:'ice',fleet:'ice',weather:'snow',label:'#e8f6ff'},
+  6:{name:'Fırtına Denizi',sea:['#04304f','#032844'],tint:'#9fb4e0',look:'storm',fleet:'storm',weather:'storm',label:'#c8d4f0'},
+  7:{name:'Karanlık Uçurum Denizi',sea:['#04304f','#032844'],tint:'#a79bdb',look:'abyss',fleet:'abyss',weather:'motes',label:'#d8c0ff'},
+  8:{name:'Alev Denizi',sea:['#04304f','#032844'],tint:'#ff8a3a',look:'lava',fleet:'lava',weather:'embers',label:'#ffc090'},
 };
 
 // ---------------------------------------------------------------- NPC gemileri
