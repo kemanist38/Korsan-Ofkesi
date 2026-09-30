@@ -1033,7 +1033,9 @@ function renderCombatTargets(){
   add(selected);enemies.forEach(enemy=>{if(enemy.aggro)add(enemy);});monsters.forEach(monster=>{if(monster.aggro)add(monster);});
   visibleCombatTargets=targets.slice(0,5);
   const root=ui('combatTargets');root.classList.toggle('visible',visibleCombatTargets.length>0);
-  root.innerHTML=visibleCombatTargets.map((target,index)=>{const range=Math.round(dist(player,target));const active=target===selected;const fighting=target.aggro||(active&&state.attacking);const role=target.kind==='ship'&&target.boss?'HARİTA BOSSU':target.kind==='ship'&&target.tower?'FİLO KULESİ · FİLO SAVAŞI':target.kind==='monster'?'DENİZ CANAVARI':target.role==='heavy'?'AĞIR GEMİ':'HAFİF GEMİ';const portrait=target.kind==='monster'?target.def.portrait:target.def?.portrait??-1;return `<button class="combat-target ${active?'selected':''}" data-combat-target="${index}"><span class="target-portrait ${target.kind} ${target.kind==='ship'?target.role:''}">${target.kind==='ship'&&target.boss?`<i class="portrait-art" style="${portraitStyle(BOSS_ATLAS,target.boss.portrait,MAP_KEYS.length,BOSS_ATLAS_COLS)}"></i>`:portrait>=0?`<i class="portrait-art" style="${portraitStyle(PORTRAIT_ATLAS,portrait,PORTRAIT_COUNT,PORTRAIT_COLS)}"></i>`:`<i class="portrait-art tower-art" style="background-image:url(${fleetTowerUrl(theme().fleet)})"></i>`}</span><span class="target-info"><small>${target.kind==='monster'?role:'SV '+target.tier+' · '+role} · ${range}m</small><strong>${target.name}</strong><i><em style="width:${Math.max(0,target.hp/target.maxHp*100)}%"></em></i><b>${Math.ceil(target.hp)} / ${target.maxHp}</b></span><span class="target-state">${fighting?'SAVAŞ':'HEDEF'}</span></button>`;}).join('');
+  // sağda, olay panelinin (hazine vb.) hemen altında dur
+  const ev=ui('eventPanel');root.style.top=`${ev.classList.contains('visible')&&ev.offsetHeight?ev.offsetTop+ev.offsetHeight+4:ev.offsetTop}px`;
+  root.innerHTML=visibleCombatTargets.map((target,index)=>{const active=target===selected;const fighting=target.aggro||(active&&state.attacking);const role=target.kind==='ship'&&target.boss?'HARİTA BOSSU':target.kind==='ship'&&target.tower?'FİLO KULESİ · FİLO SAVAŞI':target.kind==='monster'?'DENİZ CANAVARI':target.role==='heavy'?'AĞIR GEMİ':'HAFİF GEMİ';const portrait=target.kind==='monster'?target.def.portrait:target.def?.portrait??-1;return `<button class="combat-target ${active?'selected':''}" data-combat-target="${index}"><span class="target-portrait ${target.kind} ${target.kind==='ship'?target.role:''}">${target.kind==='ship'&&target.boss?`<i class="portrait-art" style="${portraitStyle(BOSS_ATLAS,target.boss.portrait,MAP_KEYS.length,BOSS_ATLAS_COLS)}"></i>`:portrait>=0?`<i class="portrait-art" style="${portraitStyle(PORTRAIT_ATLAS,portrait,PORTRAIT_COUNT,PORTRAIT_COLS)}"></i>`:`<i class="portrait-art tower-art" style="background-image:url(${fleetTowerUrl(theme().fleet)})"></i>`}</span><span class="target-info"><small>${target.kind==='monster'?role:'SV '+target.tier+' · '+role}</small><strong>${target.name}</strong><i><em style="width:${Math.max(0,target.hp/target.maxHp*100)}%"></em></i><b>${Math.ceil(target.hp)} / ${target.maxHp}</b></span><span class="target-state">${fighting?'SAVAŞ':'HEDEF'}</span></button>`;}).join('');
   root.querySelectorAll<HTMLButtonElement>('[data-combat-target]').forEach(button=>button.onpointerdown=()=>{const target=visibleCombatTargets[Number(button.dataset.combatTarget)];if(target){selected=target;updateUI();}});
 }
 
@@ -1517,7 +1519,7 @@ function drawPlayerShip(){
   }else ctx.drawImage(playerShipImage,-75,-80,150,150);
   ctx.restore();
 }
-function drawIsland(i:WorldIsland){const s=worldToScreen(i);if(drawIslandSprite(ctx,i,s.x,s.y)){ctx.fillStyle='#e8dcb8';ctx.shadowColor='#000';ctx.shadowBlur=4;ctx.font='600 12px Cinzel';ctx.textAlign='center';ctx.fillText(i.name,s.x,s.y+i.r*.9);ctx.shadowBlur=0;return;}const g=ctx.createRadialGradient(s.x-20,s.y-30,10,s.x,s.y,i.r);g.addColorStop(0,'#617c4e');g.addColorStop(.5,'#3c593e');g.addColorStop(.66,'#b9a16b');g.addColorStop(.72,'#17434a');g.addColorStop(1,'#0b2b35');ctx.fillStyle=g;ctx.beginPath();for(let n=0;n<18;n++){const a=n/18*Math.PI*2,r=i.r*(.78+Math.sin(n*4.7)*.09);const x=s.x+Math.cos(a)*r,y=s.y+Math.sin(a)*r;n?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();ctx.fill();for(let n=0;n<7;n++){const a=n*2.1,r=i.r*.38;ctx.fillStyle='#213c2d';ctx.beginPath();ctx.arc(s.x+Math.cos(a)*r,s.y+Math.sin(a)*r,7+n%3*2,0,7);ctx.fill();}ctx.fillStyle='#d7c697';ctx.font='600 11px Cinzel';ctx.textAlign='center';ctx.fillText(i.name,s.x,s.y+i.r*.76);}
+function drawIsland(i:WorldIsland){const s=worldToScreen(i);if(drawIslandSprite(ctx,i,s.x,s.y))return;const g=ctx.createRadialGradient(s.x-20,s.y-30,10,s.x,s.y,i.r);g.addColorStop(0,'#617c4e');g.addColorStop(.5,'#3c593e');g.addColorStop(.66,'#b9a16b');g.addColorStop(.72,'#17434a');g.addColorStop(1,'#0b2b35');ctx.fillStyle=g;ctx.beginPath();for(let n=0;n<18;n++){const a=n/18*Math.PI*2,r=i.r*(.78+Math.sin(n*4.7)*.09);const x=s.x+Math.cos(a)*r,y=s.y+Math.sin(a)*r;n?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();ctx.fill();for(let n=0;n<7;n++){const a=n*2.1,r=i.r*.38;ctx.fillStyle='#213c2d';ctx.beginPath();ctx.arc(s.x+Math.cos(a)*r,s.y+Math.sin(a)*r,7+n%3*2,0,7);ctx.fill();}}
 function drawMonster(m:Monster){const s=worldToScreen(m);if(drawMonsterSheet(ctx,m.def,s.x,s.y,m.phase,m.aggro?Math.atan2(player.x-m.x,-(player.y-m.y)):Math.PI)){ctx.fillStyle=theme().label;ctx.shadowColor='#000';ctx.shadowBlur=4;ctx.font='600 11px Cinzel';ctx.textAlign='center';ctx.fillText(m.name,s.x,s.y-m.radius-18);ctx.shadowBlur=0;if(m.hp<m.maxHp){ctx.fillStyle='#07161c';ctx.fillRect(s.x-30,s.y-m.radius-12,60,5);ctx.fillStyle='#b070ff';ctx.fillRect(s.x-30,s.y-m.radius-12,60*m.hp/m.maxHp,5);}return;}}
 function drawFleetIsland(){
   if(!hasFleetIsland())return;const f=mapDef().fleet,s=worldToScreen(f),th=theme().fleet,owned=fleetOwner()==='player';
@@ -1583,13 +1585,11 @@ function drawWake(o:object){const w=wakes.get(o);if(!w||!w.pts.length)return;con
   for(let i=0;i<w.pts.length;i+=2){const p=w.pts[i],age=now-p.t,a=Math.max(0,1-age/2.6)*.07*p.w,s=worldToScreen(p),r=L*.06+age*L*.05;
     ctx.fillStyle=`rgba(225,245,242,${a})`;ctx.beginPath();ctx.ellipse(s.x,s.y,r,r*FLAT*.7,0,0,Math.PI*2);ctx.fill();}
   ctx.restore();}
-function drawHullWater(o:{x:number;y:number;angle:number},L:number,moving:number){
-  const s=worldToScreen(o),fx=Math.sin(o.angle),fy=-Math.cos(o.angle)*FLAT,rot=Math.atan2(fy,fx),len=L*.5*Math.hypot(fx,fy)+L*.14,wid=L*.19,t=performance.now()/1000;
+function drawHullWater(o:{x:number;y:number;angle:number},L:number){
+  const s=worldToScreen(o),fx=Math.sin(o.angle),fy=-Math.cos(o.angle)*FLAT,rot=Math.atan2(fy,fx),len=L*.5*Math.hypot(fx,fy)+L*.14,wid=L*.19;
   ctx.save();ctx.translate(s.x,s.y+4);ctx.rotate(rot);
   const g=ctx.createRadialGradient(0,0,wid*.3,0,0,len*1.05);g.addColorStop(0,'rgba(2,14,20,.34)');g.addColorStop(1,'rgba(2,14,20,0)');ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,0,len*1.05,wid*1.6,0,0,Math.PI*2);ctx.fill();
-  ctx.strokeStyle=`rgba(230,248,245,${.18+.1*Math.sin(t*2.4)+moving*.18})`;ctx.lineWidth=1.6+moving*1.4;ctx.setLineDash([10,7]);ctx.lineDashOffset=-t*18;ctx.beginPath();ctx.ellipse(0,0,len,wid,0,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
   ctx.restore();}
-const shipMoving=(o:object)=>{const w=wakes.get(o),p=w?.pts[w.pts.length-1];return p&&performance.now()/1000-p.t<.15?p.w:0;};
 // Can çubuğu: çerçeveli, türüne göre renkli ve genişlikte
 function drawHealthBar(x:number,y:number,width:number,frac:number,color:string){
   ctx.fillStyle='rgba(3,12,16,.85)';ctx.fillRect(x-width/2-2,y-2,width+4,10);ctx.fillStyle='rgba(255,255,255,.06)';ctx.fillRect(x-width/2,y,width,6);ctx.strokeStyle='rgba(232,200,130,.55)';ctx.lineWidth=1;ctx.strokeRect(x-width/2-2.5,y-2.5,width+5,11);
@@ -1609,16 +1609,8 @@ function drawBossPlate(e:Enemy,s:{x:number;y:number},top:number){const W=190,x=s
   ctx.fillStyle='#f1c662';ctx.font='700 12px Cinzel';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(e.name,x,y-13);
   drawHealthBar(x,y-3,W-24,e.hp/e.maxHp,'#e0463a');ctx.fillStyle='#fff';ctx.font='700 8px Inter';ctx.fillText(`${Math.ceil(e.hp).toLocaleString('tr-TR')} / ${e.maxHp.toLocaleString('tr-TR')}`,x,y);ctx.restore();}
 // Güneş parıltıları: dünya ızgarasına bağlı rastgele noktalarda kısa süreli yanıp sönen ışık kırpıntıları
-function drawSeaGlints(w:number,h:number){const t=performance.now()/1000,C=70,vw=w/camera.zoom,vh=h/camera.zoom,x0=camera.x-vw/2,y0=camera.y-vh/2,dark=theme().weather==='fog'||theme().weather==='motes'||theme().weather==='storm';
-  ctx.save();ctx.globalCompositeOperation='lighter';
-  for(let gx=Math.floor(x0/C);gx<=Math.ceil((x0+vw)/C);gx++)for(let gy=Math.floor(y0/C);gy<=Math.ceil((y0+vh)/C);gy++){
-    const hsh=Math.sin(gx*127.1+gy*311.7)*43758.5453,f=hsh-Math.floor(hsh);if(f>.42)continue;
-    const ph=f*50,b=Math.pow(Math.max(0,Math.sin(t*(1.2+f*2)+ph)),14);if(b<.05)continue;
-    const s=worldToScreen({x:gx*C+f*C*2.1%C,y:gy*C+(f*7.3%1)*C}),len=5+f*10,a=b*(dark?.25:.55);
-    ctx.fillStyle=`rgba(255,250,225,${a})`;ctx.beginPath();ctx.ellipse(s.x,s.y,len,1.2,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(s.x,s.y,1.1,len*.35,0,0,Math.PI*2);ctx.fill();}
-  ctx.restore();}
 // Seçim halkaları (geminin altında, deniz üstünde; hafif perspektif için elips).
-// Hedef: mavi parlayan halka + 4 çentik + dönen sarı noktalı iç çember. Oyuncu: yeşil kesikli halka + mor rün çemberi.
+// Hedef: mavi parlayan halka + 4 çentik + dönen sarı noktalı iç çember. Oyuncu: mor rün çemberi.
 const RING_Y=.62;
 function drawTargetMarker(t:Target){
   const s=worldToScreen(t),R=t.kind==='monster'?t.radius+22:(t.boss?100:Math.max(40,(t.def?.span??90)*.56)),now=performance.now()/1000;
@@ -1644,24 +1636,19 @@ function drawPlayerMarker(){
   for(let k=0;k<24;k++){const a=k/24*Math.PI*2;ctx.save();ctx.rotate(a);ctx.translate(0,-(R-7));ctx.fillText(RUNES[k%RUNES.length],0,0);ctx.restore();}ctx.restore();
   ctx.save();ctx.rotate(-now*.15);for(let k=0;k<8;k++){ctx.save();ctx.rotate(k*Math.PI/4);ctx.translate(R+4,0);ctx.shadowColor='#d080ff';ctx.shadowBlur=8;ctx.fillStyle='#b057ff';ctx.strokeStyle='#f0d4ff';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(-6,0);ctx.lineTo(0,-4);ctx.lineTo(7,0);ctx.lineTo(0,4);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();}ctx.restore();
   ctx.restore();
-  // yeşil kesikli halka: gövdenin hemen çevresinde, basık elips
-  ctx.save();ctx.translate(s.x,s.y+16);ctx.scale(1,.48);ctx.rotate(-now*.4);ctx.strokeStyle='#3fe06a';ctx.shadowColor='#2bff5f';ctx.shadowBlur=6;ctx.lineWidth=3.2;ctx.setLineDash([7,5]);ctx.beginPath();ctx.arc(0,0,72,0,Math.PI*2);ctx.stroke();
-  ctx.restore();
 }
 function draw(){
   const w=innerWidth,h=innerHeight,map=mapDef(),th=theme();const sea=ctx.createLinearGradient(0,0,0,h);sea.addColorStop(0,th.sea[0]);sea.addColorStop(1,th.sea[1]);ctx.fillStyle=sea;ctx.fillRect(0,0,w,h);
   ctx.save();ctx.translate(w/2,h/2);ctx.scale(camera.zoom,camera.zoom);ctx.translate(-w/2,-h/2);
-  const pattern=seaTilePattern(ctx);if(pattern){const vw=w/camera.zoom,vh=h/camera.zoom;pattern.setTransform(new DOMMatrix().translateSelf(-camera.x+w/2+Math.sin(performance.now()/5200)*14,-camera.y+h/2+performance.now()/260%1024).scaleSelf(2,2));ctx.globalAlpha=.1;ctx.fillStyle=pattern;ctx.fillRect(w/2-vw/2,h/2-vh/2,vw,vh);
-    // İkinci dalga katmanı: farklı ölçek ve ters yönde akış; iki katmanın girişimi denize canlı bir kıpırtı verir
-    const t=performance.now();pattern.setTransform(new DOMMatrix().translateSelf(-camera.x*1.04+w/2-t/190%1536,-camera.y*1.04+h/2+Math.cos(t/4100)*20).scaleSelf(3.1,3.1).rotateSelf(24));ctx.globalAlpha=.06;ctx.fillRect(w/2-vw/2,h/2-vh/2,vw,vh);ctx.globalAlpha=1;}
-  drawSeaGlints(w,h);
+  // Deniz: referanstan çıkarılmış kesintisiz doku, dünyaya sabitli tek katman
+  const pattern=seaTilePattern(ctx);if(pattern){const vw=w/camera.zoom,vh=h/camera.zoom;pattern.setTransform(new DOMMatrix().translateSelf(-camera.x+w/2,-camera.y+h/2).scaleSelf(1.5,1.5));ctx.fillStyle=pattern;ctx.fillRect(w/2-vw/2,h/2-vh/2,vw,vh);}
   ctx.globalAlpha=.12;ctx.fillStyle=th.label;ctx.font='700 42px Cinzel';ctx.textAlign='center';for(const label of map.labels){const p=worldToScreen(label);ctx.fillText(label.text,p.x,p.y);}ctx.globalAlpha=1;
   drawCoordGrid();drawMapEdges();islands.forEach(drawIsland);drawFleetIsland();lootChests.forEach(drawLootChest);drawTreasureMark();sparkles.forEach(drawSparkle);mines.forEach(m=>{const p=worldToScreen(m);drawMineSprite(ctx,p.x,p.y,performance.now(),m.arm>0,m.life<5);});monsters.forEach(drawMonster);
   wrecks.forEach(drawWreck);drawAbilityFxUnder(ctx,worldToScreen);particles.forEach(p=>{if(UNDER.has(p.kind))drawParticle(p);});shots.forEach(drawShotShadow);
   wakes.forEach((_,o)=>drawWake(o));
   if(selected&&targetExists(selected))drawTargetMarker(selected);
-  [...enemies].sort((a,b)=>a.y-b.y).forEach(e=>{const s=worldToScreen(e);if(e.boss)drawBossAura(e,s);if(!e.tower)drawHullWater(e,hullLength(e),shipMoving(e));const raster=e.tower?drawBastion(ctx,e.towerIndex??0,s.x,s.y):e.def?drawNpcShip(ctx,e.def.sprite,e.def.span,s.x,s.y,e.angle,performance.now()):false;if(!raster)return;const top=raster?(e.tower?TOWER_LABEL_OFFSET:shipLabelOffset(e.def!.span)):-42;if(e.boss){drawBossFlag(s,top);drawBossPlate(e,s,top);return;}const bw=e.tower||e.role==='heavy'?72:56;drawHealthBar(s.x,s.y+top,bw,e.hp/e.maxHp,e.tower?'#f09a4f':e.role==='heavy'?'#f0584a':'#4fd0da');ctx.fillStyle='#e6dccb';ctx.font='600 10px Inter';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText(e.name,s.x,s.y+top-7);ctx.shadowBlur=0;});
-  drawPlayerMarker();drawHullWater(player,hullLength(player),shipMoving(player));
+  [...enemies].sort((a,b)=>a.y-b.y).forEach(e=>{const s=worldToScreen(e);if(e.boss)drawBossAura(e,s);if(!e.tower)drawHullWater(e,hullLength(e));const raster=e.tower?drawBastion(ctx,e.towerIndex??0,s.x,s.y):e.def?drawNpcShip(ctx,e.def.sprite,e.def.span,s.x,s.y,e.angle,performance.now()):false;if(!raster)return;const top=raster?(e.tower?TOWER_LABEL_OFFSET:shipLabelOffset(e.def!.span)):-42;if(e.boss){drawBossFlag(s,top);drawBossPlate(e,s,top);return;}const bw=e.tower||e.role==='heavy'?72:56;drawHealthBar(s.x,s.y+top,bw,e.hp/e.maxHp,e.tower?'#f09a4f':e.role==='heavy'?'#f0584a':'#4fd0da');ctx.fillStyle='#e6dccb';ctx.font='600 10px Inter';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText(e.name,s.x,s.y+top-7);ctx.shadowBlur=0;});
+  drawPlayerMarker();drawHullWater(player,hullLength(player));
   if(ghostTimer>0){const px=player.x,py=player.y;ghostTrail.forEach((p,i)=>{ghostFade=(i+1)/(ghostTrail.length+1)*.35;player.x=p.x;player.y=p.y;drawPlayerShip();});ghostFade=0;player.x=px;player.y=py;}
   drawPlayerShip();drawPlayerLabel();
   particles.forEach(p=>{if(!UNDER.has(p.kind)&&p.kind!=='damage')drawParticle(p);});shots.forEach(drawShotBall);
