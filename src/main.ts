@@ -1,3 +1,4 @@
+import {drawMysticPlayerMarker} from './player-marker';
 import './storageMigration';
 import './style.css';
 import {ACTIONS,loadSettings,saveSettings,keyLabel,normalizeKey,DEFAULT_BINDS,type ActionId} from './settings';
@@ -1610,20 +1611,11 @@ function drawTargetMarker(t:Target){
   ctx.rotate(now*.6);ctx.strokeStyle='#f5d03a';ctx.lineWidth=3.2;ctx.lineCap='round';ctx.setLineDash([.1,9]);ctx.beginPath();ctx.arc(0,0,R*.8,0,Math.PI*2);ctx.stroke();
   ctx.restore();
 }
-const RUNES='ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃ';
 function drawPlayerMarker(){
-  const s=worldToScreen(player),R=86,now=performance.now()/1000;
-  ctx.save();ctx.translate(s.x,s.y+10);ctx.scale(1,RING_Y);
-  // mor rün çemberi
-  const g=ctx.createRadialGradient(0,0,R*.7,0,0,R*1.12);g.addColorStop(0,'rgba(170,60,255,0)');g.addColorStop(.75,'rgba(170,60,255,.22)');g.addColorStop(1,'rgba(170,60,255,0)');
-  ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,R*1.12,0,Math.PI*2);ctx.fill();
-  ctx.shadowColor='#c060ff';ctx.shadowBlur=16;ctx.strokeStyle='#c46bff';ctx.lineWidth=10;ctx.beginPath();ctx.arc(0,0,R,0,Math.PI*2);ctx.stroke();
-  ctx.lineWidth=4.5;ctx.strokeStyle='#d9a0ff';ctx.beginPath();ctx.arc(0,0,R-15,0,Math.PI*2);ctx.stroke();ctx.shadowBlur=0;
-  ctx.save();ctx.rotate(now*.25);ctx.fillStyle='rgba(240,210,255,.95)';ctx.font='700 12px serif';ctx.textAlign='center';ctx.textBaseline='middle';
-  for(let k=0;k<24;k++){const a=k/24*Math.PI*2;ctx.save();ctx.rotate(a);ctx.translate(0,-(R-7));ctx.fillText(RUNES[k%RUNES.length],0,0);ctx.restore();}ctx.restore();
-  ctx.save();ctx.rotate(-now*.15);for(let k=0;k<8;k++){ctx.save();ctx.rotate(k*Math.PI/4);ctx.translate(R+4,0);ctx.shadowColor='#d080ff';ctx.shadowBlur=8;ctx.fillStyle='#b057ff';ctx.strokeStyle='#f0d4ff';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(-6,0);ctx.lineTo(0,-4);ctx.lineTo(7,0);ctx.lineTo(0,4);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();}ctx.restore();
-  ctx.restore();
+  const s=worldToScreen(player);
+  drawMysticPlayerMarker(ctx,s.x,s.y+10,performance.now()/1000);
 }
+
 function draw(){
   const w=innerWidth,h=innerHeight,map=mapDef(),th=theme();const sea=ctx.createLinearGradient(0,0,0,h);sea.addColorStop(0,th.sea[0]);sea.addColorStop(1,th.sea[1]);ctx.fillStyle=sea;ctx.fillRect(0,0,w,h);
   ctx.save();ctx.translate(w/2,h/2);ctx.scale(camera.zoom,camera.zoom);ctx.translate(-w/2,-h/2);
