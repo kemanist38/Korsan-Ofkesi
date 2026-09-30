@@ -1051,11 +1051,12 @@ function update(dt:number){
       const step=lanes?laneStep(lanes,destination.x-player.x,destination.y-player.y,laneIdx):null;laneIdx=step?step.lane:-1;
       const d=dist(player,destination),desired=step?step.heading:Math.atan2(destination.y-player.y,destination.x-player.x)+Math.PI/2;
       const delta=Math.atan2(Math.sin(desired-player.angle),Math.cos(desired-player.angle));
-      player.angle+=clamp(delta,-4.6*dt,4.6*dt);
+      const turnRate=step?2.3:4.6;player.angle+=clamp(delta,-turnRate*dt,turnRate*dt);
       // Dönüşte hız az düşer (90° dönüşte %80, tam geri dönüşte %45); varışta son 80 birimde yavaşlar
-      const alignment=1-.55*Math.pow(Math.abs(delta)/Math.PI,1.5),arrival=clamp(d/80,.25,1);
+      const alignment=1-.55*Math.pow(Math.abs(delta)/Math.PI,1.5),arrival=clamp(d/(step?150:80),.2,1);
       const targetSpeed=effectiveSpeed()*alignment*arrival;
-      player.speed+=(targetSpeed-player.speed)*Math.min(1,dt*(targetSpeed<player.speed?3.2:4.4));
+      // Çapraz yollu gemi suyun direncini hisseder: yavaş kalkar, süzülerek yavaşlar
+      player.speed+=(targetSpeed-player.speed)*Math.min(1,dt*(step?(targetSpeed<player.speed?1.6:1.3):(targetSpeed<player.speed?3.2:4.4)));
       if(d<7){destination=null;player.speed=0;}
     }
     else {
@@ -1507,7 +1508,7 @@ function drawSpecialShip(s:Vec){
   const src=`${sp.views??sp.dir??sp.art}?r=${SHIP_ART_REV}`;let im=specialImages.get(src);if(!im){im=new Image();im.decoding='async';im.src=src;specialImages.set(src,im);}
   if(!im.complete||!im.naturalWidth)return false;
   ctx.save();ctx.translate(s.x,s.y);ctx.globalAlpha=(state.invulnerable&&Math.floor(performance.now()/120)%2?.55:1)*shipAlpha();ctx.shadowColor='#000b';ctx.shadowBlur=13;if(ghostTimer>0){ctx.filter='saturate(.35) brightness(1.35)';ctx.shadowColor='#5fffd0';}
-  if(sp.views){const c=im.naturalHeight,D=176;specialView=specialPose(sp,player.angle,specialView);ctx.drawImage(im,specialView*c,0,c,c,-D/2,-D*.72,D,D);ctx.restore();return true;}
+  if(sp.views){const c=im.naturalHeight,D=176,bt=performance.now()/1000;ctx.translate(0,Math.sin(bt*1.7)*1.8);ctx.rotate(Math.sin(bt*1.15)*.018);specialView=specialPose(sp,player.angle,specialView);ctx.drawImage(im,specialView*c,0,c,c,-D/2,-D*.72,D,D);ctx.restore();return true;}
   if(sp.dir){const f=shipDirectionFrame(player.angle),c=im.naturalWidth/4;ctx.drawImage(im,(f%4)*c,Math.floor(f/4)*c,c,c,-80,-86,160,160);ctx.restore();return true;}
   specialFacingDir=specialFacing(player.angle,specialFacingDir);
   if(specialFacingDir>0)ctx.scale(-1,1);ctx.drawImage(im,-78,-96,156,156);ctx.restore();return true;
@@ -1585,19 +1586,26 @@ function updateWakes(dt:number){
       w.pts.push({x:sh.x-fx*L*.42,y:sh.y-fy*L*.42*FLAT,a:sh.angle,t:now,w:Math.min(1,v/110)});
       if(Math.random()<Math.min(.9,v/120))particles.push({x:sh.x+fx*L*.46+(Math.random()-.5)*8,y:sh.y+fy*L*.46*FLAT,vx:-fy*(Math.random()<.5?-1:1)*(18+Math.random()*24)+fx*v*.3,vy:fx*(Math.random()<.5?-1:1)*12+fy*v*.3*FLAT,life:.45,maxLife:.45,kind:'foam'});}}
 }
+// Köpük lekesi: bir kez çizilen yumuşak beyaz leke; iz ve gövde köpüğü bununla boyanır (çizgi yok, "uzay izi" gibi durmaz)
+const FOAM=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d')!,r=g.createRadialGradient(32,32,2,32,32,32);
+  r.addColorStop(0,'rgba(240,252,250,.9)');r.addColorStop(.45,'rgba(220,245,242,.45)');r.addColorStop(1,'rgba(220,245,242,0)');g.fillStyle=r;g.fillRect(0,0,64,64);return c;})();
+function foamAt(x:number,y:number,r:number,a:number){if(a<=.01)return;ctx.globalAlpha=a;ctx.drawImage(FOAM,x-r,y-r*FLAT,r*2,r*2*FLAT);}
+// Dümen suyu: gövdeden iki yana V açılan, dağılıp sönen köpük; ortada çalkantı
 function drawWake(o:object){const w=wakes.get(o);if(!w||!w.pts.length)return;const now=performance.now()/1000,L=hullLength(o);
-  ctx.save();ctx.lineCap='round';
-  for(const side of [-1,1]){ctx.beginPath();let first=true;
-    for(let i=w.pts.length-1;i>=0;i--){const p=w.pts[i],age=now-p.t,lx=Math.cos(p.a),ly=Math.sin(p.a)*FLAT,spread=L*.16+age*L*.32*p.w,s=worldToScreen({x:p.x+lx*side*spread,y:p.y+ly*side*spread});
-      if(first){ctx.moveTo(s.x,s.y);first=false;}else ctx.lineTo(s.x,s.y);}
-    ctx.strokeStyle='rgba(235,250,248,.16)';ctx.lineWidth=2.6;ctx.stroke();ctx.strokeStyle='rgba(255,255,255,.3)';ctx.lineWidth=1;ctx.stroke();}
-  for(let i=0;i<w.pts.length;i+=2){const p=w.pts[i],age=now-p.t,a=Math.max(0,1-age/2.6)*.07*p.w,s=worldToScreen(p),r=L*.06+age*L*.05;
-    ctx.fillStyle=`rgba(225,245,242,${a})`;ctx.beginPath();ctx.ellipse(s.x,s.y,r,r*FLAT*.7,0,0,Math.PI*2);ctx.fill();}
+  ctx.save();
+  for(let i=0;i<w.pts.length;i++){const p=w.pts[i],age=now-p.t,life=Math.max(0,1-age/2.6),fade=life*life*p.w,lx=Math.cos(p.a),ly=Math.sin(p.a)*FLAT,spread=L*.14+age*L*.3,j=Math.sin(i*12.9+p.t*7)*.25;
+    for(const side of [-1,1]){const s=worldToScreen({x:p.x+lx*side*spread*(1+j*.3),y:p.y+ly*side*spread*(1+j*.3)});foamAt(s.x,s.y,L*(.07+age*.09),.42*fade);}
+    const c=worldToScreen(p);foamAt(c.x,c.y,L*(.09+age*.07),.3*fade);}
   ctx.restore();}
 function drawHullWater(o:{x:number;y:number;angle:number},L:number){
   const s=worldToScreen(o),fx=Math.sin(o.angle),fy=-Math.cos(o.angle)*FLAT,rot=Math.atan2(fy,fx),len=L*.5*Math.hypot(fx,fy)+L*.14,wid=L*.19;
   ctx.save();ctx.translate(s.x,s.y+4);ctx.rotate(rot);
   const g=ctx.createRadialGradient(0,0,wid*.3,0,0,len*1.05);g.addColorStop(0,'rgba(2,14,20,.34)');g.addColorStop(1,'rgba(2,14,20,0)');ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,0,len*1.05,wid*1.6,0,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+  // Gövdenin yerinden ettiği su: açık camgöbeği havuz ve yavaşça yayılan halkalar; gemi suyun içinde durur
+  const t=performance.now()/1000,R=L*.62;ctx.save();ctx.translate(s.x,s.y+6);ctx.scale(1,FLAT*.78);
+  const p=ctx.createRadialGradient(0,0,R*.2,0,0,R);p.addColorStop(0,'rgba(120,230,235,.22)');p.addColorStop(.6,'rgba(80,200,215,.12)');p.addColorStop(1,'rgba(80,200,215,0)');ctx.fillStyle=p;ctx.beginPath();ctx.arc(0,0,R,0,Math.PI*2);ctx.fill();
+  for(let k=0;k<2;k++){const f=(t*.35+k*.5)%1;ctx.strokeStyle=`rgba(210,250,248,${(1-f)*.22})`;ctx.lineWidth=2*(1-f)+.6;ctx.beginPath();ctx.arc(0,0,R*(.55+f*.6),0,Math.PI*2);ctx.stroke();}
   ctx.restore();}
 // Can çubuğu: çerçeveli, türüne göre renkli ve genişlikte
 function drawHealthBar(x:number,y:number,width:number,frac:number,color:string){
