@@ -1610,13 +1610,14 @@ function drawPlayerMarker(){
   // mor rün çemberi
   const g=ctx.createRadialGradient(0,0,R*.7,0,0,R*1.12);g.addColorStop(0,'rgba(170,60,255,0)');g.addColorStop(.75,'rgba(170,60,255,.22)');g.addColorStop(1,'rgba(170,60,255,0)');
   ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,R*1.12,0,Math.PI*2);ctx.fill();
-  ctx.shadowColor='#c060ff';ctx.shadowBlur=12;ctx.strokeStyle='#c46bff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,R,0,Math.PI*2);ctx.stroke();
-  ctx.lineWidth=1.4;ctx.strokeStyle='#e0b3ff';ctx.beginPath();ctx.arc(0,0,R-12,0,Math.PI*2);ctx.stroke();ctx.shadowBlur=0;
-  ctx.save();ctx.rotate(now*.25);ctx.fillStyle='rgba(235,200,255,.85)';ctx.font='700 11px serif';ctx.textAlign='center';ctx.textBaseline='middle';
-  for(let k=0;k<24;k++){const a=k/24*Math.PI*2;ctx.save();ctx.rotate(a);ctx.translate(0,-(R-6));ctx.fillText(RUNES[k%RUNES.length],0,0);ctx.restore();}ctx.restore();
+  ctx.shadowColor='#c060ff';ctx.shadowBlur=16;ctx.strokeStyle='#c46bff';ctx.lineWidth=7;ctx.beginPath();ctx.arc(0,0,R,0,Math.PI*2);ctx.stroke();
+  ctx.lineWidth=3.5;ctx.strokeStyle='#d9a0ff';ctx.beginPath();ctx.arc(0,0,R-14,0,Math.PI*2);ctx.stroke();ctx.shadowBlur=0;
+  ctx.save();ctx.rotate(now*.25);ctx.fillStyle='rgba(240,210,255,.95)';ctx.font='700 12px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  for(let k=0;k<24;k++){const a=k/24*Math.PI*2;ctx.save();ctx.rotate(a);ctx.translate(0,-(R-7));ctx.fillText(RUNES[k%RUNES.length],0,0);ctx.restore();}ctx.restore();
   ctx.save();ctx.rotate(-now*.15);for(let k=0;k<8;k++){ctx.save();ctx.rotate(k*Math.PI/4);ctx.translate(R+4,0);ctx.shadowColor='#d080ff';ctx.shadowBlur=8;ctx.fillStyle='#b057ff';ctx.strokeStyle='#f0d4ff';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(-6,0);ctx.lineTo(0,-4);ctx.lineTo(7,0);ctx.lineTo(0,4);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();}ctx.restore();
-  // yeşil kesikli halka
-  ctx.rotate(-now*.4);ctx.strokeStyle='#3fe06a';ctx.shadowColor='#2bff5f';ctx.shadowBlur=6;ctx.lineWidth=3;ctx.setLineDash([12,8]);ctx.beginPath();ctx.arc(0,0,R*.84,0,Math.PI*2);ctx.stroke();
+  ctx.restore();
+  // yeşil kesikli halka: gövdenin hemen çevresinde, basık elips
+  ctx.save();ctx.translate(s.x,s.y+16);ctx.scale(1,.46);ctx.rotate(-now*.4);ctx.strokeStyle='#3fe06a';ctx.shadowColor='#2bff5f';ctx.shadowBlur=6;ctx.lineWidth=3.2;ctx.setLineDash([8,6]);ctx.beginPath();ctx.arc(0,0,84,0,Math.PI*2);ctx.stroke();
   ctx.restore();
 }
 function draw(){
@@ -1639,7 +1640,7 @@ function draw(){
   drawAbilityFx(ctx,worldToScreen,innerWidth,innerHeight);
   if(consumableOn.shield){const p=worldToScreen(player),t=performance.now()/1000,g=ctx.createRadialGradient(p.x,p.y,30,p.x,p.y,62);g.addColorStop(0,'#9fe8ff00');g.addColorStop(.75,'#9fe8ff30');g.addColorStop(1,'#d4a64c88');ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,62,0,Math.PI*2);ctx.fill();ctx.strokeStyle=`rgba(212,166,76,${.55+Math.sin(t*6)*.25})`;ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,62,0,Math.PI*2);ctx.stroke();}
   if(destination){const d=worldToScreen(destination),p=worldToScreen(player);ctx.strokeStyle='#e7cf8d55';ctx.setLineDash([3,8]);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(d.x,d.y);ctx.stroke();ctx.setLineDash([]);ctx.strokeStyle='#e7cf8d';ctx.beginPath();ctx.arc(d.x,d.y,9,0,7);ctx.stroke();}
-  const ps=worldToScreen(player);ctx.strokeStyle=selected?'#e8cf934d':'#e8cf9328';ctx.setLineDash([4,7]);ctx.beginPath();ctx.arc(ps.x,ps.y,selected?effectiveRange():115,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+  if(selected){const ps=worldToScreen(player);ctx.strokeStyle='#e8cf934d';ctx.setLineDash([4,7]);ctx.beginPath();ctx.arc(ps.x,ps.y,effectiveRange(),0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
   ctx.restore();
   drawWeather();if(!cinematic.on)drawCoordRulers();
   if(mapFade>0){ctx.fillStyle=`rgba(2,10,14,${Math.min(1,mapFade)})`;ctx.fillRect(0,0,w,h);}
