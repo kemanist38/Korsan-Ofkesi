@@ -17,7 +17,7 @@ import {towerContains,towerMuzzle} from './towerGeometry';
 import {loadGuild,saveGuild,islandSlots,towerTypeCost,tagError,canBuild,TOWER_TYPES,ROLE_NAMES,TOWER_SLOTS,type TowerType,type GuildRole,GUILD_NAME_MAX,GUILD_TAG_MAX,type Guild} from './guild';
 import {loadProfile,saveProfile,nickError,rankOf,NICK_CHANGE_COST,NICK_COOLDOWN_MS,NICK_MAX} from './profile';
 import {createChest,chestRewardText,CHEST_PICKUP_RADIUS,CHEST_CLICK_RADIUS,DRIFT_RESPAWN_SECONDS,type LootChest} from './loot';
-import {ELITE_SHIPS,eliteById,eliteDirFrame,type EliteShipId} from './elite-ships';
+import {ELITE_SHIPS,ELITE_ISO,eliteById,eliteDirFrame,type EliteShipId} from './elite-ships';
 import {SPECIAL_SHIPS,specialById,specialFacing,isoAdvance,isoView,type IsoMove} from './special-ships';
 import {spawnLightning,spawnFrost,spawnMeteor,spawnLavaPool,spawnTentacles,spawnSteam,spawnBloodMoon,spawnDome,spawnRipple,spawnScythe,spawnSoul,spawnBanner,spawnCoins,spawnBreath,spawnRage,spawnText,spawnVortex,spawnCoral,spawnSun,spawnBlind,screenTint,updateAbilityFx,drawAbilityFxUnder,drawAbilityFx} from './abilityFx';
 
@@ -105,7 +105,7 @@ rasterItemAssets.iron='/assets/ammo-iron-v2.webp';rasterItemAssets.chain='/asset
 // Elit gemiler: tersane kartındaki tasarımın birebir aynısı, gemi başına temiz raster (384 px, pruva sol-aşağı).
 // Gemi görselleri aynı dosya adıyla yenilendiğinde tarayıcı önbelleği eskisini göstermesin diye sürüm eki (görsel değişince artır)
 const SHIP_ART_REV='9';
-const eliteArtUrl=(id:string)=>`/assets/elite-${id}-art-v2.webp?r=${SHIP_ART_REV}`;
+const eliteArtUrl=(id:string)=>`${ELITE_SHIPS.find(s=>s.id===id)?.asset??`/assets/elite-${id}-art-v2.webp`}?r=${SHIP_ART_REV}`;
 const eliteArtImages=new Map<string,HTMLImageElement>();
 function eliteArtImage(id:string){let im=eliteArtImages.get(id);if(!im){im=new Image();im.decoding='async';im.src=eliteArtUrl(id);eliteArtImages.set(id,im);}return im;}
 let eliteFacing=-1;
@@ -1039,7 +1039,8 @@ function renderCombatTargets(){
 
 // Seafight usulü gemi: son baktığı çapraz yüz (dururken de korunur)
 const isoFace={east:false,north:false};let isoMove:IsoMove|null=null;
-const isoShip=()=>!eliteEnabled()&&activeSkin?specialById(activeSkin)?.iso:undefined;
+const isoShip=()=>eliteEnabled()?ELITE_ISO[activeEliteShip]:activeSkin?specialById(activeSkin)?.iso:undefined;
+const isoIndex=()=>isoFace.north?(isoFace.east?0:3):(isoFace.east?1:2);
 function update(dt:number){
     const turn=(held('left','arrowleft')?-1:0)+(held('right','arrowright')?1:0);
     const thrust=(held('forward','arrowup')?1:0)-(held('back','arrowdown')?1:0);
@@ -1460,12 +1461,18 @@ function shipDirectionFrame(angle:number){return SHIP_DIRECTION_FRAMES[shipCompa
 // Elit gemiler de başlangıç gemisi gibi 8 yönlü çizilir: pruva gidilen yöne döner (elite-dir-<id>-v1.webp, 4 × 2 kare, 221 × 256).
 // Sayfalardaki yanlış yöne bakan kareler elite-ships.ts ELITE_DIR_SHOWS ile düzeltilir (gerekirse karşı yön aynalanır).
 const eliteDirImages=new Map<string,HTMLImageElement>();
+const eliteIsoImages=new Map<string,HTMLImageElement>();
+function eliteIsoImage(src:string){let im=eliteIsoImages.get(src);if(!im){im=new Image();im.decoding='async';im.src=`${src}?r=${SHIP_ART_REV}`;eliteIsoImages.set(src,im);}return im;}
 function eliteDirImage(id:string){let im=eliteDirImages.get(id);if(!im){im=new Image();im.decoding='async';im.src=`/assets/elite-dir-${id}-v1.webp?r=${SHIP_ART_REV}`;eliteDirImages.set(id,im);}return im;}
 const ELITE_FRAME={w:221,h:256,scale:.56};
 let ghostFade=0;
 const shipAlpha=()=>ghostFade>0?ghostFade:ghostTimer>0?.55:stealthTimer>0?.4:1;
 function drawEliteDirectionalShip(s:Vec){
-  const id=eliteShip().id,dir=eliteDirImage(id);
+  const id=eliteShip().id,iso=ELITE_ISO[id];
+  if(iso){const im=eliteIsoImage(iso);if(!im.complete||!im.naturalWidth)return false;
+    ctx.save();ctx.translate(s.x,s.y);ctx.globalAlpha=(state.invulnerable&&Math.floor(performance.now()/120)%2?.55:1)*shipAlpha();ctx.shadowColor=ghostTimer>0?'#5fffd0':'#000b';ctx.shadowBlur=13;if(ghostTimer>0)ctx.filter='saturate(.35) brightness(1.35)';
+    const c=im.naturalHeight,D=158,bt=performance.now()/1000;ctx.translate(0,Math.sin(bt*1.7)*1.8);ctx.rotate(Math.sin(bt*1.15)*.018);ctx.drawImage(im,isoIndex()*c,0,c,c,-D/2,-D*.7,D,D);ctx.restore();return true;}
+  const dir=eliteDirImage(id);
   ctx.save();ctx.translate(s.x,s.y);ctx.globalAlpha=(state.invulnerable&&Math.floor(performance.now()/120)%2?.55:1)*shipAlpha();if(ghostTimer>0){ctx.filter='saturate(.35) brightness(1.35)';ctx.shadowColor='#5fffd0';};
   ctx.shadowColor=ghostTimer>0?'#5fffd0':'#000b';ctx.shadowBlur=13;ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
   if(dir.complete&&dir.naturalWidth){const {frame:f,mirror}=eliteDirFrame(id,shipCompass(player.angle)),{w,h,scale}=ELITE_FRAME;if(mirror)ctx.scale(-1,1);ctx.drawImage(dir,(f%4)*w,Math.floor(f/4)*h,w,h,-w*scale/2,-h*scale/2,w*scale,h*scale);ctx.restore();return true;}
