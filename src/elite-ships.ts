@@ -35,7 +35,7 @@ export type Compass=typeof COMPASS[number];
 const DEFAULT_SHOWS='S SW W NE N SE E NW';
 // Seafight usulü 4 çapraz görünüşlü elitler: yan yana 256 px kareler, sıra KD, GD, GB, KB.
 // Bu gemiler merdiven hareketiyle (special-ships isoAdvance) gider; yön sayfası kullanılmaz.
-export const ELITE_ISO:Partial<Record<EliteShipId,string>>={phantom:'/assets/elite-phantom-iso-v1.webp'};
+export const ELITE_ISO:Partial<Record<EliteShipId,string>>={phantom:'/assets/elite-phantom-iso-v2.webp'};
 export const ELITE_DIR_SHOWS:Partial<Record<EliteShipId,string>>={
 };
 // Pusula dizini (0 = kuzey, saat yönünde 45°) için {kare, ayna}
