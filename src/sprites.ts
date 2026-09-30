@@ -113,7 +113,7 @@ export function drawMineSprite(ctx:CanvasRenderingContext2D,x:number,y:number,ti
 
 // Deniz: harita renginin üstüne binen, kesintisiz tekrarlanan raster ışıltı dokusu.
 let seaPattern:CanvasPattern|null=null;
-export function seaTilePattern(ctx:CanvasRenderingContext2D){const tile=load('/assets/sea-tile-v2.webp');if(!seaPattern&&ready(tile))seaPattern=ctx.createPattern(tile,'repeat');return seaPattern;}
+export function seaTilePattern(ctx:CanvasRenderingContext2D){const tile=load('/assets/sea-tile-v3.webp');if(!seaPattern&&ready(tile))seaPattern=ctx.createPattern(tile,'repeat');return seaPattern;}
 
 // Portre atlası: hücre indeksinden CSS arka plan konumu.
 export function portraitStyle(atlas:string,index:number,count:number,cols:number){
