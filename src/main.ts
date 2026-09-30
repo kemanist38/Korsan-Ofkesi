@@ -1472,7 +1472,8 @@ const shipAlpha=()=>ghostFade>0?ghostFade:ghostTimer>0?.55:stealthTimer>0?.4:1;
 function drawEliteDirectionalShip(s:Vec){
   const id=eliteShip().id,iso=ELITE_ISO[id];
   if(iso){const im=eliteIsoImage(iso);if(!im.complete||!im.naturalWidth)return false;
-    ctx.save();ctx.translate(s.x,s.y);ctx.globalAlpha=(state.invulnerable&&Math.floor(performance.now()/120)%2?.55:1)*shipAlpha();ctx.shadowColor=ghostTimer>0?'#5fffd0':'#000b';ctx.shadowBlur=13;if(ghostTimer>0)ctx.filter='saturate(.35) brightness(1.35)';
+    ctx.save();ctx.translate(s.x,s.y);ctx.globalAlpha=(state.invulnerable&&Math.floor(performance.now()/120)%2?.55:1)*shipAlpha();ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';if(ghostTimer>0){ctx.shadowColor='#5fffd0';ctx.shadowBlur=13;ctx.filter='saturate(.35) brightness(1.35)';}
+    // Gölge bulanıklığı yok (keskin kenar); gemi altındaki su havuzu gölgeyi verir. Kaynak kare 512 px: yakınlaştırmada da net
     const c=im.naturalHeight,D=158,bt=performance.now()/1000;ctx.translate(0,Math.sin(bt*1.7)*1.8);ctx.rotate(Math.sin(bt*1.15)*.018);ctx.drawImage(im,isoIndex()*c,0,c,c,-D/2,-D*.7,D,D);ctx.restore();return true;}
   const dir=eliteDirImage(id);
   ctx.save();ctx.translate(s.x,s.y);ctx.globalAlpha=(state.invulnerable&&Math.floor(performance.now()/120)%2?.55:1)*shipAlpha();if(ghostTimer>0){ctx.filter='saturate(.35) brightness(1.35)';ctx.shadowColor='#5fffd0';};
