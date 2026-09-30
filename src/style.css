@@ -589,3 +589,51 @@ body.shop-open .market-overlay,body.shop-open .ship-overlay,body.shop-open .load
 .top-level{display:grid;place-items:center;width:38px;height:38px;border:2px solid #c99a4f;border-radius:50%;background:radial-gradient(circle at 40% 35%,#4a2f14,#1c1007);color:#ffe09b;font:800 16px Cinzel;box-shadow:0 0 10px #d8a75355,inset 0 0 8px #000}
 .reward-toast{top:78px}
 @media (max-width:760px){.top-status{width:min(360px,70vw);top:18px;padding:3px 6px}.top-level{width:30px;height:30px;font-size:13px}}
+/* ---- HUD v3: süslü üst bar, küçük ahşap alt bar, yeni mini harita paneli, ince olay paneli ---- */
+#sea.panning,canvas.panning{cursor:grabbing}
+.top-status{top:4px;width:min(580px,58vw);aspect-ratio:1160/157;padding:0;border:0;border-radius:0;background:url(/assets/ui-topbar-v1.webp) center/100% 100% no-repeat;box-shadow:none;display:block;filter:drop-shadow(0 6px 10px #000a)}
+.top-status .status-line{position:absolute;top:39.4%;height:22%;width:34.9%;display:block}
+.top-status .xp-line{left:5.2%}.top-status .elite-line{left:62.1%}
+.top-status .status-line>i{position:absolute;inset:8% 2.5%;height:auto;border:0;border-radius:99px;background:#0a0705cc;box-shadow:inset 0 2px 4px #000c}
+.top-status .status-line>i>em{border-radius:99px}
+.top-status .status-line span{position:absolute;left:5%;top:50%;transform:translateY(-50%);z-index:1;font:800 clamp(7px,1.6vw,10px) Inter;color:#f3e2b8;text-shadow:0 1px 2px #000}
+.top-status .status-line b{position:absolute;inset:0;left:0;line-height:normal;display:grid;place-items:center;font:800 clamp(8px,1.8vw,12px) Inter}
+.top-status .top-level{position:absolute;left:49.9%;top:49.2%;transform:translate(-50%,-50%);width:8.2%;height:auto;aspect-ratio:1;border:0;background:none;box-shadow:none;color:#ffe7a8;font:900 clamp(12px,2.6vw,20px) Cinzel;text-shadow:0 2px 3px #000,0 0 8px #000,0 0 2px #000}
+.reward-toast{top:clamp(52px,8vw,90px)}
+@media (max-width:760px){.top-status{width:min(420px,78vw);top:4px;padding:0}.top-status .top-level{width:8.2%;height:auto}}
+/* alt bar: daha küçük, ahşap + koyu metal çerçeve, sürüklenebilir */
+:root{--dock-w:318px}
+@media (max-width:900px),(max-height:520px){:root{--dock-w:270px}}
+.hud-dock.moved{transform:none;bottom:auto}
+.dock-status{cursor:grab;touch-action:none;padding:3px 7px;border:2px solid #3e5256;border-bottom:0;border-radius:9px 9px 0 0;background:url(/assets/ui-wood-v1.webp) center/260px 100% repeat-x,#2b1d12;box-shadow:inset 0 0 0 1px #b8904e55,0 -4px 14px #0007;grid-template-columns:1fr 36px 1fr}
+.dock-status.dragging{cursor:grabbing}
+.dock-status .status-line{height:14px}.dock-status .status-line>i{height:12px;background:#0a0705;border-color:#1a1410}.dock-status .status-line b{line-height:14px;font-size:9px}
+.dock-status .status-line span{color:#f3e2b8;text-shadow:0 1px 2px #000}
+.hud-dock .recenter#recenterShip{width:32px;height:32px;font-size:16px;background:radial-gradient(circle at 40% 35%,#4a2f14,#1c1007);border:2px solid #c99a4f;color:#ffe09b}
+.hud-dock .bottom-command .quick-inventory{gap:3px;padding:3px 4px 4px;border:2px solid #3e5256;border-top:1px solid #b8904e55;border-bottom:0;background:url(/assets/ui-wood-v1.webp) center/260px 100% repeat,#24180f}
+.quick-toggle{width:15px;border:2px solid #3e5256;border-right:0;background:linear-gradient(#3a2818,#1a1008)}
+.bottom-command .quick-slot>b{font-size:9px}.bottom-command .quick-slot>kbd{font-size:7px}
+.hud-dock .bottom-command.collapsed .quick-bar{background:url(/assets/ui-wood-v1.webp) center/260px 100% repeat-x,#24180f;border:2px solid #3e5256;border-top:0;height:20px}
+.hud-dock .bottom-command.collapsed .quick-toggle{height:20px;border:0}
+/* mini harita paneli (ahşap zemin, metal süslü çerçeve) ve yakınlaştırma paneli */
+.map-cluster{left:30px;top:22px;width:214px;height:236px;background:url(/assets/ui-minimap-v1.webp) 0 0/214px 160px no-repeat}
+.map-cluster #minimap{pointer-events:auto;position:absolute;left:16.5px;top:17.5px;width:188px;height:133px;border:0;border-radius:2px;background:transparent;box-shadow:none;cursor:crosshair;touch-action:none}
+.map-cluster .map-badge{left:20px;top:20px}
+.map-cluster .zoom-controls{position:absolute;left:32px;top:164px;margin:0;width:150px;height:66px;padding:0;border:0;border-radius:0;background:url(/assets/ui-zoom-v1.webp) center/100% 100% no-repeat;box-shadow:none;display:block}
+.map-cluster .zoom-controls button{position:absolute;top:35%;width:24.3%;height:52.5%;padding:0;border:0;border-radius:6px;background:transparent;color:transparent;font-size:0;cursor:pointer}
+.map-cluster .zoom-controls button:hover{background:#ffe09b1f}
+.map-cluster #zoomOut{left:5.9%}.map-cluster #zoomIn{left:69.9%}
+.map-cluster #zoomValue{position:absolute;left:50%;top:61%;transform:translate(-50%,-50%);font:800 12px Inter;color:#d8e6e2;text-shadow:0 1px 2px #000}
+.world-map-button,.quest-bust{left:222px;width:54px;height:54px;border:3px solid #50676b;border-radius:50%;background:radial-gradient(circle at 45% 40%,#2b4a50,#0b1a1e 72%);box-shadow:0 0 0 2px #152024,0 0 0 3px #b8904e99,0 6px 14px #000a}
+.world-map-button{top:4px;padding:6px}.world-map-button img{width:36px;height:36px}.world-map-button span{top:54px;font:700 7px Cinzel;color:#f0cc82;text-shadow:0 1px 2px #000}
+.quest-bust{top:80px}.quest-bust img{width:50px;height:50px;margin-top:0;border-radius:50%;object-fit:cover}.quest-bust span{top:56px}
+.combat-targets{left:30px;top:250px}
+@media(max-width:900px){.map-cluster{top:22px}.combat-targets{top:250px}}
+@media(max-width:680px){.map-cluster{left:26px;top:20px;transform:scale(.8);transform-origin:top left}.combat-targets{left:26px;top:206px}}
+/* sağdaki olay paneli: ince, yukarıda */
+.event-panel{top:84px;right:14px;width:212px;gap:4px}
+.event-row{grid-template-columns:30px 1fr;gap:6px;padding:3px 6px 3px 3px}
+.event-row img,.event-art,.event-row i.event-art{width:30px;height:30px;border-radius:4px}
+.event-row small{font-size:6.5px;letter-spacing:.1em}.event-row strong{font-size:11px}.event-row i{height:3px;margin-top:2px}
+@media (max-width:720px){.event-panel{top:78px;bottom:auto;right:8px;width:180px}}
+@media (max-height:520px){.event-panel{top:70px;transform:scale(.85)}}

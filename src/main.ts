@@ -77,7 +77,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       <section class="combat-targets" id="combatTargets" aria-live="polite"></section>
       <div class="hud-dock"><div class="dock-status"><div class="status-pair"><div class="status-line hp-line"><span>CP</span><i><em id="hpHudBar"></em></i><b id="hpHudText">100 / 100</b></div></div><div class="dock-center"><button class="recenter" id="recenterShip" aria-label="Gemiyi haritada ortala">✥</button></div><div class="status-pair"><div class="status-line battle-line"><span>SP</span><i><em id="battleBar"></em></i><b id="battleText">0 / 100</b></div></div></div><div class="bottom-command"><div class="quick-bar"><button class="quick-toggle" id="quickToggle" aria-label="Malzeme yuvalarını aç/kapat" title="Yuvaları aç/kapat"><i></i><i></i></button><div class="quick-inventory" id="quickInventory"></div></div></div></div><div class="top-status" id="topStatus"><div class="status-line xp-line"><span>TP</span><i><em id="xpHudBar"></em></i><b id="xpHudText">0 / 100</b></div><b class="top-level" id="level" title="Kaptan seviyesi">1</b><div class="status-line elite-line"><span>EP</span><i><em id="eliteBar"></em></i><b id="eliteText">0 / 100</b></div></div>
       <div class="combat-controls" id="combatControls"><button class="combat-action attack" id="attack" title="Saldır"><b><img src="/assets/icon-attack-v2.webp" alt="" draggable="false"/></b><span id="attackLabel">SALDIR</span><small id="reloadText">HAZIR</small></button><button class="combat-action repair" id="repair" title="Tamir et"><b><img src="/assets/icon-repair-v2.webp" alt="" draggable="false"/></b><span>TAMİR</span><small data-bind="repair"></small></button><button class="combat-action speed ability" id="ability-speed" title="Rüzgâr Hamlesi"><b><img src="/assets/icon-speed-v2.webp" alt="" draggable="false"/></b><span>HIZ</span><small data-bind="speed"></small></button><button class="combat-action mine ability" id="ability-mine" title="Deniz Mayını"><b><img src="/assets/icon-mine-v2.webp" alt="" draggable="false"/></b><span>MAYIN</span><small data-bind="mine"></small></button><button class="combat-action elite ability" id="ability-elite" title="Elit gemi yeteneği"><b><i class="elite-ability-icon" id="eliteAbilityIcon"></i></b><span id="eliteAbilityName">ELİT</span><small id="eliteAbilityTime">HAZIR</small></button></div>
-      <div class="map-cluster"><div class="map-badge" id="mapBadge"><strong id="mapName"></strong><small id="mapSubtitle"></small><b class="map-coord" id="mapCoord" title="Konum koordinatı">1/1 - 00AA</b></div><canvas id="minimap" width="170" height="125"></canvas><button class="world-map-button" id="openWorldMap" aria-label="Dünya haritalarını görüntüle"><img id="worldMapIcon" alt="" draggable="false"/><span>DÜNYA</span></button><button class="quest-bust" id="openQuestTop" aria-label="Görevler"><img src="/assets/quest-captain-v1.png" alt="" draggable="false"/><span>GÖREVLER</span><small id="questBadge"></small></button><div class="panel zoom-controls"><button id="zoomOut" aria-label="Uzaklaştır">−</button><span id="zoomValue">70%</span><button id="zoomIn" aria-label="Yakınlaştır">+</button></div></div>
+      <div class="map-cluster"><div class="map-badge" id="mapBadge"><strong id="mapName"></strong><small id="mapSubtitle"></small><b class="map-coord" id="mapCoord" title="Konum koordinatı">1/1 - 00AA</b></div><canvas id="minimap" width="188" height="133"></canvas><button class="world-map-button" id="openWorldMap" aria-label="Dünya haritalarını görüntüle"><img id="worldMapIcon" alt="" draggable="false"/><span>DÜNYA</span></button><button class="quest-bust" id="openQuestTop" aria-label="Görevler"><img src="/assets/quest-captain-v1.png" alt="" draggable="false"/><span>GÖREVLER</span><small id="questBadge"></small></button><div class="panel zoom-controls"><button id="zoomOut" aria-label="Uzaklaştır">−</button><span id="zoomValue">70%</span><button id="zoomIn" aria-label="Yakınlaştır">+</button></div></div>
       <div class="reward-toast" id="rewardToast"></div>
       <div class="toast" id="toast"></div>
       <div class="portal-prompt" id="portalPrompt"></div><div class="quest-overlay daily-overlay" id="dailyOverlay"><section class="daily-window"><header><div><span class="eyebrow">Her gün gel, ödül büyüsün</span><h2>GÜNLÜK ÖDÜL</h2></div><button id="closeDaily" aria-label="Kapat">×</button></header><div class="daily-grid" id="dailyGrid"></div><p class="daily-note" id="dailyNote"></p></section></div><button class="dig-prompt" id="digPrompt"><img src="/assets/icon-treasure-map-v3.webp" alt="" draggable="false"/><span>HAZİNEYİ KAZ</span><i><em id="digBar"></em></i></button><div class="event-panel" id="eventPanel"></div><div class="quest-overlay world-overlay" id="worldMapOverlay"><section class="world-scroll" aria-label="Dünya haritası"><button class="scroll-close" id="closeWorldMap" aria-label="Dünya haritasını kapat">×</button><div class="world-chart" id="worldChart"></div><div id="worldInfo" hidden></div></section></div><div class="quest-overlay" id="questOverlay"><section class="quest-log"><header><div><span class="eyebrow">Kaptanın görev defteri</span><h2>DENİZ GÖREVLERİ</h2></div><button id="closeQuests" aria-label="Görevleri kapat">×</button></header><p class="quest-intro">Aynı anda yalnızca bir görev yürütülebilir. İptal edilen veya tamamlanan görev 8 saat sonra yeniden açılır.</p><div class="quest-list" id="questList"></div></section></div>
@@ -171,6 +171,9 @@ let destination:Vec|null=null;
 let routeTarget:Vec|null=null;
 let selected:Target|null=null;
 const camera = { x:player.x, y:player.y, zoom:.7, targetZoom:.7 };
+// Serbest bakış: oyuncu haritayı sürükleyince ya da mini haritada gezinince kamera bu noktaya bakar
+let freeLook:Vec|null=null;
+function lookAt(x:number,y:number,snap=false){freeLook={x:clamp(x,0,WORLD_WIDTH),y:clamp(y,0,WORLD_HEIGHT)};if(snap){camera.x=freeLook.x;camera.y=freeLook.y;}}
 const shots:Shot[]=[]; const enemies:Enemy[]=[];
 const salvoQueue:SalvoRound[]=[];
 const particles:Particle[]=[];
@@ -180,7 +183,7 @@ const mapDef=()=>MAPS[currentMap];
 const theme=()=>THEMES[mapDef().tier];
 const hasFleetIsland=()=>mapDef().tier>=2;
 const monsters:Monster[]=[];
-function createMonsters(){monsters.length=0;const map=mapDef();for(const id of map.monsters){const def=MONSTERS[id];if(!def.sprite)continue;const count=map.monsters.length>1?1:(map.safe?1:2);for(let k=0;k<count;k++){const p=randomSeaPoint(700);monsters.push({kind:'monster',def,x:p.x,y:p.y,phase:Math.random()*6,radius:def.radius,name:def.name,hp:def.hp,maxHp:def.hp,cooldown:0,aggro:false,slowTimer:0,homeX:p.x,homeY:p.y,combatTimer:0});}}}
+function createMonsters(){monsters.length=0;const map=mapDef();for(const id of map.monsters){const def=MONSTERS[id];if(!def.sprite)continue;const count=map.safe?1:2;for(let k=0;k<count;k++){const p=randomSeaPoint(700);monsters.push({kind:'monster',def,x:p.x,y:p.y,phase:Math.random()*6,radius:def.radius,name:def.name,hp:def.hp,maxHp:def.hp,cooldown:0,aggro:false,slowTimer:0,homeX:p.x,homeY:p.y,combatTimer:0});}}}
 const lootChests:LootChest[]=[];
 const SPARKLE_COUNT=12,SPARKLE_PICKUP=40,SPARKLE_RESPAWN=4;
 const sparkles:{x:number;y:number;seed:number;born:number}[]=[];
@@ -248,7 +251,7 @@ addEventListener('keyup',e=>{keys.delete(normalizeKey(e));keys.delete(e.key.toLo
 addEventListener('pointerdown',e=>{unlockAudio();if((e.target as HTMLElement).closest?.('button'))playClick();},{capture:true});
 addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
 addEventListener('beforeunload',saveAccount);
-canvas.addEventListener('pointerdown',e=>{
+function worldClick(e:{clientX:number;clientY:number}){
   const world={x:(e.clientX-innerWidth/2)/camera.zoom+camera.x,y:(e.clientY-innerHeight/2)/camera.zoom+camera.y};
   if(hasFleetIsland()&&fleetOwner()==='player'&&guild){
     const f=mapDef().fleet,slots=islandSlots(guild,currentMap);
@@ -259,14 +262,40 @@ canvas.addEventListener('pointerdown',e=>{
   const hit=towerHit??[...enemies,...monsters].filter(n=>dist(n,world)<Math.max(42,n.kind==='monster'?n.radius:(n.hitRadius??0))).sort((a,b)=>dist(a,world)-dist(b,world))[0];
   if(hit){if(hit!==selected){selected=hit;state.attacking=false;attackChase=false;ui('attack').classList.remove('active');toast(`${hit.name} hedef seçildi`);}}
   else{const glint=sparkles.find(g=>dist(g,world)<34);if(glint){routeTarget={x:glint.x,y:glint.y};destination=routeVia(routeTarget);attackChase=false;toast('Rota inci pırıltısına çizildi');return;}const chest=lootChests.find(c=>dist(c,world)<CHEST_CLICK_RADIUS);routeTarget=chest?{x:chest.x,y:chest.y}:navigablePoint(world);destination=routeVia(routeTarget);attackChase=false;if(chest)toast('Rota ganimet sandığına çizildi');}
-});
+}
+// Harita gezinme: sol tuşa basılı tutup sürükleyince kamera gemiden ayrılır (✥ ile geri döner);
+// sürüklemeden bırakılan tık, hedef seçimi/rota olarak işlenir.
+{let press:{x:number;y:number;cx:number;cy:number;id:number}|null=null,panning=false;
+  canvas.addEventListener('pointerdown',e=>{if(e.button!==0&&e.pointerType==='mouse')return;press={x:e.clientX,y:e.clientY,cx:camera.x,cy:camera.y,id:e.pointerId};panning=false;});
+  canvas.addEventListener('pointermove',e=>{if(!press||e.pointerId!==press.id)return;const dx=e.clientX-press.x,dy=e.clientY-press.y;
+    if(!panning&&Math.hypot(dx,dy)>8){panning=true;try{canvas.setPointerCapture(e.pointerId);}catch{}canvas.classList.add('panning');}
+    if(panning)lookAt(press.cx-dx/camera.zoom,press.cy-dy/camera.zoom,true);});
+  const end=(e:PointerEvent)=>{if(!press||e.pointerId!==press.id)return;const was=panning;press=null;panning=false;canvas.classList.remove('panning');if(!was&&e.type==='pointerup')worldClick(e);};
+  canvas.addEventListener('pointerup',end);canvas.addEventListener('pointercancel',end);}
+
+// Mini harita: tıklayıp sürükleyerek haritada gezinme (görüş penceresi o noktaya taşınır)
+{let down=false;const at=(e:PointerEvent)=>{const r=minimap.getBoundingClientRect();lookAt((e.clientX-r.left)/r.width*WORLD_WIDTH,(e.clientY-r.top)/r.height*WORLD_HEIGHT,true);};
+  minimap.addEventListener('pointerdown',e=>{down=true;try{minimap.setPointerCapture(e.pointerId);}catch{}at(e);});
+  minimap.addEventListener('pointermove',e=>{if(down)at(e);});
+  const up=()=>{down=false;};minimap.addEventListener('pointerup',up);minimap.addEventListener('pointercancel',up);}
+// Alt bar (CP/SP + malzemeler): üst şeridinden tutup sürükleyerek taşınır; çift tık eski yerine döndürür. Konum saklanır.
+{const dock=document.querySelector('.hud-dock') as HTMLElement,handle=dock.querySelector('.dock-status') as HTMLElement,KEY='yedi-deniz-dock-pos';
+  const place=(x:number,y:number)=>{const w=dock.offsetWidth,h=dock.offsetHeight;x=clamp(x,0,Math.max(0,innerWidth-w));y=clamp(y,0,Math.max(0,innerHeight-h));dock.classList.add('moved');dock.style.left=`${x}px`;dock.style.top=`${y}px`;return{x,y};};
+  try{const p=JSON.parse(localStorage.getItem(KEY)||'null');if(p&&Number.isFinite(p.x))requestAnimationFrame(()=>place(p.x,p.y));}catch{}
+  let drag:{dx:number;dy:number}|null=null;
+  handle.addEventListener('pointerdown',e=>{if((e.target as HTMLElement).closest('button'))return;const r=dock.getBoundingClientRect();drag={dx:e.clientX-r.left,dy:e.clientY-r.top};try{handle.setPointerCapture(e.pointerId);}catch{}handle.classList.add('dragging');});
+  handle.addEventListener('pointermove',e=>{if(drag)place(e.clientX-drag.dx,e.clientY-drag.dy);});
+  const stop=()=>{if(!drag)return;drag=null;handle.classList.remove('dragging');try{localStorage.setItem(KEY,JSON.stringify({x:parseFloat(dock.style.left),y:parseFloat(dock.style.top)}));}catch{}};
+  handle.addEventListener('pointerup',stop);handle.addEventListener('pointercancel',stop);
+  handle.addEventListener('dblclick',e=>{if((e.target as HTMLElement).closest('button'))return;dock.classList.remove('moved');dock.style.left='';dock.style.top='';try{localStorage.removeItem(KEY);}catch{}});
+  addEventListener('resize',()=>{if(dock.classList.contains('moved'))place(parseFloat(dock.style.left),parseFloat(dock.style.top));});}
 ui('attack').onclick=toggleAttack;
 ui('repair').onclick=toggleRepair;
 // Malzeme barı: en soldaki düğmeyle yuvalar kapanır/açılır (tercih tarayıcıda saklanır)
 {const bar=document.querySelector('.hud-dock .bottom-command') as HTMLElement,KEY='yedi-deniz-quickbar-collapsed',set=(c:boolean)=>{bar.classList.toggle('collapsed',c);try{localStorage.setItem(KEY,c?'1':'0');}catch{}};
   let c=false;try{c=localStorage.getItem(KEY)==='1';}catch{}set(c);ui('quickToggle').onclick=()=>set(!bar.classList.contains('collapsed'));}
 ui('ability-speed').onclick=()=>activateAbility('speed');ui('ability-mine').onclick=dropMine;ui('ability-elite').onclick=activateEliteAbility;
-function recenterShip(){camera.x=player.x;camera.y=player.y;destination=null;toast('Kamera gemiye ortalandı');}
+function recenterShip(){freeLook=null;camera.x=player.x;camera.y=player.y;toast('Kamera gemiye ortalandı');}
 ui('recenterShip').onclick=recenterShip;
 ui('openWorldMap').onclick=openWorldMap;ui('closeWorldMap').onclick=closeWorldMap;
 ui('worldMapOverlay').addEventListener('pointerdown',e=>{if(e.target===ui('worldMapOverlay'))closeWorldMap();});
@@ -539,7 +568,7 @@ function gainElitePoints(ep:number){
 }
 // Elit puan çubuğu: mevcut elit seviyesinden bir sonrakine ilerleme
 function eliteProgress(){const lvl=eliteLevelFromEp(state.elitePoints),lo=eliteLevelEp(lvl),hi=lvl>=ELITE_MAX_LEVEL?lo:eliteLevelEp(lvl+1);
-  return{text:lvl>=ELITE_MAX_LEVEL?`${Math.floor(state.elitePoints).toLocaleString('tr-TR')} · AZAMİ`:`${Math.floor(state.elitePoints).toLocaleString('tr-TR')} / ${hi.toLocaleString('tr-TR')}`,pct:lvl>=ELITE_MAX_LEVEL?100:Math.min(100,(state.elitePoints-lo)/(hi-lo)*100)};}
+  return{text:lvl>=ELITE_MAX_LEVEL?Math.floor(state.elitePoints).toLocaleString('tr-TR'):`${Math.floor(state.elitePoints).toLocaleString('tr-TR')} / ${hi.toLocaleString('tr-TR')}`,pct:lvl>=ELITE_MAX_LEVEL?100:Math.min(100,(state.elitePoints-lo)/(hi-lo)*100)};}
 function releaseSalvo(round:SalvoRound){
   if(!targetExists(round.target))return;
   const d=dist(player,round.target);
@@ -985,8 +1014,8 @@ function updateUI(){
   ui('pearls').textContent=String(state.pearls).padStart(3,'0');ui('gold').textContent=String(state.gold).padStart(3,'0');
   document.querySelectorAll<HTMLElement>('#quickInventory [data-quick-item]').forEach(slot=>{const item=slot.dataset.quickItem as QuickItemId;const count=slot.querySelector('b');if(count)count.textContent=quickCount(item);slot.classList.toggle('active',item===state.ammo||((item==='powder'||item==='shield')&&consumableOn[item]));});
   ui('hpText').textContent=`${Math.ceil(state.hp).toLocaleString('tr-TR')} / ${effectiveMaxHp().toLocaleString('tr-TR')}`; (ui('hpBar') as HTMLElement).style.width=`${state.hp/effectiveMaxHp()*100}%`;
-  const need=xpNeed(state.level),needText=Number.isFinite(need)?String(need):'AZAMİ';ui('xpText').textContent=`${state.fame} / ${needText}`;(ui('xpBar') as HTMLElement).style.width=`${Number.isFinite(need)?Math.min(100,state.fame/need*100):100}%`;ui('level').textContent=String(state.level);ui('captainLevel').textContent=String(state.level);ui('profileElite').textContent=eliteProgress().text;ui('profileBattle').textContent=`${state.battlePoints} / 500`;(ui('profileEliteBar') as HTMLElement).style.width=`${eliteProgress().pct}%`;(ui('profileBattleBar') as HTMLElement).style.width=`${Math.min(100,state.battlePoints/5)}%`;
-  (ui('xpHudBar') as HTMLElement).style.width=`${Number.isFinite(need)?Math.min(100,state.fame/need*100):100}%`;ui('xpHudText').textContent=`${state.fame} / ${needText}`;(ui('hpHudBar') as HTMLElement).style.width=`${Math.max(0,state.hp/effectiveMaxHp()*100)}%`;ui('hpHudText').textContent=`${Math.ceil(state.hp).toLocaleString('tr-TR')} / ${effectiveMaxHp().toLocaleString('tr-TR')}`;(ui('eliteBar') as HTMLElement).style.width=`${eliteProgress().pct}%`;ui('eliteText').textContent=eliteProgress().text;(ui('battleBar') as HTMLElement).style.width=`${Math.min(100,state.battlePoints/5)}%`;ui('battleText').textContent=`${state.battlePoints} / 500`;
+  const need=xpNeed(state.level);ui('xpText').textContent=Number.isFinite(need)?`${state.fame.toLocaleString('tr-TR')} / ${need.toLocaleString('tr-TR')}`:state.fame.toLocaleString('tr-TR');(ui('xpBar') as HTMLElement).style.width=`${Number.isFinite(need)?Math.min(100,state.fame/need*100):100}%`;ui('level').textContent=String(state.level);ui('captainLevel').textContent=String(state.level);ui('profileElite').textContent=eliteProgress().text;ui('profileBattle').textContent=`${state.battlePoints} / 500`;(ui('profileEliteBar') as HTMLElement).style.width=`${eliteProgress().pct}%`;(ui('profileBattleBar') as HTMLElement).style.width=`${Math.min(100,state.battlePoints/5)}%`;
+  (ui('xpHudBar') as HTMLElement).style.width=`${Number.isFinite(need)?Math.min(100,state.fame/need*100):100}%`;ui('xpHudText').textContent=Number.isFinite(need)?`${state.fame.toLocaleString('tr-TR')} / ${need.toLocaleString('tr-TR')}`:state.fame.toLocaleString('tr-TR');(ui('hpHudBar') as HTMLElement).style.width=`${Math.max(0,state.hp/effectiveMaxHp()*100)}%`;ui('hpHudText').textContent=`${Math.ceil(state.hp).toLocaleString('tr-TR')} / ${effectiveMaxHp().toLocaleString('tr-TR')}`;(ui('eliteBar') as HTMLElement).style.width=`${eliteProgress().pct}%`;ui('eliteText').textContent=eliteProgress().text;(ui('battleBar') as HTMLElement).style.width=`${Math.min(100,state.battlePoints/5)}%`;ui('battleText').textContent=`${state.battlePoints} / 500`;
   const quest=state.activeQuest===null?null:questById(state.activeQuest);ui('questTitle').textContent=quest?.title||'Görev seçilmedi';ui('questDescription').textContent=quest?.description||'Kaptan, yapmak istediğin görevi görev defterinden seçebilirsin.';ui('quest').textContent=quest?`${questProgress[quest.id]??0} / ${quest.required} ${questUnit(quest)}`:'Hazır olduğunda bir görev başlat';ui('questBadge').textContent=quest?`${questProgress[quest.id]??0}/${quest.required}`:'';ui('openQuestTop').classList.toggle('has-quest',!!quest);
   ui('reloadText').textContent=player.cooldown>0?`${player.cooldown.toFixed(1)} sn`:'HAZIR';ui('attack').classList.toggle('reloading',player.cooldown>0);
   ui('attackLabel').textContent=state.attacking?'SALDIRIYI İPTAL ET':'SALDIR';ui('attack').classList.toggle('active',state.attacking);
@@ -1029,7 +1058,7 @@ function update(dt:number){
     player.speed=clamp(player.speed,0,effectiveSpeed()+4);
     player.x=clamp(player.x+Math.sin(player.angle)*player.speed*dt,25,WORLD_WIDTH-25);player.y=clamp(player.y-Math.cos(player.angle)*player.speed*dt,25,WORLD_HEIGHT-25);resolveIslandCollision();
   updateAbilityFx(dt);ghostTimer=Math.max(0,ghostTimer-dt);ghostTrailClock-=dt;if(ghostTimer>0&&ghostTrailClock<=0){ghostTrailClock=.07;ghostTrail.push({x:player.x,y:player.y});if(ghostTrail.length>6)ghostTrail.shift();}if(ghostTimer<=0)ghostTrail.length=0;
-  player.cooldown=Math.max(0,player.cooldown-dt*(steamTimer>0?2:1));updateEliteAbilities(dt);eliteAbility.active=Math.max(0,eliteAbility.active-dt);eliteAbility.cooldown=Math.max(0,eliteAbility.cooldown-dt);state.invulnerable=Math.max(0,state.invulnerable-dt);collisionNotice=Math.max(0,collisionNotice-dt);{const f=cinematic.focus??player;camera.x+=(f.x-camera.x)*Math.min(1,dt*3);camera.y+=(f.y-camera.y)*Math.min(1,dt*3);}camera.zoom+=(camera.targetZoom-camera.zoom)*Math.min(1,dt*7);
+  player.cooldown=Math.max(0,player.cooldown-dt*(steamTimer>0?2:1));updateEliteAbilities(dt);eliteAbility.active=Math.max(0,eliteAbility.active-dt);eliteAbility.cooldown=Math.max(0,eliteAbility.cooldown-dt);state.invulnerable=Math.max(0,state.invulnerable-dt);collisionNotice=Math.max(0,collisionNotice-dt);{const f=cinematic.focus??freeLook??player;camera.x+=(f.x-camera.x)*Math.min(1,dt*3);camera.y+=(f.y-camera.y)*Math.min(1,dt*3);}camera.zoom+=(camera.targetZoom-camera.zoom)*Math.min(1,dt*7);
   for(let i=salvoQueue.length-1;i>=0;i--){salvoQueue[i].delay-=dt;if(salvoQueue[i].delay<=0){releaseSalvo(salvoQueue[i]);salvoQueue.splice(i,1);}}
   if(state.repairing){state.hp=Math.min(effectiveMaxHp(),state.hp+effectiveMaxHp()*(.035+upgrades.repair*.008)*bonus.repair*(elitePassive('coral')&&playerHitClock>5?2:1)*dt);if(state.hp>=effectiveMaxHp()){state.repairing=false;saveAccount();ui('repair').classList.remove('active');toast('Gövde tamamen onarıldı');}}
   wakeClock-=dt;if(Math.abs(player.speed)>8&&wakeClock<=0){wakeClock=.1;particles.push({x:player.x-Math.sin(player.angle)*22,y:player.y+Math.cos(player.angle)*22,vx:-Math.sin(player.angle)*8,vy:Math.cos(player.angle)*8,life:.75,maxLife:.75,kind:'foam'});}
@@ -1110,7 +1139,6 @@ function update(dt:number){
     if(p.life<=0)particles.splice(i,1);}
   for(let i=wrecks.length-1;i>=0;i--){const w=wrecks[i];w.t+=dt;w.bubble-=dt;if(w.bubble<=0){w.bubble=.09;const a=Math.random()*Math.PI*2,r=Math.random()*26;particles.push({x:w.x+Math.cos(a)*r,y:w.y+Math.sin(a)*r*.6,vx:0,vy:-6,life:.7,maxLife:.7,kind:Math.random()<.6?'bubble':'foam',size:10+Math.random()*10,variant:0});}if(w.t>=WRECK_TIME)wrecks.splice(i,1);}
   let need=xpNeed(state.level);while(state.fame>=need){state.fame-=need;state.level++;setAch('level',state.level);state.maxHp=baseMaxHp();state.hp=effectiveMaxHp();saveAccount();playLevelUp();rewardNotice(`SEVİYE ${state.level}   +${HP_PER_LEVEL.toLocaleString('tr-TR')} Azami Gövde   +1 Yetenek Puanı   ${state.level}/1 AÇILDI`);toast(`Seviye ${state.level}! Yeni denizler açıldı`);need=xpNeed(state.level);}
-  if(state.level>=MAX_LEVEL)state.fame=Math.min(state.fame,0);
   if(toastTimer>0){toastTimer-=dt;if(toastTimer<=0)ui('toast').classList.remove('show');}if(rewardTimer>0){rewardTimer-=dt;if(rewardTimer<=0){ui('rewardToast').classList.remove('show');const next=rewardQueue.shift();if(next)setTimeout(()=>showReward(next),220);}} updateUI();
 }
 
@@ -1162,16 +1190,13 @@ function towerSplash(s:Shot,hit:Target){burst(hit.x,hit.y,true);
   for(const o of [...enemies,...monsters] as Target[]){if(o===hit||(o.kind==='ship'&&o.tower)||dist(o,hit)>(s.splash??0))continue;const dmg=s.damage*.6;o.hp-=dmg;damageText(o.x,o.y,dmg);
     if(o.hp<=0){if(o.kind==='ship')sinkEnemy(o);else defeatMonster(o);}}}
 function updateEvents(dt:number){
-  const map=mapDef();
+
   updateOwnTowers(dt);
   eventPanelClock-=dt;if(eventPanelClock>0)return;eventPanelClock=.25;
   const panel=ui('eventPanel'),rows:string[]=[];
-  const boss=activeBoss(),bd=bossFor(currentMap),bst=bossOf(currentMap),bossArt=`<i class="event-art" style="${portraitStyle(BOSS_ATLAS,bd.portrait,MAP_KEYS.length,BOSS_ATLAS_COLS)}"></i>`;
+  const boss=activeBoss(),bd=bossFor(currentMap),bossArt=`<i class="event-art" style="${portraitStyle(BOSS_ATLAS,bd.portrait,MAP_KEYS.length,BOSS_ATLAS_COLS)}"></i>`;
   if(boss)rows.push(`<button class="event-row boss" data-event-route="boss">${bossArt}<span><small>HARİTA BOSSU · ${Math.round(dist(boss,player))}m</small><strong>${bd.name}</strong><i><em style="width:${boss.hp/boss.maxHp*100}%"></em></i></span></button>`);
-  else if(bd.sprite)rows.push(`<div class="event-row boss-wait">${bossArt}<span><small>BOSS · ${NPCS[bd.trigger].name.toLocaleUpperCase('tr')} BATIR</small><strong>${bd.name}</strong><b>${bst.kills} / ${BOSS_KILLS}</b><i><em style="width:${bst.kills/BOSS_KILLS*100}%"></em></i></span></div>`);
   if(treasure.active||treasure.parts>0){const a=treasure.active;rows.push(`<button class="event-row treasure" data-event-route="treasure"><img src="${TREASURE_ICON}" alt=""/><span><small>${a?'HAZİNE HARİTASI · HEDEF':'HAZİNE HARİTASI PARÇALARI'}</small><strong>${a?`${a.map} · ${a.label}`:`${treasure.parts} / ${TREASURE_PARTS} parça`}</strong>${a?'':`<i><em style="width:${treasure.parts/TREASURE_PARTS*100}%"></em></i>`}</span></button>`);}
-  const owned=fleetOwner()==='player',left=enemies.filter(e=>e.tower).length;
-  if(hasFleetIsland())rows.push(`<button class="event-row fort ${owned?'owned':''}" data-event-route="fort"><i class="event-art fleet-art" style="background-image:url(${fleetBaseUrl(theme().fleet)})"></i><span><small>${owned?'FİLO ADAN · İÇERİDE ONARIM':`RAKİP FİLO ADASI · FİLO SAVAŞI GEREKİR`}</small><strong>${map.fleet.name}</strong>${owned?'':`<i class="danger"><em style="width:${left/FLEET.towers.length*100}%"></em></i>`}</span></button>`);
   panel.innerHTML=rows.join('');panel.classList.toggle('visible',rows.length>0);
   panel.querySelectorAll<HTMLButtonElement>('[data-event-route]').forEach(b=>b.onclick=()=>{if(b.dataset.eventRoute==='treasure'){const a=treasure.active;if(!a){toast('Denizde sürüklenen sandıklardan parça topla');return;}if(a.map!==currentMap){toast(`Hazine ${a.map} ${MAPS[a.map].name} denizinde (${a.label})`);return;}}const f=mapDef().fleet,target=b.dataset.eventRoute==='treasure'?treasure.active!:b.dataset.eventRoute==='boss'?activeBoss():fleetEnterable()?{x:f.x+FLEET.lagoon.x,y:f.y+FLEET.lagoon.y}:{x:f.x,y:f.y+FLEET.islandR+120};if(!target)return;routeTarget=navigablePoint({x:target.x,y:target.y});destination=routeVia(routeTarget);toast('Rota çizildi');});
 }
@@ -1605,19 +1630,19 @@ function drawTargetMarker(t:Target){
 }
 const RUNES='ᚠᚢᚦᚨᚱᚲᚷᚹᚺᚾᛁᛃ';
 function drawPlayerMarker(){
-  const s=worldToScreen(player),R=104,now=performance.now()/1000;
+  const s=worldToScreen(player),R=86,now=performance.now()/1000;
   ctx.save();ctx.translate(s.x,s.y+10);ctx.scale(1,RING_Y);
   // mor rün çemberi
   const g=ctx.createRadialGradient(0,0,R*.7,0,0,R*1.12);g.addColorStop(0,'rgba(170,60,255,0)');g.addColorStop(.75,'rgba(170,60,255,.22)');g.addColorStop(1,'rgba(170,60,255,0)');
   ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,R*1.12,0,Math.PI*2);ctx.fill();
-  ctx.shadowColor='#c060ff';ctx.shadowBlur=16;ctx.strokeStyle='#c46bff';ctx.lineWidth=7;ctx.beginPath();ctx.arc(0,0,R,0,Math.PI*2);ctx.stroke();
-  ctx.lineWidth=3.5;ctx.strokeStyle='#d9a0ff';ctx.beginPath();ctx.arc(0,0,R-14,0,Math.PI*2);ctx.stroke();ctx.shadowBlur=0;
+  ctx.shadowColor='#c060ff';ctx.shadowBlur=16;ctx.strokeStyle='#c46bff';ctx.lineWidth=10;ctx.beginPath();ctx.arc(0,0,R,0,Math.PI*2);ctx.stroke();
+  ctx.lineWidth=4.5;ctx.strokeStyle='#d9a0ff';ctx.beginPath();ctx.arc(0,0,R-15,0,Math.PI*2);ctx.stroke();ctx.shadowBlur=0;
   ctx.save();ctx.rotate(now*.25);ctx.fillStyle='rgba(240,210,255,.95)';ctx.font='700 12px serif';ctx.textAlign='center';ctx.textBaseline='middle';
   for(let k=0;k<24;k++){const a=k/24*Math.PI*2;ctx.save();ctx.rotate(a);ctx.translate(0,-(R-7));ctx.fillText(RUNES[k%RUNES.length],0,0);ctx.restore();}ctx.restore();
   ctx.save();ctx.rotate(-now*.15);for(let k=0;k<8;k++){ctx.save();ctx.rotate(k*Math.PI/4);ctx.translate(R+4,0);ctx.shadowColor='#d080ff';ctx.shadowBlur=8;ctx.fillStyle='#b057ff';ctx.strokeStyle='#f0d4ff';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(-6,0);ctx.lineTo(0,-4);ctx.lineTo(7,0);ctx.lineTo(0,4);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();}ctx.restore();
   ctx.restore();
   // yeşil kesikli halka: gövdenin hemen çevresinde, basık elips
-  ctx.save();ctx.translate(s.x,s.y+16);ctx.scale(1,.46);ctx.rotate(-now*.4);ctx.strokeStyle='#3fe06a';ctx.shadowColor='#2bff5f';ctx.shadowBlur=6;ctx.lineWidth=3.2;ctx.setLineDash([8,6]);ctx.beginPath();ctx.arc(0,0,84,0,Math.PI*2);ctx.stroke();
+  ctx.save();ctx.translate(s.x,s.y+16);ctx.scale(1,.48);ctx.rotate(-now*.4);ctx.strokeStyle='#3fe06a';ctx.shadowColor='#2bff5f';ctx.shadowBlur=6;ctx.lineWidth=3.2;ctx.setLineDash([7,5]);ctx.beginPath();ctx.arc(0,0,72,0,Math.PI*2);ctx.stroke();
   ctx.restore();
 }
 function draw(){
@@ -1640,7 +1665,6 @@ function draw(){
   drawAbilityFx(ctx,worldToScreen,innerWidth,innerHeight);
   if(consumableOn.shield){const p=worldToScreen(player),t=performance.now()/1000,g=ctx.createRadialGradient(p.x,p.y,30,p.x,p.y,62);g.addColorStop(0,'#9fe8ff00');g.addColorStop(.75,'#9fe8ff30');g.addColorStop(1,'#d4a64c88');ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,62,0,Math.PI*2);ctx.fill();ctx.strokeStyle=`rgba(212,166,76,${.55+Math.sin(t*6)*.25})`;ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x,p.y,62,0,Math.PI*2);ctx.stroke();}
   if(destination){const d=worldToScreen(destination),p=worldToScreen(player);ctx.strokeStyle='#e7cf8d55';ctx.setLineDash([3,8]);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(d.x,d.y);ctx.stroke();ctx.setLineDash([]);ctx.strokeStyle='#e7cf8d';ctx.beginPath();ctx.arc(d.x,d.y,9,0,7);ctx.stroke();}
-  if(selected){const ps=worldToScreen(player);ctx.strokeStyle='#e8cf934d';ctx.setLineDash([4,7]);ctx.beginPath();ctx.arc(ps.x,ps.y,effectiveRange(),0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
   ctx.restore();
   drawWeather();if(!cinematic.on)drawCoordRulers();
   if(mapFade>0){ctx.fillStyle=`rgba(2,10,14,${Math.min(1,mapFade)})`;ctx.fillRect(0,0,w,h);}
@@ -1674,8 +1698,8 @@ function drawCoordRulers(){
 }
 let lastCoord='';
 function updateCoordBadge(){const text=`${currentMap} - ${coordLabel(player)}`;if(text!==lastCoord){lastCoord=text;ui('mapCoord').textContent=text;}}
-function drawMinimap(){const W=170,H=125,sx=(x:number)=>x/WORLD_WIDTH*W,sy=(y:number)=>y/WORLD_HEIGHT*H,th=theme();
-  mini.fillStyle=th.sea[1];mini.fillRect(0,0,W,H);mini.strokeStyle='#9fc2bd22';mini.strokeRect(.5,.5,W-1,H-1);
+function drawMinimap(){const W=188,H=133,sx=(x:number)=>x/WORLD_WIDTH*W,sy=(y:number)=>y/WORLD_HEIGHT*H,th=theme();
+  mini.clearRect(0,0,W,H);void th;
   for(const dir of ['north','south','east','west'] as Dir[]){const to=neighbor(currentMap,dir);if(!to)continue;mini.fillStyle=state.level>=MAPS[to].tier?'#6fd6c4aa':'#e07a5f88';if(dir==='north')mini.fillRect(W/2-14,0,28,2);if(dir==='south')mini.fillRect(W/2-14,H-2,28,2);if(dir==='west')mini.fillRect(0,H/2-12,2,24);if(dir==='east')mini.fillRect(W-2,H/2-12,2,24);}
   mini.save();mini.scale(W/WORLD_WIDTH,H/WORLD_HEIGHT);
   for(const i of islands)drawIslandSprite(mini,i,i.x,i.y);
@@ -1685,7 +1709,9 @@ function drawMinimap(){const W=170,H=125,sx=(x:number)=>x/WORLD_WIDTH*W,sy=(y:nu
   mini.fillStyle='#f4f8ff';for(const g of sparkles)mini.fillRect(sx(g.x)-.5,sy(g.y)-.5,1.5,1.5);
   for(const c of lootChests){mini.fillStyle=c.kind==='gilded'?'#ffd46b':'#d9a95b';mini.fillRect(sx(c.x)-1,sy(c.y)-1,2,2);}
   for(const e of enemies){if(e.tower)continue;mini.fillStyle=e.boss?'#f1c662':'#c34e3d';const r=e.boss?5:3;mini.fillRect(sx(e.x)-r/2,sy(e.y)-r/2,r,r);}
-  mini.fillStyle='#f4dd9d';mini.beginPath();mini.arc(sx(player.x),sy(player.y),3,0,7);mini.fill();}
+  mini.fillStyle='#f4dd9d';mini.beginPath();mini.arc(sx(player.x),sy(player.y),3,0,7);mini.fill();
+  // görüş penceresi: kameranın ekranda gösterdiği alan
+  const vw=innerWidth/camera.zoom,vh=innerHeight/camera.zoom;mini.strokeStyle=freeLook?'#ffe09bee':'#ffe09b88';mini.lineWidth=1.2;mini.strokeRect(sx(camera.x-vw/2),sy(camera.y-vh/2),vw/WORLD_WIDTH*W,vh/WORLD_HEIGHT*H);}
 // manualClock (yalnızca geliştirme): tanıtım videosu kare kare çekilirken oyun dışarıdan adımlanır
 let manualClock=false;
 let last=performance.now();function loop(now:number){const dt=Math.min(.033,(now-last)/1000);last=now;if(!manualClock){update(dt);draw();}requestAnimationFrame(loop);}renderQuickSlots();updateUI();requestAnimationFrame(loop);
