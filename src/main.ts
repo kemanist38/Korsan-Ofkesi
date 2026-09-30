@@ -1039,14 +1039,16 @@ function renderCombatTargets(){
   root.querySelectorAll<HTMLButtonElement>('[data-combat-target]').forEach(button=>button.onpointerdown=()=>{const target=visibleCombatTargets[Number(button.dataset.combatTarget)];if(target){selected=target;updateUI();}});
 }
 
-let laneIdx=-1;
+// Çapraz yol ayağı yeni hedefte sıfırlanır
+let laneIdx=-1,laneGoal:Vec|null=null;
 function update(dt:number){
     const turn=(held('left','arrowleft')?-1:0)+(held('right','arrowright')?1:0);
     const thrust=(held('forward','arrowup')?1:0)-(held('back','arrowdown')?1:0);
     if(thrust||turn)routeTarget=null;
     if(routeTarget){if(dist(player,routeTarget)<14)routeTarget=null;else destination=routeVia(routeTarget);}
     if(destination&&!thrust&&!turn){
-      const lanes=!eliteEnabled()&&activeSkin?specialById(activeSkin)?.lanes:undefined,step=lanes?laneStep(lanes,destination.x-player.x,destination.y-player.y,laneIdx):null;laneIdx=step?step.lane:-1;
+      const lanes=!eliteEnabled()&&activeSkin?specialById(activeSkin)?.lanes:undefined,goal=routeTarget??destination;if(!laneGoal||Math.hypot(goal.x-laneGoal.x,goal.y-laneGoal.y)>2){laneIdx=-1;laneGoal={x:goal.x,y:goal.y};}
+      const step=lanes?laneStep(lanes,destination.x-player.x,destination.y-player.y,laneIdx):null;laneIdx=step?step.lane:-1;
       const d=dist(player,destination),desired=step?step.heading:Math.atan2(destination.y-player.y,destination.x-player.x)+Math.PI/2;
       const delta=Math.atan2(Math.sin(desired-player.angle),Math.cos(desired-player.angle));
       player.angle+=clamp(delta,-4.6*dt,4.6*dt);
@@ -1505,7 +1507,7 @@ function drawSpecialShip(s:Vec){
   const src=`${sp.views??sp.dir??sp.art}?r=${SHIP_ART_REV}`;let im=specialImages.get(src);if(!im){im=new Image();im.decoding='async';im.src=src;specialImages.set(src,im);}
   if(!im.complete||!im.naturalWidth)return false;
   ctx.save();ctx.translate(s.x,s.y);ctx.globalAlpha=(state.invulnerable&&Math.floor(performance.now()/120)%2?.55:1)*shipAlpha();ctx.shadowColor='#000b';ctx.shadowBlur=13;if(ghostTimer>0){ctx.filter='saturate(.35) brightness(1.35)';ctx.shadowColor='#5fffd0';}
-  if(sp.views){const c=im.naturalHeight,D=176,pose=specialPose(sp,player.angle,specialView);specialView=pose.view;ctx.rotate(pose.tilt);ctx.drawImage(im,pose.view*c,0,c,c,-D/2,-D*.72,D,D);ctx.restore();return true;}
+  if(sp.views){const c=im.naturalHeight,D=176;specialView=specialPose(sp,player.angle,specialView);ctx.drawImage(im,specialView*c,0,c,c,-D/2,-D*.72,D,D);ctx.restore();return true;}
   if(sp.dir){const f=shipDirectionFrame(player.angle),c=im.naturalWidth/4;ctx.drawImage(im,(f%4)*c,Math.floor(f/4)*c,c,c,-80,-86,160,160);ctx.restore();return true;}
   specialFacingDir=specialFacing(player.angle,specialFacingDir);
   if(specialFacingDir>0)ctx.scale(-1,1);ctx.drawImage(im,-78,-96,156,156);ctx.restore();return true;
