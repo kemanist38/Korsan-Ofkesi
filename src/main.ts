@@ -1452,6 +1452,10 @@ function drawLootChest(c:LootChest){const s=worldToScreen(c),fading=c.life<6?(Ma
 // Harita kenarı: komşu deniz varsa parıldayan geçiş şeridi, yoksa sis duvarı
 function drawMapEdges(){
   const t=performance.now()/1000;
+  // Harita sınırının dışı deniz değil: simsiyah boşluk ve ince kenar çizgisi, oyuncu haritanın bittiğini görsün
+  {const a=worldToScreen({x:0,y:0}),b=worldToScreen({x:WORLD_WIDTH,y:WORLD_HEIGHT}),w=innerWidth,h=innerHeight,vw=w/camera.zoom,vh=h/camera.zoom,L=w/2-vw/2-2,T=h/2-vh/2-2,R=w/2+vw/2+2,B=h/2+vh/2+2;
+    ctx.fillStyle='#000';if(a.x>L)ctx.fillRect(L,T,a.x-L,B-T);if(b.x<R)ctx.fillRect(b.x,T,R-b.x,B-T);if(a.y>T)ctx.fillRect(L,T,R-L,a.y-T);if(b.y<B)ctx.fillRect(L,b.y,R-L,B-b.y);
+    ctx.strokeStyle='rgba(232,200,130,.35)';ctx.lineWidth=2;ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);}
   for(const dir of ['north','south','east','west'] as Dir[]){const to=neighbor(currentMap,dir),open=!!to&&state.level>=MAPS[to].tier;
     const a=worldToScreen({x:0,y:0}),b=worldToScreen({x:WORLD_WIDTH,y:WORLD_HEIGHT});const band=EDGE;
     const x0=dir==='east'?b.x-band:a.x,y0=dir==='south'?b.y-band:a.y,wd=dir==='east'||dir==='west'?band:b.x-a.x,ht=dir==='north'||dir==='south'?band:b.y-a.y;
