@@ -674,3 +674,15 @@ body.shop-open .market-overlay,body.shop-open .ship-overlay,body.shop-open .load
 .hud-dock .bottom-command.collapsed .quick-bar{display:contents;height:auto;border:0;background:none}
 .hud-dock .bottom-command.collapsed .quick-toggle{top:calc(var(--dw)*112/675);left:calc(var(--dw)*300/675);width:calc(var(--dw)*80/675);height:18px;display:flex;justify-content:center;align-items:center;border:1px solid #6b5230;border-top:0;border-radius:0 0 8px 8px;background:linear-gradient(#3a2818,#1a1008)}
 .hud-dock .bottom-command.collapsed .quick-toggle i{display:block;border-top:6px solid #e8c880;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:0;width:0;height:0;transform:none}
+/* ---- Hedef kartları: sağda, hazine kutusu boyunda küçük; mesafe yok ---- */
+.combat-targets,.combat-targets[style]{left:auto;right:14px;width:212px;gap:4px;transform:translateX(10px)}
+.combat-targets.visible{transform:none}
+.combat-target{grid-template-columns:30px 1fr;gap:6px;min-height:0;padding:3px 6px 3px 3px;border-color:#5a4a3a99;border-radius:7px}
+.combat-target .target-portrait{width:30px;height:30px;border-radius:4px;font-size:14px}
+.combat-target .target-info small{font:700 6.5px Inter;letter-spacing:.1em;color:#9b7b45}
+.combat-target .target-info strong{font-size:11px;margin:1px 0}
+.combat-target .target-info i{height:4px}
+.combat-target .target-info b{font-size:6.5px}
+.combat-target .target-state{top:3px;right:6px;font-size:5.5px}
+@media(max-width:720px){.combat-targets,.combat-targets[style]{right:8px;left:auto;width:180px}}
+@media(max-height:520px){.combat-targets{transform:scale(.85);transform-origin:right top}}
