@@ -686,3 +686,113 @@ body.shop-open .market-overlay,body.shop-open .ship-overlay,body.shop-open .load
 .combat-target .target-state{top:3px;right:6px;font-size:5.5px}
 @media(max-width:720px){.combat-targets,.combat-targets[style]{right:8px;left:auto;width:180px}}
 @media(max-height:520px){.combat-targets{transform:scale(.85);transform-origin:right top}}
+
+/* Shared responsive shop frame; kept last to override legacy panel sizes. */
+:root{
+  --shop-width:min(860px,calc(100vw - 40px));
+  --shop-height:min(680px,calc(100dvh - 48px));
+  --shop-top:max(24px,calc((100dvh - 680px)/2));
+  --shop-nav-height:72px;
+}
+.shop-tabs{
+  top:var(--shop-top);width:var(--shop-width);height:var(--shop-nav-height);
+  display:grid;grid-template-columns:repeat(6,minmax(0,1fr)) 44px;
+  padding:5px 7px;gap:3px;border:2px solid #a78a56;border-bottom:1px solid #76664c;
+  border-radius:12px 12px 0 0;
+  background:linear-gradient(180deg,#4d3828bb,#231811ee),url(/assets/ui-wood-v1.webp) center/cover;
+  box-shadow:0 -2px 0 #1c1210,inset 0 1px #e1c89166,0 8px 24px #0008;
+}
+.shop-tabs button{min-width:0;padding:3px 2px;font-size:9px;letter-spacing:0;gap:2px;justify-content:center}
+.shop-tabs button .nav-img,.shop-tabs button .sprite,.shop-tabs .equip-nav{width:32px;height:32px}
+.shop-tabs .shop-close{min-width:0;align-self:center;width:40px;height:44px;border:1px solid #ad925f;border-radius:8px;background:linear-gradient(#374345,#152024);color:#eed4a0}
+.shop-tabs button:focus-visible,.shop-window button:focus-visible,.shop-window input:focus-visible{outline:2px solid #ffe0a0;outline-offset:2px}
+body.shop-open .shop-overlay{
+  padding:calc(var(--shop-top) + var(--shop-nav-height)) 0 24px;
+  align-items:flex-start;background:#02090d91;
+}
+.shop-overlay .shop-window{
+  position:relative;width:var(--shop-width);height:auto;max-height:calc(var(--shop-height) - var(--shop-nav-height));
+  min-height:0;overflow:auto;overscroll-behavior:contain;
+  padding:14px 18px 18px;border:10px solid transparent;border-top-width:5px;border-radius:0 0 12px 12px;
+  background:linear-gradient(135deg,#123139,#081a20 65%) padding-box,url(/assets/ui-wood-v1.webp) center/cover border-box;
+  box-shadow:0 0 0 1px #b09763,inset 0 0 0 2px #88908366,inset 0 0 22px #0007,0 18px 48px #000a;
+  border-image:none;scrollbar-width:thin;scrollbar-color:#8b7958 #0a1c22;
+}
+/* Brass corner rivets over dark timber; no oversized decoration over content. */
+.shop-overlay .shop-window::before{
+  content:'';position:absolute;inset:3px;pointer-events:none;border:1px solid #ab96614d;border-radius:2px;
+  background:radial-gradient(circle at 4px 4px,#e0c78f 0 1px,#67553c 2px,transparent 3px),radial-gradient(circle at calc(100% - 4px) 4px,#e0c78f 0 1px,#67553c 2px,transparent 3px);
+}
+.shop-window>header{padding:0 0 10px;margin:0 0 10px;height:auto;min-height:40px;border-bottom:1px solid #927d4f66;background:none}
+.shop-window>header h2{font-size:20px;letter-spacing:.06em;margin:2px 0;color:#e5c88e}
+.shop-window>header .eyebrow{font-size:8px}
+.shop-window .market-list{gap:7px}
+.shop-window .market-item.buy-row,.shop-window .buy-row:has(.cannon-shop-art){grid-template-columns:48px minmax(0,1fr) 170px;gap:10px;padding:10px;min-width:0;border:1px solid #5a757466;border-radius:3px;background:linear-gradient(100deg,#10292e,#081b21);box-shadow:inset 0 0 0 2px #091c2266}
+.shop-window .ammo-icon{width:44px;height:44px}
+.shop-window .market-item h4{font-size:12px;line-height:1.3}
+.shop-window .market-item p{font-size:11px;line-height:1.4}
+.shop-window .buy-box{grid-column:auto;grid-template-columns:1fr;gap:4px;min-width:0}
+.shop-window .buy-box input{width:100%;min-height:36px;padding:6px;font-size:16px}
+.shop-window .buy-box button{min-height:36px;padding:6px 10px;background:linear-gradient(#485154,#1b292c);border-color:#9b855c;box-shadow:inset 0 0 0 2px #142024}
+.shop-window .buy-total{font-size:10px}
+.shop-window.elite-ship-window{height:calc(var(--shop-height) - var(--shop-nav-height));display:flex;flex-direction:column;overflow:hidden}
+.shop-window .elite-ship-layout{flex:1;min-height:0;height:auto;grid-template-columns:minmax(0,1fr) 235px;overflow:auto;scrollbar-width:thin}
+.shop-window .elite-ship-grid{grid-template-columns:repeat(3,minmax(0,1fr));padding:2px 10px 2px 0;gap:7px;overflow:visible}
+.shop-window .elite-card{min-height:145px;padding:6px}
+.shop-window .elite-card .elite-art{height:100px}
+.shop-window .elite-card strong{font-size:10px}
+.shop-window .elite-ship-detail{display:block;overflow:visible;padding:10px;min-width:0}
+.shop-window .elite-preview{height:145px}
+.shop-window .elite-ship-detail h3{font-size:16px}
+.shop-window .elite-ship-detail dt{margin-top:9px}
+.shop-window .elite-ship-detail button{min-height:44px}
+.shop-window .elite-level{font-size:7px;padding:3px}
+.shop-window .ship-pages{margin-top:6px}
+.shop-window.inv-window>header{grid-template-columns:1fr auto}
+.shop-window .inv-body{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 180px;min-height:0}
+.shop-window .inv-captain{display:none}
+.shop-window .inv-info{grid-column:auto}
+.shop-window .inv-grid{grid-auto-rows:68px;gap:5px;padding:6px}
+@media(max-width:600px){
+  :root{--shop-width:calc(100vw - 20px);--shop-height:calc(100dvh - 36px);--shop-top:max(12px,env(safe-area-inset-top));--shop-nav-height:62px}
+  .shop-tabs{grid-template-columns:repeat(6,minmax(0,1fr)) 40px;gap:1px;padding:4px}
+  .shop-tabs button{font-size:7px;letter-spacing:-.2px}
+  .shop-tabs button .nav-img,.shop-tabs button .sprite,.shop-tabs .equip-nav{width:27px;height:27px}
+  .shop-overlay .shop-window{padding:10px 8px;border-width:6px;border-top-width:3px}
+  .shop-window>header h2{font-size:17px}
+  .shop-window .market-item.buy-row,.shop-window .buy-row:has(.cannon-shop-art){grid-template-columns:40px minmax(0,1fr);gap:8px;padding:8px}
+  .shop-window .ammo-icon{width:38px;height:38px}
+  .shop-window .buy-box{grid-column:1/-1;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .shop-window .buy-box input{grid-column:1;grid-row:1;min-height:44px}
+  .shop-window .buy-box button{grid-column:2;grid-row:1;min-height:44px}
+  .shop-window .buy-total{grid-column:1/-1;grid-row:2}
+  .shop-window .elite-ship-layout{display:block}
+  .shop-window .elite-ship-grid{grid-template-columns:repeat(3,minmax(0,1fr));padding:0;gap:5px}
+  .shop-window .elite-card{min-height:115px;padding:4px}
+  .shop-window .elite-card .elite-art{height:78px}
+  .shop-window .elite-card strong{font-size:9px}
+  .shop-window .elite-card small{display:none}
+  .shop-window .elite-ship-detail{margin-top:10px;border-left:0;border-top:1px solid #927d4f66}
+  .shop-window .elite-preview{height:115px}
+  .shop-window .elite-ship-detail dd{font-size:12px}
+  .shop-window .inv-body{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .shop-window .inv-info{grid-column:1/-1}
+  .shop-window .inv-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:64px}
+  .shop-window .inv-top img{display:none}
+  .shop-window .inv-top b{font-size:12px}
+}
+@media(max-height:520px){
+  :root{--shop-width:min(780px,calc(100vw - 48px));--shop-height:calc(100dvh - 20px);--shop-top:10px;--shop-nav-height:52px}
+  .shop-tabs button .nav-img,.shop-tabs button .sprite,.shop-tabs .equip-nav{width:24px;height:24px}
+  .shop-tabs{padding:2px 5px}
+  .shop-overlay .shop-window{padding:8px 12px;border-width:6px;border-top-width:3px}
+  .shop-window>header{margin-bottom:6px;padding-bottom:6px;min-height:0}
+  .shop-window>header h2{font-size:16px}
+  .shop-window>header .eyebrow,.shop-window>header p{display:none}
+  .shop-window .elite-card{min-height:112px}
+  .shop-window .elite-card .elite-art{height:76px}
+  .shop-window .elite-preview{height:100px}
+}
+.shop-window .ammo-icon{position:relative;margin-bottom:8px}
+.shop-window .ammo-icon .raster-item,.shop-window .ammo-icon .sprite,.shop-window .equip-shop-art .equip-icon{width:100%;height:100%;margin:0}
+.shop-window .ammo-icon>b{position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);padding:0 3px;line-height:12px;background:#081b21;border-radius:3px;white-space:nowrap}
