@@ -17,7 +17,7 @@ import {towerContains,towerMuzzle} from './towerGeometry';
 import {loadGuild,saveGuild,islandSlots,towerTypeCost,tagError,canBuild,TOWER_TYPES,ROLE_NAMES,TOWER_SLOTS,type TowerType,type GuildRole,GUILD_NAME_MAX,GUILD_TAG_MAX,type Guild} from './guild';
 import {loadProfile,saveProfile,nickError,rankOf,NICK_CHANGE_COST,NICK_COOLDOWN_MS,NICK_MAX} from './profile';
 import {createChest,chestRewardText,CHEST_PICKUP_RADIUS,CHEST_CLICK_RADIUS,DRIFT_RESPAWN_SECONDS,type LootChest} from './loot';
-import {ELITE_SHIPS,ELITE_ISO,eliteById,eliteDirFrame,type EliteShipId} from './elite-ships';
+import {ELITE_SHIPS,ELITE_ISO,eliteById,type EliteShipId} from './elite-ships';
 import {SPECIAL_SHIPS,specialById,specialFacing,isoAdvance,isoView,type IsoMove} from './special-ships';
 import {spawnLightning,spawnFrost,spawnMeteor,spawnLavaPool,spawnTentacles,spawnSteam,spawnBloodMoon,spawnDome,spawnRipple,spawnScythe,spawnSoul,spawnBanner,spawnCoins,spawnBreath,spawnRage,spawnText,spawnVortex,spawnCoral,spawnSun,spawnBlind,screenTint,updateAbilityFx,drawAbilityFxUnder,drawAbilityFx} from './abilityFx';
 
@@ -106,9 +106,6 @@ rasterItemAssets.iron='/assets/ammo-iron-v2.webp';rasterItemAssets.chain='/asset
 // Gemi görselleri aynı dosya adıyla yenilendiğinde tarayıcı önbelleği eskisini göstermesin diye sürüm eki (görsel değişince artır)
 const SHIP_ART_REV='9';
 const eliteArtUrl=(id:string)=>`${ELITE_SHIPS.find(s=>s.id===id)?.asset??`/assets/elite-${id}-art-v2.webp`}?r=${SHIP_ART_REV}`;
-const eliteArtImages=new Map<string,HTMLImageElement>();
-function eliteArtImage(id:string){let im=eliteArtImages.get(id);if(!im){im=new Image();im.decoding='async';im.src=eliteArtUrl(id);eliteArtImages.set(id,im);}return im;}
-let eliteFacing=-1;
 const ui = (id:string) => document.getElementById(id)!;
 const keys = new Set<string>();
 const QUEST_STORAGE='yedi-deniz-quests-v2';
@@ -1460,29 +1457,18 @@ const SHIP_DIRECTION_FRAMES=[4,3,6,5,0,1,2,7] as const;
 // Açı birçok tur dönünce -2π'nin altına inebilir; negatif mod boş kare (görünmez gemi) verirdi → her zaman 0..7
 function shipCompass(angle:number){return((Math.round(angle/(Math.PI/4))%8)+8)%8;}
 function shipDirectionFrame(angle:number){return SHIP_DIRECTION_FRAMES[shipCompass(angle)];}
-// Elit gemiler de başlangıç gemisi gibi 8 yönlü çizilir: pruva gidilen yöne döner (elite-dir-<id>-v1.webp, 4 × 2 kare, 221 × 256).
-// Sayfalardaki yanlış yöne bakan kareler elite-ships.ts ELITE_DIR_SHOWS ile düzeltilir (gerekirse karşı yön aynalanır).
-const eliteDirImages=new Map<string,HTMLImageElement>();
+// Elit gemiler 4 çapraz görünüşle çizilir (ELITE_ISO); görünüş son gidilen çapraza göre seçilir
 const eliteIsoImages=new Map<string,HTMLImageElement>();
 function eliteIsoImage(src:string){let im=eliteIsoImages.get(src);if(!im){im=new Image();im.decoding='async';im.src=`${src}?r=${SHIP_ART_REV}`;eliteIsoImages.set(src,im);}return im;}
-function eliteDirImage(id:string){let im=eliteDirImages.get(id);if(!im){im=new Image();im.decoding='async';im.src=`/assets/elite-dir-${id}-v1.webp?r=${SHIP_ART_REV}`;eliteDirImages.set(id,im);}return im;}
-const ELITE_FRAME={w:221,h:256,scale:.56};
 let ghostFade=0;
 const shipAlpha=()=>ghostFade>0?ghostFade:ghostTimer>0?.55:stealthTimer>0?.4:1;
 function drawEliteDirectionalShip(s:Vec){
-  const id=eliteShip().id,iso=ELITE_ISO[id];
-  if(iso){const im=eliteIsoImage(iso);if(!im.complete||!im.naturalWidth)return false;
+  const iso=ELITE_ISO[eliteShip().id];
+  {const im=eliteIsoImage(iso);if(!im.complete||!im.naturalWidth)return false;
     ctx.save();ctx.translate(s.x,s.y);ctx.globalAlpha=(state.invulnerable&&Math.floor(performance.now()/120)%2?.55:1)*shipAlpha();ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';if(ghostTimer>0){ctx.shadowColor='#5fffd0';ctx.shadowBlur=13;ctx.filter='saturate(.35) brightness(1.35)';}
     // Gölge bulanıklığı yok (keskin kenar); gemi altındaki su havuzu gölgeyi verir. Kaynak kare 512 px: yakınlaştırmada da net
     const c=im.naturalHeight,D=158,bt=performance.now()/1000;ctx.translate(0,Math.sin(bt*1.7)*1.8);ctx.rotate(Math.sin(bt*1.15)*.018);ctx.drawImage(im,isoIndex()*c,0,c,c,-D/2,-D*.7,D,D);ctx.restore();return true;}
-  const dir=eliteDirImage(id);
-  ctx.save();ctx.translate(s.x,s.y);ctx.globalAlpha=(state.invulnerable&&Math.floor(performance.now()/120)%2?.55:1)*shipAlpha();if(ghostTimer>0){ctx.filter='saturate(.35) brightness(1.35)';ctx.shadowColor='#5fffd0';};
-  ctx.shadowColor=ghostTimer>0?'#5fffd0':'#000b';ctx.shadowBlur=13;ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
-  if(dir.complete&&dir.naturalWidth){const {frame:f,mirror}=eliteDirFrame(id,shipCompass(player.angle)),{w,h,scale}=ELITE_FRAME;if(mirror)ctx.scale(-1,1);ctx.drawImage(dir,(f%4)*w,Math.floor(f/4)*h,w,h,-w*scale/2,-h*scale/2,w*scale,h*scale);ctx.restore();return true;}
-  // Yön sayfası yüklenene kadar yan görünüş (sağa giderken aynalanır)
-  const im=eliteArtImage(id);if(!im.complete||!im.naturalWidth){ctx.restore();return false;}
-  const dx=Math.sin(player.angle);if(Math.abs(dx)>.2)eliteFacing=dx<0?-1:1;if(eliteFacing>0)ctx.scale(-1,1);ctx.drawImage(im,-75,-75,150,150);
-  ctx.restore();return true;
+  return false;
 }
 // Özel gemi: tek açılı raster; sağa giderken aynalanır
 const specialImages=new Map<string,HTMLImageElement>();
