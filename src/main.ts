@@ -1071,7 +1071,7 @@ function update(dt:number){
     player.speed=clamp(player.speed,0,isoShip()&&destination?effectiveSpeed()*2.2:effectiveSpeed()+4);
     player.x=clamp(player.x+Math.sin(player.angle)*player.speed*dt,25,WORLD_WIDTH-25);player.y=clamp(player.y-Math.cos(player.angle)*player.speed*dt,25,WORLD_HEIGHT-25);resolveIslandCollision();
   updateAbilityFx(dt);ghostTimer=Math.max(0,ghostTimer-dt);ghostTrailClock-=dt;if(ghostTimer>0&&ghostTrailClock<=0){ghostTrailClock=.07;ghostTrail.push({x:player.x,y:player.y});if(ghostTrail.length>6)ghostTrail.shift();}if(ghostTimer<=0)ghostTrail.length=0;
-  player.cooldown=Math.max(0,player.cooldown-dt*(steamTimer>0?2:1));updateEliteAbilities(dt);eliteAbility.active=Math.max(0,eliteAbility.active-dt);eliteAbility.cooldown=Math.max(0,eliteAbility.cooldown-dt);state.invulnerable=Math.max(0,state.invulnerable-dt);collisionNotice=Math.max(0,collisionNotice-dt);{const f=cinematic.focus??freeLook??player;camera.x+=(f.x-camera.x)*Math.min(1,dt*3);camera.y+=(f.y-camera.y)*Math.min(1,dt*3);}camera.zoom+=(camera.targetZoom-camera.zoom)*Math.min(1,dt*7);
+  player.cooldown=Math.max(0,player.cooldown-dt*(steamTimer>0?2:1));updateEliteAbilities(dt);eliteAbility.active=Math.max(0,eliteAbility.active-dt);eliteAbility.cooldown=Math.max(0,eliteAbility.cooldown-dt);state.invulnerable=Math.max(0,state.invulnerable-dt);collisionNotice=Math.max(0,collisionNotice-dt);{const f=cinematic.focus??freeLook??player;const cf=f===player?Math.min(1,dt*12):Math.min(1,dt*3);camera.x+=(f.x-camera.x)*cf;camera.y+=(f.y-camera.y)*cf;}camera.zoom+=(camera.targetZoom-camera.zoom)*Math.min(1,dt*7);
   for(let i=salvoQueue.length-1;i>=0;i--){salvoQueue[i].delay-=dt;if(salvoQueue[i].delay<=0){releaseSalvo(salvoQueue[i]);salvoQueue.splice(i,1);}}
   if(state.repairing){state.hp=Math.min(effectiveMaxHp(),state.hp+effectiveMaxHp()*(.035+upgrades.repair*.008)*bonus.repair*(elitePassive('coral')&&playerHitClock>5?2:1)*dt);if(state.hp>=effectiveMaxHp()){state.repairing=false;saveAccount();ui('repair').classList.remove('active');toast('Gövde tamamen onarıldı');}}
   wakeClock-=dt;if(Math.abs(player.speed)>8&&wakeClock<=0){wakeClock=.1;particles.push({x:player.x-Math.sin(player.angle)*22,y:player.y+Math.cos(player.angle)*22,vx:-Math.sin(player.angle)*8,vy:Math.cos(player.angle)*8,life:.75,maxLife:.75,kind:'foam'});}
@@ -1576,7 +1576,8 @@ function drawWreck(w:Wreck){const s=worldToScreen(w),k=Math.min(1,w.t/WRECK_TIME
 // ---------------------------------------------------------------- Gemi–su etkileşimi
 // Her geminin altında yumuşak su gölgesi ve bordasında köpük halkası; hareket ederken kıçtan V biçiminde açılan
 // dümen suyu izi ve pruvada su sıçraması. Görünüm 42° yukarıdan bakış: zemindeki izler dikeyde ~0,67 basıktır.
-const FLAT=.67;
+// Seafight gibi 2:1 izometrik kamera: deniz düzlemi yarıya basık (şamandıra halkaları ve dikey/yatay hız oranından ölçüldü)
+const FLAT=.5;
 type WakePt={x:number;y:number;a:number;t:number;w:number};
 const wakes=new Map<object,{pts:WakePt[];px:number;py:number;acc:number}>();
 const hullLength=(o:object)=>o===player?100:(o as Enemy).boss?165:(o as Enemy).def?(o as Enemy).def!.span*.6:60;
@@ -1607,7 +1608,7 @@ function drawHullWater(o:{x:number;y:number;angle:number},L:number){
   const g=ctx.createRadialGradient(0,0,wid*.3,0,0,len*1.05);g.addColorStop(0,'rgba(2,14,20,.34)');g.addColorStop(1,'rgba(2,14,20,0)');ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,0,len*1.05,wid*1.6,0,0,Math.PI*2);ctx.fill();
   ctx.restore();
   // Gövdenin yerinden ettiği su: açık camgöbeği havuz ve yavaşça yayılan halkalar; gemi suyun içinde durur
-  const t=performance.now()/1000,R=L*.62;ctx.save();ctx.translate(s.x,s.y+6);ctx.scale(1,FLAT*.78);
+  const t=performance.now()/1000,R=L*.62;ctx.save();ctx.translate(s.x,s.y+6);ctx.scale(1,FLAT);
   const p=ctx.createRadialGradient(0,0,R*.2,0,0,R);p.addColorStop(0,'rgba(120,230,235,.22)');p.addColorStop(.6,'rgba(80,200,215,.12)');p.addColorStop(1,'rgba(80,200,215,0)');ctx.fillStyle=p;ctx.beginPath();ctx.arc(0,0,R,0,Math.PI*2);ctx.fill();
   for(let k=0;k<2;k++){const f=(t*.35+k*.5)%1;ctx.strokeStyle=`rgba(210,250,248,${(1-f)*.22})`;ctx.lineWidth=2*(1-f)+.6;ctx.beginPath();ctx.arc(0,0,R*(.55+f*.6),0,Math.PI*2);ctx.stroke();}
   ctx.restore();}
@@ -1632,7 +1633,7 @@ function drawBossPlate(e:Enemy,s:{x:number;y:number},top:number){const W=190,x=s
 // Güneş parıltıları: dünya ızgarasına bağlı rastgele noktalarda kısa süreli yanıp sönen ışık kırpıntıları
 // Seçim halkaları (geminin altında, deniz üstünde; hafif perspektif için elips).
 // Hedef: mavi parlayan halka + 4 çentik + dönen sarı noktalı iç çember. Oyuncu: mor rün çemberi.
-const RING_Y=.62;
+const RING_Y=.5;
 function drawTargetMarker(t:Target){
   const s=worldToScreen(t),R=t.kind==='monster'?t.radius+22:(t.boss?100:Math.max(40,(t.def?.span??90)*.56)),now=performance.now()/1000;
   ctx.save();ctx.translate(s.x,s.y+R*.18);ctx.scale(1,RING_Y);
