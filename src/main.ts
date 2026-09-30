@@ -221,8 +221,6 @@ const profile=loadProfile();
 function escapeHtml(t:string){return t.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));}
 let eventPanelClock=0,towersDestroyedHere=0;
 let mapFade=0;
-const weatherParticles:{x:number;y:number;vx:number;vy:number;r:number;a:number;life:number}[]=[];
-let lightning=0;
 
 function resize(){ const d=Math.min(devicePixelRatio,2); canvas.width=innerWidth*d; canvas.height=innerHeight*d; ctx.setTransform(d,0,0,d,0,0); }
 addEventListener('resize',resize); resize();
@@ -400,7 +398,7 @@ function defeatBoss(e:Enemy){
 function populateMap(){
   stopBossMusic();lavaPools.length=0;abilityQueue.length=0;krakenHold=null;voidHole=null;
   const map=mapDef();islands.splice(0,islands.length,...map.islands.map(i=>({...i})));
-  enemies.length=0;shots.length=0;salvoQueue.length=0;particles.length=0;lootChests.length=0;sparkles.length=0;sparkleQueue.length=0;mines.length=0;driftClock=DRIFT_RESPAWN_SECONDS;weatherParticles.length=0;
+  enemies.length=0;shots.length=0;salvoQueue.length=0;particles.length=0;lootChests.length=0;sparkles.length=0;sparkleQueue.length=0;mines.length=0;driftClock=DRIFT_RESPAWN_SECONDS;
   preload([...(hasFleetIsland()?[fleetBaseUrl(theme().fleet),fleetTowerUrl(theme().fleet)]:[]),...map.npcs.map(id=>NPCS[id].sprite),...map.monsters.map(id=>MONSTERS[id].sprite),...new Set(map.islands.map(i=>islandSheetUrl(i.look)))]);
   createMonsters();setupFleetIsland();
   for(let i=0;i<map.npcCount;i++)spawnEnemy();
@@ -1147,7 +1145,7 @@ function update(dt:number){
   }
   updateLootChests(dt);updateTreasure(dt);updateWakes(dt);updateSparkles(dt);updateArsenal(dt);updateEvents(dt);
   if(insideOwnLagoon(player)&&state.hp<effectiveMaxHp()){state.hp=Math.min(effectiveMaxHp(),state.hp+effectiveMaxHp()*.06*dt);if(state.hp>=effectiveMaxHp())saveAccount();}
-  updateJumpPrompt();updateCoordBadge();mapFade=Math.max(0,mapFade-dt*1.6);updateWeather(dt);
+  updateJumpPrompt();updateCoordBadge();mapFade=Math.max(0,mapFade-dt*1.6);
   for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.97;p.vy*=.97;p.life-=dt;if(p.vr)p.rot=(p.rot??0)+p.vr*dt;
     if(p.vz!==undefined){p.z=(p.z??0)+p.vz*dt;p.vz-=340*dt;if(p.z<=0){p.z=0;p.vz=undefined;p.vx*=.25;p.vy*=.25;p.vr=(p.vr??0)*.1;if(p.kind==='splinter')particles.push({x:p.x,y:p.y,vx:0,vy:0,life:.4,maxLife:.4,kind:'foam',size:20,variant:0});}}
     if(p.life<=0)particles.splice(i,1);}
@@ -1213,35 +1211,6 @@ function updateEvents(dt:number){
   if(treasure.active||treasure.parts>0){const a=treasure.active;rows.push(`<button class="event-row treasure" data-event-route="treasure"><img src="${TREASURE_ICON}" alt=""/><span><small>${a?'HAZİNE HARİTASI · HEDEF':'HAZİNE HARİTASI PARÇALARI'}</small><strong>${a?`${a.map} · ${a.label}`:`${treasure.parts} / ${TREASURE_PARTS} parça`}</strong>${a?'':`<i><em style="width:${treasure.parts/TREASURE_PARTS*100}%"></em></i>`}</span></button>`);}
   panel.innerHTML=rows.join('');panel.classList.toggle('visible',rows.length>0);
   panel.querySelectorAll<HTMLButtonElement>('[data-event-route]').forEach(b=>b.onclick=()=>{if(b.dataset.eventRoute==='treasure'){const a=treasure.active;if(!a){toast('Denizde sürüklenen sandıklardan parça topla');return;}if(a.map!==currentMap){toast(`Hazine ${a.map} ${MAPS[a.map].name} denizinde (${a.label})`);return;}}const f=mapDef().fleet,target=b.dataset.eventRoute==='treasure'?treasure.active!:b.dataset.eventRoute==='boss'?activeBoss():fleetEnterable()?{x:f.x+FLEET.lagoon.x,y:f.y+FLEET.lagoon.y}:{x:f.x,y:f.y+FLEET.islandR+120};if(!target)return;routeTarget=navigablePoint({x:target.x,y:target.y});destination=routeVia(routeTarget);toast('Rota çizildi');});
-}
-// Tema hava efektleri: ekran uzayında sürüklenen parçacıklar
-function updateWeather(dt:number){
-  const w=theme().weather,W=innerWidth,H=innerHeight;
-  if(w==='storm'){lightning=Math.max(0,lightning-dt*2.5);if(Math.random()<dt*.08)lightning=1;}
-  if(!w||w==='storm')return;
-  const target=w==='fog'?14:w==='snow'?90:w==='embers'?60:w==='spores'?45:w==='motes'?50:w==='dust'?40:24;
-  while(weatherParticles.length<target){const p={x:Math.random()*W,y:Math.random()*H,vx:0,vy:0,r:1,a:1,life:0};
-    if(w==='fog'){p.r=160+Math.random()*220;p.vx=8+Math.random()*10;p.a=.05+Math.random()*.05;}
-    if(w==='snow'){p.r=1+Math.random()*2.2;p.vx=-14+Math.random()*10;p.vy=30+Math.random()*40;p.a=.5+Math.random()*.4;}
-    if(w==='embers'){p.r=1+Math.random()*2;p.vx=-6+Math.random()*12;p.vy=-(18+Math.random()*30);p.a=.5+Math.random()*.5;}
-    if(w==='spores'){p.r=1.5+Math.random()*2.5;p.vx=-8+Math.random()*16;p.vy=-4+Math.random()*8;p.a=.3+Math.random()*.4;}
-    if(w==='motes'){p.r=1+Math.random()*2;p.vx=-5+Math.random()*10;p.vy=-10+Math.random()*6;p.a=.3+Math.random()*.5;}
-    if(w==='dust'){p.r=1+Math.random()*1.5;p.vx=20+Math.random()*20;p.vy=-2+Math.random()*4;p.a=.2+Math.random()*.3;}
-    if(w==='sparkle'){p.r=1+Math.random()*1.6;p.a=0;p.life=Math.random()*3;}
-    weatherParticles.push(p);}
-  for(const p of weatherParticles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life+=dt;
-    if(p.x<-400)p.x+=W+800;if(p.x>W+400)p.x-=W+800;if(p.y<-40)p.y+=H+80;if(p.y>H+40)p.y-=H+80;}
-}
-function drawWeather(){
-  const w=theme().weather,W=innerWidth,H=innerHeight,t=performance.now()/1000;
-  if(w==='storm'){ctx.strokeStyle='#b9c8ff38';ctx.lineWidth=1.2;ctx.beginPath();for(let n=0;n<90;n++){const x=((n*137.5+t*260)%(W+80))-40,y=((n*71.3+t*820)%(H+60))-30;ctx.moveTo(x,y);ctx.lineTo(x-7,y+20);}ctx.stroke();if(lightning>0){ctx.fillStyle=`rgba(210,225,255,${lightning*.32})`;ctx.fillRect(0,0,W,H);}return;}
-  const color={fog:'220,232,228',snow:'245,250,255',embers:'255,150,60',spores:'170,255,110',motes:'200,150,255',dust:'230,170,140',sparkle:'255,255,240'}[w as string];
-  if(!color)return;
-  for(const p of weatherParticles){
-    if(w==='fog'){const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);g.addColorStop(0,`rgba(${color},${p.a})`);g.addColorStop(1,`rgba(${color},0)`);ctx.fillStyle=g;ctx.fillRect(p.x-p.r,p.y-p.r,p.r*2,p.r*2);continue;}
-    const a=w==='sparkle'?Math.max(0,Math.sin(p.life*2.2))*.8:p.a;ctx.fillStyle=`rgba(${color},${a})`;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();}
-  const tint={embers:'rgba(255,80,20,.07)',spores:'rgba(80,160,40,.06)',motes:'rgba(60,20,110,.12)',dust:'rgba(140,50,30,.06)',fog:'rgba(200,215,210,.05)'}[w as string];
-  void tint;
 }
 // Elit özel yetenekleri yeniden tasarlanıyor; onaylanan yetenekler buraya eklenecek
 // ---------------------------------------------------------------- Elit gemi pasifleri ve özel yetenekler
@@ -1678,7 +1647,7 @@ function draw(){
   particles.forEach(p=>{if(p.kind==='damage')drawParticle(p);});
   if(destination){const d=worldToScreen(destination),p=worldToScreen(player);ctx.strokeStyle='#e7cf8d55';ctx.setLineDash([3,8]);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(d.x,d.y);ctx.stroke();ctx.setLineDash([]);ctx.strokeStyle='#e7cf8d';ctx.beginPath();ctx.arc(d.x,d.y,9,0,7);ctx.stroke();}
   ctx.restore();
-  drawWeather();if(!cinematic.on)drawCoordRulers();
+  if(!cinematic.on)drawCoordRulers();
   if(mapFade>0){ctx.fillStyle=`rgba(2,10,14,${Math.min(1,mapFade)})`;ctx.fillRect(0,0,w,h);}
   drawMinimap();
 }
