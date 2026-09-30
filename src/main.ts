@@ -18,7 +18,7 @@ import {loadGuild,saveGuild,islandSlots,towerTypeCost,tagError,canBuild,TOWER_TY
 import {loadProfile,saveProfile,nickError,rankOf,NICK_CHANGE_COST,NICK_COOLDOWN_MS,NICK_MAX} from './profile';
 import {createChest,chestRewardText,CHEST_PICKUP_RADIUS,CHEST_CLICK_RADIUS,DRIFT_RESPAWN_SECONDS,type LootChest} from './loot';
 import {ELITE_SHIPS,eliteById,eliteDirFrame,type EliteShipId} from './elite-ships';
-import {SPECIAL_SHIPS,specialById,specialFacing,specialPose} from './special-ships';
+import {SPECIAL_SHIPS,specialById,specialFacing,specialPose,laneStep} from './special-ships';
 import {spawnLightning,spawnFrost,spawnMeteor,spawnLavaPool,spawnTentacles,spawnSteam,spawnBloodMoon,spawnDome,spawnRipple,spawnScythe,spawnSoul,spawnBanner,spawnCoins,spawnBreath,spawnRage,spawnText,spawnVortex,spawnCoral,spawnSun,spawnBlind,screenTint,updateAbilityFx,drawAbilityFxUnder,drawAbilityFx} from './abilityFx';
 
 type Vec = { x: number; y: number };
@@ -1039,13 +1039,15 @@ function renderCombatTargets(){
   root.querySelectorAll<HTMLButtonElement>('[data-combat-target]').forEach(button=>button.onpointerdown=()=>{const target=visibleCombatTargets[Number(button.dataset.combatTarget)];if(target){selected=target;updateUI();}});
 }
 
+let laneIdx=-1;
 function update(dt:number){
     const turn=(held('left','arrowleft')?-1:0)+(held('right','arrowright')?1:0);
     const thrust=(held('forward','arrowup')?1:0)-(held('back','arrowdown')?1:0);
     if(thrust||turn)routeTarget=null;
     if(routeTarget){if(dist(player,routeTarget)<14)routeTarget=null;else destination=routeVia(routeTarget);}
     if(destination&&!thrust&&!turn){
-      const d=dist(player,destination),desired=Math.atan2(destination.y-player.y,destination.x-player.x)+Math.PI/2;
+      const lanes=!eliteEnabled()&&activeSkin?specialById(activeSkin)?.lanes:undefined,step=lanes?laneStep(lanes,destination.x-player.x,destination.y-player.y,laneIdx):null;laneIdx=step?step.lane:-1;
+      const d=dist(player,destination),desired=step?step.heading:Math.atan2(destination.y-player.y,destination.x-player.x)+Math.PI/2;
       const delta=Math.atan2(Math.sin(desired-player.angle),Math.cos(desired-player.angle));
       player.angle+=clamp(delta,-4.6*dt,4.6*dt);
       // Dönüşte hız az düşer (90° dönüşte %80, tam geri dönüşte %45); varışta son 80 birimde yavaşlar
