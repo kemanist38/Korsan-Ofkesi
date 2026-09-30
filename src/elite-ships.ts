@@ -22,26 +22,11 @@ export const ELITE_SHIPS:EliteShip[]=[
 {id:'sovereign',level:10,name:'Kraliyet Sancaktarı',english:'Royal Standard-Bearer',asset:'/assets/elite-sovereign-art-v3.webp',role:'Destek / ganimet',passive:'+%10 altın',ability:'Aslan Sancağı',abilityDescription:'10 sn +%20 hasar; batırılan gemilerden çift ganimet.',needsTarget:false},
 {id:'jade',level:11,name:'Yeşim Ejderha',english:'Jade Dragon',asset:'/assets/elite-jade-art-v3.webp',role:'Menzil',passive:'+20 menzil',ability:'Ejder Nefesi',abilityDescription:'Pruvadaki ejderhadan çıkan alev hattı önündeki bütün düşmanları yakar.',needsTarget:true},
 {id:'ragnarok',level:12,name:'Ragnarok Yıkıcısı',english:'Ragnarok Destroyer',asset:'/assets/elite-ragnarok-art-v3.webp',role:'Öfke',passive:'Canı her %10 düştükçe +%3 hasar',ability:'Valhalla Öfkesi',abilityDescription:'4 sn batmaz ve +%30 hasar verir.',needsTarget:false},
-{id:'void',level:13,name:'Hiçlik Hükümdarı',english:'Void Monarch',asset:'/assets/elite-void-art-v2.webp',role:'Kaos',passive:'%5 kritik vuruş (2 kat hasar)',ability:'Kara Delik',abilityDescription:'Hedefte girdap açılır; 400 birim içindeki düşmanları merkeze çeker ve ezer.',needsTarget:true},
-{id:'coral',level:14,name:'Mercan Koruyucusu',english:'Coral Guardian',asset:'/assets/elite-coral-art-v2.webp',role:'İyileştirme',passive:'Savaş dışında 2 kat hızlı tamir',ability:'Mercan Resifi',abilityDescription:'6 sn içinde canının %30\'unu yeniler; çevredeki düşmanlar yavaşlar.',needsTarget:false},
-{id:'sand',level:15,name:'Kum Gezgini',english:'Sand Wanderer',asset:'/assets/elite-sand-art-v2.webp',role:'Hız / gizlilik',passive:'+%10 hız',ability:'Güneş Fırtınası',abilityDescription:'5 sn görünmez olur, düşmanlar hedef alamaz, +%30 hız; yakındaki düşmanlar 2 sn kör kalır.',needsTarget:false}
+{id:'void',level:13,name:'Hiçlik Hükümdarı',english:'Void Monarch',asset:'/assets/elite-void-art-v3.webp',role:'Kaos',passive:'%5 kritik vuruş (2 kat hasar)',ability:'Kara Delik',abilityDescription:'Hedefte girdap açılır; 400 birim içindeki düşmanları merkeze çeker ve ezer.',needsTarget:true},
+{id:'coral',level:14,name:'Mercan Koruyucusu',english:'Coral Guardian',asset:'/assets/elite-coral-art-v3.webp',role:'İyileştirme',passive:'Savaş dışında 2 kat hızlı tamir',ability:'Mercan Resifi',abilityDescription:'6 sn içinde canının %30\'unu yeniler; çevredeki düşmanlar yavaşlar.',needsTarget:false},
+{id:'sand',level:15,name:'Kum Gezgini',english:'Sand Wanderer',asset:'/assets/elite-sand-art-v3.webp',role:'Hız / gizlilik',passive:'+%10 hız',ability:'Güneş Fırtınası',abilityDescription:'5 sn görünmez olur, düşmanlar hedef alamaz, +%30 hız; yakındaki düşmanlar 2 sn kör kalır.',needsTarget:false}
 ];
 export const eliteById=(id:string)=>ELITE_SHIPS.find(ship=>ship.id===id)??ELITE_SHIPS[0];
-// Yön sayfaları (elite-dir-<id>-v1.webp, 4 × 2 kare): her karenin gerçekte gösterdiği pusula yönü. Varsayılan düzen
-// G, GB, B, KD, K, GD, D, KB; bazı sayfalarda kareler yanlış yöne bakar (ör. kuzeybatı karesi güneydoğuyu gösterir).
-// Bir yönün karesi yoksa karşı yönün (D↔B, KD↔KB, GD↔GB) karesi yatay aynalanır.
-export const COMPASS=['N','NE','E','SE','S','SW','W','NW'] as const;
-export type Compass=typeof COMPASS[number];
-const DEFAULT_SHOWS='S SW W NE N SE E NW';
-// Seafight usulü 4 çapraz görünüşlü elitler: yan yana 256 px kareler, sıra KD, GD, GB, KB.
-// Bu gemiler merdiven hareketiyle (special-ships isoAdvance) gider; yön sayfası kullanılmaz.
-export const ELITE_ISO:Partial<Record<EliteShipId,string>>={phantom:'/assets/elite-phantom-iso-v10.webp',magma:'/assets/elite-magma-iso-v3.webp',glacial:'/assets/elite-glacial-iso-v3.webp',kraken:'/assets/elite-kraken-iso-v1.webp',ironclad:'/assets/elite-ironclad-iso-v1.webp',crimson:'/assets/elite-crimson-iso-v1.webp',atlantean:'/assets/elite-atlantean-iso-v1.webp',bone:'/assets/elite-bone-iso-v1.webp',tempest:'/assets/elite-tempest-iso-v1.webp',sovereign:'/assets/elite-sovereign-iso-v1.webp',jade:'/assets/elite-jade-iso-v1.webp',ragnarok:'/assets/elite-ragnarok-iso-v1.webp'};
-export const ELITE_DIR_SHOWS:Partial<Record<EliteShipId,string>>={
-};
-// Pusula dizini (0 = kuzey, saat yönünde 45°) için {kare, ayna}
-export function eliteDirFrame(id:EliteShipId,compass:number):{frame:number;mirror:boolean}{
-  const shows=(ELITE_DIR_SHOWS[id]??DEFAULT_SHOWS).split(' '),want=COMPASS[compass],opposite=COMPASS[(8-compass)%8];
-  const pick=(dir:string)=>{const preferred=DEFAULT_SHOWS.split(' ').indexOf(dir);return shows[preferred]===dir?preferred:shows.indexOf(dir);};
-  const direct=pick(want);if(direct>=0)return{frame:direct,mirror:false};
-  const mirrored=pick(opposite);return mirrored>=0?{frame:mirrored,mirror:true}:{frame:DEFAULT_SHOWS.split(' ').indexOf(want),mirror:false};
-}
+// Seafight usulü 4 çapraz görünüş: her elit için yan yana 512 px kareler, sıra KD, GD, GB, KB.
+// Elitler merdiven hareketiyle (special-ships isoAdvance) gider.
+export const ELITE_ISO:Record<EliteShipId,string>={phantom:'/assets/elite-phantom-iso-v10.webp',magma:'/assets/elite-magma-iso-v3.webp',glacial:'/assets/elite-glacial-iso-v3.webp',kraken:'/assets/elite-kraken-iso-v1.webp',ironclad:'/assets/elite-ironclad-iso-v1.webp',crimson:'/assets/elite-crimson-iso-v1.webp',atlantean:'/assets/elite-atlantean-iso-v1.webp',bone:'/assets/elite-bone-iso-v1.webp',tempest:'/assets/elite-tempest-iso-v1.webp',sovereign:'/assets/elite-sovereign-iso-v1.webp',jade:'/assets/elite-jade-iso-v1.webp',ragnarok:'/assets/elite-ragnarok-iso-v1.webp',void:'/assets/elite-void-iso-v1.webp',coral:'/assets/elite-coral-iso-v1.webp',sand:'/assets/elite-sand-iso-v1.webp'};
