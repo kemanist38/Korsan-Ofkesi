@@ -7,8 +7,8 @@ export type SpecialShip={id:string;name:string;english:string;price:number;art:s
 export const SPECIAL_SHIPS:SpecialShip[]=[
   {id:'ak-kadirga',name:'Ak Kadırga',english:'White Galley',price:500,art:'/assets/special-galley-v1.webp',dir:'/assets/special-galley-dir-v1.webp',description:'Pruvasında ikiz top taşıyan, kürekli beyaz savaş kadırgası; kemik haçlı yelkenleriyle tanınır.'},
   {id:'kizil-anka',name:'Kızıl Anka',english:'Crimson Phoenix',price:1000,art:'/assets/special-phoenix-v1.webp',dir:'/assets/special-phoenix-dir-v1.webp',description:'Altın anka kuşu işlemeli kızıl yelkenleri ve yaldızlı kıç köşküyle dört direkli asil kalyon.'},
-  // Sayfada gerçek 4 görünüş var: 0 K (arkadan) · 1 GB (sol-aşağı) · 2 G (önden) · 3 GD (sağ-aşağı). KD/KB görseli gelene kadar arkadan görünüş kullanılır.
-  {id:'korsan-sandali',name:'Korsan Sandalı',english:'Pirate Sloop',price:750,art:'/assets/special-sandal-v1.webp',views:'/assets/special-sandal-views-v1.webp',quad:[0,3,1,0],description:'Kuru kafa işaretli yamalı yelkenleriyle üç direkli, çevik korsan teknesi.'},
+  // Kareler: 0 K (arkadan) · 1 GB · 2 G (önden) · 3 GD · 4 KD · 5 KB. Hareket yalnızca 4 çapraz görünüşü (KD, GD, GB, KB) kullanır.
+  {id:'korsan-sandali',name:'Korsan Sandalı',english:'Pirate Sloop',price:750,art:'/assets/special-sandal-v1.webp',views:'/assets/special-sandal-views-v2.webp',quad:[4,3,1,5],description:'Kuru kafa işaretli yamalı yelkenleriyle üç direkli, çevik korsan teknesi.'},
 ];
 export const specialById=(id:string|null|undefined)=>SPECIAL_SHIPS.find(s=>s.id===id);
 // Yön: gemi sağa gidiyorsa aynala; neredeyse dikey gidişte son bakış korunur
