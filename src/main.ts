@@ -18,7 +18,7 @@ import {loadGuild,saveGuild,islandSlots,towerTypeCost,tagError,canBuild,TOWER_TY
 import {loadProfile,saveProfile,nickError,rankOf,NICK_CHANGE_COST,NICK_COOLDOWN_MS,NICK_MAX} from './profile';
 import {createChest,chestRewardText,CHEST_PICKUP_RADIUS,CHEST_CLICK_RADIUS,DRIFT_RESPAWN_SECONDS,type LootChest} from './loot';
 import {ELITE_SHIPS,eliteById,eliteDirFrame,type EliteShipId} from './elite-ships';
-import {SPECIAL_SHIPS,specialById,specialFacing,specialView} from './special-ships';
+import {SPECIAL_SHIPS,specialById,specialFacing,shipQuadrant} from './special-ships';
 import {spawnLightning,spawnFrost,spawnMeteor,spawnLavaPool,spawnTentacles,spawnSteam,spawnBloodMoon,spawnDome,spawnRipple,spawnScythe,spawnSoul,spawnBanner,spawnCoins,spawnBreath,spawnRage,spawnText,spawnVortex,spawnCoral,spawnSun,spawnBlind,screenTint,updateAbilityFx,drawAbilityFxUnder,drawAbilityFx} from './abilityFx';
 
 type Vec = { x: number; y: number };
@@ -1497,13 +1497,13 @@ function drawEliteDirectionalShip(s:Vec){
   ctx.restore();return true;
 }
 // Özel gemi: tek açılı raster; sağa giderken aynalanır
-const specialImages=new Map<string,HTMLImageElement>();
+const specialImages=new Map<string,HTMLImageElement>();let specialQuad=-1;
 function drawSpecialShip(s:Vec){
   const sp=specialById(activeSkin);if(!sp)return false;
   const src=`${sp.views??sp.dir??sp.art}?r=${SHIP_ART_REV}`;let im=specialImages.get(src);if(!im){im=new Image();im.decoding='async';im.src=src;specialImages.set(src,im);}
   if(!im.complete||!im.naturalWidth)return false;
   ctx.save();ctx.translate(s.x,s.y);ctx.globalAlpha=(state.invulnerable&&Math.floor(performance.now()/120)%2?.55:1)*shipAlpha();ctx.shadowColor='#000b';ctx.shadowBlur=13;if(ghostTimer>0){ctx.filter='saturate(.35) brightness(1.35)';ctx.shadowColor='#5fffd0';}
-  if(sp.views){const c=im.naturalHeight,f=specialView(sp,player.angle),D=176;ctx.drawImage(im,f*c,0,c,c,-D/2,-D*.72,D,D);ctx.restore();return true;}
+  if(sp.views){const c=im.naturalHeight,D=176;specialQuad=shipQuadrant(player.angle,specialQuad);const f=sp.quad?.[specialQuad]??0;ctx.drawImage(im,f*c,0,c,c,-D/2,-D*.72,D,D);ctx.restore();return true;}
   if(sp.dir){const f=shipDirectionFrame(player.angle),c=im.naturalWidth/4;ctx.drawImage(im,(f%4)*c,Math.floor(f/4)*c,c,c,-80,-86,160,160);ctx.restore();return true;}
   specialFacingDir=specialFacing(player.angle,specialFacingDir);
   if(specialFacingDir>0)ctx.scale(-1,1);ctx.drawImage(im,-78,-96,156,156);ctx.restore();return true;
