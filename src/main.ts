@@ -18,7 +18,7 @@ import {loadGuild,saveGuild,islandSlots,towerTypeCost,tagError,canBuild,TOWER_TY
 import {loadProfile,saveProfile,nickError,rankOf,NICK_CHANGE_COST,NICK_COOLDOWN_MS,NICK_MAX} from './profile';
 import {createChest,chestRewardText,CHEST_PICKUP_RADIUS,CHEST_CLICK_RADIUS,DRIFT_RESPAWN_SECONDS,type LootChest} from './loot';
 import {ELITE_SHIPS,eliteById,eliteDirFrame,type EliteShipId} from './elite-ships';
-import {SPECIAL_SHIPS,specialById,specialFacing,isoStep,isoView} from './special-ships';
+import {SPECIAL_SHIPS,specialById,specialFacing,isoAdvance,isoView,type IsoMove} from './special-ships';
 import {spawnLightning,spawnFrost,spawnMeteor,spawnLavaPool,spawnTentacles,spawnSteam,spawnBloodMoon,spawnDome,spawnRipple,spawnScythe,spawnSoul,spawnBanner,spawnCoins,spawnBreath,spawnRage,spawnText,spawnVortex,spawnCoral,spawnSun,spawnBlind,screenTint,updateAbilityFx,drawAbilityFxUnder,drawAbilityFx} from './abilityFx';
 
 type Vec = { x: number; y: number };
@@ -1040,7 +1040,7 @@ function renderCombatTargets(){
 }
 
 // Seafight usulü gemi: son baktığı çapraz yüz (dururken de korunur)
-const isoFace={east:false,north:false};
+const isoFace={east:false,north:false};let isoMove:IsoMove|null=null;
 const isoShip=()=>!eliteEnabled()&&activeSkin?specialById(activeSkin)?.iso:undefined;
 function update(dt:number){
     const turn=(held('left','arrowleft')?-1:0)+(held('right','arrowright')?1:0);
@@ -1049,9 +1049,9 @@ function update(dt:number){
     if(routeTarget){if(dist(player,routeTarget)<14)routeTarget=null;else destination=routeVia(routeTarget);}
     if(destination&&!thrust&&!turn&&isoShip()){
       // Seafight usulü: 8 yön, dikey hız yarı, anlık kalkış/duruş; açı yalnızca iz ve efektler için tutulur
-      const dx=destination.x-player.x,dy=destination.y-player.y,V=effectiveSpeed()*1.8,st=isoStep(dx,dy,V,dt,isoFace);
+      const V=effectiveSpeed()*1.8,st=isoAdvance(isoMove,player.x,player.y,destination.x,destination.y,V,dt,isoFace);isoMove=st.m;
       // Açı ve hız bu adımın hareketini verecek şekilde ayarlanır; taşıma aşağıdaki ortak satırda yapılır
-      if(st.done){destination=null;player.speed=0;}else{player.angle=Math.atan2(st.mx,-st.my);player.speed=Math.hypot(st.mx,st.my)/Math.max(dt,1e-3);}
+      if(st.done){destination=null;player.speed=0;isoMove=null;}else if(st.mx||st.my){player.angle=Math.atan2(st.mx,-st.my);player.speed=Math.hypot(st.mx,st.my)/Math.max(dt,1e-3);}else player.speed=0;
     }
     else if(destination&&!thrust&&!turn){
       const d=dist(player,destination),desired=Math.atan2(destination.y-player.y,destination.x-player.x)+Math.PI/2;
