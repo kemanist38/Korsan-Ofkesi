@@ -12,7 +12,7 @@ export type EliteShip={
 export const ELITE_SHIPS:EliteShip[]=[
 {id:'phantom',level:1,name:'Hayalet Kadırga',english:'The Phantom Galleon',asset:'/assets/elite-phantom-art-v6.webp',role:'Kaçış',passive:'%10 ihtimalle gülleden kaçar',ability:'Hayalet Geçiş',abilityDescription:'5 sn hasar almaz, adacıklardan ve gemilerin içinden geçer; bu sürede ateş edemez.',needsTarget:false},
 {id:'magma',level:2,name:'Volkanik Dreadnought',english:'Volcanic Dreadnought',asset:'/assets/elite-magma-art-v3.webp',role:'Alan hasarı',passive:'Vuruşların %15\'i hedefi 3 sn yakar',ability:'Lav Yağmuru',abilityDescription:'Hedefin çevresine 5 lav topu düşer ve 4 sn yanan bir lav gölü bırakır.',needsTarget:true},
-{id:'glacial',level:3,name:'Buzul Tiranı',english:'Glacial Tyrant',asset:'/assets/elite-glacial-art-v2.webp',role:'Kontrol',passive:'Vurduğu hedef 2 sn yavaşlar',ability:'Dondurma',abilityDescription:'Hedef 4 sn donar; hareket edemez, ateş edemez.',needsTarget:true},
+{id:'glacial',level:3,name:'Buzul Tiranı',english:'Glacial Tyrant',asset:'/assets/elite-glacial-art-v3.webp',role:'Kontrol',passive:'Vurduğu hedef 2 sn yavaşlar',ability:'Dondurma',abilityDescription:'Hedef 4 sn donar; hareket edemez, ateş edemez.',needsTarget:true},
 {id:'kraken',level:4,name:"Kraken'in Gazabı",english:"Kraken's Embrace",asset:'/assets/elite-kraken-art-v2.webp',role:'Yakalama',passive:'Yakın mesafede (200 birim) +%10 hasar',ability:'Dokunaç Kıskacı',abilityDescription:'Dokunaçlar hedefi sarar, gemine doğru çeker ve 3 sn tutar.',needsTarget:true},
 {id:'ironclad',level:5,name:'Buharlı Zırhlı',english:'Steampunk Ironclad',asset:'/assets/elite-ironclad-art-v2.webp',role:'Tank',passive:'Alınan hasar −%10',ability:'Buhar Kazanı',abilityDescription:'6 sn top dolum süresi yarıya iner, alınan hasar −%20.',needsTarget:false},
 {id:'crimson',level:6,name:'Kanlı Ay Korveti',english:'Crimson Moon Corsair',asset:'/assets/elite-crimson-art-v2.webp',role:'Can emme',passive:'Verdiği hasarın %3\'ü kadar can kazanır',ability:'Kanlı Ay',abilityDescription:'8 sn verdiği hasarın %25\'i kadar can kazanır.',needsTarget:false},
@@ -35,7 +35,7 @@ export type Compass=typeof COMPASS[number];
 const DEFAULT_SHOWS='S SW W NE N SE E NW';
 // Seafight usulü 4 çapraz görünüşlü elitler: yan yana 256 px kareler, sıra KD, GD, GB, KB.
 // Bu gemiler merdiven hareketiyle (special-ships isoAdvance) gider; yön sayfası kullanılmaz.
-export const ELITE_ISO:Partial<Record<EliteShipId,string>>={phantom:'/assets/elite-phantom-iso-v5.webp',magma:'/assets/elite-magma-iso-v1.webp'};
+export const ELITE_ISO:Partial<Record<EliteShipId,string>>={phantom:'/assets/elite-phantom-iso-v5.webp',magma:'/assets/elite-magma-iso-v1.webp',glacial:'/assets/elite-glacial-iso-v1.webp'};
 export const ELITE_DIR_SHOWS:Partial<Record<EliteShipId,string>>={
 };
 // Pusula dizini (0 = kuzey, saat yönünde 45°) için {kare, ayna}
