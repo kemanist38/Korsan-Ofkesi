@@ -8,7 +8,7 @@ export type GuildRole='leader'|'deputy'|'member';
 export const ROLE_NAMES:Record<GuildRole,string>={leader:'Filo Başkanı',deputy:'Başkan Yardımcısı',member:'Üye'};
 // Kule dikme yetkisi: başkan ve yardımcısı
 export const canBuild=(r:GuildRole)=>r==='leader'||r==='deputy';
-// Tek tip filo kulesi (fleet-tower-v2). Eski kayıtlardaki havan/zincir/fener kuleleri top kulesine dönüşür.
+// Tek tip filo kulesi (fleet-tower-v3). Eski kayıtlardaki havan/zincir/fener kuleleri top kulesine dönüşür.
 export const TOWER_TYPES:Record<TowerType,{name:string;desc:string;cost:number;damage:number;range:number;reload:number;frame:number}>={
   cannon:{name:'Filo Kulesi',desc:'Ağır top taşıyan filo kulesi. Dengeli hasar ve menzil.',cost:1,damage:1,range:1,reload:1,frame:0},
 };
