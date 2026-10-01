@@ -127,17 +127,17 @@ export const gridCell=(p:{x:number;y:number})=>({c:Math.max(0,Math.min(GRID_COLS
 export function coordLabel(p:{x:number;y:number}){const g=gridCell(p);return`${colName(g.c)}${rowName(g.r)}`;}
 
 // ---------------------------------------------------------------- Filo adası
-// Seafight tarzı: düzensiz kumsallı ada (islandR), koyu sur halkası (wallR, açıklık güneyde),
-// sur içinde lagün (lagoon) ve lagünü denize bağlayan kanal (|x|<channelW). Burç lagünün kuzeyinde.
-// tools/asset-studio/fleet-raster-mask.py ile seyir maskesi yeniden üretilir.
-// Filo adası görseli (haritaya özel fleet-base-*-v2, 1000 birim): güneyden kanalla girilen lagün kalesi. Seyir alanı src/fleetMask.ts
-// maskesinden gelir; kuleler görseldeki 8 sur kulesinin üzerindedir. lagoon: lagünün ortası (rota hedefi).
-export const FLEET={islandR:500,wallR:370,gap:.56,lagoon:{x:0,y:60,r:150},channelW:70,keep:{x:0,y:-280},
-  // Shared foundation layout, 1000 world units. Preserve slot order for saved guild towers.
-  towers:[[-230,-360],[-364,-189],[-328,70],[-121,214],[146,214],[337,70],[361,-193],[242,-360]] as [number,number][],
-  base:{frame:1024,span:1000},tower:{frame:256,span:120,anchorY:0}};
+// Ortak filo adası (public/assets/fleet-island-v3.webp, 1500 × 838 birim): iki hilal sur, doğu ve batıda geniş kapılar,
+// ortada kaleli iç ada. Seyir alanı src/fleetMask.ts maskesinden gelir (tools/asset-studio/fleet-raster-mask.mjs).
+// towers: 16 kaidenin taban merkezi; üst sur soldan sağa 6, alt sur 6, iç ada 4 (ikisi batı, ikisi doğu kapısına bakar).
+// Kayıtlı filo kulelerinin sırası korunur (ilk 8 yuva eski kayıtlarla aynı indekstir).
+export const FLEET={islandR:760,wallR:600,gap:.6,
+  towers:[[-568,-135],[-393,-250],[-140,-306],[140,-306],[393,-250],[568,-135],
+    [-571,138],[-395,244],[-138,303],[138,303],[395,244],[571,138],
+    [-198,-87],[198,-87],[-198,42],[198,42]] as [number,number][]};
 // Kuleler filo savaşı ölçeğinde: tek gemi yıkamaz, saldırı kesilince hızla onarılır.
-export const fleetTower=(tier:number)=>{return{hp:Math.round(150000*hpScale(tier)),damage:Math.round(1050*dmgScale(tier)),reload:2.2,range:460,ownDamage:Math.round(1500*hpScale(tier))};};
+// 16 kule: toplam ateş gücü eski 8 kuleyle yaklaşık aynı kalsın diye kule başına hasar ve can düşürüldü.
+export const fleetTower=(tier:number)=>{return{hp:Math.round(110000*hpScale(tier)),damage:Math.round(560*dmgScale(tier)),reload:2.2,range:460,ownDamage:Math.round(800*hpScale(tier))};};
 export const fleetReward=(tier:number)=>({gold:300*tier,xp:Math.round(500*Math.pow(tier,1.2))});
 
 // ---------------------------------------------------------------- Denizler

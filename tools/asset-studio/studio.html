@@ -13,7 +13,6 @@ import {buildMedal} from './medals.js';
 import {buildEquip,buildPowderKeg,buildTreasureMap,buildInventoryPlaque} from './items3d.js';
 import {SHIPS,MONSTERS,BOSSES} from './catalog.js';
 const ALL_SHIPS=[...SHIPS,...BOSSES];
-import {buildFleetTower} from './tower.js';
 import {buildFleetLayout,FLEET_LAYOUT} from './fleet-layout.js';
 import {buildCrab,buildSerpent,buildJelly,buildTurtle,buildHydra} from './monsters.js';
 import * as T from './textures.js';
@@ -111,12 +110,6 @@ window.renderPortraitsV2=(order,{cell=96,cols=10}={})=>{const legacy={'n1-2-ligh
     return shot(scene,cam,cell);});
   return{...exportCanvas(sheet(frames,cols)),cell,cols};};
 
-// Filo kulesi (tema başına): ada görsellerinin bakış açısıyla (≈65° yükseklik) tek kare; çapa = zemin merkezi
-window.renderFleetTower=(theme,{frame=512,span=24,lookY=3,elev=65,exposure=.85}={})=>{const scene=stage(),t=buildFleetTower(theme);scene.traverse(o=>{if(o.isDirectionalLight&&o.castShadow)o.position.set(-90,130,-10);});t.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});scene.add(t);
-  envMap??=new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(),.04).texture;scene.environment=envMap;scene.environmentIntensity=.2;
-  const e=elev*Math.PI/180,cam=new THREE.OrthographicCamera(-span/2,span/2,span/2,-span/2,1,1200);cam.position.set(0,lookY+Math.sin(e)*500,Math.cos(e)*500);cam.lookAt(0,lookY,0);cam.updateMatrixWorld();cam.updateProjectionMatrix();
-  const ex=renderer.toneMappingExposure;renderer.toneMappingExposure=exposure;const img=shot(scene,cam,frame);renderer.toneMappingExposure=ex;
-  return{...exportCanvas(img),frame,anchor:anchorOf(cam,frame),top:anchorOf(cam,frame,new THREE.Vector3(0,t.userData.top,0)),unitsPerPx:span/frame};};
 // Filo adası yerleşim şablonu: 2:1 izometrik (30°), 16:9 tuval; kaidelerin ekran konumları da döner
 window.renderFleetLayout=({w=1920,h=1080,span=100}={})=>{const scene=stage(),m=buildFleetLayout();m.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});scene.add(m);
   const e=30*Math.PI/180,a=w/h,cam=new THREE.OrthographicCamera(-span/2,span/2,span/2/a,-span/2/a,1,1200);cam.position.set(0,Math.sin(e)*500,Math.cos(e)*500);cam.lookAt(0,0,0);cam.updateMatrixWorld();cam.updateProjectionMatrix();
