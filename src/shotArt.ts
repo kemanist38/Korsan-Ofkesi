@@ -34,3 +34,10 @@ export function drawGlint(ctx:CanvasRenderingContext2D,x:number,y:number,r:numbe
     g.globalCompositeOperation='source-atop';g.fillStyle=color;g.globalAlpha=.45;g.fillRect(0,0,64,64);glints.set(color,c);}
   const prev=ctx.globalAlpha,op=ctx.globalCompositeOperation;ctx.globalAlpha=prev*Math.min(1,alpha*1.4);ctx.globalCompositeOperation='lighter';
   ctx.save();ctx.translate(x,y);ctx.rotate(rot);ctx.drawImage(c,-r,-r,r*2,r*2);ctx.restore();ctx.globalAlpha=prev;ctx.globalCompositeOperation=op;}
+// İsabet parlaması: beyaz-sarı çekirdekten turuncuya sönen yuvarlak ışık; toplamalı karışımla basılır
+let flare:HTMLCanvasElement|null=null;
+export function drawFlare(ctx:CanvasRenderingContext2D,x:number,y:number,r:number,alpha:number){
+  if(!flare){flare=document.createElement('canvas');flare.width=flare.height=128;const f=flare.getContext('2d')!,g=f.createRadialGradient(64,64,0,64,64,64);
+    g.addColorStop(0,'rgba(255,255,240,1)');g.addColorStop(.18,'rgba(255,236,150,.95)');g.addColorStop(.45,'rgba(255,150,40,.55)');g.addColorStop(.75,'rgba(220,70,10,.18)');g.addColorStop(1,'rgba(200,40,0,0)');f.fillStyle=g;f.fillRect(0,0,128,128);}
+  const prev=ctx.globalAlpha,op=ctx.globalCompositeOperation;ctx.globalAlpha=prev*alpha;ctx.globalCompositeOperation='lighter';
+  ctx.drawImage(flare,x-r,y-r,r*2,r*2);ctx.globalAlpha=prev;ctx.globalCompositeOperation=op;}
