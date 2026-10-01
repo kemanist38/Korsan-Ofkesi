@@ -3,7 +3,7 @@ import './storageMigration';
 import './style.css';
 import {ACTIONS,loadSettings,saveSettings,keyLabel,normalizeKey,DEFAULT_BINDS,type ActionId} from './settings';
 import {playBossMusic,stopBossMusic,playBossHorn,setAudio,unlockAudio,playCannon,playEnemyCannon,playHit,playExplosion,playCoins,playWind,playShield,playSplash,playLevelUp,playMapJump,playSink,playHeal,playClick} from './audio';
-import {drawSeaSparkle,drawNpcShip,drawMonsterSheet,drawChestSprite,drawIslandSprite,drawFleetBase,drawBastion,drawBuiltTower,drawMineSprite,seaTilePattern,islandSheetUrl,shipLabelOffset,portraitStyle,preload,fleetBaseUrl,fleetTowerUrl,TOWER_LABEL_OFFSET} from './sprites';
+import {drawSeaSparkle,drawNpcShip,drawMonsterSheet,drawChestSprite,drawIslandSprite,drawFleetBase,drawBastion,drawBuiltTower,drawMineSprite,seaTilePattern,islandSheetUrl,shipLabelOffset,portraitStyle,preload,fleetBaseUrl,fleetTowerUrl,setTowerTheme,TOWER_LABEL_OFFSET} from './sprites';
 import {MAPS,GRID,THEMES,NPCS,MONSTERS,QUESTS,QUEST_COOLDOWN_MS,FLEET,WORLD_WIDTH,WORLD_HEIGHT,MAX_LEVEL,xpNeed,neighbor,bossFor,BOSS_KILLS,BOSS_ATLAS,BOSS_ATLAS_COLS,MAP_KEYS,type BossDef,tierOf,fleetTower,fleetReward,PORTRAIT_COUNT,PORTRAIT_COLS,PORTRAIT_ATLAS,GRID_COLS,GRID_ROWS,CELL_W,CELL_H,colName,rowName,gridCell,coordLabel,type MapKey,type WorldIsland,type NpcDef,type MonsterDef,type Dir,type QuestDef} from './campaign';
 import {ACHIEVEMENTS,loadAchievements,saveAchievements,unlockReached,achievementBonus,bonusText,badgeStyle,type AchStat} from './achievements';
 import {loadDaily,saveDaily,dailyStatus,claimDaily,dailyReward,type DailyReward} from './daily';
@@ -401,6 +401,7 @@ function populateMap(){
   stopBossMusic();lavaPools.length=0;abilityQueue.length=0;krakenHold=null;voidHole=null;
   const map=mapDef();islands.splice(0,islands.length,...map.islands.map(i=>({...i})));
   enemies.length=0;shots.length=0;salvoQueue.length=0;particles.length=0;lootChests.length=0;sparkles.length=0;sparkleQueue.length=0;mines.length=0;driftClock=DRIFT_RESPAWN_SECONDS;
+  setTowerTheme(theme().fleet);
   preload([...(hasFleetIsland()?[fleetBaseUrl(theme().fleet),fleetTowerUrl(theme().fleet)]:[]),...map.npcs.map(id=>NPCS[id].sprite),...map.monsters.map(id=>MONSTERS[id].sprite),...new Set(map.islands.map(i=>islandSheetUrl(i.look)))]);
   createMonsters();setupFleetIsland();
   for(let i=0;i<map.npcCount;i++)spawnEnemy();
