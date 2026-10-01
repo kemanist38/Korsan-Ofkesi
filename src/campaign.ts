@@ -82,19 +82,23 @@ export type MonsterDef={id:string;name:string;sprite:string;span:number;frame:nu
 // Canavar, aynı denizin ağır NPC'sinden yaklaşık 2,2 kat daha dayanıklıdır (Seafight'ta canavarlar ağır NPC'lerin 1,5–2 katı).
 const mon=(id:string,name:string,tier:number,radius=54,sprite='',span=140,anchorY=133.4):Omit<MonsterDef,'portrait'>=>{const t=tier-1,hp=Math.round(13000*hpScale(tier)),r=killReward(hp,tier);
   return{id,name,sprite,span,frame:256,anchorY,radius,tier,hp,damage:Math.round(1500*dmgScale(tier)),reload:2.8-t*.08,gold:r.gold,xp:r.xp};};
-const MONSTER_LIST:Omit<MonsterDef,'portrait'>[]=[
-  mon('m1-1','Zümrüt Kaplumbağa',1,50,'/assets/trial-coast-turtle-v1.webp'),mon('m1-2','Dev Mavi Yılan',1,56,'/assets/trial-coast-serpent-v1.webp'),
-  mon('m2-1','Pembe Resif Yengeci',2,54,'/assets/pearl-crab-v1.webp',132,130.9),mon('m2-2','Partayan İnci Ejderi',2,50,'/assets/pearl-dragon-v1.webp'),
-  mon('m3-1','Kristal Kabuklu Yengeç',3,58,'/assets/azur-crab-v1.webp'),mon('m3-2','Kadim Orman Leviathanı',3,56,'/assets/azur-leviathan-v1.webp'),
-  mon('m4-1','Kemik Balığı',4,54,'/assets/haunt-fish-v1.webp'),mon('m4-2','Ruh Yiyen Kraken',4,58,'/assets/haunt-kraken-v1.webp'),
-  mon('m5-1','Buzul Yengeci',5,60,'/assets/frost-crab-v1.webp'),mon('m5-2','Dev Donmuş Mors',5,60,'/assets/frost-walrus-v1.webp'),
-  mon('m6-1','Elektrik Yılanı',6,54,'/assets/storm-eel-v1.webp'),mon('m6-2','Fırtına Ejderi',6,60,'/assets/storm-dragon-v1.webp'),
-  mon('m7-1','Gölge Yengeci',7,58,'/assets/void-crab-v1.webp'),mon('m7-2','Uçurum Krakeni',7,62,'/assets/void-kraken-v1.webp'),
-  mon('m8-1','Magma Kaplumbağası',8,62,'/assets/lava-turtle-v1.webp'),mon('m8-2','Alev Leviathanı',8,58,'/assets/lava-leviathan-v1.webp'),
+// Her seviyede tek canavar türü; görsel tek kare (güneybatıya bakan, 256 px). portrait: portre atlasındaki sabit karesi.
+const MONSTER_LIST:(Omit<MonsterDef,'portrait'>&{slot:number})[]=[
+  {...mon('m1-2','Dev Mavi Yılan',1,56,'/assets/trial-coast-serpent-sw-v1.webp'),slot:1},
+  {...mon('m2-1','Pembe Resif Yengeci',2,54,'/assets/pearl-crab-sw-v1.webp',132,130.9),slot:2},
+  {...mon('m3-2','Kadim Orman Leviathanı',3,56,'/assets/azur-leviathan-sw-v1.webp'),slot:5},
+  {...mon('m4-1','Kemik Balığı',4,54,'/assets/haunt-fish-sw-v1.webp'),slot:6},
+  {...mon('m5-2','Dev Donmuş Mors',5,60,'/assets/frost-walrus-sw-v1.webp'),slot:9},
+  {...mon('m6-1','Elektrik Yılanı',6,54,'/assets/storm-eel-sw-v1.webp'),slot:10},
+  {...mon('m7-2','Uçurum Krakeni',7,62,'/assets/void-kraken-sw-v1.webp'),slot:13},
+  {...mon('m8-2','Alev Leviathanı',8,58,'/assets/lava-leviathan-sw-v1.webp'),slot:15},
 ];
-export const MONSTERS:Record<string,MonsterDef>=Object.fromEntries(MONSTER_LIST.map((m,i)=>[m.id,{...m,portrait:NPC_LIST.length+i}]));
+/** Seviye başına haritada kalan canavar. */
+export const MONSTER_OF_TIER:Record<number,string>=Object.fromEntries(MONSTER_LIST.map(m=>[m.tier,m.id]));
+export const MONSTERS:Record<string,MonsterDef>=Object.fromEntries(MONSTER_LIST.map(({slot,...m})=>[m.id,{...m,portrait:NPC_LIST.length+slot}]));
 // Portre atlasının son karesi (eski Hayalet Amiral) şimdilik kullanılmıyor; yeni boss eklenince kullanılabilir.
-export const PORTRAIT_COUNT=NPC_LIST.length+MONSTER_LIST.length;
+// Atlas 16 canavar karesiyle üretildi; kaldırılan canavarların kareleri boş kalır.
+export const PORTRAIT_COUNT=NPC_LIST.length+16;
 export const PORTRAIT_COLS=5;
 export const PORTRAIT_ATLAS='/assets/trial-coast-portraits-v1.webp';
 
@@ -141,26 +145,26 @@ export type MapDef={key:MapKey;tier:number;name:string;description:string;safe:b
 const I=(x:number,y:number,r:number,name:string,look:IslandLook,variant:0|1|2|3|4|5,flip=false):WorldIsland=>({x,y,r,name,look,variant,flip});
 function sea(key:MapKey,name:string,description:string,opts:{islands:[number,number,number,string,0|1,boolean?][];fleet:[number,number,string];labels?:[string,number,number][];safe?:boolean;look?:IslandLook;count?:number;heavy?:number}):MapDef{
   const tier=tierOf(key),look=opts.look??THEMES[tier].look,sub=key.split('/')[1];
-  return{key,tier,name,description,safe:!!opts.safe,npcs:[`n${tier}-${sub}-light`,`n${tier}-${sub}-heavy`,...(tier<=8?[sub==='1'?`n${tier}-2-heavy`:`n${tier}-1-light`]:[])],monster:`m${tier}-${sub}`,monsters:tier<=8?[`m${tier}-1`,`m${tier}-2`]:[`m${tier}-${sub}`],npcCount:opts.safe?12:16,heavyShare:opts.heavy??(.3+tier*.03),
+  return{key,tier,name,description,safe:!!opts.safe,npcs:[`n${tier}-${sub}-light`,`n${tier}-${sub}-heavy`,...(tier<=8?[sub==='1'?`n${tier}-2-heavy`:`n${tier}-1-light`]:[])],monster:MONSTER_OF_TIER[tier],monsters:[MONSTER_OF_TIER[tier]],npcCount:opts.safe?12:16,heavyShare:opts.heavy??(.3+tier*.03),
     islands:opts.islands.map(([x,y,r,n,v,f])=>I(x,y,r,n,look,v,!!f)),fleet:{x:opts.fleet[0],y:opts.fleet[1],name:opts.fleet[2]},labels:(opts.labels??[]).map(([text,x,y])=>({text,x,y})),spawn:{x:opts.fleet[0],y:opts.fleet[1]+530}};
 }
 export const MAPS:Record<MapKey,MapDef>={
   '1/1':{...sea('1/1','Sığınak Koyu','Savaşa kapalı başlangıç denizi. Filo adanın lagününde gövde kendiliğinden onarılır; buradaki gemiler sen saldırmadıkça ateş açmaz.',
     {islands:[[640,700,170,'Martı Kayası',1],[2520,820,190,'Yosunlu Burun',0,true],[2560,2560,160,'Sakin Resif',1]],fleet:[1500,1900,'Sığınak Filo Adası'],labels:[['SAKİN SULAR',1600,700]],safe:true,count:6,heavy:.25}),islands:[I(640,700,170,'Martı Kayası','haven',1),I(2520,820,190,'Yosunlu Burun','verdant',0,true),I(2560,2560,160,'Sakin Resif','coral',1)]},
-  '1/2':sea('1/2','Martı Kıyıları','Kıyı Sandalı, Tüccar Yelkenlisi ve Kraliyet Firkateyni bu sularda gezer. Zümrüt Kaplumbağa ve Dev Mavi Yılan sığlıklarda bulunur.',{safe:true,islands:[[700,650,180,'Fırtına Burnu',0],[2500,700,210,'Ölü Adam Adası',1],[650,2500,200,'Sis Kayalıkları',0,true]],fleet:[2150,2150,'Martı Filo Adası'],labels:[['KIYI SULARI',1400,1000]]}),
-  '2/1':sea('2/1','Mercan Geçidi','Sedef Kayığı, Mercan Kesici ve İnci Kraliçe Kalyonu mercan resiflerinde gezer. Pembe Resif Yengeci ve Partayan İnci Ejderi bu sularda bulunur.',{islands:[[650,700,190,'Mercan Kalesi',0],[2550,600,160,'Pembe Resif',1],[600,2550,170,'Deniz Kabuğu',1,true]],fleet:[2050,2100,'Mercan Filo Adası'],labels:[['MERCAN GEÇİDİ',1300,900]]}),
-  '2/2':sea('2/2','İnci Resifleri','Sedef Kayığı, Mercan Kesici ve İnci Kraliçe Kalyonu ile iki resif canavarının parlak suları.',{islands:[[2550,700,180,'İnci Adası',1],[700,650,200,'Lagün Adası',0,true],[2600,2550,150,'Midye Kayası',0]],fleet:[1150,2100,'İnci Filo Adası'],labels:[['İNCİ SIĞLIĞI',1900,1000]]}),
-  '3/1':sea('3/1','Sis Kayalıkları','Yeşim Sürüklenen, Kristal Yelkenli ve Kadim Azur Gardiyanı bu sularda gezer. Kristal Kabuklu Yengeç ve Kadim Orman Leviathanı derinliklerde bulunur.',{islands:[[650,650,200,'Sis Burnu',0],[2550,650,180,'Kayıp Fener',1],[2550,2550,190,'Yankı Kayası',0,true]],fleet:[1200,2150,'Sis Filo Adası'],labels:[['SİS DENİZİ',2000,1300]]}),
+  '1/2':sea('1/2','Martı Kıyıları','Kıyı Sandalı, Tüccar Yelkenlisi ve Kraliyet Firkateyni bu sularda gezer. Dev Mavi Yılan sığlıklarda bulunur.',{safe:true,islands:[[700,650,180,'Fırtına Burnu',0],[2500,700,210,'Ölü Adam Adası',1],[650,2500,200,'Sis Kayalıkları',0,true]],fleet:[2150,2150,'Martı Filo Adası'],labels:[['KIYI SULARI',1400,1000]]}),
+  '2/1':sea('2/1','Mercan Geçidi','Sedef Kayığı, Mercan Kesici ve İnci Kraliçe Kalyonu mercan resiflerinde gezer. Pembe Resif Yengeci bu sularda bulunur.',{islands:[[650,700,190,'Mercan Kalesi',0],[2550,600,160,'Pembe Resif',1],[600,2550,170,'Deniz Kabuğu',1,true]],fleet:[2050,2100,'Mercan Filo Adası'],labels:[['MERCAN GEÇİDİ',1300,900]]}),
+  '2/2':sea('2/2','İnci Resifleri','Sedef Kayığı, Mercan Kesici ve İnci Kraliçe Kalyonu ile resif yengecinin parlak suları.',{islands:[[2550,700,180,'İnci Adası',1],[700,650,200,'Lagün Adası',0,true],[2600,2550,150,'Midye Kayası',0]],fleet:[1150,2100,'İnci Filo Adası'],labels:[['İNCİ SIĞLIĞI',1900,1000]]}),
+  '3/1':sea('3/1','Sis Kayalıkları','Yeşim Sürüklenen, Kristal Yelkenli ve Kadim Azur Gardiyanı bu sularda gezer. Kadim Orman Leviathanı derinliklerde bulunur.',{islands:[[650,650,200,'Sis Burnu',0],[2550,650,180,'Kayıp Fener',1],[2550,2550,190,'Yankı Kayası',0,true]],fleet:[1200,2150,'Sis Filo Adası'],labels:[['SİS DENİZİ',2000,1300]]}),
   '3/2':sea('3/2','Hayalet Boğazı','Yeşim Sürüklenen, Kristal Yelkenli ve Kadim Azur Gardiyanı ile Azurya canavarlarının geçiş suları.',{islands:[[700,2550,210,'Mezar Adası',1],[2500,2550,170,'Kemik Kıyısı',0],[2550,650,190,'Batıklar Burnu',1,true]],fleet:[1200,1100,'Hayalet Filo Adası'],labels:[['HAYALET BOĞAZI',2000,1800]]}),
-  '4/1':sea('4/1','Kan Körfezi','Solgun Ruh, Lanetli Yelken ve Gece Dehşeti Fırkateyni bu lanetli sularda gezer. Kemik Balığı ve Ruh Yiyen Kraken derinlerden yükselir.',{islands:[[650,650,190,'Kan Kayası',0],[2550,700,160,'Kızıl Diş',1],[650,2550,200,'Kırık Sütunlar',0,true]],fleet:[2050,2100,'Kızıl Filo Adası'],labels:[['KAN KÖRFEZİ',1300,1000]]}),
+  '4/1':sea('4/1','Kan Körfezi','Solgun Ruh, Lanetli Yelken ve Gece Dehşeti Fırkateyni bu lanetli sularda gezer. Kemik Balığı derinlerden yükselir.',{islands:[[650,650,190,'Kan Kayası',0],[2550,700,160,'Kızıl Diş',1],[650,2550,200,'Kırık Sütunlar',0,true]],fleet:[2050,2100,'Kızıl Filo Adası'],labels:[['KAN KÖRFEZİ',1300,1000]]}),
   '4/2':sea('4/2','Paslı Sığlık','Solgun Ruh, Lanetli Yelken ve Gece Dehşeti Fırkateyni ile hayalet canavarların sisli sığlığı.',{islands:[[2550,650,190,'Paslı Çapa Adası',1],[650,700,170,'Hurda Kıyısı',0,true],[2500,2550,200,'Demir Kayalık',0]],fleet:[1150,2100,'Pas Filo Adası'],labels:[['PASLI SIĞLIK',1900,1000]]}),
-  '5/1':sea('5/1','Ayaz Boğazı','Buz Kırıcı Sandal, Donuk Yelkenli ve Kış Zıpkını Kalyonu buz kütleleri arasında dolaşır. Buzul Yengeci ve Dev Donmuş Mors bu sularda bulunur.',{islands:[[650,650,200,'Ayaz Tepesi',0],[2550,650,180,'Donmuş Fener',1],[650,2550,180,'Kar Kayası',1,true]],fleet:[2050,2100,'Ayaz Filo Adası'],labels:[['AYAZ BOĞAZI',1300,1000]]}),
+  '5/1':sea('5/1','Ayaz Boğazı','Buz Kırıcı Sandal, Donuk Yelkenli ve Kış Zıpkını Kalyonu buz kütleleri arasında dolaşır. Dev Donmuş Mors bu sularda bulunur.',{islands:[[650,650,200,'Ayaz Tepesi',0],[2550,650,180,'Donmuş Fener',1],[650,2550,180,'Kar Kayası',1,true]],fleet:[2050,2100,'Ayaz Filo Adası'],labels:[['AYAZ BOĞAZI',1300,1000]]}),
   '5/2':sea('5/2','Kristal Buzullar','Buz Kırıcı Sandal, Donuk Yelkenli ve Kış Zıpkını Kalyonu ile buzul canavarlarının parıldayan soğuk derinlikleri.',{islands:[[2550,650,210,'Kristal Buzul',0],[650,700,170,'Işıltı Kayası',1,true],[2550,2550,180,'Kutup Kapısı',1]],fleet:[1150,2100,'Kristal Filo Adası'],labels:[['KRİSTAL BUZULLAR',1900,1000]]}),
-  '6/1':sea('6/1','Zehirli Mangrov','Rüzgar Gülü, Yağmur Yaran ve Şimşek Lordu fırtınalı sularda gezer. Elektrik Yılanı ve Fırtına Ejderi dalgaların arasından çıkar.',{islands:[[650,650,200,'Mangrov Kökü',0],[2550,650,170,'Çamur Kıyısı',1],[650,2550,190,'Sarmaşık Adası',1,true]],fleet:[2050,2100,'Mangrov Filo Adası'],labels:[['ZEHİRLİ MANGROV',1300,1000]]}),
+  '6/1':sea('6/1','Zehirli Mangrov','Rüzgar Gülü, Yağmur Yaran ve Şimşek Lordu fırtınalı sularda gezer. Elektrik Yılanı dalgaların arasından çıkar.',{islands:[[650,650,200,'Mangrov Kökü',0],[2550,650,170,'Çamur Kıyısı',1],[650,2550,190,'Sarmaşık Adası',1,true]],fleet:[2050,2100,'Mangrov Filo Adası'],labels:[['ZEHİRLİ MANGROV',1300,1000]]}),
   '6/2':sea('6/2','Çürük Lagün','Rüzgar Gülü, Yağmur Yaran ve Şimşek Lordu ile fırtına canavarlarının şimşekli lagünü.',{islands:[[2550,650,190,'Çürük Ada',0],[650,700,180,'Balçık Kayası',1,true],[2500,2550,200,'Veba Kıyısı',1]],fleet:[1150,2100,'Lagün Filo Adası'],labels:[['ÇÜRÜK LAGÜN',1900,1000]]}),
-  '7/1':sea('7/1','Kül Adaları','Karanlık İzci, Obsidyen Bıçağı ve Hiçlik Savaşçısı bu karanlık sularda gezer. Gölge Yengeci ve Uçurum Krakeni derinliklerden yükselir.',{islands:[[650,650,210,'Kül Dağı',0],[2550,650,180,'Duman Kayası',1],[650,2550,170,'Kor Adası',1,true]],fleet:[2050,2100,'Alev Filo Adası'],labels:[['KÜL ADALARI',1300,1000]]}),
+  '7/1':sea('7/1','Kül Adaları','Karanlık İzci, Obsidyen Bıçağı ve Hiçlik Savaşçısı bu karanlık sularda gezer. Uçurum Krakeni derinliklerden yükselir.',{islands:[[650,650,210,'Kül Dağı',0],[2550,650,180,'Duman Kayası',1],[650,2550,170,'Kor Adası',1,true]],fleet:[2050,2100,'Alev Filo Adası'],labels:[['KÜL ADALARI',1300,1000]]}),
   '7/2':sea('7/2','Magma Boğazı','Karanlık İzci, Obsidyen Bıçağı ve Hiçlik Savaşçısı ile uçurum canavarlarının karanlık boğazı.',{islands:[[2550,650,200,'Magma Kapısı',1],[650,700,180,'Yanık Kıyı',0,true],[2550,2550,190,'Ateş Çukuru',0]],fleet:[1150,2100,'Magma Filo Adası'],labels:[['MAGMA BOĞAZI',1900,1000]]}),
-  '8/1':sea('8/1','Şimşek Denizi','Kül Sandalı, Lav Yaran ve Cehennem Kalyonu kaynayan sularda gezer. Magma Kaplumbağası ve Alev Leviathanı burada hüküm sürer.',{islands:[[650,650,200,'Şimşek Kayalıkları',0],[2550,650,170,'Gök Kulesi',1],[650,2550,190,'Sessiz Mezar',1,true]],fleet:[2050,2100,'Fırtına Filo Adası'],labels:[['ŞİMŞEK DENİZİ',1300,1000]]}),
+  '8/1':sea('8/1','Şimşek Denizi','Kül Sandalı, Lav Yaran ve Cehennem Kalyonu kaynayan sularda gezer. Alev Leviathanı burada hüküm sürer.',{islands:[[650,650,200,'Şimşek Kayalıkları',0],[2550,650,170,'Gök Kulesi',1],[650,2550,190,'Sessiz Mezar',1,true]],fleet:[2050,2100,'Fırtına Filo Adası'],labels:[['ŞİMŞEK DENİZİ',1300,1000]]}),
   '8/2':sea('8/2','Kasırga Gözü','Kül Sandalı, Lav Yaran ve Cehennem Kalyonu ile lav canavarlarının ölümcül suları.',{islands:[[2550,650,190,'Kasırga Burnu',1],[650,700,180,'Rüzgâr Kayası',0,true],[2550,2550,200,'Gürültü Adası',0]],fleet:[1150,2100,'Kasırga Filo Adası'],labels:[['KASIRGA GÖZÜ',1900,1000]]}),
 };
 export const MAP_KEYS=Object.keys(MAPS) as MapKey[];
