@@ -277,36 +277,55 @@ function worldClick(e:{clientX:number;clientY:number}){
   minimap.addEventListener('pointerdown',e=>{down=true;try{minimap.setPointerCapture(e.pointerId);}catch{}at(e);});
   minimap.addEventListener('pointermove',e=>{if(down)at(e);});
   const up=()=>{down=false;};minimap.addEventListener('pointerup',up);minimap.addEventListener('pointercancel',up);}
-// Alt bar (CP/SP + malzemeler): üst şeridinden tutup sürükleyerek taşınır; çift tık eski yerine döndürür. Konum saklanır.
-{const dock=document.querySelector('.hud-dock') as HTMLElement,handle=dock.querySelector('.dock-status') as HTMLElement,KEY='yedi-deniz-dock-pos';
-  const place=(x:number,y:number)=>{const w=dock.offsetWidth,h=dock.offsetHeight;x=clamp(x,0,Math.max(0,innerWidth-w));y=clamp(y,0,Math.max(0,innerHeight-h));dock.classList.add('moved');dock.style.left=`${x}px`;dock.style.top=`${y}px`;return{x,y};};
-  try{const p=JSON.parse(localStorage.getItem(KEY)||'null');if(p&&Number.isFinite(p.x))requestAnimationFrame(()=>place(p.x,p.y));}catch{}
-  let drag:{dx:number;dy:number}|null=null;
-  handle.addEventListener('pointerdown',e=>{if((e.target as HTMLElement).closest('button'))return;const r=dock.getBoundingClientRect();drag={dx:e.clientX-r.left,dy:e.clientY-r.top};try{handle.setPointerCapture(e.pointerId);}catch{}handle.classList.add('dragging');});
-  handle.addEventListener('pointermove',e=>{if(drag)place(e.clientX-drag.dx,e.clientY-drag.dy);});
-  const stop=()=>{if(!drag)return;drag=null;handle.classList.remove('dragging');try{localStorage.setItem(KEY,JSON.stringify({x:parseFloat(dock.style.left),y:parseFloat(dock.style.top)}));}catch{}};
-  handle.addEventListener('pointerup',stop);handle.addEventListener('pointercancel',stop);
-  handle.addEventListener('dblclick',e=>{if((e.target as HTMLElement).closest('button'))return;dock.classList.remove('moved');dock.style.left='';dock.style.top='';try{localStorage.removeItem(KEY);}catch{}});
-  addEventListener('resize',()=>{if(dock.classList.contains('moved'))place(parseFloat(dock.style.left),parseFloat(dock.style.top));});}
 ui('attack').onclick=toggleAttack;
 ui('repair').onclick=toggleRepair;
-// Gülle ve malzeme çerçeveleri: birbirinden bağımsız; tutamaktan sürüklenir, ekranın sol/sağ kenarına bırakılınca dikey
-// sütuna dönüşür. Sol baştaki düğme yalnızca kendi çerçevesini kapatır/açar. Konum, yön ve açık/kapalı durumu saklanır.
-for(const bar of [ui('ammoBar'),ui('itemBar')]){
-  const KEY=`yedi-deniz-bar-${bar.dataset.bar}`,grip=bar.querySelector('.bar-grip') as HTMLElement,EDGE=90;
-  const save=()=>{try{localStorage.setItem(KEY,JSON.stringify({x:bar.classList.contains('moved')?parseFloat(bar.style.left):null,y:parseFloat(bar.style.top),v:bar.classList.contains('vertical'),c:bar.classList.contains('collapsed')}));}catch{}};
-  const place=(x:number,y:number)=>{const w=bar.offsetWidth,h=bar.offsetHeight;bar.classList.add('moved');bar.style.left=`${clamp(x,0,Math.max(0,innerWidth-w))}px`;bar.style.top=`${clamp(y,0,Math.max(0,innerHeight-h))}px`;};
-  const orient=()=>{const r=bar.getBoundingClientRect(),v=r.left<EDGE||r.right>innerWidth-EDGE;if(v!==bar.classList.contains('vertical')){const cx=r.left+r.width/2,cy=r.top+r.height/2;bar.classList.toggle('vertical',v);
-    const n=bar.getBoundingClientRect();place(r.left<EDGE?r.left:r.right>innerWidth-EDGE?r.right-n.width:cx-n.width/2,cy-n.height/2);}};
-  try{const p=JSON.parse(localStorage.getItem(KEY)||'null');if(p){bar.classList.toggle('vertical',!!p.v);bar.classList.toggle('collapsed',!!p.c);if(p.x!=null&&Number.isFinite(p.x))requestAnimationFrame(()=>place(p.x,p.y));}}catch{}
-  (bar.querySelector('.bar-toggle') as HTMLElement).onclick=()=>{bar.classList.toggle('collapsed');closeAmmoPicker();save();};
-  let drag:{dx:number;dy:number}|null=null;
-  grip.addEventListener('pointerdown',e=>{if((e.target as HTMLElement).closest('button'))return;const r=bar.getBoundingClientRect();drag={dx:e.clientX-r.left,dy:e.clientY-r.top};closeAmmoPicker();try{grip.setPointerCapture(e.pointerId);}catch{}bar.classList.add('dragging');});
-  grip.addEventListener('pointermove',e=>{if(drag)place(e.clientX-drag.dx,e.clientY-drag.dy);});
-  const stop=()=>{if(!drag)return;drag=null;bar.classList.remove('dragging');orient();save();};
-  grip.addEventListener('pointerup',stop);grip.addEventListener('pointercancel',stop);
-  grip.addEventListener('dblclick',e=>{if((e.target as HTMLElement).closest('button'))return;bar.classList.remove('moved','vertical');bar.style.left='';bar.style.top='';try{localStorage.removeItem(KEY);}catch{}});
-  addEventListener('resize',()=>{if(bar.classList.contains('moved'))place(parseFloat(bar.style.left),parseFloat(bar.style.top));});}
+// HUD çerçeveleri: alt bar (CP/SP), gülle çerçevesi ve malzeme çerçevesi. Her biri kendi tutamağından tek başına taşınır.
+// Bir çerçeve başka bir çerçevenin kenarına yaklaştırılıp bırakılınca ona yapışır ve grup olur; alt bar tutulup taşınınca
+// ona bağlı tüm çerçeveler birlikte gelir. Gülle/malzeme çerçevesi tek tutulunca gruptan ayrılır (ona bağlı olanlar yerinde
+// kalır ve bir üstteki çerçeveye bağlanır). Ekranın sol/sağ kenarına bırakılan çerçeve dikey sütuna dönüşür.
+// Konumlar, yönler, açık/kapalı durumu ve bağlar saklanır; tutamağa çift tık o çerçeveyi varsayılan yerine döndürür.
+{type FrameId='dock'|'ammo'|'item';
+  const EL:Record<FrameId,HTMLElement>={dock:document.querySelector('.hud-dock') as HTMLElement,ammo:ui('ammoBar'),item:ui('itemBar')};
+  // gülle/malzeme çerçevesi tutamaktan ya da yuvalar dışındaki kenarından tutulur
+  const GRIP:Record<FrameId,HTMLElement>={dock:EL.dock.querySelector('.dock-status') as HTMLElement,ammo:EL.ammo,item:EL.item};
+  const IDS:FrameId[]=['dock','ammo','item'],DEFAULT_LINK:Record<FrameId,FrameId|null>={dock:null,ammo:'dock',item:'ammo'};
+  const POS=(id:FrameId)=>id==='dock'?'yedi-deniz-dock-pos':`yedi-deniz-bar-${id}`,LINKS='yedi-deniz-frame-links',EDGE=90,SNAP=26,GAP=2;
+  let link:Record<FrameId,FrameId|null>={...DEFAULT_LINK};
+  try{const l=JSON.parse(localStorage.getItem(LINKS)||'null');if(l)link={dock:null,ammo:l.ammo??null,item:l.item??null};}catch{}
+  const rect=(id:FrameId)=>EL[id].getBoundingClientRect();
+  const place=(id:FrameId,x:number,y:number)=>{const e=EL[id],w=e.offsetWidth,h=e.offsetHeight;e.classList.add('moved');e.style.left=`${clamp(x,0,Math.max(0,innerWidth-w))}px`;e.style.top=`${clamp(y,0,Math.max(0,innerHeight-h))}px`;};
+  const kids=(id:FrameId)=>IDS.filter(k=>link[k]===id);
+  const tree=(id:FrameId):FrameId[]=>kids(id).flatMap(k=>[k,...tree(k)]);
+  const save=()=>{try{for(const id of IDS){const e=EL[id];localStorage.setItem(POS(id),JSON.stringify({x:e.classList.contains('moved')?parseFloat(e.style.left):null,y:parseFloat(e.style.top),v:e.classList.contains('vertical'),c:e.classList.contains('collapsed')}));}localStorage.setItem(LINKS,JSON.stringify(link));}catch{}};
+  // kenara bırakılan çerçeve dikey, ortaya bırakılan yatay olur (yalnız gülle/malzeme)
+  const orient=(id:FrameId)=>{if(id==='dock')return;const e=EL[id],r=rect(id),v=r.left<EDGE||r.right>innerWidth-EDGE;if(v===e.classList.contains('vertical'))return;const cx=r.left+r.width/2,cy=r.top+r.height/2;e.classList.toggle('vertical',v);
+    const n=rect(id);place(id,r.left<EDGE?r.left:r.right>innerWidth-EDGE?r.right-n.width:cx-n.width/2,cy-n.height/2);};
+  // en yakın kenara yapış: alt/üst kenara (ortalanarak) ya da sol/sağ kenara (üstleri hizalı)
+  const snap=(id:FrameId)=>{const r=rect(id);let best:{d:number;to:FrameId;x:number;y:number}|null=null;
+    for(const t of IDS){if(t===id)continue;const q=rect(t),hOver=Math.min(r.right,q.right)-Math.max(r.left,q.left),vOver=Math.min(r.bottom,q.bottom)-Math.max(r.top,q.top),cx=q.left+q.width/2-r.width/2;
+      const opts:[number,number,number,boolean][]=[[Math.abs(r.top-q.bottom),cx,q.bottom+GAP,hOver>-SNAP],[Math.abs(r.bottom-q.top),cx,q.top-r.height-GAP,hOver>-SNAP],[Math.abs(r.left-q.right),q.right+GAP,q.top,vOver>-SNAP],[Math.abs(r.right-q.left),q.left-r.width-GAP,q.top,vOver>-SNAP]];
+      for(const [d,x,y,ok] of opts)if(ok&&d<SNAP&&(!best||d<best.d))best={d,to:t,x,y};}
+    if(best){place(id,best.x,best.y);link[id]=best.to;}};
+  for(const id of IDS){try{const p=JSON.parse(localStorage.getItem(POS(id))||'null');if(p){if(id!=='dock'){EL[id].classList.toggle('vertical',!!p.v);EL[id].classList.toggle('collapsed',!!p.c);}if(p.x!=null&&Number.isFinite(p.x))requestAnimationFrame(()=>place(id,p.x,p.y));}}catch{}}
+  for(const id of ['ammo','item'] as FrameId[])(EL[id].querySelector('.bar-toggle') as HTMLElement).onclick=()=>{EL[id].classList.toggle('collapsed');closeAmmoPicker();save();};
+  let drag:{id:FrameId;dx:number;dy:number;group:{id:FrameId;ox:number;oy:number}[]}|null=null;
+  for(const id of IDS){const grip=GRIP[id];
+    grip.addEventListener('pointerdown',e=>{if((e.target as HTMLElement).closest('button'))return;const r=rect(id);closeAmmoPicker();
+      // tek tutulan gülle/malzeme çerçevesi gruptan ayrılır; ona bağlı olanlar bir üstteki çerçeveye geçer
+      if(id!=='dock'){for(const k of kids(id))link[k]=link[id];link[id]=null;}
+      const group=id==='dock'?tree('dock').map(k=>{const q=rect(k);return{id:k,ox:q.left-r.left,oy:q.top-r.top};}):[];
+      for(const g of group)place(g.id,r.left+g.ox,r.top+g.oy);
+      drag={id,dx:e.clientX-r.left,dy:e.clientY-r.top,group};try{grip.setPointerCapture(e.pointerId);}catch{}EL[id].classList.add('dragging');grip.classList.add('dragging');});
+    // grup taşınırken tüm grubun kutusu ekranda kalacak şekilde sınırlanır (çerçeveler üst üste binmez)
+    grip.addEventListener('pointermove',e=>{if(!drag||drag.id!==id)return;const w=EL[id].offsetWidth,h=EL[id].offsetHeight;let x0=0,y0=0,x1=w,y1=h;
+      for(const g of drag.group){x0=Math.min(x0,g.ox);y0=Math.min(y0,g.oy);x1=Math.max(x1,g.ox+EL[g.id].offsetWidth);y1=Math.max(y1,g.oy+EL[g.id].offsetHeight);}
+      const x=clamp(e.clientX-drag.dx,-x0,Math.max(-x0,innerWidth-x1)),y=clamp(e.clientY-drag.dy,-y0,Math.max(-y0,innerHeight-y1));
+      place(id,x,y);for(const g of drag.group)place(g.id,x+g.ox,y+g.oy);});
+    const stop=()=>{if(!drag||drag.id!==id)return;drag=null;EL[id].classList.remove('dragging');grip.classList.remove('dragging');if(id!=='dock'){orient(id);snap(id);}save();};
+    grip.addEventListener('pointerup',stop);grip.addEventListener('pointercancel',stop);
+    grip.addEventListener('dblclick',e=>{if((e.target as HTMLElement).closest('button'))return;const el=EL[id];el.classList.remove('moved','vertical');el.style.left='';el.style.top='';link[id]=DEFAULT_LINK[id];
+      if(id==='dock')for(const k of tree('dock')){EL[k].classList.remove('moved','vertical');EL[k].style.left='';EL[k].style.top='';}save();});}
+  addEventListener('resize',()=>{for(const id of IDS)if(EL[id].classList.contains('moved'))place(id,parseFloat(EL[id].style.left),parseFloat(EL[id].style.top));});}
 ui('ability-speed').onclick=()=>activateAbility('speed');ui('ability-mine').onclick=dropMine;ui('ability-elite').onclick=activateEliteAbility;
 function recenterShip(){freeLook=null;camera.x=player.x;camera.y=player.y;toast('Kamera gemiye ortalandı');}
 ui('recenterShip').onclick=recenterShip;
