@@ -70,17 +70,17 @@ export function drawFleetBase(ctx:CanvasRenderingContext2D,theme:string,x:number
 export function drawBastion(ctx:CanvasRenderingContext2D,slot:number,x:number,y:number,alpha=1){
   return drawBuiltTower(ctx,0,slot,x,y,alpha);
 }
-// Tek tip filo kulesi (512 px kare görsel, 160 dünya birimi): zemin elipsinin merkezi (256,452 px)
+// Tek tip filo kulesi (512 px kare görsel, 112 dünya birimi): zemin elipsinin merkezi (256,452 px)
 // surdaki beşgen kaidenin merkezine oturur. frame parametresi eski kayıtlar için yok sayılır.
-export const TOWER_ART={size:160,anchorX:256/512,anchorY:452/512,dy:33};
+export const TOWER_ART={size:112,anchorX:256/512,anchorY:452/512,dy:33};
 export function drawBuiltTower(ctx:CanvasRenderingContext2D,_frame:number,slot:number,x:number,y:number,alpha=1){
   const img=load(fleetTowerUrl(''));if(slot<0||slot>=8||!ready(img))return false;const S=TOWER_ART.size;
   ctx.save();ctx.globalAlpha=alpha;
   ctx.drawImage(img,x-S*TOWER_ART.anchorX,y+TOWER_ART.dy-S*TOWER_ART.anchorY,S,S);
   ctx.restore();return true;
 }
-// Kuleler adanın görselinden bağımsızdır: surdaki yuvarlak kaidelerin üstüne dikilir (200 px çizim).
-export const TOWER_LABEL_OFFSET=-121;
+// Kuleler adanın görselinden bağımsızdır: surdaki yuvarlak kaidelerin üstüne dikilir (112 birim çizim).
+export const TOWER_LABEL_OFFSET=-75;
 
 // Ganimet sandıkları: 2 kare (tahta, yaldızlı), 128 px.
 const CHEST={frame:128,anchorX:64,anchorY:70.8,size:46};
