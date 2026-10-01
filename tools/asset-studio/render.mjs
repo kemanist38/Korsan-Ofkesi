@@ -30,7 +30,6 @@ jobs['icon-treasure-map-v2']=()=>page.evaluate(()=>renderItem('treasure'));
 jobs['icon-inventory-v2']=()=>page.evaluate(()=>renderItem('inventory'));
 // Başarım madalyaları (src/achievements.ts ACHIEVEMENTS sırası)
 jobs['badge-atlas-v2']=()=>page.evaluate(l=>renderMedalAtlas(l),[['skull',0],['skull',1],['skull',2],['anchor',1],['trident',0],['trident',2],['crown',1],['crown',2],['coin',0],['xmap',0],['xmap',2],['scroll',0],['scroll',2],['flame',1],['star',1],['star',2],['sun',1]]);
-for(const t of ['coral','verdant','misty','ice','storm','abyss','lava'])jobs[`fleet-tower-${t}-v4`]=()=>page.evaluate(t=>renderFleetTower(t),t);
 jobs['sea-mine-v1']=()=>page.evaluate(()=>renderMineSprite());
 const {SHIPS,MONSTERS,BOSSES}=await import('./catalog.js');
 for(const b of BOSSES)jobs[b.id]=()=>page.evaluate(id=>renderCatalogShip(id,{frame:224}),b.id);
