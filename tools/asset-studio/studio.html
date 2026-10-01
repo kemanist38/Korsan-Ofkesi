@@ -14,6 +14,7 @@ import {buildEquip,buildPowderKeg,buildTreasureMap,buildInventoryPlaque} from '.
 import {SHIPS,MONSTERS,BOSSES} from './catalog.js';
 const ALL_SHIPS=[...SHIPS,...BOSSES];
 import {buildFleetTower} from './tower.js';
+import {buildFleetLayout,FLEET_LAYOUT} from './fleet-layout.js';
 import {buildCrab,buildSerpent,buildJelly,buildTurtle,buildHydra} from './monsters.js';
 import * as T from './textures.js';
 import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
@@ -116,5 +117,11 @@ window.renderFleetTower=(theme,{frame=512,span=24,lookY=3,elev=65,exposure=.85}=
   const e=elev*Math.PI/180,cam=new THREE.OrthographicCamera(-span/2,span/2,span/2,-span/2,1,1200);cam.position.set(0,lookY+Math.sin(e)*500,Math.cos(e)*500);cam.lookAt(0,lookY,0);cam.updateMatrixWorld();cam.updateProjectionMatrix();
   const ex=renderer.toneMappingExposure;renderer.toneMappingExposure=exposure;const img=shot(scene,cam,frame);renderer.toneMappingExposure=ex;
   return{...exportCanvas(img),frame,anchor:anchorOf(cam,frame),top:anchorOf(cam,frame,new THREE.Vector3(0,t.userData.top,0)),unitsPerPx:span/frame};};
+// Filo adası yerleşim şablonu: 2:1 izometrik (30°), 16:9 tuval; kaidelerin ekran konumları da döner
+window.renderFleetLayout=({w=1920,h=1080,span=100}={})=>{const scene=stage(),m=buildFleetLayout();m.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});scene.add(m);
+  const e=30*Math.PI/180,a=w/h,cam=new THREE.OrthographicCamera(-span/2,span/2,span/2/a,-span/2/a,1,1200);cam.position.set(0,Math.sin(e)*500,Math.cos(e)*500);cam.lookAt(0,0,0);cam.updateMatrixWorld();cam.updateProjectionMatrix();
+  renderer.setSize(w,h,false);renderer.render(scene,cam);const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(renderer.domElement,0,0);
+  const pts=FLEET_LAYOUT.angles.map(d=>{const r=d*Math.PI/180,v=new THREE.Vector3(Math.cos(r)*42.1,4.2,-Math.sin(r)*42.1).project(cam);return{deg:+d.toFixed(1),x:Math.round((v.x+1)/2*w),y:Math.round((1-v.y)/2*h)};});
+  return{png:c.toDataURL('image/png'),pts};};
 window.studioReady=true;
 </script></body></html>
