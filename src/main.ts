@@ -28,10 +28,12 @@ type AmmoKind = 'iron'|'chain'|SpecialAmmo;
 const isSpecial=(a:string):a is SpecialAmmo=>a in SPECIAL_AMMO;
 type CannonKind = 'cast'|'long'|'rapid'|'heavy';
 type CannonStock=Record<CannonKind,number>;
-type Shot = Vec & { powder?:boolean; vx:number; vy:number; life:number; owner:'player'|'enemy'; damage:number; hit:boolean; ammo:AmmoKind; target?:Target; slow?:number; splash?:number; visual?:'spit'; age?:number; flight?:number; arc?:number; trail?:number };
+type Shot = Vec & { captain?:Enemy; foe?:Enemy; powder?:boolean; vx:number; vy:number; life:number; owner:'player'|'enemy'; damage:number; hit:boolean; ammo:AmmoKind; target?:Target; slow?:number; splash?:number; visual?:'spit'; age?:number; flight?:number; arc?:number; trail?:number };
 type SalvoRound = { powder?:boolean; delay:number; target:Target; side:number; slot:number; damage:number; ammo:AmmoKind };
 type EnemyRole='light'|'heavy';
-type Enemy = Vec & { kind:'ship'; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
+// Test kaptanı: elit gemili, oyuncu gibi savaşan yapay rakip (yalnız test modunda 1/1'de)
+type Captain={elite:EliteShipId;ammo:AmmoKind;ammoClock:number;abilityCd:number;foe:Enemy|null;orbit:Vec|null;orbitClock:number};
+type Enemy = Vec & { kind:'ship'; captain?:Captain; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
 type ParticleKind='wisp'|'foam'|'smoke'|'spark'|'damage'|'flash'|'explosion'|'splash'|'splinter'|'bubble'|'plank'|'firePuff'|'target'|'poison'|'soul'|'shock';
 // z: su üstünden yükseklik (ekranda yukarı kayar); vz ile savrulan parçalar suya düşer
 type Particle = Vec & { vx:number; vy:number; life:number; maxLife:number; kind:ParticleKind; text?:string; color?:string; z?:number; vz?:number; rot?:number; vr?:number; size?:number; variant?:number };
@@ -171,6 +173,8 @@ if(ELITE_TEST_MODE){const M=5_000_000;
   for(const id of Object.keys(OFFICERS) as OfficerId[])crew.officers[id]=OFFICER_MAX_RANK;
   crew.active=(Object.keys(OFFICERS) as OfficerId[]).filter(id=>crew.active.includes(id)).concat((Object.keys(OFFICERS) as OfficerId[]).filter(id=>!crew.active.includes(id))).slice(0,officerSlots(state.level));saveCrew(crew);}
 let bonus=computeBonus(crew);
+// Test aşamasında gemi her zaman yuvası kadar ağır topla dolu; top satın almak gerekmez
+function fillTestCannons(){if(!ELITE_TEST_MODE)return;for(const k of Object.keys(mountedCannons) as CannonKind[])mountedCannons[k]=0;mountedCannons.heavy=cannonCapacity();cannonInventory.heavy=Math.max(cannonInventory.heavy,5000);state.cannonType='heavy';state.cannon=mountedCannonCount();}
 if(!arsenal.seeded){for(const item of ['fire','grape','shield','mine'] as QuickItemId[]){const row=QUICK_ITEMS[item].category==='ammo'?0:AMMO_ROW;if(quickSlots.includes(item))continue;for(let i=row;i<row+AMMO_ROW;i++)if(!quickSlots[i]){quickSlots[i]=item;break;}}arsenal.seeded=true;saveArsenal(arsenal);}
 // Yeni gülleler (patlayıcı, kule kırıcı, can emici) bir kez hızlı yuvalara yerleşir; yer yoksa MALZEMELER'den eklenir
 if(!arsenal.seededV2){for(const item of ['explosive','breaker','leech'] as QuickItemId[]){if(quickSlots.includes(item))continue;const free=quickSlots.findIndex((v,k)=>k<AMMO_ROW&&!v);if(free>=0)quickSlots[free]=item;}arsenal.seededV2=true;saveArsenal(arsenal);}
@@ -451,6 +455,7 @@ function populateMap(){
   createMonsters();setupFleetIsland();
   for(let i=0;i<map.npcCount;i++)spawnEnemy();
   if(bossOf(currentMap).pending)spawnBoss();
+  spawnTestCaptains();
   for(let i=0;i<3;i++){const p=randomSeaPoint(0);lootChests.push(createChest('drift',p.x,p.y,bonus.gilded,1+.5*(map.tier-1)));}
   for(let i=0;i<SPARKLE_COUNT;i++)spawnSparkle();
   ui('mapName').textContent=`${map.key} · ${map.name}`;ui('mapSubtitle').textContent=map.safe?'SAVAŞA KAPALI':`${theme().name.toLocaleUpperCase('tr')} · SEVİYE ${map.tier}`;ui('mapBadge').className=`map-badge ${map.safe?'safe':'danger-'+Math.min(3,Math.ceil(map.tier/3))}`;
@@ -766,6 +771,7 @@ function renderCannonShop(){
 }
 // Gemi değişince (ör. elitten başlangıç gemisine) yuva sayısı düşebilir; taşan toplar depoya iner.
 function fitCannonsToCapacity(){
+  if(ELITE_TEST_MODE){fillTestCannons();return;}
   let over=mountedCannonCount()-cannonCapacity();if(over<=0)return;
   for(const kind of ['cast','long','rapid','heavy'] as CannonKind[]){if(kind===state.cannonType)continue;const n=Math.min(over,mountedCannons[kind]);mountedCannons[kind]-=n;cannonInventory[kind]+=n;over-=n;if(over<=0)break;}
   if(over>0){const n=Math.min(over,mountedCannons[state.cannonType]-1);mountedCannons[state.cannonType]-=n;cannonInventory[state.cannonType]+=n;}
@@ -1095,7 +1101,7 @@ function renderCombatTargets(){
   const root=ui('combatTargets');root.classList.toggle('visible',visibleCombatTargets.length>0);
   // sağda, olay panelinin (hazine vb.) hemen altında dur; konum yalnız panel değişince okunur
   if(root.style.top!==combatTargetsTop)root.style.top=combatTargetsTop;
-  const html=visibleCombatTargets.map((target,index)=>{const active=target===selected;const fighting=target.aggro||(active&&state.attacking);const role=target.kind==='ship'&&target.boss?'HARİTA BOSSU':target.kind==='ship'&&target.tower?'FİLO KULESİ · FİLO SAVAŞI':target.kind==='monster'?'DENİZ CANAVARI':target.role==='heavy'?'AĞIR GEMİ':'HAFİF GEMİ';const portrait=target.kind==='monster'?target.def.portrait:target.def?.portrait??-1;return `<button class="combat-target ${active?'selected':''}" data-combat-target="${index}"><span class="target-portrait ${target.kind} ${target.kind==='ship'?target.role:''}">${target.kind==='ship'&&target.boss?`<i class="portrait-art" style="${portraitStyle(BOSS_ATLAS,target.boss.portrait,MAP_KEYS.length,BOSS_ATLAS_COLS)}"></i>`:portrait>=0?`<i class="portrait-art" style="${portraitStyle(PORTRAIT_ATLAS,portrait,PORTRAIT_COUNT,PORTRAIT_COLS)}"></i>`:`<i class="portrait-art tower-art" style="background-image:url(${fleetTowerUrl(theme().fleet)})"></i>`}</span><span class="target-info"><small>${target.kind==='monster'?role:'SV '+target.tier+' · '+role}</small><strong>${target.name}</strong><i><em style="width:${Math.max(0,target.hp/target.maxHp*100)}%"></em></i><b>${Math.ceil(target.hp)} / ${target.maxHp}</b></span><span class="target-state">${fighting?'SAVAŞ':'HEDEF'}</span></button>`;}).join('');
+  const html=visibleCombatTargets.map((target,index)=>{const active=target===selected;const fighting=target.aggro||(active&&state.attacking);const role=target.kind==='ship'&&target.captain?'TEST KAPTANI · '+eliteById(target.captain.elite).name.toLocaleUpperCase('tr'):target.kind==='ship'&&target.boss?'HARİTA BOSSU':target.kind==='ship'&&target.tower?'FİLO KULESİ · FİLO SAVAŞI':target.kind==='monster'?'DENİZ CANAVARI':target.role==='heavy'?'AĞIR GEMİ':'HAFİF GEMİ';const portrait=target.kind==='monster'?target.def.portrait:target.def?.portrait??-1;return `<button class="combat-target ${active?'selected':''}" data-combat-target="${index}"><span class="target-portrait ${target.kind} ${target.kind==='ship'?target.role:''}">${target.kind==='ship'&&target.boss?`<i class="portrait-art" style="${portraitStyle(BOSS_ATLAS,target.boss.portrait,MAP_KEYS.length,BOSS_ATLAS_COLS)}"></i>`:portrait>=0?`<i class="portrait-art" style="${portraitStyle(PORTRAIT_ATLAS,portrait,PORTRAIT_COUNT,PORTRAIT_COLS)}"></i>`:target.kind==='ship'&&target.captain?`<i class="portrait-art tower-art" style="background-image:url(${eliteArtUrl(target.captain.elite)})"></i>`:`<i class="portrait-art tower-art" style="background-image:url(${fleetTowerUrl(theme().fleet)})"></i>`}</span><span class="target-info"><small>${target.kind==='monster'?role:'SV '+target.tier+' · '+role}</small><strong>${target.name}</strong><i><em style="width:${Math.max(0,target.hp/target.maxHp*100)}%"></em></i><b>${Math.ceil(target.hp)} / ${target.maxHp}</b></span><span class="target-state">${fighting?'SAVAŞ':'HEDEF'}</span></button>`;}).join('');
   if(html===combatTargetsHtml)return;combatTargetsHtml=html;root.innerHTML=html;
   root.querySelectorAll<HTMLButtonElement>('[data-combat-target]').forEach(button=>button.onpointerdown=()=>{const target=visibleCombatTargets[Number(button.dataset.combatTarget)];if(target){selected=target;updateUI();}});
 }
@@ -1153,6 +1159,7 @@ function update(dt:number){
   player.angle=Math.atan2(Math.sin(player.angle),Math.cos(player.angle));
   for(const e of enemies){
     if(e.tower){updateTower(e,dt);continue;}
+    if(e.captain){updateCaptain(e,dt);continue;}
     if((e.frozen??0)>0){e.frozen=Math.max(0,e.frozen!-dt);e.cooldown=Math.max(e.cooldown,.5);continue;}
     const d=dist(e,player);e.wander+=dt;e.slowTimer=Math.max(0,e.slowTimer-dt);if(e.aggro){e.combatTimer-=dt;if(e.combatTimer<=0||Math.hypot(e.x-e.homeX,e.y-e.homeY)>680)e.aggro=false;}
     const homeDistance=Math.hypot(e.x-e.homeX,e.y-e.homeY);
@@ -1168,9 +1175,10 @@ function update(dt:number){
   }
   for(let i=shots.length-1;i>=0;i--){
     const s=shots[i];
-    if(s.owner==='enemy'&&state.invulnerable<=0&&ghostTimer<=0&&stealthTimer<=0){const a=Math.atan2(player.y-s.y,player.x-s.x),speed=Math.max(Math.hypot(s.vx,s.vy),Math.abs(player.speed)+220);s.vx=Math.cos(a)*speed;s.vy=Math.sin(a)*speed;s.life=Math.max(s.life,.12);}
+    if(s.foe){if(enemies.includes(s.foe)){const a=Math.atan2(s.foe.y-s.y,s.foe.x-s.x),sp=Math.hypot(s.vx,s.vy);s.vx=Math.cos(a)*sp;s.vy=Math.sin(a)*sp;s.life=Math.max(s.life,.12);}}
+    else if(s.owner==='enemy'&&state.invulnerable<=0&&ghostTimer<=0&&stealthTimer<=0){const a=Math.atan2(player.y-s.y,player.x-s.x),speed=Math.max(Math.hypot(s.vx,s.vy),Math.abs(player.speed)+220);s.vx=Math.cos(a)*speed;s.vy=Math.sin(a)*speed;s.life=Math.max(s.life,.12);}
     if(s.owner==='player'&&s.target&&targetExists(s.target)){const a=Math.atan2(s.target.y-s.y,s.target.x-s.x),speed=Math.hypot(s.vx,s.vy);s.vx=Math.cos(a)*speed;s.vy=Math.sin(a)*speed;s.life=Math.max(s.life,.12);}
-    if(s.flight===undefined){const aim=s.owner==='player'?s.target:player,sp=Math.max(1,Math.hypot(s.vx,s.vy)),d=aim&&targetExistsOrPlayer(aim)?dist(s,aim):sp*s.life;s.flight=Math.max(.15,Math.min(s.life,d/sp));s.age=0;s.arc=Math.min(80,d*.13)*(s.splash?2.2:1);
+    if(s.flight===undefined){const aim=s.owner==='player'?s.target:s.foe??player,sp=Math.max(1,Math.hypot(s.vx,s.vy)),d=aim&&targetExistsOrPlayer(aim)?dist(s,aim):sp*s.life;s.flight=Math.max(.15,Math.min(s.life,d/sp));s.age=0;s.arc=Math.min(80,d*.13)*(s.splash?2.2:1);
       if(s.splash&&aim)particles.push({x:aim.x,y:aim.y,vx:0,vy:0,life:s.flight,maxLife:s.flight,kind:'target',size:120});}
     s.age=(s.age??0)+dt;s.trail=(s.trail??0)-dt;
     if(s.trail<=0){s.trail=.08;const z=shotHeight(s);
@@ -1190,7 +1198,8 @@ function update(dt:number){
           if(m.hp<=0)defeatMonster(m);
         }
       }
-    }else if(state.invulnerable<=0&&ghostTimer<=0&&dist(s,player)<22){
+    }else if(s.foe){if(enemies.includes(s.foe)&&dist(s,s.foe)<(s.foe.hitRadius??30)){s.hit=true;s.life=0;captainHit(s.foe,s,s.captain??null);}}
+    else if(state.invulnerable<=0&&ghostTimer<=0&&dist(s,player)<22){
       s.hit=true;s.life=0;
       // Su Kubbesi hasarı tamamen emer; Hayalet Kadırga pasifi %10 ihtimalle gülleyi savuşturur
       if(domeTimer>0)spawnRipple(s);
@@ -1221,6 +1230,8 @@ function update(dt:number){
 
 function sinkEnemy(e:Enemy){
   const j=enemies.indexOf(e);if(j<0)return;
+  if(e.captain){enemies.splice(j,1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}burst(e.x,e.y,true);playExplosion();playSink(earGain(e));splashAt(e.x,e.y,190);spawnText(e,`${e.name} BATTI`,'#ffb070');
+    const map=currentMap;later(5,()=>{if(currentMap!==map)return;const a=Math.random()*Math.PI*2,p={x:clamp(e.homeX+Math.cos(a)*450,80,WORLD_WIDTH-80),y:clamp(e.homeY+Math.sin(a)*260,80,WORLD_HEIGHT-80)};Object.assign(e,{x:p.x,y:p.y,hp:e.maxHp,frozen:0,burnTimer:0,slowTimer:0});e.captain!.foe=null;enemies.push(e);spawnText(e,`${e.name} YENİDEN DENİZDE`,'#9fe8dc');});return;}
   enemies.splice(j,1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}
   burst(e.x,e.y,true);playExplosion();playSink(earGain(e));splashAt(e.x,e.y,190);
   if(e.def&&!e.tower)wrecks.push({x:e.x,y:e.y,angle:e.angle,sprite:e.def.sprite,span:e.def.span,t:0,bubble:0});
@@ -1585,7 +1596,7 @@ function drawShotShadow(s:Shot){const p=worldToScreen(s),h=shotHeight(s),k=1-Mat
 // Gülleler: kullanıcının mühimmat ikonlarıyla aynı tarzdaki uçuş görselleri (shotArt.ts); iz görselin içindedir.
 function drawShotBall(s:Shot){const p=worldToScreen(s),y=p.y-shotHeight(s),spin=(s.age??0)*16,a=Math.atan2(s.vy,s.vx);
   if(s.visual==='spit'){drawVfx(ctx,'spit',p.x,y,34,{rot:spin*.2});return;}
-  const look=s.owner==='enemy'?(s.ammo==='fire'?'fire':'iron'):s.ammo==='chain'||s.ammo==='grape'||s.ammo==='fire'||s.ammo==='explosive'||s.ammo==='breaker'||s.ammo==='leech'?s.ammo:'iron';
+  const look=s.owner==='enemy'&&!s.captain?(s.ammo==='fire'?'fire':'iron'):s.ammo==='chain'||s.ammo==='grape'||s.ammo==='fire'||s.ammo==='explosive'||s.ammo==='breaker'||s.ammo==='leech'?s.ammo:'iron';
   drawShotSprite(ctx,look,p.x,y,a);}
 function drawParticle(p:Particle){if(!onScreen(p,260))return;const s=worldToScreen(p),a=Math.max(0,Math.min(1,p.life/p.maxLife)),y=s.y-(p.z??0),size=p.size;
   switch(p.kind){
@@ -1602,6 +1613,57 @@ function drawParticle(p:Particle){if(!onScreen(p,260))return;const s=worldToScre
     case 'soul':drawVfx(ctx,'soul',s.x,y,size??24,{alpha:Math.min(1,a*1.8)});return;
     case 'splinter':drawVfx(ctx,'splinter',s.x,y,size??24,{rot:p.rot,alpha:Math.min(1,a*2),variant:p.variant??0});return;
     default:drawVfx(ctx,p.kind as 'bubble'|'plank'|'firePuff'|'poison',s.x,y,(size??18)*(p.kind==='firePuff'?.6+a*.6:1),{rot:p.rot,alpha:Math.min(1,a*1.6)});}}
+// ---------------------------------------------------------------- Test kaptanları
+// Yalnızca test modunda 1/1'de: elit gemili üç yapay kaptan birbirleriyle ve oyuncuyla serbest savaşır. Farklı gülleler
+// seçer, elit yeteneklerini kullanır; batınca 5 sn sonra yeniden denize çıkar.
+// (sabitler fonksiyon içinde: harita kurulumu bu bölümden önce de çalışabilir)
+function spawnTestCaptains(){if(!ELITE_TEST_MODE||currentMap!=='1/1')return;
+  const TEST_CAPTAINS:[string,EliteShipId][]=[['ADM_AHMET','magma'],['ADM_YASİN','tempest'],['ADM_DOGAN','glacial']];
+  TEST_CAPTAINS.forEach(([name,elite],i)=>{const a=i/3*Math.PI*2,x=WORLD_WIDTH/2+Math.cos(a)*700,y=WORLD_HEIGHT/2+Math.sin(a)*380;
+    enemies.push({kind:'ship',role:'heavy',x,y,angle:0,hp:400000,maxHp:400000,cooldown:1+i*.6,speed:150,damage:1100,reload:2.3,rewardGold:0,rewardFame:0,color:'#79372f',name,tier:8,aggro:true,wander:0,slowTimer:0,homeX:x,homeY:y,combatTimer:999,hitRadius:44,
+      captain:{elite,ammo:'iron',ammoClock:2+i*2,abilityCd:6+i*3,foe:null,orbit:null,orbitClock:0},face:{east:Math.cos(a)<0,north:Math.sin(a)>0}});});}
+const captainFoeOf=(e:Enemy)=>e.captain!.foe&&enemies.includes(e.captain!.foe)?e.captain!.foe:null;
+function updateCaptain(e:Enemy,dt:number){const c=e.captain!;e.slowTimer=Math.max(0,e.slowTimer-dt);
+  if((e.frozen??0)>0){e.frozen=Math.max(0,e.frozen!-dt);return;}
+  // hedef: en yakın rakip (diğer kaptanlar ve oyuncu); oyuncu hedefse foe boş kalır
+  // oyuncu 1,6 kat uzak sayılır: kaptanlar önce birbirleriyle çatışır
+  let best:Enemy|null=null,bd=dist(e,player)*1.6;for(const o of enemies)if(o!==e&&o.captain){const d=dist(e,o);if(d<bd){bd=d;best=o;}}
+  if(c.foe!==best&&Math.random()<dt*.6)c.foe=best;const foe:Vec=captainFoeOf(e)??player,d=dist(e,foe);
+  // hareket: uzaksa yaklaş, menzildeyse rakibin çevresinde dolaş (Seafight merdiven adımları)
+  c.orbitClock-=dt;if(!c.orbit||c.orbitClock<=0||dist(e,c.orbit)<30){const r=d>560?Math.max(0,d-360):360+Math.random()*60,a=Math.atan2(e.y-foe.y,e.x-foe.x)+(Math.random()<.5?-1:1)*(.6+Math.random()*.6);
+    c.orbit={x:clamp(foe.x+Math.cos(a)*r,80,WORLD_WIDTH-80),y:clamp(foe.y+Math.sin(a)*r,80,WORLD_HEIGHT-80)};c.orbitClock=2.5+Math.random()*2;e.iso=null;
+    // savaş alanından (doğduğu yer) 650 birimden fazla uzaklaşmaz
+    const hx=c.orbit.x-e.homeX,hy=c.orbit.y-e.homeY,hl=Math.hypot(hx,hy);if(hl>650){c.orbit.x=e.homeX+hx/hl*650;c.orbit.y=e.homeY+hy/hl*650;}}
+  e.face??={east:true,north:false};const st=isoAdvance(e.iso??null,e.x,e.y,c.orbit.x,c.orbit.y,e.speed*(e.slowTimer>0?.55:1)*1.4,dt,e.face);e.iso=st.m;
+  if(st.done)c.orbitClock=0;else{e.x=clamp(e.x+st.mx,40,WORLD_WIDTH-40);e.y=clamp(e.y+st.my,40,WORLD_HEIGHT-40);}
+  // üst üste binmesin: diğer kaptanlardan ve oyuncudan en az 170 birim uzak durur
+  for(const o of [player,...enemies.filter(x=>x.captain&&x!==e)] as Vec[]){const dx=e.x-o.x,dy=e.y-o.y,dd=Math.hypot(dx,dy)||1;if(dd<170){const k=(170-dd)*Math.min(1,dt*3);e.x+=dx/dd*k;e.y+=dy/dd*k*.6;}}
+  // gülle değiştirme
+  c.ammoClock-=dt;if(c.ammoClock<=0){c.ammoClock=5+Math.random()*4;const all:AmmoKind[]=['iron','chain','fire','grape','explosive','breaker','leech'];c.ammo=all[Math.floor(Math.random()*all.length)];}
+  e.cooldown-=dt;if(d<470&&e.cooldown<=0)captainFire(e,foe);
+  c.abilityCd-=dt;if(d<500&&c.abilityCd<=0){c.abilityCd=11+Math.random()*5;captainAbility(e,foe);}}
+function captainFire(e:Enemy,foe:Vec){const c=e.captain!,a=Math.atan2(foe.y-e.y,foe.x-e.x),fe=captainFoeOf(e);
+  playEnemyCannon(dist(e,player),(e.x-player.x)/600);muzzleFlash(e.x+Math.cos(a)*30,e.y+Math.sin(a)*30-10,a,44);
+  for(let k=0;k<3;k++){const off=(k-1)*.06;later(k*.08,()=>{if(!enemies.includes(e))return;
+    shots.push({x:e.x,y:e.y,vx:Math.cos(a+off)*300,vy:Math.sin(a+off)*300,life:2.4,owner:'enemy',damage:e.damage*(.85+Math.random()*.3)*(c.ammo==='iron'?1:1.4),hit:false,ammo:c.ammo,captain:e,foe:fe??undefined});});}
+  e.cooldown=e.reload*(.9+Math.random()*.3);}
+// kaptan güllesi başka bir kaptana isabet etti
+function captainHit(t:Enemy,s:Shot,from:Enemy|null){const dmg=Math.round(s.damage);t.hp-=dmg;damageText(t.x,t.y,dmg,DMG_RED);burst(t.x,t.y);
+  if(s.ammo==='chain')t.slowTimer=3;if(s.ammo==='fire'){t.burnTimer=6;t.burnDps=Math.max(t.burnDps??0,dmg*.08);}
+  if(s.ammo==='explosive')splashAt(t.x,t.y,120);if(s.ammo==='leech'&&from){from.hp=Math.min(from.maxHp,from.hp+dmg*.25);spawnSoul(t,from);}
+  if(from&&t.captain&&!t.captain.foe)t.captain.foe=from;if(t.hp<=0)sinkEnemy(t);}
+function captainDamage(t:Vec,amount:number,from:Enemy){const e=enemies.includes(t as Enemy)?t as Enemy:null;
+  if(e){e.hp-=amount;damageText(e.x,e.y,Math.round(amount),DMG_RED);if(e.hp<=0)sinkEnemy(e);}
+  else if(state.invulnerable<=0&&ghostTimer<=0&&domeTimer<=0){const taken=amount*bonus.taken*eliteTakenMult();state.hp-=taken;damageText(player.x,player.y,Math.round(taken),'#ff6a5a');if(state.hp<=0)respawn();}
+  void from;}
+function captainAbility(e:Enemy,foe:Vec){const c=e.captain!,ship=eliteById(c.elite),P=e.damage*6;spawnText(e,ship.ability.toLocaleUpperCase('tr'),'#ffcf5a');
+  if(c.elite==='magma'){const at={x:foe.x,y:foe.y};for(let i=0;i<4;i++){const dd=i*.15,p=i?{x:at.x+(Math.random()-.5)*130,y:at.y+(Math.random()-.5)*80}:at;spawnMeteor(p,dd);later(dd+.45,()=>{if(dist(foe,p)<80)captainDamage(foe,P*.4,e);burst(p.x,p.y,true);playExplosion();});}later(1.1,()=>spawnLavaPool(at,3));screenTint(.15,'255,90,20');}
+  else if(c.elite==='tempest'){spawnLightning(e,foe);later(.1,()=>captainDamage(foe,P*1.2,e));}
+  else if(c.elite==='glacial'){spawnFrost(foe,3);later(.15,()=>{captainDamage(foe,P*.5,e);const fe=enemies.includes(foe as Enemy)?foe as Enemy:null;if(fe)fe.frozen=3;});}}
+function drawCaptain(e:Enemy,s:Vec){const c=e.captain!,im=eliteIsoImage(ELITE_ISO[c.elite]);if(!im.complete||!im.naturalWidth)return;
+  const f=e.face??{east:true,north:false},idx=f.north?(f.east?0:3):(f.east?1:2),h=im.naturalHeight,D=158;
+  drawHullWater(e,100);ctx.save();ctx.translate(s.x,s.y);if((e.frozen??0)>0)ctx.filter='saturate(.4) brightness(1.3) hue-rotate(160deg)';ctx.drawImage(im,idx*h,0,h,h,-D/2,-D*.7,D,D);ctx.restore();
+  const top=-122;drawHealthBar(s.x,s.y+top,80,e.hp/e.maxHp,'#f0584a');ctx.fillStyle='#ffd98a';ctx.font='800 11px Inter';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=4;ctx.fillText(e.name,s.x,s.y+top-8);ctx.shadowBlur=0;}
 // Batan gemi: yan yatar, suya gömülür, kabarcıklar çıkarır
 function drawWreck(w:Wreck){const s=worldToScreen(w),k=Math.min(1,w.t/WRECK_TIME);ctx.save();ctx.globalAlpha=Math.max(0,1-k*k);ctx.translate(s.x,s.y+k*12);ctx.rotate(Math.sin(w.t*3)*.05+k*.35);ctx.scale(1-k*.2,1-k*.5);drawNpcShip(ctx,w.sprite,w.span,0,0,w.angle,performance.now());ctx.restore();}
 // ---------------------------------------------------------------- Gemi–su etkileşimi
@@ -1665,7 +1727,7 @@ function draw(){
   drawCoordGrid();drawMapEdges();islands.forEach(i=>{if(onScreen(i,i.r+260))drawIsland(i);});drawFleetIsland();lootChests.forEach(drawLootChest);drawTreasureMark();sparkles.forEach(drawSparkle);mines.forEach(m=>{const p=worldToScreen(m);drawMineSprite(ctx,p.x,p.y,performance.now(),m.arm>0,m.life<5);});monsters.forEach(m=>{if(onScreen(m,320))drawMonster(m);});
   wrecks.forEach(drawWreck);drawAbilityFxUnder(ctx,worldToScreen);particles.forEach(p=>{if(UNDER.has(p.kind))drawParticle(p);});shots.forEach(drawShotShadow);
   if(selected&&targetExists(selected))drawTargetMarker(selected);
-  enemies.filter(e=>onScreen(e,e.boss?420:300)).sort((a,b)=>a.y-b.y).forEach(e=>{const s=worldToScreen(e);if(e.boss)drawBossAura(e,s);if(!e.tower)drawHullWater(e,hullLength(e));const raster=e.tower?drawBastion(ctx,e.towerIndex??0,s.x,s.y):e.def?drawNpcShip(ctx,e.def.sprite,e.def.span,s.x,s.y,npcFaceAngle(e),performance.now()):false;if(!raster)return;const top=raster?(e.tower?TOWER_LABEL_OFFSET:shipLabelOffset(e.def!.span)):-42;if(e.boss){drawBossFlag(s,top);drawBossPlate(e,s,top);return;}const bw=e.tower||e.role==='heavy'?72:56;drawHealthBar(s.x,s.y+top,bw,e.hp/e.maxHp,e.tower?'#f09a4f':e.role==='heavy'?'#f0584a':'#4fd0da');ctx.fillStyle='#e6dccb';ctx.font='600 10px Inter';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText(e.name,s.x,s.y+top-7);ctx.shadowBlur=0;});
+  enemies.filter(e=>onScreen(e,e.boss?420:300)).sort((a,b)=>a.y-b.y).forEach(e=>{const s=worldToScreen(e);if(e.captain){drawCaptain(e,s);return;}if(e.boss)drawBossAura(e,s);if(!e.tower)drawHullWater(e,hullLength(e));const raster=e.tower?drawBastion(ctx,e.towerIndex??0,s.x,s.y):e.def?drawNpcShip(ctx,e.def.sprite,e.def.span,s.x,s.y,npcFaceAngle(e),performance.now()):false;if(!raster)return;const top=raster?(e.tower?TOWER_LABEL_OFFSET:shipLabelOffset(e.def!.span)):-42;if(e.boss){drawBossFlag(s,top);drawBossPlate(e,s,top);return;}const bw=e.tower||e.role==='heavy'?72:56;drawHealthBar(s.x,s.y+top,bw,e.hp/e.maxHp,e.tower?'#f09a4f':e.role==='heavy'?'#f0584a':'#4fd0da');ctx.fillStyle='#e6dccb';ctx.font='600 10px Inter';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText(e.name,s.x,s.y+top-7);ctx.shadowBlur=0;});
   drawPlayerMarker();drawHullWater(player,hullLength(player));
   if(ghostTimer>0){const px=player.x,py=player.y;ghostTrail.forEach((p,i)=>{ghostFade=(i+1)/(ghostTrail.length+1)*.35;player.x=p.x;player.y=p.y;drawPlayerShip();});ghostFade=0;player.x=px;player.y=py;}
   drawPlayerShip();drawPlayerLabel();
@@ -1722,6 +1784,6 @@ function drawMinimap(){const W=188,H=133,sx=(x:number)=>x/WORLD_WIDTH*W,sy=(y:nu
   const vw=innerWidth/camera.zoom,vh=innerHeight/camera.zoom;mini.strokeStyle=freeLook?'#ffe09bee':'#ffe09b88';mini.lineWidth=1.2;mini.strokeRect(sx(camera.x-vw/2),sy(camera.y-vh/2),vw/WORLD_WIDTH*W,vh/WORLD_HEIGHT*H);}
 // manualClock (yalnızca geliştirme): tanıtım videosu kare kare çekilirken oyun dışarıdan adımlanır
 let manualClock=false;
-let last=performance.now();function loop(now:number){const dt=Math.min(.033,(now-last)/1000);last=now;if(!manualClock){update(dt);draw();}requestAnimationFrame(loop);}renderQuickSlots();updateUI();requestAnimationFrame(loop);
+let last=performance.now();function loop(now:number){const dt=Math.min(.033,(now-last)/1000);last=now;if(!manualClock){update(dt);draw();}requestAnimationFrame(loop);}fillTestCannons();renderQuickSlots();updateUI();requestAnimationFrame(loop);
 // Yalnızca geliştirme sunucusunda: tarayıcı testleri için durum erişimi.
-if(import.meta.env.DEV)(window as any).__ky={isoFace,spawnBoss:()=>spawnBoss(),elite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;activeSkin=null;eliteAbility.cooldown=0;activateEliteAbility();},treasure,rollTreasurePart,manual:(on:boolean)=>{manualClock=on;},step:(dt:number)=>{update(dt);draw();},noFade:()=>{mapFade=0;},cinematic,makeShip,NPCS,MONSTERS,state,player,camera,enemies,monsters,respawn,enterMap,mapDef,fleetOwner,lootChests,sparkles,sinkEnemy,shots,particles,wrecks,select:(t:Target)=>{selected=t;state.attacking=true;},route:(v:Vec)=>{routeTarget=navigablePoint(v);destination=routeVia(routeTarget);},fleetNav,get routeTarget(){return routeTarget;},get selected(){return selected;},get destination(){return destination;}};
+if(import.meta.env.DEV)(window as any).__ky={isoFace,spawnBoss:()=>spawnBoss(),elite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;activeSkin=null;eliteAbility.cooldown=0;activateEliteAbility();},treasure,rollTreasurePart,manual:(on:boolean)=>{manualClock=on;},step:(dt:number)=>{update(dt);draw();},noFade:()=>{mapFade=0;},cinematic,makeShip,NPCS,MONSTERS,state,player,camera,enemies,monsters,respawn,enterMap,mapDef,fleetOwner,lootChests,sparkles,sinkEnemy,shots,particles,wrecks,select:(t:Target)=>{selected=t;state.attacking=true;},ammo:(id:AmmoKind)=>{state.ammo=id;renderQuickSlots();},ability:()=>{eliteAbility.cooldown=0;activateEliteAbility();},potion:()=>activateAbility('speed'),setElite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;activeSkin=null;fitCannonsToCapacity();},route:(v:Vec)=>{routeTarget=navigablePoint(v);destination=routeVia(routeTarget);},fleetNav,get routeTarget(){return routeTarget;},get selected(){return selected;},get destination(){return destination;}};
