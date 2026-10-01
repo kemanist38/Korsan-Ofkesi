@@ -206,7 +206,6 @@ const baseMaxHp=()=>BASE_HP+(state.level-1)*HP_PER_LEVEL+upgrades.hull*HP_PER_HU
 const effectiveMaxHp=()=>Math.round((state.maxHp+(eliteEnabled()?eliteShip().level*HP_PER_ELITE:0))*(1+equipBonus().hp+achBonus().hp));
 if(!Number.isFinite(state.hp)||state.hp>effectiveMaxHp())state.hp=effectiveMaxHp();
 let driftClock=0;
-let wakeClock=0;
 let collisionNotice=0;
 const islands:WorldIsland[]=[];
 let jumpPrompt:{dir:Dir;to:MapKey}|null=null;
@@ -1077,7 +1076,6 @@ function update(dt:number){
   player.cooldown=Math.max(0,player.cooldown-dt*(steamTimer>0?2:1));updateEliteAbilities(dt);eliteAbility.active=Math.max(0,eliteAbility.active-dt);eliteAbility.cooldown=Math.max(0,eliteAbility.cooldown-dt);state.invulnerable=Math.max(0,state.invulnerable-dt);collisionNotice=Math.max(0,collisionNotice-dt);{const f=cinematic.focus??freeLook??player;const cf=f===player?Math.min(1,dt*12):Math.min(1,dt*3);camera.x+=(f.x-camera.x)*cf;camera.y+=(f.y-camera.y)*cf;}camera.zoom+=(camera.targetZoom-camera.zoom)*Math.min(1,dt*7);
   for(let i=salvoQueue.length-1;i>=0;i--){salvoQueue[i].delay-=dt;if(salvoQueue[i].delay<=0){releaseSalvo(salvoQueue[i]);salvoQueue.splice(i,1);}}
   if(state.repairing){state.hp=Math.min(effectiveMaxHp(),state.hp+effectiveMaxHp()*(.035+upgrades.repair*.008)*bonus.repair*(elitePassive('coral')&&playerHitClock>5?2:1)*dt);if(state.hp>=effectiveMaxHp()){state.repairing=false;saveAccount();ui('repair').classList.remove('active');toast('Gövde tamamen onarıldı');}}
-  wakeClock-=dt;if(Math.abs(player.speed)>8&&wakeClock<=0){wakeClock=.1;particles.push({x:player.x-Math.sin(player.angle)*22,y:player.y+Math.cos(player.angle)*22,vx:-Math.sin(player.angle)*8,vy:Math.cos(player.angle)*8,life:.75,maxLife:.75,kind:'foam'});}
   monsters.forEach(m=>{if((m.frozen??0)>0){m.frozen=Math.max(0,m.frozen!-dt);m.cooldown=Math.max(m.cooldown,.5);return;}m.phase+=dt;m.cooldown-=dt;m.slowTimer=Math.max(0,m.slowTimer-dt);if(m.aggro){m.combatTimer-=dt;if(m.combatTimer<=0||Math.hypot(m.x-m.homeX,m.y-m.homeY)>720)m.aggro=false;}if(m.aggro&&dist(m,player)<430&&m.cooldown<=0)monsterFire(m);});
   // Saldırı: kaptan hareket etse de hedef menzildeyken ateş sürer; hedef menzilden çıkınca saldırı durur
   // ve menzile tekrar girildiğinde SALDIR'a yeniden basmak gerekir.
@@ -1101,7 +1099,7 @@ function update(dt:number){
     const homeDistance=Math.hypot(e.x-e.homeX,e.y-e.homeY);
     const target=e.aggro?Math.atan2(player.y-e.y,player.x-e.x)+Math.PI/2:homeDistance>90?Math.atan2(e.homeY-e.y,e.homeX-e.x)+Math.PI/2:e.angle+Math.sin(e.wander*.35)*.008;
     e.angle+=Math.atan2(Math.sin(target-e.angle),Math.cos(target-e.angle))*dt*(e.aggro?.8:.25);
-    if(!e.aggro||d>240){const slow=e.slowTimer>0?.55:1;e.x=clamp(e.x+Math.sin(e.angle)*e.speed*(e.aggro?1:.45)*slow*dt,40,WORLD_WIDTH-40);e.y=clamp(e.y-Math.cos(e.angle)*e.speed*(e.aggro?1:.45)*slow*dt,40,WORLD_HEIGHT-40);if(Math.random()<dt*3)particles.push({x:e.x-Math.sin(e.angle)*18,y:e.y+Math.cos(e.angle)*18,vx:0,vy:0,life:.55,maxLife:.55,kind:'foam'});} if(e.aggro&&d<440&&e.cooldown<=0)enemyFire(e);e.cooldown-=dt;
+    if(!e.aggro||d>240){const slow=e.slowTimer>0?.55:1;e.x=clamp(e.x+Math.sin(e.angle)*e.speed*(e.aggro?1:.45)*slow*dt,40,WORLD_WIDTH-40);e.y=clamp(e.y-Math.cos(e.angle)*e.speed*(e.aggro?1:.45)*slow*dt,40,WORLD_HEIGHT-40);} if(e.aggro&&d<440&&e.cooldown<=0)enemyFire(e);e.cooldown-=dt;
   }
   for(let i=shots.length-1;i>=0;i--){
     const s=shots[i];
@@ -1148,7 +1146,7 @@ function update(dt:number){
     }
     if(s.life<=0){if(!s.hit)splashAt(s.x,s.y,s.splash?160:110);shots.splice(i,1);}
   }
-  updateLootChests(dt);updateTreasure(dt);updateWakes(dt);updateSparkles(dt);updateArsenal(dt);updateEvents(dt);
+  updateLootChests(dt);updateTreasure(dt);updateSparkles(dt);updateArsenal(dt);updateEvents(dt);
   if(insideOwnLagoon(player)&&state.hp<effectiveMaxHp()){state.hp=Math.min(effectiveMaxHp(),state.hp+effectiveMaxHp()*.06*dt);if(state.hp>=effectiveMaxHp())saveAccount();}
   updateJumpPrompt();updateCoordBadge();mapFade=Math.max(0,mapFade-dt*1.6);
   for(let i=particles.length-1;i>=0;i--){const p=particles[i];p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.97;p.vy*=.97;p.life-=dt;if(p.vr)p.rot=(p.rot??0)+p.vr*dt;
@@ -1546,46 +1544,17 @@ function drawParticle(p:Particle){if(!onScreen(p,260))return;const s=worldToScre
 // Batan gemi: yan yatar, suya gömülür, kabarcıklar çıkarır
 function drawWreck(w:Wreck){const s=worldToScreen(w),k=Math.min(1,w.t/WRECK_TIME);ctx.save();ctx.globalAlpha=Math.max(0,1-k*k);ctx.translate(s.x,s.y+k*12);ctx.rotate(Math.sin(w.t*3)*.05+k*.35);ctx.scale(1-k*.2,1-k*.5);drawNpcShip(ctx,w.sprite,w.span,0,0,w.angle,performance.now());ctx.restore();}
 // ---------------------------------------------------------------- Gemi–su etkileşimi
-// Her geminin altında yumuşak su gölgesi ve bordasında köpük halkası; hareket ederken kıçtan V biçiminde açılan
-// dümen suyu izi ve pruvada su sıçraması. Görünüm 42° yukarıdan bakış: zemindeki izler dikeyde ~0,67 basıktır.
+// Her geminin altında yalnızca önceden çizilmiş yumuşak su gölgesi (performans için dümen suyu izi ve köpük yok).
 // Seafight gibi 2:1 izometrik kamera: deniz düzlemi yarıya basık (şamandıra halkaları ve dikey/yatay hız oranından ölçüldü)
 const FLAT=.5;
-type WakePt={x:number;y:number;a:number;t:number;w:number};
-const wakes=new Map<object,{pts:WakePt[];px:number;py:number;acc:number}>();
 const hullLength=(o:object)=>o===player?100:(o as Enemy).boss?165:(o as Enemy).def?(o as Enemy).def!.span*.6:60;
-function updateWakes(dt:number){
-  const now=performance.now()/1000,ships:object[]=[player,...enemies.filter(e=>!e.tower)];
-  for(const [o] of wakes)if(!ships.includes(o))wakes.delete(o);
-  for(const o of ships){const sh=o as {x:number;y:number;angle:number},w=wakes.get(o)??{pts:[],px:sh.x,py:sh.y,acc:0};wakes.set(o,w);
-    const v=Math.hypot(sh.x-w.px,sh.y-w.py)/Math.max(dt,1e-3);w.px=sh.x;w.py=sh.y;w.acc+=dt;
-    while(w.pts.length&&now-w.pts[0].t>2.6)w.pts.shift();
-    if(v>12&&w.acc>.06){w.acc=0;const L=hullLength(o),fx=Math.sin(sh.angle),fy=-Math.cos(sh.angle);if(w.pts.length>40)w.pts.shift();
-      w.pts.push({x:sh.x-fx*L*.42,y:sh.y-fy*L*.42*FLAT,a:sh.angle,t:now,w:Math.min(1,v/110)});
-      if(Math.random()<Math.min(.9,v/120))particles.push({x:sh.x+fx*L*.46+(Math.random()-.5)*8,y:sh.y+fy*L*.46*FLAT,vx:-fy*(Math.random()<.5?-1:1)*(18+Math.random()*24)+fx*v*.3,vy:fx*(Math.random()<.5?-1:1)*12+fy*v*.3*FLAT,life:.45,maxLife:.45,kind:'foam'});}}
-}
-// Köpük lekesi: bir kez çizilen yumuşak beyaz leke; iz ve gövde köpüğü bununla boyanır (çizgi yok, "uzay izi" gibi durmaz)
-const FOAM=(()=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d')!,r=g.createRadialGradient(32,32,2,32,32,32);
-  r.addColorStop(0,'rgba(240,252,250,.9)');r.addColorStop(.45,'rgba(220,245,242,.45)');r.addColorStop(1,'rgba(220,245,242,0)');g.fillStyle=r;g.fillRect(0,0,64,64);return c;})();
-function foamAt(x:number,y:number,r:number,a:number){if(a<=.01)return;ctx.globalAlpha=a;ctx.drawImage(FOAM,x-r,y-r*FLAT,r*2,r*2*FLAT);}
-// Dümen suyu: gövdeden iki yana V açılan, dağılıp sönen köpük; ortada çalkantı
 // Ekran dışı çizim atlanır: görüş alanı + pay (dünya birimi)
 function onScreen(v:Vec,m:number){const hw=innerWidth/2/camera.zoom+m,hh=innerHeight/2/camera.zoom+m;return Math.abs(v.x-camera.x)<hw&&Math.abs(v.y-camera.y)<hh;}
-function drawWake(o:object){const w=wakes.get(o);if(!w||!w.pts.length||!onScreen(o as Vec,420))return;const now=performance.now()/1000,L=hullLength(o);
-  ctx.save();
-  for(let i=0;i<w.pts.length;i++){const p=w.pts[i],age=now-p.t,life=Math.max(0,1-age/2.6),fade=life*life*p.w,lx=Math.cos(p.a),ly=Math.sin(p.a)*FLAT,spread=L*.14+age*L*.3,j=Math.sin(i*12.9+p.t*7)*.25;
-    for(const side of [-1,1]){const s=worldToScreen({x:p.x+lx*side*spread*(1+j*.3),y:p.y+ly*side*spread*(1+j*.3)});foamAt(s.x,s.y,L*(.07+age*.09),.42*fade);}
-    if(i%2===0){const c=worldToScreen(p);foamAt(c.x,c.y,L*(.11+age*.08),.32*fade);}}
-  ctx.restore();}
+const HULL_SHADOW=(()=>{const c=document.createElement('canvas');c.width=128;c.height=64;const g=c.getContext('2d')!,r=g.createRadialGradient(64,64,6,64,64,64);
+  r.addColorStop(0,'rgba(2,14,20,.34)');r.addColorStop(1,'rgba(2,14,20,0)');g.fillStyle=r;g.scale(1,.5);g.fillRect(0,0,128,128);return c;})();
 function drawHullWater(o:{x:number;y:number;angle:number},L:number){
-  const s=worldToScreen(o),fx=Math.sin(o.angle),fy=-Math.cos(o.angle)*FLAT,rot=Math.atan2(fy,fx),len=L*.5*Math.hypot(fx,fy)+L*.14,wid=L*.19;
-  ctx.save();ctx.translate(s.x,s.y+4);ctx.rotate(rot);
-  const g=ctx.createRadialGradient(0,0,wid*.3,0,0,len*1.05);g.addColorStop(0,'rgba(2,14,20,.34)');g.addColorStop(1,'rgba(2,14,20,0)');ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(0,0,len*1.05,wid*1.6,0,0,Math.PI*2);ctx.fill();
-  ctx.restore();
-  // Gövdenin yerinden ettiği su: açık camgöbeği havuz ve yavaşça yayılan halkalar; gemi suyun içinde durur
-  const t=performance.now()/1000,R=L*.62;ctx.save();ctx.translate(s.x,s.y+6);ctx.scale(1,FLAT);
-  const p=ctx.createRadialGradient(0,0,R*.2,0,0,R);p.addColorStop(0,'rgba(120,230,235,.22)');p.addColorStop(.6,'rgba(80,200,215,.12)');p.addColorStop(1,'rgba(80,200,215,0)');ctx.fillStyle=p;ctx.beginPath();ctx.arc(0,0,R,0,Math.PI*2);ctx.fill();
-  for(let k=0;k<2;k++){const f=(t*.35+k*.5)%1;ctx.strokeStyle=`rgba(210,250,248,${(1-f)*.22})`;ctx.lineWidth=2*(1-f)+.6;ctx.beginPath();ctx.arc(0,0,R*(.55+f*.6),0,Math.PI*2);ctx.stroke();}
-  ctx.restore();}
+  const s=worldToScreen(o),fx=Math.sin(o.angle),fy=-Math.cos(o.angle)*FLAT,len=(L*.5*Math.hypot(fx,fy)+L*.14)*1.05,wid=L*.19*1.6;
+  ctx.save();ctx.translate(s.x,s.y+4);ctx.rotate(Math.atan2(fy,fx));ctx.drawImage(HULL_SHADOW,-len,-wid,len*2,wid*2);ctx.restore();}
 // Can çubuğu: çerçeveli, türüne göre renkli ve genişlikte
 function drawHealthBar(x:number,y:number,width:number,frac:number,color:string){
   ctx.fillStyle='rgba(3,12,16,.85)';ctx.fillRect(x-width/2-2,y-2,width+4,10);ctx.fillStyle='rgba(255,255,255,.06)';ctx.fillRect(x-width/2,y,width,6);ctx.strokeStyle='rgba(232,200,130,.55)';ctx.lineWidth=1;ctx.strokeRect(x-width/2-2.5,y-2.5,width+5,11);
@@ -1632,7 +1601,6 @@ function draw(){
   ctx.globalAlpha=.12;ctx.fillStyle=th.label;ctx.font='700 42px Cinzel';ctx.textAlign='center';for(const label of map.labels){const p=worldToScreen(label);ctx.fillText(label.text,p.x,p.y);}ctx.globalAlpha=1;
   drawCoordGrid();drawMapEdges();islands.forEach(i=>{if(onScreen(i,i.r+260))drawIsland(i);});drawFleetIsland();lootChests.forEach(drawLootChest);drawTreasureMark();sparkles.forEach(drawSparkle);mines.forEach(m=>{const p=worldToScreen(m);drawMineSprite(ctx,p.x,p.y,performance.now(),m.arm>0,m.life<5);});monsters.forEach(m=>{if(onScreen(m,320))drawMonster(m);});
   wrecks.forEach(drawWreck);drawAbilityFxUnder(ctx,worldToScreen);particles.forEach(p=>{if(UNDER.has(p.kind))drawParticle(p);});shots.forEach(drawShotShadow);
-  wakes.forEach((_,o)=>drawWake(o));
   if(selected&&targetExists(selected))drawTargetMarker(selected);
   enemies.filter(e=>onScreen(e,e.boss?420:300)).sort((a,b)=>a.y-b.y).forEach(e=>{const s=worldToScreen(e);if(e.boss)drawBossAura(e,s);if(!e.tower)drawHullWater(e,hullLength(e));const raster=e.tower?drawBastion(ctx,e.towerIndex??0,s.x,s.y):e.def?drawNpcShip(ctx,e.def.sprite,e.def.span,s.x,s.y,e.angle,performance.now()):false;if(!raster)return;const top=raster?(e.tower?TOWER_LABEL_OFFSET:shipLabelOffset(e.def!.span)):-42;if(e.boss){drawBossFlag(s,top);drawBossPlate(e,s,top);return;}const bw=e.tower||e.role==='heavy'?72:56;drawHealthBar(s.x,s.y+top,bw,e.hp/e.maxHp,e.tower?'#f09a4f':e.role==='heavy'?'#f0584a':'#4fd0da');ctx.fillStyle='#e6dccb';ctx.font='600 10px Inter';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText(e.name,s.x,s.y+top-7);ctx.shadowBlur=0;});
   drawPlayerMarker();drawHullWater(player,hullLength(player));
