@@ -774,3 +774,6 @@ body{touch-action:manipulation;-webkit-tap-highlight-color:transparent;overscrol
   .rotate-hint small{font:500 13px Inter,sans-serif;color:#b9cbc6}
 }
 @keyframes rotate-hint{0%,20%{transform:rotate(0)}50%,70%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+.guild-island-side{display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+.guild-build-all,.captain-profile header .guild-build-all{width:auto;height:auto;line-height:1.2;border:1px solid #d8b268;border-radius:5px;background:linear-gradient(#3a2a12,#1c140a);color:#ffe2a0;font:700 10px Inter;letter-spacing:.04em;padding:6px 10px;cursor:pointer}
+.guild-build-all:disabled{opacity:.45;cursor:default}.guild-build-all:not(:disabled):hover{border-color:#ffe2a0}
