@@ -1,5 +1,5 @@
 import {drawMysticPlayerMarker} from './player-marker';
-import {drawShotSprite,drawPuff,drawGlint} from './shotArt';
+import {drawFlare,drawShotSprite,drawPuff,drawGlint} from './shotArt';
 import './storageMigration';
 import './style.css';
 import {ACTIONS,loadSettings,saveSettings,keyLabel,normalizeKey,DEFAULT_BINDS,type ActionId} from './settings';
@@ -36,7 +36,7 @@ type EnemyRole='light'|'heavy';
 // Test kaptanı: elit gemili, oyuncu gibi savaşan yapay rakip (yalnız test modunda 1/1'de)
 type Captain={elite:EliteShipId;ammo:AmmoKind;ammoClock:number;abilityCd:number;foe:Enemy|null;orbit:Vec|null;orbitClock:number};
 type Enemy = Vec & { kind:'ship'; captain?:Captain; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number; lastHitBy?:'player'|'captain';  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
-type ParticleKind='glint'|'wisp'|'foam'|'smoke'|'spark'|'damage'|'flash'|'explosion'|'splash'|'splinter'|'bubble'|'plank'|'firePuff'|'target'|'poison'|'soul'|'shock';
+type ParticleKind='flare'|'ember'|'glint'|'wisp'|'foam'|'smoke'|'spark'|'damage'|'flash'|'explosion'|'splash'|'splinter'|'bubble'|'plank'|'firePuff'|'target'|'poison'|'soul'|'shock';
 // z: su üstünden yükseklik (ekranda yukarı kayar); vz ile savrulan parçalar suya düşer
 type Particle = Vec & { vx:number; vy:number; life:number; maxLife:number; kind:ParticleKind; text?:string; color?:string; z?:number; vz?:number; rot?:number; vr?:number; size?:number; variant?:number };
 type Wreck = Vec & { angle:number; sprite:string; span:number; t:number; bubble:number };
@@ -651,18 +651,21 @@ function respawn(){
   enemies.forEach(e=>{e.aggro=false;e.combatTimer=0;});monsters.forEach(m=>{m.aggro=false;m.combatTimer=0;});ui('attack').classList.remove('active');
   mapFade=1;playSplash();saveAccount();toast(`Gemin battı — ${mapDef().key} ${coordLabel(player)} konumunda %10 gövdeyle yeniden doğdun`);
 }
-// Vuruş: patlama animasyonu, savrulup suya düşen tahta kıymıkları, korlar ve yükselen duman
+// Vuruş: parlak çekirdek ışığı, patlama animasyonu, savrulup suya düşen tahta kıymıkları, parlak korlar ve açık renkli barut dumanı
 function burst(x:number,y:number,large=false){
-  const R=Math.random,TAU=Math.PI*2;particles.push({x,y,vx:0,vy:0,life:large?.95:.6,maxLife:large?.95:.6,kind:'explosion',size:large?250:150});
+  const R=Math.random,TAU=Math.PI*2;
+  particles.push({x,y,vx:0,vy:0,life:large?.32:.2,maxLife:large?.32:.2,kind:'flare',z:10,size:large?120:80});
+  particles.push({x,y,vx:0,vy:0,life:large?.85:.5,maxLife:large?.85:.5,kind:'explosion',size:large?230:130});
   for(let n=0;n<(large?10:4);n++){const a=R()*TAU,sp=40+R()*(large?130:70);particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp*.6,life:1+R()*.8,maxLife:1.8,kind:'splinter',z:8,vz:90+R()*(large?170:110),rot:R()*6,vr:(R()-.5)*16,size:32+R()*16,variant:n%3});}
-  for(let n=0;n<(large?12:5);n++){const a=R()*TAU,sp=50+R()*(large?150:90);particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp*.6,life:.4+R()*.5,maxLife:.9,kind:'spark',z:10,vz:60+R()*140,size:20});}
-  for(let n=0;n<(large?4:2);n++)particles.push({x:x+(R()-.5)*20,y:y+(R()-.5)*14,vx:(R()-.5)*14,vy:-10-R()*10,life:1.2+R()*.8,maxLife:2,kind:'smoke',z:14,size:large?80:52,variant:n%4,rot:R()*6});
-  if(large)for(let n=0;n<4;n++){const a=R()*TAU,sp=20+R()*40;particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp*.6,life:3+R()*2,maxLife:5,kind:'plank',rot:R()*6,vr:(R()-.5)*1.2,size:52+R()*16});}
+  for(let n=0;n<(large?16:7);n++){const a=R()*TAU,sp=70+R()*(large?190:120);particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp*.6,life:.35+R()*.45,maxLife:.8,kind:'ember',z:10,vz:80+R()*160,size:large?8:6});}
+  for(let n=0;n<(large?6:3);n++)particles.push({x:x+(R()-.5)*24,y:y+(R()-.5)*16,vx:(R()-.5)*22,vy:-12-R()*14,life:1.3+R()*.9,maxLife:2.2,kind:'wisp',z:16+R()*10,size:large?30+R()*12:18+R()*8});
+  if(large){for(let n=0;n<3;n++)particles.push({x:x+(R()-.5)*30,y:y+(R()-.5)*18,vx:(R()-.5)*12,vy:-10-R()*8,life:1.8+R()*.8,maxLife:2.6,kind:'smoke',z:20,size:70,variant:n%4,rot:R()*6});
+    for(let n=0;n<4;n++){const a=R()*TAU,sp=20+R()*40;particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp*.6,life:3+R()*2,maxLife:5,kind:'plank',rot:R()*6,vr:(R()-.5)*1.2,size:52+R()*16});}}
 }
 // Iska: suya düşen güllenin su sütunu ve köpük halkası
 // Oyuncuya uzaklığa göre ses seviyesi (0..1)
 function earGain(p:Vec){return Math.max(0,Math.min(1,1.15-dist(p,player)/900));}
-function splashAt(x:number,y:number,size=110){const eg=earGain({x,y});if(eg>.05)playSplash(eg*.8);particles.push({x,y,vx:0,vy:0,life:.75,maxLife:.75,kind:'splash',size});for(let n=0;n<3;n++)particles.push({x:x+(Math.random()-.5)*18,y:y+(Math.random()-.5)*10,vx:(Math.random()-.5)*16,vy:(Math.random()-.5)*10,life:.9,maxLife:.9,kind:'foam',size:34,variant:n%2});}
+function splashAt(x:number,y:number,size=110){const eg=earGain({x,y});if(eg>.05)playSplash(eg*.8);particles.push({x,y,vx:0,vy:0,life:.75,maxLife:.75,kind:'splash',size});for(let n=0;n<5;n++){const r=Math.random()*Math.PI*2,sp=30+Math.random()*50;particles.push({x,y,vx:Math.cos(r)*sp,vy:Math.sin(r)*sp*.5,life:.5+Math.random()*.3,maxLife:.8,kind:'glint',z:size*.25,vz:120+Math.random()*90,size:5,rot:Math.random()*6,color:'#e6f7ff'});}for(let n=0;n<3;n++)particles.push({x:x+(Math.random()-.5)*18,y:y+(Math.random()-.5)*10,vx:(Math.random()-.5)*16,vy:(Math.random()-.5)*10,life:.9,maxLife:.9,kind:'foam',size:34,variant:n%2});}
 // Özel güllelerin isabet etkisi: patlayıcı çevreye alan hasarı, can emici oyuncuyu onarır
 function ammoImpact(s:Shot,target:Target,hit:number){
   if(s.owner!=='player')return;
@@ -1604,6 +1607,8 @@ function drawParticle(p:Particle){if(!onScreen(p,260))return;const s=worldToScre
     case 'flash':drawShotSprite(ctx,'muzzle',s.x,y,p.rot??0,(size??40)/40*(.8+.35*(1-a)),Math.min(1,a*1.6));return;
     case 'smoke':drawVfx(ctx,'smoke',s.x,y,(size??22)*(1+(1-a)*1.1),{alpha:a*.75,variant:p.variant??0,rot:p.rot});return;
     case 'spark':drawVfx(ctx,'ember',s.x,y,size??12,{alpha:a});return;
+    case 'flare':drawFlare(ctx,s.x,y,(size??80)*(.55+.45*(1-a)),Math.min(1,a*1.5));return;
+    case 'ember':drawFlare(ctx,s.x,y,(size??7)*(1.2+.8*a),Math.min(1,a*1.4));return;
     case 'glint':drawGlint(ctx,s.x,y,(size??10)*(.5+.5*Math.sin(Math.min(1,a)*Math.PI)),p.color??'#5ff3ff',a,p.rot??0);return;
     case 'wisp':drawPuff(ctx,s.x,y,(size??6)*(.6+(1-a)*1.2),a*.45);return;
     case 'foam':drawVfx(ctx,'foam',s.x,y,(size??18)*(1+(1-a)*.8),{alpha:a*.85,variant:p.variant??0});return;
@@ -1787,4 +1792,4 @@ function drawMinimap(){const W=188,H=133,sx=(x:number)=>x/WORLD_WIDTH*W,sy=(y:nu
 let manualClock=false;
 let last=performance.now();function loop(now:number){const dt=Math.min(.033,(now-last)/1000);last=now;if(!manualClock){update(dt);draw();}requestAnimationFrame(loop);}fillTestCannons();renderQuickSlots();updateUI();requestAnimationFrame(loop);
 // Yalnızca geliştirme sunucusunda: tarayıcı testleri için durum erişimi.
-if(import.meta.env.DEV)(window as any).__ky={isoFace,spawnBoss:()=>spawnBoss(),elite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;eliteAbility.cooldown=0;activateEliteAbility();},treasure,rollTreasurePart,manual:(on:boolean)=>{manualClock=on;},step:(dt:number)=>{update(dt);draw();},noFade:()=>{mapFade=0;},cinematic,makeShip,NPCS,MONSTERS,state,player,camera,enemies,monsters,respawn,enterMap,mapDef,fleetOwner,lootChests,sparkles,sinkEnemy,shots,particles,wrecks,select:(t:Target)=>{selected=t;state.attacking=true;},ammo:(id:AmmoKind)=>{state.ammo=id;renderQuickSlots();},ability:()=>{eliteAbility.cooldown=0;activateEliteAbility();},potion:()=>activateAbility('speed'),setElite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;fitCannonsToCapacity();},route:(v:Vec)=>{routeTarget=navigablePoint(v);destination=routeVia(routeTarget);},fleetNav,get routeTarget(){return routeTarget;},get selected(){return selected;},get destination(){return destination;}};
+if(import.meta.env.DEV)(window as any).__ky={isoFace,spawnBoss:()=>spawnBoss(),elite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;eliteAbility.cooldown=0;activateEliteAbility();},treasure,rollTreasurePart,manual:(on:boolean)=>{manualClock=on;},step:(dt:number)=>{update(dt);draw();},noFade:()=>{mapFade=0;},cinematic,makeShip,NPCS,MONSTERS,state,player,camera,enemies,monsters,respawn,enterMap,mapDef,fleetOwner,lootChests,sparkles,sinkEnemy,burst,splashAt,shots,particles,wrecks,select:(t:Target)=>{selected=t;state.attacking=true;},ammo:(id:AmmoKind)=>{state.ammo=id;renderQuickSlots();},ability:()=>{eliteAbility.cooldown=0;activateEliteAbility();},potion:()=>activateAbility('speed'),setElite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;fitCannonsToCapacity();},route:(v:Vec)=>{routeTarget=navigablePoint(v);destination=routeVia(routeTarget);},fleetNav,get routeTarget(){return routeTarget;},get selected(){return selected;},get destination(){return destination;}};
