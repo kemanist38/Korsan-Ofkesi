@@ -619,11 +619,11 @@ body.shop-open .market-overlay,body.shop-open .ship-overlay,body.shop-open .load
 .map-cluster{left:30px;top:22px;width:214px;height:236px;background:url(/assets/ui-minimap-v1.webp) 0 0/214px 160px no-repeat}
 .map-cluster #minimap{pointer-events:auto;position:absolute;left:16.5px;top:17.5px;width:188px;height:133px;border:0;border-radius:2px;background:transparent;box-shadow:none;cursor:crosshair;touch-action:none}
 .map-cluster .map-badge{left:20px;top:20px}
-.map-cluster .zoom-controls{position:absolute;left:32px;top:164px;margin:0;width:150px;height:66px;padding:0;border:0;border-radius:0;background:url(/assets/ui-zoom-v1.webp) center/100% 100% no-repeat;box-shadow:none;display:block}
+.map-cluster .zoom-controls{position:absolute;left:56px;top:162px;margin:0;width:108px;height:48px;padding:0;border:0;border-radius:0;background:url(/assets/ui-zoom-v1.webp) center/100% 100% no-repeat;box-shadow:none;display:block}
 .map-cluster .zoom-controls button{position:absolute;top:35%;width:24.3%;height:52.5%;padding:0;border:0;border-radius:6px;background:transparent;color:transparent;font-size:0;cursor:pointer}
 .map-cluster .zoom-controls button:hover{background:#ffe09b1f}
 .map-cluster #zoomOut{left:5.9%}.map-cluster #zoomIn{left:69.9%}
-.map-cluster #zoomValue{position:absolute;left:50%;top:61%;transform:translate(-50%,-50%);font:800 12px Inter;color:#d8e6e2;text-shadow:0 1px 2px #000}
+.map-cluster #zoomValue{position:absolute;left:50%;top:61%;transform:translate(-50%,-50%);font:800 10px Inter;color:#d8e6e2;text-shadow:0 1px 2px #000}
 .world-map-button,.quest-bust{left:222px;width:54px;height:54px;border:3px solid #50676b;border-radius:50%;background:radial-gradient(circle at 45% 40%,#2b4a50,#0b1a1e 72%);box-shadow:0 0 0 2px #152024,0 0 0 3px #b8904e99,0 6px 14px #000a}
 .world-map-button{top:4px;padding:6px}.world-map-button img{width:36px;height:36px}.world-map-button span{top:54px;font:700 7px Cinzel;color:#f0cc82;text-shadow:0 1px 2px #000}
 .quest-bust{top:80px}.quest-bust img{width:50px;height:50px;margin-top:0;border-radius:50%;object-fit:cover}.quest-bust span{top:56px}
@@ -640,8 +640,8 @@ body.shop-open .market-overlay,body.shop-open .ship-overlay,body.shop-open .load
 /* ---- HUD v4: küçük üst bar; alt bar kullanıcının ahşap-metal pusulalı panel görseli ---- */
 .top-status{width:min(440px,46vw)}
 @media (max-width:760px){.top-status{width:min(340px,70vw)}}
-:root{--dw:360px}
-@media (max-width:900px),(max-height:520px){:root{--dw:300px}}
+:root{--dw:300px}
+@media (max-width:900px),(max-height:520px){:root{--dw:250px}}
 .hud-dock{width:var(--dw);height:calc(var(--dw)*332/675);display:block;background:url(/assets/ui-dock-v1.webp) 0 0/100% auto no-repeat;filter:drop-shadow(0 -4px 12px #0008)}
 .hud-dock .dock-status{position:absolute;left:0;right:0;top:0;height:calc(var(--dw)*118/675);display:block;padding:0;border:0;background:none;box-shadow:none}
 .hud-dock .dock-status .status-pair{display:contents}
@@ -796,3 +796,43 @@ body.shop-open .shop-overlay{
 .shop-window .ammo-icon{position:relative;margin-bottom:8px}
 .shop-window .ammo-icon .raster-item,.shop-window .ammo-icon .sprite,.shop-window .equip-shop-art .equip-icon{width:100%;height:100%;margin:0}
 .shop-window .ammo-icon>b{position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);padding:0 3px;line-height:12px;background:#081b21;border-radius:3px;white-space:nowrap}
+
+/* ---- Alt bar yalnız CP/SP şeridi; gülle ve malzeme yuvaları ayrı, sürüklenebilir çerçeveler ---- */
+.hud-dock{height:calc(var(--dw)*118/675)}
+.slot-bar{--slot:40px;pointer-events:auto;position:absolute;left:50%;z-index:9;transform:translateX(-50%);display:flex;align-items:stretch;gap:3px;padding:3px;border:2px solid #3e5256;border-radius:8px;background:url(/assets/ui-wood-v1.webp) center/260px 100% repeat,#24180f;box-shadow:inset 0 0 0 1px #b8904e55,0 6px 16px #0009}
+#ammoBar{bottom:calc(var(--dw)*118/675 + 6px)}
+#itemBar{bottom:calc(var(--dw)*118/675 + var(--slot) + 22px)}
+.slot-bar.moved,#ammoBar.moved,#itemBar.moved{transform:none;bottom:auto}
+.slot-bar.dragging{opacity:.85}
+.bar-grip{flex:none;width:14px;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none;border-radius:4px;background:repeating-linear-gradient(#0000 0 3px,#e8c88033 3px 4px)}
+.slot-bar.dragging .bar-grip{cursor:grabbing}
+.bar-toggle{width:14px;height:22px;padding:0;border:0;border-radius:3px;background:#1a1008cc;cursor:pointer;display:grid;place-items:center}
+.bar-toggle i{display:block;width:0;height:0;border-top:5px solid transparent;border-bottom:5px solid transparent;border-right:7px solid #e8c880;transition:transform .2s}
+.bar-toggle:hover i{border-right-color:#ffe09b}
+.slot-bar.collapsed .bar-toggle i{transform:scaleX(-1)}
+.bar-slots{display:grid;grid-auto-flow:column;grid-template-rows:var(--slot);grid-auto-columns:var(--slot);gap:3px}
+.slot-bar.collapsed .bar-slots{display:none}
+.slot-bar.vertical{flex-direction:column}
+.slot-bar.vertical .bar-grip{width:auto;height:14px;background:repeating-linear-gradient(90deg,#0000 0 3px,#e8c88033 3px 4px)}
+.slot-bar.vertical .bar-toggle{width:22px;height:14px}
+.slot-bar.vertical .bar-toggle i{transform:rotate(90deg)}
+.slot-bar.vertical.collapsed .bar-toggle i{transform:rotate(-90deg)}
+.slot-bar.vertical .bar-slots{grid-auto-flow:row;grid-template-rows:none;grid-template-columns:var(--slot);grid-auto-rows:var(--slot)}
+.slot-bar .quick-slot{position:relative;width:var(--slot);height:var(--slot);padding:0;border:0;border-radius:3px;background:url(/assets/ui-dock-slot-v1.webp) center/100% 100% no-repeat;color:#c9b481;cursor:pointer}
+.slot-bar .quick-slot>.raster-item{position:absolute;inset:12%;width:76%;height:76%;margin:0}
+.slot-bar .quick-slot>b{position:absolute;right:4%;bottom:4%;padding:0 2px;border-radius:3px;background:#000b;font:800 8px Inter;line-height:1.3;color:#fff}
+.slot-bar .quick-slot>kbd{position:absolute;left:7%;top:4%;font:800 7px Inter;color:#e8d3a4cc;text-shadow:0 1px 2px #000}
+.slot-bar .quick-slot>span{display:grid;place-items:center;height:100%;font-size:16px;color:#8a9a96}
+.slot-bar .quick-slot.active{box-shadow:0 0 0 2px #f1c662,0 0 10px #f1c662aa}
+.slot-bar .quick-slot:not(.empty):hover{filter:brightness(1.12)}
+@media (max-width:900px),(max-height:520px){.slot-bar{--slot:34px}}
+.ammo-picker{position:absolute;z-index:30;display:none;padding:5px 6px 6px;border:2px solid #b8904e;border-radius:8px;background:linear-gradient(#2a1c10f4,#140c06f4);box-shadow:0 8px 22px #000b;pointer-events:auto}
+.ammo-picker.open{display:block}
+.ammo-picker small{display:block;margin:0 0 4px;font:800 8px Inter;letter-spacing:.12em;color:#e8c880;text-align:center}
+.ammo-picker>div{display:grid;grid-auto-flow:column;grid-auto-columns:38px;gap:3px}
+.ammo-picker.side>div{grid-auto-flow:row;grid-auto-rows:38px;grid-template-columns:38px}
+.ammo-picker button{position:relative;width:38px;height:38px;padding:0;border:0;border-radius:4px;background:url(/assets/ui-dock-slot-v1.webp) center/100% 100% no-repeat;cursor:pointer}
+.ammo-picker button:hover{filter:brightness(1.18)}
+.ammo-picker button.current{box-shadow:0 0 0 2px #f1c662}
+.ammo-picker .raster-item{position:absolute;inset:12%;width:76%;height:76%}
+.ammo-picker button b{position:absolute;right:2px;bottom:2px;padding:0 2px;border-radius:3px;background:#000b;font:800 7px Inter;color:#fff}
