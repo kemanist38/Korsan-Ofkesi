@@ -14,7 +14,7 @@ import {BALL_DAMAGE,CHAIN_FACTOR,FIRE_DOT_SHARE,ELITE_POINTS_PER_BALL,ELITE_MAX_
 import {loadFleetOwners,saveFleetOwners,loadRuins,markRuin,ruinLeft,ruinLabel,clearRuins} from './conquest';
 import {RIVAL_SP,battleRank,loadRivalLog,claimRivalSp,RIVAL_DAILY_LIMIT} from './battle';
 import {setupChat} from './chat';
-import {dayEvent,spMult,xpMult,epMult,bossKillsNeeded,untilMidnight} from './events';
+import {dayEvent,spMult,xpMult,epMult,goldMult,sparkleMult,bossKillsNeeded,untilMidnight} from './events';
 import {TALENTS,OFFICERS,OFFICER_MAX_RANK,officerCost,officerSlots,talentPoints,loadCrew,saveCrew,spentPoints,computeBonus,type TalentId,type OfficerId} from './crew';
 import {FLEET_MASK} from './fleetMask';
 import {drawVfx,drawVfxAnim,EXPLOSION_ROW,SPLASH_ROW} from './vfx';
@@ -138,7 +138,7 @@ const equipBonus=()=>equipTotals(equipped);
 // Başarımlar: sayaçlar ve açılan madalyaların kalıcı bonusları (altın, TP, hasar, can)
 const ach=loadAchievements();let achBonusCache=achievementBonus(ach);
 const achBonus=()=>achBonusCache;
-const xpGain=(n:number)=>Math.round(n*(1+achBonus().xp)*xpMult()),goldGainAch=(n:number)=>Math.round(n*(1+achBonus().gold));
+const xpGain=(n:number)=>Math.round(n*(1+achBonus().xp)*xpMult()),goldGainAch=(n:number)=>Math.round(n*(1+achBonus().gold)*goldMult());
 const state = { pearls:storedAccount?.pearls??30, gold:storedAccount?.gold??40, fame:storedAccount?.fame??0, level:ELITE_TEST_MODE?MAX_LEVEL:Math.min(MAX_LEVEL,storedAccount?.level??1), hp:storedAccount?.hp??Infinity, maxHp:storedAccount?.maxHp??100, elitePoints:storedAccount?.elitePoints??0,battlePoints:storedAccount?.battlePoints??0,cannon:18, cannonType:storedAccount?.cannonType&&CANNONS[storedAccount.cannonType]?storedAccount.cannonType:'cast' as CannonKind, activeQuest:storedActive as string|null, ammo:'iron' as AmmoKind, chainAmmo:storedAccount?.chainAmmo??2000, attacking:false, repairing:false, invulnerable:0 };
 // Eski ölçekli kayıtlar (100 canlı, 18 toplu gemi) bir kez Seafight ölçeğine taşınır: can formülden hesaplanır,
 // gemiye en az 50 döküm top yerleştirilir.
@@ -494,7 +494,7 @@ function populateMap(){
   if(bossOf(currentMap).pending)spawnBoss();
   spawnTestCaptains();
   for(let i=0;i<3;i++){const p=randomSeaPoint(0);lootChests.push(createChest('drift',p.x,p.y,bonus.gilded,1+.5*(map.tier-1)));}
-  for(let i=0;i<SPARKLE_COUNT;i++)spawnSparkle();
+  for(let i=0;i<SPARKLE_COUNT*sparkleMult();i++)spawnSparkle();
   ui('mapName').textContent=`${map.key} · ${map.name}`;ui('mapSubtitle').textContent=map.safe?'SAVAŞA KAPALI':`${theme().name.toLocaleUpperCase('tr')} · SEVİYE ${map.tier}`;ui('mapBadge').className=`map-badge ${map.safe?'safe':'danger-'+Math.min(3,Math.ceil(map.tier/3))}`;
 }
 function enterMap(key:MapKey,at:Vec){
@@ -1527,7 +1527,7 @@ function drawTreasureMark(){
 }
 function updateLootChests(dt:number){
   for(let i=lootChests.length-1;i>=0;i--){const c=lootChests[i];c.life-=dt;
-    if(dist(c,player)<CHEST_PICKUP_RADIUS){lootChests.splice(i,1);playCoins();recordQuestProgress('chest',currentMap);rollTreasurePart();bumpAch('chest');c.gold=Math.round(c.gold*bonus.chestGold);state.gold+=c.gold;state.chainAmmo+=c.chain;state.pearls+=c.pearls;saveAccount();renderQuickSlots();burst(c.x,c.y);rewardNotice(chestRewardText(c));toast(c.kind==='gilded'?'Yaldızlı sandık toplandı!':'Ganimet sandığı toplandı');if(destination&&Math.hypot(destination.x-c.x,destination.y-c.y)<2)destination=null;continue;}
+    if(dist(c,player)<CHEST_PICKUP_RADIUS){lootChests.splice(i,1);playCoins();recordQuestProgress('chest',currentMap);rollTreasurePart();bumpAch('chest');c.gold=Math.round(c.gold*bonus.chestGold*goldMult());state.gold+=c.gold;state.chainAmmo+=c.chain;state.pearls+=c.pearls;saveAccount();renderQuickSlots();burst(c.x,c.y);rewardNotice(chestRewardText(c));toast(c.kind==='gilded'?'Yaldızlı sandık toplandı!':'Ganimet sandığı toplandı');if(destination&&Math.hypot(destination.x-c.x,destination.y-c.y)<2)destination=null;continue;}
     if(c.life<=0)lootChests.splice(i,1);}
   driftClock-=dt;
   if(driftClock<=0){driftClock=DRIFT_RESPAWN_SECONDS;if(lootChests.filter(c=>c.source==='drift').length<4){const p=randomSeaPoint(260);lootChests.push(createChest('drift',p.x,p.y,bonus.gilded,1+.5*(mapDef().tier-1)));}}
@@ -1536,12 +1536,12 @@ function updateLootChests(dt:number){
 function spawnSparkle(){const p=randomSeaPoint(200);sparkles.push({x:p.x,y:p.y,seed:Math.random(),born:performance.now()});}
 function updateSparkles(dt:number){
   for(let i=sparkles.length-1;i>=0;i--){const g=sparkles[i];if(dist(g,player)>SPARKLE_PICKUP)continue;sparkles.splice(i,1);
-    const loot=1,light=NPCS[mapDef().npcs[0]],gold=Math.max(1,Math.round(light.gold*(.1+Math.random()*.1)*loot)),xp=Math.max(1,Math.round(light.xp*.15)),pearl=Math.random()<.2?1:0;
+    const loot=1,light=NPCS[mapDef().npcs[0]],gold=Math.max(1,Math.round(light.gold*(.1+Math.random()*.1)*loot*goldMult())),xp=Math.max(1,Math.round(light.xp*.15)),pearl=Math.random()<.2?1:0;
     state.gold+=gold;state.fame+=xp;state.pearls+=pearl;saveAccount();playCoins();
     for(let n=0;n<8;n++){const a=Math.random()*Math.PI*2,sp=30+Math.random()*50;particles.push({x:g.x,y:g.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:.5,maxLife:.5,kind:'foam'});}
     particles.push({x:g.x,y:g.y-10,vx:0,vy:-26,life:1.1,maxLife:1.1,kind:'damage',text:`+${gold} Altın${pearl?' +1 İnci':''} +${xp} TP`});
     if(routeTarget&&dist(routeTarget,g)<4){routeTarget=null;destination=null;}
-    sparkleQueue.push(SPARKLE_RESPAWN);}
+    sparkleQueue.push(SPARKLE_RESPAWN/sparkleMult());}
   for(let i=sparkleQueue.length-1;i>=0;i--){sparkleQueue[i]-=dt;if(sparkleQueue[i]<=0){sparkleQueue.splice(i,1);spawnSparkle();}}
 }
 function drawSparkle(g:{x:number;y:number;seed:number;born:number}){const s=worldToScreen(g),now=performance.now();drawSeaSparkle(ctx,s.x,s.y,now,g.seed,Math.min(1,(now-g.born)/600));}

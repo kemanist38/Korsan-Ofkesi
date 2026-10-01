@@ -11,7 +11,9 @@ test('each weekday gives its own bonus',()=>{
   assert.equal(E.xpMult(day(4)),1.5);assert.equal(E.spMult(day(4)),1);
   assert.equal(E.epMult(day(5)),1.5);
   assert.equal(E.bossKillsNeeded(200,day(6)),100);assert.equal(E.bossKillsNeeded(200,day(5)),200);
-  assert.equal(E.dayEvent(day(7)),null);
+  assert.equal(E.goldMult(day(7)),1.5);assert.equal(E.goldMult(day(8)),1);
+  assert.equal(E.sparkleMult(day(8)),2);assert.equal(E.sparkleMult(day(7)),1);
+  assert.equal(E.dayEvent(day(9)),null,'Cuma henüz boş');
 });
 test('time left until midnight',()=>{
   assert.equal(E.untilMidnight(new Date(2026,9,3,18,48)),'5 sa 12 dk');
