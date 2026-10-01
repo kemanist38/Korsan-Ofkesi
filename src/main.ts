@@ -1,4 +1,5 @@
 import {drawMysticPlayerMarker} from './player-marker';
+import {drawBall,drawChainShot,drawGrape,drawPuff} from './shotArt';
 import './storageMigration';
 import './style.css';
 import {ACTIONS,loadSettings,saveSettings,keyLabel,normalizeKey,DEFAULT_BINDS,type ActionId} from './settings';
@@ -31,7 +32,7 @@ type Shot = Vec & { powder?:boolean; vx:number; vy:number; life:number; owner:'p
 type SalvoRound = { powder?:boolean; delay:number; target:Target; side:number; slot:number; damage:number; ammo:AmmoKind };
 type EnemyRole='light'|'heavy';
 type Enemy = Vec & { kind:'ship'; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
-type ParticleKind='foam'|'smoke'|'spark'|'damage'|'flash'|'explosion'|'splash'|'splinter'|'bubble'|'plank'|'firePuff'|'target'|'poison'|'soul'|'shock';
+type ParticleKind='wisp'|'foam'|'smoke'|'spark'|'damage'|'flash'|'explosion'|'splash'|'splinter'|'bubble'|'plank'|'firePuff'|'target'|'poison'|'soul'|'shock';
 // z: su üstünden yükseklik (ekranda yukarı kayar); vz ile savrulan parçalar suya düşer
 type Particle = Vec & { vx:number; vy:number; life:number; maxLife:number; kind:ParticleKind; text?:string; color?:string; z?:number; vz?:number; rot?:number; vr?:number; size?:number; variant?:number };
 type Wreck = Vec & { angle:number; sprite:string; span:number; t:number; bubble:number };
@@ -577,7 +578,7 @@ function enemyFire(e:Enemy){
   if(stealthTimer>0){e.cooldown=Math.max(e.cooldown,.4);return;}
   if(e.boss){bossFire(e);return;}
   const a=Math.atan2(player.y-e.y,player.x-e.x);playEnemyCannon(dist(e,player),(e.x-player.x)/600);
-  shots.push({x:e.x,y:e.y,vx:Math.cos(a)*260,vy:Math.sin(a)*260,life:2.2,owner:'enemy',damage:e.damage*(.85+Math.random()*.3),hit:false,ammo:'iron'}); e.cooldown=e.reload+Math.random()*.55;muzzleFlash(e.x+Math.cos(a)*16,e.y+Math.sin(a)*16,a,54);
+  shots.push({x:e.x,y:e.y,vx:Math.cos(a)*260,vy:Math.sin(a)*260,life:2.2,owner:'enemy',damage:e.damage*(.85+Math.random()*.3),hit:false,ammo:'iron'}); e.cooldown=e.reload+Math.random()*.55;muzzleFlash(e.x+Math.cos(a)*16,e.y+Math.sin(a)*16,a,36);
 }
 function monsterFire(m:Monster){if(stealthTimer>0){m.cooldown=Math.max(m.cooldown,.4);return;}const a=Math.atan2(player.y-m.y,player.x-m.x);playSplash();for(const off of m.def.tier>=5?[-.12,0,.12]:[0])shots.push({x:m.x,y:m.y,vx:Math.cos(a+off)*210,vy:Math.sin(a+off)*210,life:2.4,owner:'enemy',damage:m.def.damage*(.85+Math.random()*.3),hit:false,ammo:'iron',visual:'spit'});m.cooldown=m.def.reload;}
 // Batınca bulunduğun denizde, düşmanlardan uzak rastgele bir noktada %10 gövdeyle yeniden doğ.
@@ -614,7 +615,7 @@ function ammoImpact(s:Shot,target:Target,hit:number){
     for(let n=0;n<4;n++){const a=Math.atan2(player.y-target.y,player.x-target.x)+(Math.random()-.5)*.8,sp=dist(player,target)/.7;particles.push({x:target.x,y:target.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:.7,maxLife:.7,kind:'soul',z:18,size:26});}}
 }
 // Namlu alevi ve top dumanı
-function muzzleFlash(x:number,y:number,angle:number,size=64){particles.push({x,y,vx:0,vy:0,life:.13,maxLife:.13,kind:'flash',rot:angle,size,z:6});for(let n=0;n<2;n++)particles.push({x,y,vx:Math.cos(angle)*(30+n*25)+(Math.random()-.5)*10,vy:Math.sin(angle)*(30+n*25)+(Math.random()-.5)*10,life:.9+Math.random()*.4,maxLife:1.3,kind:'smoke',z:6,size:36+n*10,variant:(n+Math.floor(Math.random()*4))%4,rot:Math.random()*6});}
+function muzzleFlash(x:number,y:number,angle:number,size=40){particles.push({x,y,vx:0,vy:0,life:.13,maxLife:.13,kind:'flash',rot:angle,size,z:6});for(let n=0;n<2;n++)particles.push({x,y,vx:Math.cos(angle)*(30+n*25)+(Math.random()-.5)*10,vy:Math.sin(angle)*(30+n*25)+(Math.random()-.5)*10,life:.9+Math.random()*.4,maxLife:1.3,kind:'wisp',z:6,size:9+n*5});}
 const wrecks:Wreck[]=[];
 const WRECK_TIME=1.8;
 // Hasar yazısı: verdiğin hasar barut açıkken sarı, kapalıyken kırmızı; aldığın hasar kalkan açıkken mavi, kapalıyken kırmızı
@@ -1105,12 +1106,12 @@ function update(dt:number){
     if(s.flight===undefined){const aim=s.owner==='player'?s.target:player,sp=Math.max(1,Math.hypot(s.vx,s.vy)),d=aim&&targetExistsOrPlayer(aim)?dist(s,aim):sp*s.life;s.flight=Math.max(.15,Math.min(s.life,d/sp));s.age=0;s.arc=Math.min(80,d*.13)*(s.splash?2.2:1);
       if(s.splash&&aim)particles.push({x:aim.x,y:aim.y,vx:0,vy:0,life:s.flight,maxLife:s.flight,kind:'target',size:120});}
     s.age=(s.age??0)+dt;s.trail=(s.trail??0)-dt;
-    if(s.trail<=0){s.trail=s.ammo==='fire'?.03:.05;const z=shotHeight(s);
+    if(s.trail<=0){s.trail=s.ammo==='fire'?.04:.1;const z=shotHeight(s);
       if(s.visual==='spit')particles.push({x:s.x,y:s.y,vx:(Math.random()-.5)*10,vy:(Math.random()-.5)*10,life:.4,maxLife:.4,kind:'bubble',z,size:14});
-      else if(s.ammo==='fire')particles.push({x:s.x,y:s.y,vx:(Math.random()-.5)*12,vy:(Math.random()-.5)*12,life:.4,maxLife:.4,kind:'firePuff',z,size:30});
+      else if(s.ammo==='fire')particles.push({x:s.x,y:s.y,vx:(Math.random()-.5)*12,vy:(Math.random()-.5)*12,life:.4,maxLife:.4,kind:'firePuff',z,size:18});
       else if(s.ammo==='explosive')particles.push({x:s.x,y:s.y,vx:(Math.random()-.5)*30,vy:(Math.random()-.5)*30,life:.3,maxLife:.3,kind:'spark',z:z+10,size:14});
-      else if(s.ammo==='leech')particles.push({x:s.x,y:s.y,vx:(Math.random()-.5)*10,vy:(Math.random()-.5)*10,life:.45,maxLife:.45,kind:'soul',z,size:16});
-      else if(s.ammo!=='grape')particles.push({x:s.x,y:s.y,vx:0,vy:0,life:.35,maxLife:.35,kind:'smoke',z,size:16,variant:Math.floor(Math.random()*4)});}
+      else if(s.ammo==='leech')particles.push({x:s.x,y:s.y,vx:(Math.random()-.5)*10,vy:(Math.random()-.5)*10,life:.45,maxLife:.45,kind:'soul',z,size:11});
+      else if(s.ammo!=='grape'&&s.ammo!=='chain')particles.push({x:s.x,y:s.y,vx:0,vy:-6,life:.4,maxLife:.4,kind:'wisp',z,size:5});}
     s.x+=s.vx*dt;s.y+=s.vy*dt;s.life-=dt;
     if(s.owner==='player'){
       for(let j=enemies.length-1;j>=0&&s.life>0;j--){
@@ -1513,17 +1514,14 @@ function drawFleetIsland(){
 const UNDER=new Set<ParticleKind>(['foam','bubble','plank','target']);
 function targetExistsOrPlayer(t:Target|typeof player){return t===player||targetExists(t as Target);}
 function shotHeight(s:Shot){if(!s.flight)return 0;const p=Math.min(1,(s.age??0)/s.flight);return (s.arc??0)*4*p*(1-p);}
-function drawShotShadow(s:Shot){const p=worldToScreen(s),h=shotHeight(s),k=1-Math.min(.5,h/160);drawVfx(ctx,'shadow',p.x,p.y+2,46*k,{alpha:.9*k});}
-function drawShotBall(s:Shot){const p=worldToScreen(s),y=p.y-shotHeight(s),spin=(s.age??0)*16;
-  if(s.visual==='spit'){drawVfx(ctx,'spit',p.x,y,46,{rot:spin*.2});return;}
-  if(s.owner==='enemy'){if(s.ammo==='fire')drawVfx(ctx,'fire',p.x,y,52,{rot:spin*.3});else drawVfx(ctx,'enemy',p.x,y,40);return;}
-  if(s.ammo==='fire')drawVfx(ctx,'fire',p.x,y,54,{rot:spin*.3});
-  else if(s.ammo==='chain')drawVfx(ctx,'chain',p.x,y,62,{rot:spin});
-  else if(s.ammo==='explosive')drawVfx(ctx,'bomb',p.x,y,46,{rot:Math.sin(spin*.3)*.4});
-  else if(s.ammo==='breaker')drawVfx(ctx,'breaker',p.x,y,48,{rot:Math.atan2(s.vy,s.vx)});
-  else if(s.ammo==='leech')drawVfx(ctx,'leech',p.x,y,48);
-  else if(s.ammo==='grape'){const a=Math.atan2(s.vy,s.vx);for(let k=0;k<5;k++){const off=(k-2)*7,back=(k%2)*8;drawVfx(ctx,'pellet',p.x-Math.cos(a)*back-Math.sin(a)*off,y-Math.sin(a)*back+Math.cos(a)*off,34);}}
-  else drawVfx(ctx,'iron',p.x,y,40);}
+function drawShotShadow(s:Shot){const p=worldToScreen(s),h=shotHeight(s),k=1-Math.min(.5,h/160);drawVfx(ctx,'shadow',p.x,p.y+2,16*k,{alpha:.6*k});}
+// Gülleler küçük metalik toplardır (shotArt.ts); özel mühimmat da gülle biçiminde kalır, yalnızca rengi ve izi değişir.
+function drawShotBall(s:Shot){const p=worldToScreen(s),y=p.y-shotHeight(s),spin=(s.age??0)*16,a=Math.atan2(s.vy,s.vx);
+  if(s.visual==='spit'){drawVfx(ctx,'spit',p.x,y,34,{rot:spin*.2});return;}
+  if(s.owner==='enemy'){drawBall(ctx,s.ammo==='fire'?'fire':'enemy',p.x,y,a,12,s.age??0);return;}
+  if(s.ammo==='chain')drawChainShot(ctx,p.x,y,spin*.6,14);
+  else if(s.ammo==='grape')drawGrape(ctx,p.x,y,a,14);
+  else drawBall(ctx,s.ammo==='fire'||s.ammo==='explosive'||s.ammo==='breaker'||s.ammo==='leech'?s.ammo:'iron',p.x,y,a,s.ammo==='breaker'?14:12,s.age??0);}
 function drawParticle(p:Particle){if(!onScreen(p,260))return;const s=worldToScreen(p),a=Math.max(0,Math.min(1,p.life/p.maxLife)),y=s.y-(p.z??0),size=p.size;
   switch(p.kind){
     case 'damage':ctx.globalAlpha=a;ctx.font='800 15px Inter';ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='#000c';ctx.strokeText(p.text||'',s.x,y);ctx.fillStyle=p.color||DMG_GOLD;ctx.fillText(p.text||'',s.x,y);ctx.globalAlpha=1;return;
@@ -1532,6 +1530,7 @@ function drawParticle(p:Particle){if(!onScreen(p,260))return;const s=worldToScre
     case 'flash':{const sz=(size??40)*(1+.4*(1-a)),r=p.rot??0;drawVfx(ctx,'muzzle',s.x+Math.cos(r)*sz*.3,y+Math.sin(r)*sz*.3,sz,{rot:r,alpha:a,variant:(p.variant??0)%2});return;}
     case 'smoke':drawVfx(ctx,'smoke',s.x,y,(size??22)*(1+(1-a)*1.1),{alpha:a*.75,variant:p.variant??0,rot:p.rot});return;
     case 'spark':drawVfx(ctx,'ember',s.x,y,size??12,{alpha:a});return;
+    case 'wisp':drawPuff(ctx,s.x,y,(size??6)*(.6+(1-a)*1.2),a*.45);return;
     case 'foam':drawVfx(ctx,'foam',s.x,y,(size??18)*(1+(1-a)*.8),{alpha:a*.85,variant:p.variant??0});return;
     case 'target':drawVfx(ctx,'target',s.x,y,(size??100)*(1.15-.15*(1-a)),{alpha:.55+.35*Math.sin(performance.now()/90)});return;
     case 'shock':drawVfx(ctx,'shock',s.x,y,(size??200)*(.4+.6*(1-a)),{alpha:a});return;
