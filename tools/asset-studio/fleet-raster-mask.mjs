@@ -11,6 +11,9 @@ const land=await p.evaluate(async([src,BASE_W,N,CELL,HALF])=>{const i=new Image(
   for(let j=0;j<N;j++)for(let k=0;k<N;k++){let hit=0;for(const fy of [.2,.5,.8])for(const fx of [.2,.5,.8]){const wx=(k+fx)*CELL-HALF,wy=(j+fy)*CELL-HALF,px=Math.floor((wx+BASE_W/2)*s),py=Math.floor((wy+bh/2)*s);if(px>=0&&py>=0&&px<W&&py<H&&d[(py*W+px)*4+3]>96)hit++;}out.push(hit>=3?1:0);}
   return out;},[src,BASE_W,N,CELL,HALF]);
 await b.close();
+// İç adanın kuzeyi: kale çatısı ve üst iki kule kaidesi görselde yukarı uzanıp arkalarındaki suyu örter. Seyir için zemin
+// izi esas alınır: iç adanın kumunun kuzeyinde (y < -125) ve üst surun iç kıyısına kadar kalan bant sudur.
+for(let k=0;k<N*N;k++){const wx=(k%N+.5)*CELL-HALF,wy=((k/N|0)+.5)*CELL-HALF;if(wy<-125&&wy>-232&&(wx/360)**2+((wy+40)/190)**2<1)land[k]=0;}
 // geminin merkezi için kıyıda bir hücre pay
 const blocked=land.map((_,k)=>{const x=k%N,y=k/N|0;for(let ny=Math.max(0,y-1);ny<=Math.min(N-1,y+1);ny++)for(let nx=Math.max(0,x-1);nx<=Math.min(N-1,x+1);nx++)if(land[ny*N+nx])return 1;return 0;});
 const open=new Uint8Array(N*N),q=[];for(let y=0;y<N;y++)for(let x=0;x<N;x++){const k=y*N+x;if((x===0||y===0||x===N-1||y===N-1)&&!blocked[k]){open[k]=1;q.push(k);}}

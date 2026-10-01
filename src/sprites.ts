@@ -68,6 +68,13 @@ export function drawFleetBase(ctx:CanvasRenderingContext2D,theme:string,x:number
   const art=tintedArt(fleetBaseUrl(theme),theme);if(!art)return false;
   ctx.drawImage(art,x-FLEET_ART.w/2,y-FLEET_ART.h/2,FLEET_ART.w,FLEET_ART.h);return true;
 }
+// İç adanın yüksek parçaları (kale ve üst iki kule kaidesi): arkasından geçen geminin üstüne yeniden çizilir ki gemi
+// gerçekten arkada kalsın. rects: ada merkezine göre dünya birimi [x0,y0,x1,y1].
+export const FLEET_OCCLUDERS:[number,number,number,number][]=[[-92,-248,92,-70],[-252,-218,-144,-70],[144,-218,252,-70]];
+export function drawFleetOccluder(ctx:CanvasRenderingContext2D,theme:string,x:number,y:number){
+  const art=tintedArt(fleetBaseUrl(theme),theme);if(!art)return;const k=art.width/FLEET_ART.w;
+  for(const [x0,y0,x1,y1] of FLEET_OCCLUDERS)ctx.drawImage(art,(x0+FLEET_ART.w/2)*k,(y0+FLEET_ART.h/2)*k,(x1-x0)*k,(y1-y0)*k,x+x0,y+y0,x1-x0,y1-y0);
+}
 // Rakip adanın varsayılan top kuleleri; oyuncu kuleleriyle aynı yerleşim.
 export function drawBastion(ctx:CanvasRenderingContext2D,slot:number,x:number,y:number,alpha=1){
   return drawBuiltTower(ctx,0,slot,x,y,alpha);
