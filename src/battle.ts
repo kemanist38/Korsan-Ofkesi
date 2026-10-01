@@ -5,9 +5,8 @@ export const BATTLE_RANKS:{name:string;sp:number}[]=[
   {name:'Tayfa',sp:0},{name:'Lostromo',sp:500},{name:'Topçu Başı',sp:2_000},{name:'Kaptan',sp:6_000},
   {name:'Kıdemli Kaptan',sp:15_000},{name:'Korsan Reisi',sp:40_000},{name:'Deniz Kurdu',sp:100_000},{name:'Kaptan-ı Derya',sp:250_000},
 ];
+// Her haritada aynı: rakip oyuncu başına 25 SP (Cumartesi Savaş Günü'nde 2 kat, src/events.ts)
 export const RIVAL_SP=25,RIVAL_DAILY_LIMIT=3;
-// Harita seviyesiyle (1–8) doğrusal artar: 1. seviyede 25 SP, 8. seviyede 200 SP
-export const rivalSp=(tier:number)=>RIVAL_SP*Math.max(1,Math.round(tier));
 export function battleRank(sp:number){let i=0;while(i+1<BATTLE_RANKS.length&&sp>=BATTLE_RANKS[i+1].sp)i++;
   const cur=BATTLE_RANKS[i],next=BATTLE_RANKS[i+1]??null;
   return{index:i,name:cur.name,next,pct:next?Math.min(100,(sp-cur.sp)/(next.sp-cur.sp)*100):100};}

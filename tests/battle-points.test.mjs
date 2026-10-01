@@ -12,9 +12,9 @@ function moduleAt(path,extra={}){
 const mem=()=>{const store={};return{getItem:k=>store[k]??null,setItem:(k,v)=>{store[k]=v;}};};
 const battle=moduleAt('../src/battle.ts',{localStorage:mem()});
 
-test('only rival players give SP, scaled by sea tier',()=>{
-  assert.equal(battle.rivalSp(1),25);
-  assert.equal(battle.rivalSp(8),200);
+test('a rival player gives the same 25 SP on every map',()=>{
+  assert.equal(battle.RIVAL_SP,25);
+  assert.equal(battle.RIVAL_DAILY_LIMIT,3);
 });
 test('the same rival gives SP at most three times a day',()=>{
   const b=moduleAt('../src/battle.ts',{localStorage:mem()}),log=b.loadRivalLog();
