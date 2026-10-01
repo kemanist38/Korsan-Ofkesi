@@ -277,17 +277,23 @@ function worldClick(e:{clientX:number;clientY:number}){
   }
   const towerHit=enemies.filter(n=>n.tower&&towerContains(world,n)).sort((a,b)=>b.y-a.y)[0];
   const hit=towerHit??[...enemies,...monsters].filter(n=>dist(n,world)<Math.max(42,n.kind==='monster'?n.radius:(n.hitRadius??0))).sort((a,b)=>dist(a,world)-dist(b,world))[0];
-  if(hit){if(hit!==selected){selected=hit;state.attacking=false;attackChase=false;ui('attack').classList.remove('active');toast(`${hit.name} hedef seçildi`);}}
+  if(hit){if(hit!==selected){selected=hit;state.attacking=false;attackChase=false;ui('attack').classList.remove('active');toast(`${hit.name} hedef seçildi`);}else if(!state.attacking)toggleAttack();}
   else{const glint=sparkles.find(g=>dist(g,world)<34);if(glint){routeTarget={x:glint.x,y:glint.y};destination=routeVia(routeTarget);attackChase=false;toast('Rota inci pırıltısına çizildi');return;}const chest=lootChests.find(c=>dist(c,world)<CHEST_CLICK_RADIUS);routeTarget=chest?{x:chest.x,y:chest.y}:navigablePoint(world);destination=routeVia(routeTarget);attackChase=false;if(chest)toast('Rota ganimet sandığına çizildi');}
 }
 // Harita gezinme: sol tuşa basılı tutup sürükleyince kamera gemiden ayrılır (✥ ile geri döner);
 // sürüklemeden bırakılan tık, hedef seçimi/rota olarak işlenir.
-{let press:{x:number;y:number;cx:number;cy:number;id:number}|null=null,panning=false;
-  canvas.addEventListener('pointerdown',e=>{if(e.button!==0&&e.pointerType==='mouse')return;press={x:e.clientX,y:e.clientY,cx:camera.x,cy:camera.y,id:e.pointerId};panning=false;});
-  canvas.addEventListener('pointermove',e=>{if(!press||e.pointerId!==press.id)return;const dx=e.clientX-press.x,dy=e.clientY-press.y;
-    if(!panning&&Math.hypot(dx,dy)>8){panning=true;try{canvas.setPointerCapture(e.pointerId);}catch{}canvas.classList.add('panning');}
+// Dokunmatik ekranda iki parmakla sıkıştırınca yakınlaştırma/uzaklaştırma; ikinci parmak değince dokunuş tık sayılmaz.
+{let press:{x:number;y:number;cx:number;cy:number;id:number}|null=null,panning=false,pinch:{d:number;z:number}|null=null;
+  const touches=new Map<number,{x:number;y:number}>();
+  const spread=()=>{const [a,b]=[...touches.values()];return Math.hypot(a.x-b.x,a.y-b.y)||1;};
+  canvas.addEventListener('pointerdown',e=>{if(e.button!==0&&e.pointerType==='mouse')return;
+    if(e.pointerType==='touch'){touches.set(e.pointerId,{x:e.clientX,y:e.clientY});if(touches.size===2){press=null;panning=false;canvas.classList.remove('panning');pinch={d:spread(),z:camera.targetZoom};return;}if(touches.size>2)return;}
+    press={x:e.clientX,y:e.clientY,cx:camera.x,cy:camera.y,id:e.pointerId};panning=false;});
+  canvas.addEventListener('pointermove',e=>{const t=touches.get(e.pointerId);if(t){t.x=e.clientX;t.y=e.clientY;if(pinch&&touches.size>=2){setZoom(pinch.z*spread()/pinch.d);return;}}
+    if(!press||e.pointerId!==press.id)return;const dx=e.clientX-press.x,dy=e.clientY-press.y;
+    if(!panning&&Math.hypot(dx,dy)>(e.pointerType==='touch'?14:8)){panning=true;try{canvas.setPointerCapture(e.pointerId);}catch{}canvas.classList.add('panning');}
     if(panning)lookAt(press.cx-dx/camera.zoom,press.cy-dy/camera.zoom,true);});
-  const end=(e:PointerEvent)=>{if(!press||e.pointerId!==press.id)return;const was=panning;press=null;panning=false;canvas.classList.remove('panning');if(!was&&e.type==='pointerup')worldClick(e);};
+  const end=(e:PointerEvent)=>{touches.delete(e.pointerId);if(touches.size<2)pinch=null;if(!press||e.pointerId!==press.id)return;const was=panning;press=null;panning=false;canvas.classList.remove('panning');if(!was&&e.type==='pointerup')worldClick(e);};
   canvas.addEventListener('pointerup',end);canvas.addEventListener('pointercancel',end);}
 
 // Mini harita: tıklayıp sürükleyerek haritada gezinme (görüş penceresi o noktaya taşınır)
@@ -297,6 +303,12 @@ function worldClick(e:{clientX:number;clientY:number}){
   const up=()=>{down=false;};minimap.addEventListener('pointerup',up);minimap.addEventListener('pointercancel',up);}
 ui('attack').onclick=toggleAttack;
 ui('repair').onclick=toggleRepair;
+// Küçük ekranlar (telefon, tablet): arayüz en az 1180 × 640'lık sanal bir alana göre dizilip orantılı küçültülür.
+// Böylece telefonda da masaüstündeki yerleşim korunur; ölçek --ui değişkeniyle CSS'e verilir (bkz. .hud, .chat).
+let uiScale=1;
+function fitHud(){uiScale=Math.max(.5,Math.min(1,innerWidth/1180,innerHeight/640));document.documentElement.style.setProperty('--ui',String(uiScale));}
+fitHud();
+{const hint=document.createElement('div');hint.className='rotate-hint';hint.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="18.5" r=".9" fill="currentColor"/></svg>Telefonunu yatay çevir<small>Yedi Deniz yatay ekranda oynanır</small>`;document.body.append(hint);}
 // HUD çerçeveleri: alt bar (CP/SP), gülle çerçevesi ve malzeme çerçevesi. Her biri kendi tutamağından tek başına taşınır.
 // Bir çerçeve başka bir çerçevenin kenarına yaklaştırılıp bırakılınca ona yapışır ve grup olur; alt bar tutulup taşınınca
 // ona bağlı tüm çerçeveler birlikte gelir. Gülle/malzeme çerçevesi tek tutulunca gruptan ayrılır (ona bağlı olanlar yerinde
@@ -311,7 +323,8 @@ ui('repair').onclick=toggleRepair;
   let link:Record<FrameId,FrameId|null>={...DEFAULT_LINK};
   try{const l=JSON.parse(localStorage.getItem(LINKS)||'null');if(l)link={dock:null,ammo:l.ammo??null,item:l.item??null};}catch{}
   const rect=(id:FrameId)=>EL[id].getBoundingClientRect();
-  const place=(id:FrameId,x:number,y:number)=>{const e=EL[id],w=e.offsetWidth,h=e.offsetHeight;e.classList.add('moved');e.style.left=`${clamp(x,0,Math.max(0,innerWidth-w))}px`;e.style.top=`${clamp(y,0,Math.max(0,innerHeight-h))}px`;};
+  // x,y ekran pikseli; çerçevenin kendi konumu ölçeklenmiş arayüz pikselinde saklanır (uiScale)
+  const place=(id:FrameId,x:number,y:number)=>{const e=EL[id],w=e.offsetWidth,h=e.offsetHeight,k=uiScale;e.classList.add('moved');e.style.left=`${clamp(x/k,0,Math.max(0,innerWidth/k-w))}px`;e.style.top=`${clamp(y/k,0,Math.max(0,innerHeight/k-h))}px`;};
   const kids=(id:FrameId)=>IDS.filter(k=>link[k]===id);
   const tree=(id:FrameId):FrameId[]=>kids(id).flatMap(k=>[k,...tree(k)]);
   const save=()=>{try{for(const id of IDS){const e=EL[id];localStorage.setItem(POS(id),JSON.stringify({x:e.classList.contains('moved')?parseFloat(e.style.left):null,y:parseFloat(e.style.top),v:e.classList.contains('vertical'),c:e.classList.contains('collapsed')}));}localStorage.setItem(LINKS,JSON.stringify(link));}catch{}};
@@ -324,26 +337,34 @@ ui('repair').onclick=toggleRepair;
       const opts:[number,number,number,boolean][]=[[Math.abs(r.top-q.bottom),cx,q.bottom+GAP,hOver>-SNAP],[Math.abs(r.bottom-q.top),cx,q.top-r.height-GAP,hOver>-SNAP],[Math.abs(r.left-q.right),q.right+GAP,q.top,vOver>-SNAP],[Math.abs(r.right-q.left),q.left-r.width-GAP,q.top,vOver>-SNAP]];
       for(const [d,x,y,ok] of opts)if(ok&&d<SNAP&&(!best||d<best.d))best={d,to:t,x,y};}
     if(best){place(id,best.x,best.y);link[id]=best.to;}};
-  for(const id of IDS){try{const p=JSON.parse(localStorage.getItem(POS(id))||'null');if(p){if(id!=='dock'){EL[id].classList.toggle('vertical',!!p.v);EL[id].classList.toggle('collapsed',!!p.c);}if(p.x!=null&&Number.isFinite(p.x))requestAnimationFrame(()=>place(id,p.x,p.y));}}catch{}}
+  for(const id of IDS){try{const p=JSON.parse(localStorage.getItem(POS(id))||'null');if(p){if(id!=='dock'){EL[id].classList.toggle('vertical',!!p.v);EL[id].classList.toggle('collapsed',!!p.c);}if(p.x!=null&&Number.isFinite(p.x))requestAnimationFrame(()=>place(id,p.x*uiScale,p.y*uiScale));}}catch{}}
   for(const id of ['ammo','item'] as FrameId[])(EL[id].querySelector('.bar-toggle') as HTMLElement).onclick=()=>{EL[id].classList.toggle('collapsed');closeAmmoPicker();save();};
   let drag:{id:FrameId;dx:number;dy:number;group:{id:FrameId;ox:number;oy:number}[]}|null=null;
   for(const id of IDS){const grip=GRIP[id];
-    grip.addEventListener('pointerdown',e=>{if((e.target as HTMLElement).closest('button'))return;const r=rect(id);closeAmmoPicker();
+    // dokunmatikte parmak çoğu zaman yuvaya denk gelir: yuva/düğme üstünde 0,35 sn basılı tutunca da sürükleme başlar
+    let hold=0,holdAt:{x:number;y:number}|null=null,eatClick=false;
+    grip.addEventListener('pointerdown',e=>{if((e.target as HTMLElement).closest('button')){if(e.pointerType!=='touch')return;holdAt={x:e.clientX,y:e.clientY};clearTimeout(hold);
+        hold=window.setTimeout(()=>{if(!holdAt)return;eatClick=true;startDrag(e);navigator.vibrate?.(15);},350);return;}
+      startDrag(e);});
+    grip.addEventListener('pointermove',e=>{if(holdAt&&Math.hypot(e.clientX-holdAt.x,e.clientY-holdAt.y)>10){holdAt=null;clearTimeout(hold);}});
+    for(const t of ['pointerup','pointercancel'])grip.addEventListener(t,()=>{holdAt=null;clearTimeout(hold);});
+    grip.addEventListener('click',e=>{if(eatClick){eatClick=false;e.stopPropagation();e.preventDefault();}},true);
+    const startDrag=(e:PointerEvent)=>{const r=rect(id);closeAmmoPicker();
       // tek tutulan gülle/malzeme çerçevesi gruptan ayrılır; ona bağlı olanlar bir üstteki çerçeveye geçer
       if(id!=='dock'){for(const k of kids(id))link[k]=link[id];link[id]=null;}
       const group=id==='dock'?tree('dock').map(k=>{const q=rect(k);return{id:k,ox:q.left-r.left,oy:q.top-r.top};}):[];
       for(const g of group)place(g.id,r.left+g.ox,r.top+g.oy);
-      drag={id,dx:e.clientX-r.left,dy:e.clientY-r.top,group};try{grip.setPointerCapture(e.pointerId);}catch{}EL[id].classList.add('dragging');grip.classList.add('dragging');});
+      drag={id,dx:e.clientX-r.left,dy:e.clientY-r.top,group};try{grip.setPointerCapture(e.pointerId);}catch{}EL[id].classList.add('dragging');grip.classList.add('dragging');};
     // grup taşınırken tüm grubun kutusu ekranda kalacak şekilde sınırlanır (çerçeveler üst üste binmez)
-    grip.addEventListener('pointermove',e=>{if(!drag||drag.id!==id)return;const w=EL[id].offsetWidth,h=EL[id].offsetHeight;let x0=0,y0=0,x1=w,y1=h;
-      for(const g of drag.group){x0=Math.min(x0,g.ox);y0=Math.min(y0,g.oy);x1=Math.max(x1,g.ox+EL[g.id].offsetWidth);y1=Math.max(y1,g.oy+EL[g.id].offsetHeight);}
+    grip.addEventListener('pointermove',e=>{if(!drag||drag.id!==id)return;const k=uiScale,w=EL[id].offsetWidth*k,h=EL[id].offsetHeight*k;let x0=0,y0=0,x1=w,y1=h;
+      for(const g of drag.group){x0=Math.min(x0,g.ox);y0=Math.min(y0,g.oy);x1=Math.max(x1,g.ox+EL[g.id].offsetWidth*k);y1=Math.max(y1,g.oy+EL[g.id].offsetHeight*k);}
       const x=clamp(e.clientX-drag.dx,-x0,Math.max(-x0,innerWidth-x1)),y=clamp(e.clientY-drag.dy,-y0,Math.max(-y0,innerHeight-y1));
       place(id,x,y);for(const g of drag.group)place(g.id,x+g.ox,y+g.oy);});
     const stop=()=>{if(!drag||drag.id!==id)return;drag=null;EL[id].classList.remove('dragging');grip.classList.remove('dragging');if(id!=='dock'){orient(id);snap(id);}save();};
     grip.addEventListener('pointerup',stop);grip.addEventListener('pointercancel',stop);
     grip.addEventListener('dblclick',e=>{if((e.target as HTMLElement).closest('button'))return;const el=EL[id];el.classList.remove('moved','vertical');el.style.left='';el.style.top='';link[id]=DEFAULT_LINK[id];
       if(id==='dock')for(const k of tree('dock')){EL[k].classList.remove('moved','vertical');EL[k].style.left='';EL[k].style.top='';}save();});}
-  addEventListener('resize',()=>{for(const id of IDS)if(EL[id].classList.contains('moved'))place(id,parseFloat(EL[id].style.left),parseFloat(EL[id].style.top));});}
+  addEventListener('resize',()=>{fitHud();for(const id of IDS)if(EL[id].classList.contains('moved'))place(id,parseFloat(EL[id].style.left)*uiScale,parseFloat(EL[id].style.top)*uiScale);});}
 ui('ability-speed').onclick=()=>activateAbility('speed');ui('ability-mine').onclick=dropMine;ui('ability-elite').onclick=activateEliteAbility;
 function recenterShip(){freeLook=null;camera.x=player.x;camera.y=player.y;toast('Kamera gemiye ortalandı');}
 ui('recenterShip').onclick=recenterShip;
@@ -914,10 +935,10 @@ function openAmmoPicker(index:number){
     // seçilen gülle başka yuvadaysa iki yuva yer değiştirir; böylece hiçbir gülle bardan kaybolmaz
     if(old!==id){assignQuickSlot(index,id);if(from>=0&&old){quickSlots[from]=old;saveAccount();renderQuickSlots();}}useQuickSlot(index);closeAmmoPicker();});
   const bar=ui('ammoBar'),slot=bar.querySelector(`[data-quick-slot="${index}"]`) as HTMLElement,r=slot.getBoundingClientRect(),vertical=bar.classList.contains('vertical');
-  picker.classList.toggle('side',vertical);picker.classList.add('open');const pw=picker.offsetWidth,ph=picker.offsetHeight;
+  picker.classList.toggle('side',vertical);picker.classList.add('open');const k=uiScale,pw=picker.offsetWidth*k,ph=picker.offsetHeight*k;
   let x=vertical?(r.left<innerWidth/2?r.right+8:r.left-pw-8):r.left+r.width/2-pw/2,y=vertical?r.top+r.height/2-ph/2:r.top-ph-8;
   if(!vertical&&y<4)y=r.bottom+8;
-  picker.style.left=`${clamp(x,4,innerWidth-pw-4)}px`;picker.style.top=`${clamp(y,4,innerHeight-ph-4)}px`;}
+  picker.style.left=`${clamp(x,4,innerWidth-pw-4)/k}px`;picker.style.top=`${clamp(y,4,innerHeight-ph-4)/k}px`;}
 addEventListener('pointerdown',e=>{if(pickerSlot<0)return;const t=e.target as HTMLElement;if(t.closest('#ammoPicker')||t.closest('#ammoBar [data-quick-slot]'))return;closeAmmoPicker();},true);
 addEventListener('keydown',e=>{if(e.key==='Escape')closeAmmoPicker();});
 function useQuickSlot(index:number){
