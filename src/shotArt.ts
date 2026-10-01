@@ -25,3 +25,12 @@ let puff:HTMLCanvasElement|null=null;
 export function drawPuff(ctx:CanvasRenderingContext2D,x:number,y:number,r:number,alpha:number){
   if(!puff){puff=document.createElement('canvas');puff.width=puff.height=64;const p=puff.getContext('2d')!,g=p.createRadialGradient(32,32,0,32,32,32);g.addColorStop(0,'rgba(232,236,238,.9)');g.addColorStop(.5,'rgba(220,226,228,.45)');g.addColorStop(1,'rgba(220,226,228,0)');p.fillStyle=g;p.fillRect(0,0,64,64);}
   const prev=ctx.globalAlpha;ctx.globalAlpha=prev*alpha;ctx.drawImage(puff,x-r,y-r,r*2,r*2);ctx.globalAlpha=prev;}
+// Parıltı: dört köşeli ışık yıldızı + yumuşak hale; renk başına bir kez çizilip önbelleğe alınır, toplamalı karışımla basılır
+const glints=new Map<string,HTMLCanvasElement>();
+export function drawGlint(ctx:CanvasRenderingContext2D,x:number,y:number,r:number,color:string,alpha:number,rot:number){
+  let c=glints.get(color);if(!c){c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d')!,h=g.createRadialGradient(32,32,0,32,32,32);
+    h.addColorStop(0,color+'cc');h.addColorStop(.25,color+'55');h.addColorStop(1,color+'00');g.fillStyle=h;g.fillRect(0,0,64,64);
+    g.fillStyle='#ffffff';g.beginPath();for(let i=0;i<8;i++){const a=i*Math.PI/4,l=i%2?5:30;g.lineTo(32+Math.cos(a)*l,32+Math.sin(a)*l);}g.closePath();g.globalAlpha=.95;g.fill();
+    g.globalCompositeOperation='source-atop';g.fillStyle=color;g.globalAlpha=.45;g.fillRect(0,0,64,64);glints.set(color,c);}
+  const prev=ctx.globalAlpha,op=ctx.globalCompositeOperation;ctx.globalAlpha=prev*Math.min(1,alpha*1.4);ctx.globalCompositeOperation='lighter';
+  ctx.save();ctx.translate(x,y);ctx.rotate(rot);ctx.drawImage(c,-r,-r,r*2,r*2);ctx.restore();ctx.globalAlpha=prev;ctx.globalCompositeOperation=op;}

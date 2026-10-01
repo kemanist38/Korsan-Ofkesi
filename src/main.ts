@@ -1,5 +1,5 @@
 import {drawMysticPlayerMarker} from './player-marker';
-import {drawShotSprite,drawPuff} from './shotArt';
+import {drawShotSprite,drawPuff,drawGlint} from './shotArt';
 import './storageMigration';
 import './style.css';
 import {ACTIONS,loadSettings,saveSettings,keyLabel,normalizeKey,DEFAULT_BINDS,type ActionId} from './settings';
@@ -34,7 +34,7 @@ type EnemyRole='light'|'heavy';
 // Test kaptanı: elit gemili, oyuncu gibi savaşan yapay rakip (yalnız test modunda 1/1'de)
 type Captain={elite:EliteShipId;ammo:AmmoKind;ammoClock:number;abilityCd:number;foe:Enemy|null;orbit:Vec|null;orbitClock:number};
 type Enemy = Vec & { kind:'ship'; captain?:Captain; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
-type ParticleKind='wisp'|'foam'|'smoke'|'spark'|'damage'|'flash'|'explosion'|'splash'|'splinter'|'bubble'|'plank'|'firePuff'|'target'|'poison'|'soul'|'shock';
+type ParticleKind='glint'|'wisp'|'foam'|'smoke'|'spark'|'damage'|'flash'|'explosion'|'splash'|'splinter'|'bubble'|'plank'|'firePuff'|'target'|'poison'|'soul'|'shock';
 // z: su üstünden yükseklik (ekranda yukarı kayar); vz ile savrulan parçalar suya düşer
 type Particle = Vec & { vx:number; vy:number; life:number; maxLife:number; kind:ParticleKind; text?:string; color?:string; z?:number; vz?:number; rot?:number; vr?:number; size?:number; variant?:number };
 type Wreck = Vec & { angle:number; sprite:string; span:number; t:number; bubble:number };
@@ -206,6 +206,7 @@ const sparkleQueue:number[]=[];
 const abilityTimers:Record<AbilityId,{active:number;cooldown:number}>={speed:{active:0,cooldown:0},mine:{active:0,cooldown:0}};
 const mines:{x:number;y:number;life:number;arm:number}[]=[];
 const abilityActive=(id:AbilityId)=>abilityTimers[id].active>0;
+let glintClock=0;
 const eliteAbility={active:0,cooldown:0};
 // Elit yetenek durumları. Hayalet geçişte adacıklardan geçilir; gemi yarı saydam ve arkasında hayalet izi
 const ELITE_COOLDOWN=45;
@@ -1387,7 +1388,8 @@ function activateAbility(id:'speed'){
   if(arsenal.speed<=0){toast(`${a.name} kalmadı — marketten alabilirsin`);return;}
   arsenal.speed--;saveArsenal(arsenal);renderQuickSlots();
   t.active=a.duration;t.cooldown=a.cooldown*bonus.cooldown;toast(`${a.name} içildi · kalan ${arsenal.speed.toLocaleString('tr-TR')}`);playWind();
-  if(id==='speed')for(let n=0;n<10;n++)particles.push({x:player.x+(Math.random()-.5)*30,y:player.y+(Math.random()-.5)*30,vx:-Math.sin(player.angle)*60,vy:Math.cos(player.angle)*60,life:.6,maxLife:.6,kind:'foam'});
+  // içildiği an gemiyi saran kısa parıltı patlaması
+  if(id==='speed')for(let n=0;n<26;n++){const ang=Math.random()*Math.PI*2,sp=40+Math.random()*70;particles.push({x:player.x,y:player.y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp*.5,life:.5+Math.random()*.4,maxLife:.9,kind:'glint',z:10+Math.random()*40,size:8+Math.random()*12,color:n%3?'#5ff3ff':'#ffffff',rot:Math.random()*3});}
 }
 function dropMine(){
   const t=abilityTimers.mine;
@@ -1406,6 +1408,10 @@ function detonateMine(index:number){
 }
 function updateArsenal(dt:number){
   for(const t of Object.values(abilityTimers)){t.active=Math.max(0,t.active-dt);t.cooldown=Math.max(0,t.cooldown-dt);}
+  // Hız İksiri etkisi: gemi giderken kıçından süzülüp sönen parıltılı yıldız izi (turkuaz; arada beyaz ve altın)
+  if(abilityActive('speed')&&Math.abs(player.speed)>15){glintClock-=dt;while(glintClock<=0){glintClock+=1/90;
+    const fx=Math.sin(player.angle),fy=-Math.cos(player.angle),back=30+Math.random()*30,side=(Math.random()-.5)*36,r=Math.random();
+    particles.push({x:player.x-fx*back-fy*side,y:player.y-fy*back*.5+fx*side*.5,vx:-fx*12+(Math.random()-.5)*10,vy:-fy*6-6-Math.random()*8,life:.55+Math.random()*.45,maxLife:1,kind:'glint',z:4+Math.random()*34,size:8+Math.random()*14,color:r<.62?'#5ff3ff':r<.86?'#ffffff':'#ffe08a',rot:Math.random()*Math.PI});}}
   for(let i=mines.length-1;i>=0;i--){const m=mines[i];m.life-=dt;m.arm=Math.max(0,m.arm-dt);if(m.life<=0){mines.splice(i,1);continue;}
     if(m.arm<=0&&(enemies.some(e=>dist(e,m)<MINE.triggerRadius)||monsters.some(x=>dist(x,m)<MINE.triggerRadius+x.radius*.6)))detonateMine(i);}
   const burnDps=(SPECIAL_AMMO.fire.burnDps+state.level*30)*bonus.burn;
@@ -1606,6 +1612,7 @@ function drawParticle(p:Particle){if(!onScreen(p,260))return;const s=worldToScre
     case 'flash':drawShotSprite(ctx,'muzzle',s.x,y,p.rot??0,(size??40)/40*(.8+.35*(1-a)),Math.min(1,a*1.6));return;
     case 'smoke':drawVfx(ctx,'smoke',s.x,y,(size??22)*(1+(1-a)*1.1),{alpha:a*.75,variant:p.variant??0,rot:p.rot});return;
     case 'spark':drawVfx(ctx,'ember',s.x,y,size??12,{alpha:a});return;
+    case 'glint':drawGlint(ctx,s.x,y,(size??10)*(.5+.5*Math.sin(Math.min(1,a)*Math.PI)),p.color??'#5ff3ff',a,p.rot??0);return;
     case 'wisp':drawPuff(ctx,s.x,y,(size??6)*(.6+(1-a)*1.2),a*.45);return;
     case 'foam':drawVfx(ctx,'foam',s.x,y,(size??18)*(1+(1-a)*.8),{alpha:a*.85,variant:p.variant??0});return;
     case 'target':drawVfx(ctx,'target',s.x,y,(size??100)*(1.15-.15*(1-a)),{alpha:.55+.35*Math.sin(performance.now()/90)});return;
