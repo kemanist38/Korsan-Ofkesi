@@ -1,5 +1,5 @@
 import {drawMysticPlayerMarker} from './player-marker';
-import {drawBall,drawChainShot,drawGrape,drawPuff} from './shotArt';
+import {drawShotSprite,drawPuff} from './shotArt';
 import './storageMigration';
 import './style.css';
 import {ACTIONS,loadSettings,saveSettings,keyLabel,normalizeKey,DEFAULT_BINDS,type ActionId} from './settings';
@@ -615,7 +615,7 @@ function ammoImpact(s:Shot,target:Target,hit:number){
     for(let n=0;n<4;n++){const a=Math.atan2(player.y-target.y,player.x-target.x)+(Math.random()-.5)*.8,sp=dist(player,target)/.7;particles.push({x:target.x,y:target.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:.7,maxLife:.7,kind:'soul',z:18,size:26});}}
 }
 // Namlu alevi ve top dumanı
-function muzzleFlash(x:number,y:number,angle:number,size=40){particles.push({x,y,vx:0,vy:0,life:.13,maxLife:.13,kind:'flash',rot:angle,size,z:6});for(let n=0;n<2;n++)particles.push({x,y,vx:Math.cos(angle)*(30+n*25)+(Math.random()-.5)*10,vy:Math.sin(angle)*(30+n*25)+(Math.random()-.5)*10,life:.9+Math.random()*.4,maxLife:1.3,kind:'wisp',z:6,size:9+n*5});}
+function muzzleFlash(x:number,y:number,angle:number,size=40){particles.push({x,y,vx:0,vy:0,life:.2,maxLife:.2,kind:'flash',rot:angle,size,z:6});for(let n=0;n<2;n++)particles.push({x,y,vx:Math.cos(angle)*(30+n*25)+(Math.random()-.5)*10,vy:Math.sin(angle)*(30+n*25)+(Math.random()-.5)*10,life:.9+Math.random()*.4,maxLife:1.3,kind:'wisp',z:6,size:9+n*5});}
 const wrecks:Wreck[]=[];
 const WRECK_TIME=1.8;
 // Hasar yazısı: verdiğin hasar barut açıkken sarı, kapalıyken kırmızı; aldığın hasar kalkan açıkken mavi, kapalıyken kırmızı
@@ -1106,12 +1106,9 @@ function update(dt:number){
     if(s.flight===undefined){const aim=s.owner==='player'?s.target:player,sp=Math.max(1,Math.hypot(s.vx,s.vy)),d=aim&&targetExistsOrPlayer(aim)?dist(s,aim):sp*s.life;s.flight=Math.max(.15,Math.min(s.life,d/sp));s.age=0;s.arc=Math.min(80,d*.13)*(s.splash?2.2:1);
       if(s.splash&&aim)particles.push({x:aim.x,y:aim.y,vx:0,vy:0,life:s.flight,maxLife:s.flight,kind:'target',size:120});}
     s.age=(s.age??0)+dt;s.trail=(s.trail??0)-dt;
-    if(s.trail<=0){s.trail=s.ammo==='fire'?.04:.1;const z=shotHeight(s);
+    if(s.trail<=0){s.trail=.08;const z=shotHeight(s);
       if(s.visual==='spit')particles.push({x:s.x,y:s.y,vx:(Math.random()-.5)*10,vy:(Math.random()-.5)*10,life:.4,maxLife:.4,kind:'bubble',z,size:14});
-      else if(s.ammo==='fire')particles.push({x:s.x,y:s.y,vx:(Math.random()-.5)*12,vy:(Math.random()-.5)*12,life:.4,maxLife:.4,kind:'firePuff',z,size:18});
-      else if(s.ammo==='explosive')particles.push({x:s.x,y:s.y,vx:(Math.random()-.5)*30,vy:(Math.random()-.5)*30,life:.3,maxLife:.3,kind:'spark',z:z+10,size:14});
-      else if(s.ammo==='leech')particles.push({x:s.x,y:s.y,vx:(Math.random()-.5)*10,vy:(Math.random()-.5)*10,life:.45,maxLife:.45,kind:'soul',z,size:11});
-      else if(s.ammo!=='grape'&&s.ammo!=='chain')particles.push({x:s.x,y:s.y,vx:0,vy:-6,life:.4,maxLife:.4,kind:'wisp',z,size:5});}
+      else if(s.ammo==='fire')particles.push({x:s.x,y:s.y,vx:(Math.random()-.5)*30,vy:(Math.random()-.5)*30,life:.3,maxLife:.3,kind:'spark',z:z+4,size:8});}
     s.x+=s.vx*dt;s.y+=s.vy*dt;s.life-=dt;
     if(s.owner==='player'){
       for(let j=enemies.length-1;j>=0&&s.life>0;j--){
@@ -1515,19 +1512,17 @@ const UNDER=new Set<ParticleKind>(['foam','bubble','plank','target']);
 function targetExistsOrPlayer(t:Target|typeof player){return t===player||targetExists(t as Target);}
 function shotHeight(s:Shot){if(!s.flight)return 0;const p=Math.min(1,(s.age??0)/s.flight);return (s.arc??0)*4*p*(1-p);}
 function drawShotShadow(s:Shot){const p=worldToScreen(s),h=shotHeight(s),k=1-Math.min(.5,h/160);drawVfx(ctx,'shadow',p.x,p.y+2,16*k,{alpha:.6*k});}
-// Gülleler küçük metalik toplardır (shotArt.ts); özel mühimmat da gülle biçiminde kalır, yalnızca rengi ve izi değişir.
+// Gülleler: kullanıcının mühimmat ikonlarıyla aynı tarzdaki uçuş görselleri (shotArt.ts); iz görselin içindedir.
 function drawShotBall(s:Shot){const p=worldToScreen(s),y=p.y-shotHeight(s),spin=(s.age??0)*16,a=Math.atan2(s.vy,s.vx);
   if(s.visual==='spit'){drawVfx(ctx,'spit',p.x,y,34,{rot:spin*.2});return;}
-  if(s.owner==='enemy'){drawBall(ctx,s.ammo==='fire'?'fire':'enemy',p.x,y,a,12,s.age??0);return;}
-  if(s.ammo==='chain')drawChainShot(ctx,p.x,y,spin*.6,14);
-  else if(s.ammo==='grape')drawGrape(ctx,p.x,y,a,14);
-  else drawBall(ctx,s.ammo==='fire'||s.ammo==='explosive'||s.ammo==='breaker'||s.ammo==='leech'?s.ammo:'iron',p.x,y,a,s.ammo==='breaker'?14:12,s.age??0);}
+  const look=s.owner==='enemy'?(s.ammo==='fire'?'fire':'iron'):s.ammo==='chain'||s.ammo==='grape'||s.ammo==='fire'||s.ammo==='explosive'||s.ammo==='breaker'||s.ammo==='leech'?s.ammo:'iron';
+  drawShotSprite(ctx,look,p.x,y,a);}
 function drawParticle(p:Particle){if(!onScreen(p,260))return;const s=worldToScreen(p),a=Math.max(0,Math.min(1,p.life/p.maxLife)),y=s.y-(p.z??0),size=p.size;
   switch(p.kind){
     case 'damage':ctx.globalAlpha=a;ctx.font='800 15px Inter';ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='#000c';ctx.strokeText(p.text||'',s.x,y);ctx.fillStyle=p.color||DMG_GOLD;ctx.fillText(p.text||'',s.x,y);ctx.globalAlpha=1;return;
     case 'explosion':drawVfxAnim(ctx,EXPLOSION_ROW,1-a,s.x,y-(size??90)*.12,size??90);return;
     case 'splash':drawVfxAnim(ctx,SPLASH_ROW,1-a,s.x,y-(size??70)*.28,size??70);return;
-    case 'flash':{const sz=(size??40)*(1+.4*(1-a)),r=p.rot??0;drawVfx(ctx,'muzzle',s.x+Math.cos(r)*sz*.3,y+Math.sin(r)*sz*.3,sz,{rot:r,alpha:a,variant:(p.variant??0)%2});return;}
+    case 'flash':drawShotSprite(ctx,'muzzle',s.x,y,p.rot??0,(size??40)/40*(.8+.35*(1-a)),Math.min(1,a*1.6));return;
     case 'smoke':drawVfx(ctx,'smoke',s.x,y,(size??22)*(1+(1-a)*1.1),{alpha:a*.75,variant:p.variant??0,rot:p.rot});return;
     case 'spark':drawVfx(ctx,'ember',s.x,y,size??12,{alpha:a});return;
     case 'wisp':drawPuff(ctx,s.x,y,(size??6)*(.6+(1-a)*1.2),a*.45);return;
