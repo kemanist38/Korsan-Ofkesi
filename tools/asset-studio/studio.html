@@ -121,7 +121,8 @@ window.renderFleetTower=(theme,{frame=512,span=24,lookY=3,elev=65,exposure=.85}=
 window.renderFleetLayout=({w=1920,h=1080,span=100}={})=>{const scene=stage(),m=buildFleetLayout();m.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});scene.add(m);
   const e=30*Math.PI/180,a=w/h,cam=new THREE.OrthographicCamera(-span/2,span/2,span/2/a,-span/2/a,1,1200);cam.position.set(0,Math.sin(e)*500,Math.cos(e)*500);cam.lookAt(0,0,0);cam.updateMatrixWorld();cam.updateProjectionMatrix();
   renderer.setSize(w,h,false);renderer.render(scene,cam);const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(renderer.domElement,0,0);
-  const pts=FLEET_LAYOUT.angles.map(d=>{const r=d*Math.PI/180,v=new THREE.Vector3(Math.cos(r)*42.1,4.2,-Math.sin(r)*42.1).project(cam);return{deg:+d.toFixed(1),x:Math.round((v.x+1)/2*w),y:Math.round((1-v.y)/2*h)};});
+  const at=(d,R,y)=>{const r=d*Math.PI/180,v=new THREE.Vector3(Math.cos(r)*R,y,-Math.sin(r)*R).project(cam);return{deg:+d.toFixed(1),x:Math.round((v.x+1)/2*w),y:Math.round((1-v.y)/2*h)};};
+  const pts=[...FLEET_LAYOUT.angles.map(d=>at(d,FLEET_LAYOUT.ringR,4.2)),...FLEET_LAYOUT.inner.map(d=>at(d,FLEET_LAYOUT.innerR,5.8))];
   return{png:c.toDataURL('image/png'),pts};};
 window.studioReady=true;
 </script></body></html>
