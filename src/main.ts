@@ -19,7 +19,7 @@ import {loadGuild,saveGuild,islandSlots,towerTypeCost,tagError,canBuild,TOWER_TY
 import {loadProfile,saveProfile,nickError,rankOf,NICK_CHANGE_COST,NICK_COOLDOWN_MS,NICK_MAX} from './profile';
 import {createChest,chestRewardText,CHEST_PICKUP_RADIUS,CHEST_CLICK_RADIUS,DRIFT_RESPAWN_SECONDS,type LootChest} from './loot';
 import {ELITE_SHIPS,ELITE_ISO,eliteById,type EliteShipId} from './elite-ships';
-import {SPECIAL_SHIPS,specialById,specialFacing,isoAdvance,isoView,type IsoMove} from './special-ships';
+import {SPECIAL_SHIPS,specialById,specialFacing,isoAdvance,isoView,type IsoMove,type IsoFace} from './special-ships';
 import {spawnLightning,spawnFrost,spawnMeteor,spawnLavaPool,spawnTentacles,spawnSteam,spawnBloodMoon,spawnDome,spawnRipple,spawnScythe,spawnSoul,spawnBanner,spawnCoins,spawnBreath,spawnRage,spawnText,spawnVortex,spawnCoral,spawnSun,spawnBlind,screenTint,updateAbilityFx,drawAbilityFxUnder,drawAbilityFx} from './abilityFx';
 
 type Vec = { x: number; y: number };
@@ -30,7 +30,7 @@ type CannonStock=Record<CannonKind,number>;
 type Shot = Vec & { powder?:boolean; vx:number; vy:number; life:number; owner:'player'|'enemy'; damage:number; hit:boolean; ammo:AmmoKind; target?:Target; slow?:number; splash?:number; visual?:'spit'; age?:number; flight?:number; arc?:number; trail?:number };
 type SalvoRound = { powder?:boolean; delay:number; target:Target; side:number; slot:number; damage:number; ammo:AmmoKind };
 type EnemyRole='light'|'heavy';
-type Enemy = Vec & { kind:'ship'; frozen?:number; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
+type Enemy = Vec & { kind:'ship'; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
 type ParticleKind='foam'|'smoke'|'spark'|'damage'|'flash'|'explosion'|'splash'|'splinter'|'bubble'|'plank'|'firePuff'|'target'|'poison'|'soul'|'shock';
 // z: su üstünden yükseklik (ekranda yukarı kayar); vz ile savrulan parçalar suya düşer
 type Particle = Vec & { vx:number; vy:number; life:number; maxLife:number; kind:ParticleKind; text?:string; color?:string; z?:number; vz?:number; rot?:number; vr?:number; size?:number; variant?:number };
@@ -1094,7 +1094,13 @@ function update(dt:number){
     const homeDistance=Math.hypot(e.x-e.homeX,e.y-e.homeY);
     const target=e.aggro?Math.atan2(player.y-e.y,player.x-e.x)+Math.PI/2:homeDistance>90?Math.atan2(e.homeY-e.y,e.homeX-e.x)+Math.PI/2:e.angle+Math.sin(e.wander*.35)*.008;
     e.angle+=Math.atan2(Math.sin(target-e.angle),Math.cos(target-e.angle))*dt*(e.aggro?.8:.25);
-    if(!e.aggro||d>240){const slow=e.slowTimer>0?.55:1;e.x=clamp(e.x+Math.sin(e.angle)*e.speed*(e.aggro?1:.45)*slow*dt,40,WORLD_WIDTH-40);e.y=clamp(e.y-Math.cos(e.angle)*e.speed*(e.aggro?1:.45)*slow*dt,40,WORLD_HEIGHT-40);} if(e.aggro&&d<440&&e.cooldown<=0)enemyFire(e);e.cooldown-=dt;
+    // Seafight usulü: NPC de oyuncu gibi yalnızca 4 çaprazda, merdiven adımlarıyla gider; hedef rota açısının 320 birim ilerisidir
+    if(!e.aggro||d>240){const slow=e.slowTimer>0?.55:1,want={x:clamp(e.x+Math.sin(e.angle)*320,40,WORLD_WIDTH-40),y:clamp(e.y-Math.cos(e.angle)*320,40,WORLD_HEIGHT-40)};
+      if(!e.isoT||dist(e.isoT,want)>60){e.isoT=want;e.iso=null;}
+      e.face??={east:Math.sin(e.angle)>=0,north:Math.cos(e.angle)>0};
+      const st=isoAdvance(e.iso??null,e.x,e.y,e.isoT.x,e.isoT.y,e.speed*(e.aggro?1:.45)*slow*1.4,dt,e.face);e.iso=st.m;
+      if(st.done)e.isoT=undefined;else{e.x=clamp(e.x+st.mx,40,WORLD_WIDTH-40);e.y=clamp(e.y+st.my,40,WORLD_HEIGHT-40);}}
+    else e.face={east:player.x>e.x,north:player.y<e.y};/* menzilde durup ateş ederken oyuncuya döner */ if(e.aggro&&d<440&&e.cooldown<=0)enemyFire(e);e.cooldown-=dt;
   }
   for(let i=shots.length-1;i>=0;i--){
     const s=shots[i];
@@ -1544,6 +1550,8 @@ function drawWreck(w:Wreck){const s=worldToScreen(w),k=Math.min(1,w.t/WRECK_TIME
 const FLAT=.5;
 const hullLength=(o:object)=>o===player?100:(o as Enemy).boss?165:(o as Enemy).def?(o as Enemy).def!.span*.6:60;
 // Ekran dışı çizim atlanır: görüş alanı + pay (dünya birimi)
+// NPC görünüşü: oyuncu gemisi gibi 4 çapraz; yön sayfasındaki KD/GD/GB/KB kareleri
+const npcFaceAngle=(e:Enemy)=>{const f=e.face??{east:Math.sin(e.angle)>=0,north:Math.cos(e.angle)>0};return f.north?(f.east?Math.PI/4:-Math.PI/4):(f.east?Math.PI*3/4:-Math.PI*3/4);};
 function onScreen(v:Vec,m:number){const hw=innerWidth/2/camera.zoom+m,hh=innerHeight/2/camera.zoom+m;return Math.abs(v.x-camera.x)<hw&&Math.abs(v.y-camera.y)<hh;}
 const HULL_SHADOW=(()=>{const c=document.createElement('canvas');c.width=128;c.height=64;const g=c.getContext('2d')!,r=g.createRadialGradient(64,64,6,64,64,64);
   r.addColorStop(0,'rgba(2,14,20,.34)');r.addColorStop(1,'rgba(2,14,20,0)');g.fillStyle=r;g.scale(1,.5);g.fillRect(0,0,128,128);return c;})();
@@ -1597,7 +1605,7 @@ function draw(){
   drawCoordGrid();drawMapEdges();islands.forEach(i=>{if(onScreen(i,i.r+260))drawIsland(i);});drawFleetIsland();lootChests.forEach(drawLootChest);drawTreasureMark();sparkles.forEach(drawSparkle);mines.forEach(m=>{const p=worldToScreen(m);drawMineSprite(ctx,p.x,p.y,performance.now(),m.arm>0,m.life<5);});monsters.forEach(m=>{if(onScreen(m,320))drawMonster(m);});
   wrecks.forEach(drawWreck);drawAbilityFxUnder(ctx,worldToScreen);particles.forEach(p=>{if(UNDER.has(p.kind))drawParticle(p);});shots.forEach(drawShotShadow);
   if(selected&&targetExists(selected))drawTargetMarker(selected);
-  enemies.filter(e=>onScreen(e,e.boss?420:300)).sort((a,b)=>a.y-b.y).forEach(e=>{const s=worldToScreen(e);if(e.boss)drawBossAura(e,s);if(!e.tower)drawHullWater(e,hullLength(e));const raster=e.tower?drawBastion(ctx,e.towerIndex??0,s.x,s.y):e.def?drawNpcShip(ctx,e.def.sprite,e.def.span,s.x,s.y,e.angle,performance.now()):false;if(!raster)return;const top=raster?(e.tower?TOWER_LABEL_OFFSET:shipLabelOffset(e.def!.span)):-42;if(e.boss){drawBossFlag(s,top);drawBossPlate(e,s,top);return;}const bw=e.tower||e.role==='heavy'?72:56;drawHealthBar(s.x,s.y+top,bw,e.hp/e.maxHp,e.tower?'#f09a4f':e.role==='heavy'?'#f0584a':'#4fd0da');ctx.fillStyle='#e6dccb';ctx.font='600 10px Inter';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText(e.name,s.x,s.y+top-7);ctx.shadowBlur=0;});
+  enemies.filter(e=>onScreen(e,e.boss?420:300)).sort((a,b)=>a.y-b.y).forEach(e=>{const s=worldToScreen(e);if(e.boss)drawBossAura(e,s);if(!e.tower)drawHullWater(e,hullLength(e));const raster=e.tower?drawBastion(ctx,e.towerIndex??0,s.x,s.y):e.def?drawNpcShip(ctx,e.def.sprite,e.def.span,s.x,s.y,npcFaceAngle(e),performance.now()):false;if(!raster)return;const top=raster?(e.tower?TOWER_LABEL_OFFSET:shipLabelOffset(e.def!.span)):-42;if(e.boss){drawBossFlag(s,top);drawBossPlate(e,s,top);return;}const bw=e.tower||e.role==='heavy'?72:56;drawHealthBar(s.x,s.y+top,bw,e.hp/e.maxHp,e.tower?'#f09a4f':e.role==='heavy'?'#f0584a':'#4fd0da');ctx.fillStyle='#e6dccb';ctx.font='600 10px Inter';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText(e.name,s.x,s.y+top-7);ctx.shadowBlur=0;});
   drawPlayerMarker();drawHullWater(player,hullLength(player));
   if(ghostTimer>0){const px=player.x,py=player.y;ghostTrail.forEach((p,i)=>{ghostFade=(i+1)/(ghostTrail.length+1)*.35;player.x=p.x;player.y=p.y;drawPlayerShip();});ghostFade=0;player.x=px;player.y=py;}
   drawPlayerShip();drawPlayerLabel();
