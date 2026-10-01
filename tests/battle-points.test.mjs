@@ -9,13 +9,18 @@ function moduleAt(path,extra={}){
   vm.runInContext(ts.transpile(readFileSync(new URL(path,import.meta.url),'utf8'),{module:ts.ModuleKind.CommonJS}),context);
   return context.exports;
 }
-const battle=moduleAt('../src/battle.ts');
+const mem=()=>{const store={};return{getItem:k=>store[k]??null,setItem:(k,v)=>{store[k]=v;}};};
+const battle=moduleAt('../src/battle.ts',{localStorage:mem()});
 
-test('sinking ships grants more SP for harder targets and deeper seas',()=>{
-  assert.equal(battle.spReward('light',1),1);
-  assert.ok(battle.spReward('heavy',1)>battle.spReward('light',1));
-  assert.ok(battle.spReward('rival',1)>battle.spReward('heavy',1));
-  assert.equal(battle.spReward('rival',8),8*battle.spReward('rival',1));
+test('only rival players give SP, scaled by sea tier',()=>{
+  assert.equal(battle.rivalSp(1),25);
+  assert.equal(battle.rivalSp(8),200);
+});
+test('the same rival gives SP at most three times a day',()=>{
+  const b=moduleAt('../src/battle.ts',{localStorage:mem()}),log=b.loadRivalLog();
+  assert.deepEqual([1,2,3,4].map(()=>b.claimRivalSp(log,'ADM_AHMET','2026-10-01')),[true,true,true,false]);
+  assert.equal(b.claimRivalSp(log,'ADM_YASİN','2026-10-01'),true,'başka oyuncu ayrı sayılır');
+  assert.equal(b.claimRivalSp(log,'ADM_AHMET','2026-10-02'),true,'ertesi gün sıfırlanır');
 });
 test('battle rank follows total SP and caps at the last rank',()=>{
   assert.equal(battle.battleRank(0).name,'Tayfa');
@@ -34,4 +39,5 @@ test('a destroyed tower slot stays a ruin for one hour',()=>{
   assert.equal(c.ruinLeft(r,'3/1',4,t0+c.TOWER_REBUILD_MS),0);
   assert.equal(c.ruinLeft(c.loadRuins(),'3/1',4,t0+1),c.TOWER_REBUILD_MS-1);
   assert.equal(c.ruinLabel(50*60_000),'50 dk');
+  c.clearRuins(r,'3/1');assert.equal(c.ruinLeft(r,'3/1',4,t0+1),0,'ele geçirince kule hemen dikilir');
 });
