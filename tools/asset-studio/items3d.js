@@ -162,3 +162,23 @@ export function buildInventoryPlaque(){const g=new THREE.Group(),W=wood(41,'#5a3
   // oklar
   for(const [s,z] of [[1,-3.6],[-1,3.6]]){const a=new THREE.Shape();a.moveTo(-1.2,-.3);a.lineTo(.3,-.3);a.lineTo(.3,-.7);a.lineTo(1.2,0);a.lineTo(.3,.7);a.lineTo(.3,.3);a.lineTo(-1.2,.3);a.closePath();const m=new THREE.Mesh(ext(a,.2,.06),brass);m.rotation.x=-Math.PI/2;m.scale.x=s;m.position.set(0,1,z);g.add(m);}
   g.userData.cam={pos:[0,12,10],look:[0,.5,0]};return g;}
+
+// ---------------------------------------------------------------- hız iksiri: yuvarlak cam şişe, parlayan camgöbeği sıvı,
+// mantar tıpa ve deri bağ; şişenin önünde gümüş rüzgâr kıvrımı
+export function buildSpeedPotion(){const g=new THREE.Group();
+  const glass=new THREE.MeshPhongMaterial({color:'#bfe8ff',specular:'#ffffff',shininess:120,transparent:true,opacity:.12,depthWrite:false});
+  const pts=[];for(let i=0;i<=24;i++){const t=i/24,a=t*Math.PI;pts.push(new THREE.Vector2(Math.sin(a)*3.2,-Math.cos(a)*3.2));}
+  pts.push(new THREE.Vector2(1.05,3.4),new THREE.Vector2(1.05,5.2),new THREE.Vector2(1.35,5.5),new THREE.Vector2(1.35,5.9));
+  const body=new THREE.Mesh(new THREE.LatheGeometry(pts,48),glass);body.renderOrder=2;g.add(body);
+  const rim=new THREE.Mesh(new THREE.LatheGeometry(pts,48),new THREE.MeshBasicMaterial({color:'#e8fbff',side:THREE.BackSide,transparent:true,opacity:.18,depthWrite:false}));rim.scale.setScalar(1.02);g.add(rim);
+  const liquid=new THREE.Mesh(new THREE.SphereGeometry(2.95,48,32,0,Math.PI*2,Math.PI*.32,Math.PI*.68),new THREE.MeshStandardMaterial({color:'#0b4fc4',emissive:'#0a5ad0',emissiveIntensity:.45,roughness:.35,metalness:.1}));g.add(liquid);
+  const surf=new THREE.Mesh(new THREE.CircleGeometry(2.55,40),new THREE.MeshStandardMaterial({color:'#2a8cff',emissive:'#1a9cff',emissiveIntensity:.7}));surf.rotation.x=-Math.PI/2;surf.position.y=1.5;g.add(surf);
+  for(let i=0;i<9;i++){const b=new THREE.Mesh(new THREE.SphereGeometry(.12+Math.random()*.16,10,8),new THREE.MeshStandardMaterial({color:'#e8fdff',emissive:'#9ff4ff',emissiveIntensity:1}));b.position.set((Math.random()-.5)*3,-1.8+Math.random()*3,(Math.random()-.2)*2);g.add(b);}
+  const cork=new THREE.Mesh(new THREE.CylinderGeometry(1.15,1,1.4,24),new THREE.MeshStandardMaterial({color:'#a77a4a',roughness:.9}));cork.position.y=6.3;g.add(cork);
+  const strap=new THREE.Mesh(new THREE.TorusGeometry(1.12,.16,10,32),new THREE.MeshStandardMaterial({color:'#5a3418',roughness:.8}));strap.rotation.x=Math.PI/2;strap.position.y=4.7;g.add(strap);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(1.42,.1,8,32),new THREE.MeshStandardMaterial({color:'#d9b25a',metalness:1,roughness:.3}));ring.rotation.x=Math.PI/2;ring.position.y=5.55;g.add(ring);
+  // rüzgâr kıvrımı
+  const silver=new THREE.MeshStandardMaterial({color:'#bff0ff',metalness:.6,roughness:.3,emissive:'#5fd0ff',emissiveIntensity:.6,transparent:true,opacity:.8});
+  for(const [r,y,rot] of [[3.7,.4,.18]]){const c=new THREE.CatmullRomCurve3(Array.from({length:14},(_,i)=>{const t=i/13,a=-Math.PI*.15+t*Math.PI*1.25;return new THREE.Vector3(Math.cos(a)*r,y+Math.sin(t*Math.PI)*.4,Math.sin(a)*r*.6+1.4);}));
+    const w=new THREE.Mesh(new THREE.TubeGeometry(c,40,.08,8),silver);w.rotation.z=rot;g.add(w);}
+  g.userData.cam={pos:[0,3.5,16],look:[0,1.2,0]};return g;}
