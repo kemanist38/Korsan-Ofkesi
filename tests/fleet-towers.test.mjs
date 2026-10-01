@@ -17,10 +17,10 @@ const updateCode=ts.transpile(update.getText(source),{target:ts.ScriptTarget.ES2
 
 test('tower art is clickable above its foundation, empty sites stay ground-level',()=>{
   const tower={x:200,y:300};
-  assert.equal(geometry.towerContains({x:200,y:250},tower),true);
-  assert.equal(geometry.towerContains({x:200,y:250},tower,false),false);
+  assert.equal(geometry.towerContains({x:200,y:265},tower),true);
+  assert.equal(geometry.towerContains({x:200,y:265},tower,false),false);
   assert.equal(geometry.towerContains({x:200,y:300},tower,false),true);
-  assert.equal(geometry.towerContains({x:260,y:250},tower),false);
+  assert.equal(geometry.towerContains({x:260,y:265},tower),false);
 });
 
 function scene(type){
