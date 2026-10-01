@@ -28,5 +28,5 @@ export const ELITE_SHIPS:EliteShip[]=[
 ];
 export const eliteById=(id:string)=>ELITE_SHIPS.find(ship=>ship.id===id)??ELITE_SHIPS[0];
 // Seafight usulü 4 çapraz görünüş: her elit için yan yana 512 px kareler, sıra KD, GD, GB, KB.
-// Elitler merdiven hareketiyle (special-ships isoAdvance) gider.
+// Elitler merdiven hareketiyle (iso-move isoAdvance) gider.
 export const ELITE_ISO:Record<EliteShipId,string>={phantom:'/assets/elite-phantom-iso-v10.webp',magma:'/assets/elite-magma-iso-v3.webp',glacial:'/assets/elite-glacial-iso-v3.webp',kraken:'/assets/elite-kraken-iso-v1.webp',ironclad:'/assets/elite-ironclad-iso-v1.webp',crimson:'/assets/elite-crimson-iso-v1.webp',atlantean:'/assets/elite-atlantean-iso-v1.webp',bone:'/assets/elite-bone-iso-v1.webp',tempest:'/assets/elite-tempest-iso-v1.webp',sovereign:'/assets/elite-sovereign-iso-v1.webp',jade:'/assets/elite-jade-iso-v1.webp',ragnarok:'/assets/elite-ragnarok-iso-v1.webp',void:'/assets/elite-void-iso-v1.webp',coral:'/assets/elite-coral-iso-v1.webp',sand:'/assets/elite-sand-iso-v1.webp'};
