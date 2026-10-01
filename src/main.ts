@@ -532,11 +532,6 @@ function resolveIslandCollision(){
 }
 function setZoom(value:number){camera.targetZoom=clamp(value,.5,1.15);ui('zoomValue').textContent=`${Math.round(camera.targetZoom*100)}%`;}
 function targetExists(t:Target){return t.kind==='ship'?enemies.includes(t):monsters.includes(t);}
-function angleDelta(target:number,current:number){return Math.atan2(Math.sin(target-current),Math.cos(target-current));}
-function broadsideCourse(target:Target){
-  const bearing=Math.atan2(target.y-player.y,target.x-player.x),right=bearing,left=bearing+Math.PI;
-  return Math.abs(angleDelta(right,player.angle))<=Math.abs(angleDelta(left,player.angle))?right:left;
-}
 
 // Saldırı menzil dışından başlatılırsa gemi hedefe yaklaşır; kaptan rota verirse yaklaşma biter.
 let attackChase=false;
@@ -1086,8 +1081,7 @@ function update(dt:number){
       else{state.attacking=false;ui('attack').classList.remove('active');toast('Hedef menzil dışına çıktı — saldırı durdu');}
     }else{
       if(attackChase){attackChase=false;destination=null;routeTarget=null;}
-      // Rota verilmediyse gemi borda ateşi için hedefin yanına döner
-      if(!destination){player.speed+=(effectiveSpeed()*.42-player.speed)*Math.min(1,dt*1.4);const course=broadsideCourse(selected),delta=angleDelta(course,player.angle);player.angle+=clamp(delta,-2.6*dt,2.6*dt);}
+      // Rota verilmediyse gemi yerinde durur ve ateş eder (kendiliğinden süzülmez)
       fireAtTarget();
     }
   }
@@ -1472,7 +1466,7 @@ function drawEliteDirectionalShip(s:Vec){
   {const im=eliteIsoImage(iso);if(!im.complete||!im.naturalWidth)return false;
     ctx.save();ctx.translate(s.x,s.y);ctx.globalAlpha=(state.invulnerable&&Math.floor(performance.now()/120)%2?.55:1)*shipAlpha();ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';if(ghostTimer>0){ctx.shadowColor='#5fffd0';ctx.shadowBlur=13;ctx.filter='saturate(.35) brightness(1.35)';}
     // Gölge bulanıklığı yok (keskin kenar); gemi altındaki su havuzu gölgeyi verir. Kaynak kare 512 px: yakınlaştırmada da net
-    const c=im.naturalHeight,D=158,bt=performance.now()/1000;ctx.translate(0,Math.sin(bt*1.7)*1.8);ctx.rotate(Math.sin(bt*1.15)*.018);ctx.drawImage(im,isoIndex()*c,0,c,c,-D/2,-D*.7,D,D);ctx.restore();return true;}
+    const c=im.naturalHeight,D=158;ctx.drawImage(im,isoIndex()*c,0,c,c,-D/2,-D*.7,D,D);ctx.restore();return true;}
   return false;
 }
 // Özel gemi: tek açılı raster; sağa giderken aynalanır
@@ -1482,7 +1476,7 @@ function drawSpecialShip(s:Vec){
   const src=`${sp.views??sp.dir??sp.art}?r=${SHIP_ART_REV}`;let im=specialImages.get(src);if(!im){im=new Image();im.decoding='async';im.src=src;specialImages.set(src,im);}
   if(!im.complete||!im.naturalWidth)return false;
   ctx.save();ctx.translate(s.x,s.y);ctx.globalAlpha=(state.invulnerable&&Math.floor(performance.now()/120)%2?.55:1)*shipAlpha();ctx.shadowColor='#000b';ctx.shadowBlur=13;if(ghostTimer>0){ctx.filter='saturate(.35) brightness(1.35)';ctx.shadowColor='#5fffd0';}
-  if(sp.views){const c=im.naturalHeight,D=176,bt=performance.now()/1000;ctx.translate(0,Math.sin(bt*1.7)*1.8);ctx.rotate(Math.sin(bt*1.15)*.018);ctx.drawImage(im,isoView(sp,isoFace)*c,0,c,c,-D/2,-D*.72,D,D);ctx.restore();return true;}
+  if(sp.views){const c=im.naturalHeight,D=176;ctx.drawImage(im,isoView(sp,isoFace)*c,0,c,c,-D/2,-D*.72,D,D);ctx.restore();return true;}
   if(sp.dir){const f=shipDirectionFrame(player.angle),c=im.naturalWidth/4;ctx.drawImage(im,(f%4)*c,Math.floor(f/4)*c,c,c,-80,-86,160,160);ctx.restore();return true;}
   specialFacingDir=specialFacing(player.angle,specialFacingDir);
   if(specialFacingDir>0)ctx.scale(-1,1);ctx.drawImage(im,-78,-96,156,156);ctx.restore();return true;
