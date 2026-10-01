@@ -1,6 +1,6 @@
 // Günlük etkinlikler: haftanın gününe göre bir bonus (yerel saat, gece yarısı değişir).
-// Cumartesi SP, Pazar TP, Pazartesi EP, Salı boss, Çarşamba altın, Perşembe inci pırıltısı; Cuma henüz boş.
-export type DayEventId='sp'|'tp'|'ep'|'boss'|'gold'|'pearl';
+// Cumartesi SP, Pazar TP, Pazartesi EP, Salı boss, Çarşamba altın, Perşembe inci pırıltısı, Cuma Büyük Kuşatma (src/siege.ts).
+export type DayEventId='sp'|'tp'|'ep'|'boss'|'gold'|'pearl'|'siege';
 export type DayEvent={id:DayEventId;day:string;name:string;desc:string};
 const BY_WEEKDAY:Partial<Record<number,DayEvent>>={
   6:{id:'sp',day:'Cumartesi',name:'Savaş Günü',desc:'Rakip oyuncu batırınca 2 kat savaş puanı (50 SP)'},
@@ -8,6 +8,7 @@ const BY_WEEKDAY:Partial<Record<number,DayEvent>>={
   1:{id:'ep',day:'Pazartesi',name:'Elit Günü',desc:'Elit puanları %50 fazla'},
   2:{id:'boss',day:'Salı',name:'Boss Avı',desc:'Boss, gereken batırmanın yarısında çıkar'},
   3:{id:'gold',day:'Çarşamba',name:'Altın Günü',desc:'Tüm altın kazançları %50 fazla'},
+  5:{id:'siege',day:'Cuma',name:'Büyük Kuşatma',desc:'20:00–22:00 · bütün kaptanlar birlikte Kara Kale\'ye saldırır'},
   4:{id:'pearl',day:'Perşembe',name:'İnci Avı',desc:'Denizde 2 kat inci pırıltısı, 2 kat hızlı yenilenir'},
 };
 export const dayEvent=(d=new Date())=>BY_WEEKDAY[d.getDay()]??null;

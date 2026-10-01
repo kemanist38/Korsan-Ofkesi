@@ -5,7 +5,7 @@ import './style.css';
 import {ACTIONS,loadSettings,saveSettings,keyLabel,normalizeKey,DEFAULT_BINDS,type ActionId} from './settings';
 import {playBossMusic,stopBossMusic,playBossHorn,setAudio,unlockAudio,playCannon,playEnemyCannon,playHit,playExplosion,playCoins,playWind,playShield,playSplash,playLevelUp,playMapJump,playSink,playHeal,playClick} from './audio';
 import {drawSeaSparkle,drawNpcShip,drawMonsterSheet,drawChestSprite,drawIslandSprite,drawFleetBase,drawBastion,drawBuiltTower,drawMineSprite,seaTilePattern,islandSheetUrl,shipLabelOffset,portraitStyle,preload,fleetBaseUrl,fleetTowerUrl,setTowerTheme,TOWER_LABEL_OFFSET,FLEET_ART,drawFleetOccluder} from './sprites';
-import {MAPS,GRID,THEMES,NPCS,MONSTERS,QUESTS,QUEST_COOLDOWN_MS,FLEET,WORLD_WIDTH,WORLD_HEIGHT,MAX_LEVEL,xpNeed,neighbor,bossFor,BOSS_KILLS,BOSS_ATLAS,BOSS_ATLAS_COLS,MAP_KEYS,type BossDef,tierOf,fleetTower,fleetReward,PORTRAIT_COUNT,PORTRAIT_COLS,PORTRAIT_ATLAS,GRID_COLS,GRID_ROWS,CELL_W,CELL_H,colName,rowName,gridCell,coordLabel,type MapKey,type WorldIsland,type NpcDef,type MonsterDef,type Dir,type QuestDef} from './campaign';
+import {MAPS,GRID,THEMES,NPCS,MONSTERS,QUESTS,QUEST_COOLDOWN_MS,FLEET,WORLD_WIDTH,WORLD_HEIGHT,MAX_LEVEL,xpNeed,neighbor,bossFor,BOSS_KILLS,BOSS_ATLAS,BOSS_ATLAS_COLS,MAP_KEYS,type BossDef,type MapDef,tierOf,fleetTower,fleetReward,PORTRAIT_COUNT,PORTRAIT_COLS,PORTRAIT_ATLAS,GRID_COLS,GRID_ROWS,CELL_W,CELL_H,colName,rowName,gridCell,coordLabel,type MapKey,type WorldIsland,type NpcDef,type MonsterDef,type Dir,type QuestDef} from './campaign';
 import {ACHIEVEMENTS,loadAchievements,saveAchievements,unlockReached,achievementBonus,bonusText,badgeStyle,type AchStat} from './achievements';
 import {loadDaily,saveDaily,dailyStatus,claimDaily,dailyReward,type DailyReward} from './daily';
 import {TREASURE_PARTS,PART_CHANCE,DIG_RADIUS,DIG_SECONDS,TREASURE_ICON,loadTreasure,saveTreasure,treasureReward} from './treasure';
@@ -14,6 +14,7 @@ import {BALL_DAMAGE,CHAIN_FACTOR,FIRE_DOT_SHARE,ELITE_POINTS_PER_BALL,ELITE_MAX_
 import {loadFleetOwners,saveFleetOwners,loadRuins,markRuin,ruinLeft,ruinLabel,clearRuins} from './conquest';
 import {RIVAL_SP,battleRank,loadRivalLog,claimRivalSp,RIVAL_DAILY_LIMIT} from './battle';
 import {setupChat} from './chat';
+import {SIEGE_MS,WALL_TOWERS,INNER_TOWERS,gateOf,gateLeft,siegeWindow,newSiege,loadSiege,saveSiege,siegePhase,siegeStats,siegeProgress,contribReward,earnsChest,victoryChest,ranking,loadTitle,grantTitle,HERO_TITLE,type SiegeSave} from './siege';
 import {dayEvent,spMult,xpMult,epMult,goldMult,sparkleMult,bossKillsNeeded,untilMidnight} from './events';
 import {TALENTS,OFFICERS,OFFICER_MAX_RANK,officerCost,officerSlots,talentPoints,loadCrew,saveCrew,spentPoints,computeBonus,type TalentId,type OfficerId} from './crew';
 import {FLEET_MASK} from './fleetMask';
@@ -31,12 +32,12 @@ type AmmoKind = 'iron'|'chain'|SpecialAmmo;
 const isSpecial=(a:string):a is SpecialAmmo=>a in SPECIAL_AMMO;
 type CannonKind = 'cast'|'long'|'rapid'|'heavy';
 type CannonStock=Record<CannonKind,number>;
-type Shot = Vec & { captain?:Enemy; foe?:Enemy; powder?:boolean; vx:number; vy:number; life:number; owner:'player'|'enemy'; damage:number; hit:boolean; ammo:AmmoKind; target?:Target; slow?:number; splash?:number; visual?:'spit'; age?:number; flight?:number; arc?:number; trail?:number };
+type Shot = Vec & { noHome?:boolean; captain?:Enemy; foe?:Enemy; powder?:boolean; vx:number; vy:number; life:number; owner:'player'|'enemy'; damage:number; hit:boolean; ammo:AmmoKind; target?:Target; slow?:number; splash?:number; visual?:'spit'; age?:number; flight?:number; arc?:number; trail?:number };
 type SalvoRound = { powder?:boolean; delay:number; target:Target; side:number; slot:number; damage:number; ammo:AmmoKind };
 type EnemyRole='light'|'heavy';
 // Test kaptanı: elit gemili, oyuncu gibi savaşan yapay rakip (yalnız test modunda 1/1'de)
 type Captain={elite:EliteShipId;ammo:AmmoKind;ammoClock:number;abilityCd:number;foe:Enemy|null;orbit:Vec|null;orbitClock:number};
-type Enemy = Vec & { kind:'ship'; captain?:Captain; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number; lastHitBy?:'player'|'captain';  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
+type Enemy = Vec & { kind:'ship'; captain?:Captain; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number; lastHitBy?:'player'|'captain'; siege?:boolean; commander?:boolean;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
 type ParticleKind='flare'|'ember'|'glint'|'wisp'|'foam'|'smoke'|'spark'|'damage'|'flash'|'explosion'|'splash'|'splinter'|'bubble'|'plank'|'firePuff'|'target'|'poison'|'soul'|'shock';
 // z: su üstünden yükseklik (ekranda yukarı kayar); vz ile savrulan parçalar suya düşer
 type Particle = Vec & { vx:number; vy:number; life:number; maxLife:number; kind:ParticleKind; text?:string; color?:string; z?:number; vz?:number; rot?:number; vr?:number; size?:number; variant?:number };
@@ -194,7 +195,11 @@ const salvoQueue:SalvoRound[]=[];
 const particles:Particle[]=[];
 const WORLD_STORAGE='yedi-deniz-world-v2';
 let currentMap:MapKey=(()=>{try{const k=(storedAccount?.currentMap||localStorage.getItem(WORLD_STORAGE)) as MapKey|null;if(k&&k in MAPS&&tierOf(k)<=state.level)return k;}catch{}return'1/1';})();
-const mapDef=()=>MAPS[currentMap];
+// Büyük Kuşatma sürerken (siege dolu) deniz Kara Kale'ye dönüşür; currentMap oyuncunun geldiği deniz olarak kalır.
+let siege:SiegeSave|null=null,siegeOrigin:{map:MapKey;x:number;y:number}|null=null;
+const SIEGE_MAP:MapDef={...MAPS['7/1'],name:'Kara Kale',description:'Büyük Kuşatma: bütün kaptanlar birlikte Kara Kale\'ye saldırır.',safe:false,npcs:[],monster:'',monsters:[],npcCount:0,heavyShare:0,islands:[],labels:[],fleet:{x:3000,y:1800,name:'Kara Kale'},spawn:{x:3000,y:2850}};
+const mapDef=()=>siege?SIEGE_MAP:MAPS[currentMap];
+const isAlly=(o:Target|Vec)=>!!siege&&(o as Enemy).kind==='ship'&&!!(o as Enemy).captain;
 const theme=()=>THEMES[mapDef().tier];
 const hasFleetIsland=()=>mapDef().tier>=2;
 const monsters:Monster[]=[];
@@ -227,7 +232,7 @@ let collisionNotice=0;
 const islands:WorldIsland[]=[];
 let jumpPrompt:{dir:Dir;to:MapKey}|null=null;
 const fleetOwners=loadFleetOwners();
-const fleetOwner=(key:MapKey=currentMap)=>fleetOwners[key]??'npc';
+const fleetOwner=(key?:MapKey)=>!key&&siege?'npc':fleetOwners[key??currentMap]??'npc';
 const ownTowers:{x:number;y:number;cooldown:number;slot:number;type:TowerType}[]=[];
 let guild:Guild|null=loadGuild();
 let buildType:TowerType='cannon';
@@ -277,7 +282,7 @@ function worldClick(e:{clientX:number;clientY:number}){
     if(slot!==undefined){focusedFoundation=`${currentMap}:${slot}`;openGuild();document.querySelector(`[data-foundation="${focusedFoundation}"]`)?.scrollIntoView({block:'center'});toast(slots[slot]?`${TOWER_TYPES[slots[slot]!.type].name} · Kaide ${slot+1}`:`Kaide ${slot+1}: kule tipini seçip DİK düğmesine bas`);return;}
   }
   const towerHit=enemies.filter(n=>n.tower&&towerContains(world,n)).sort((a,b)=>b.y-a.y)[0];
-  const hit=towerHit??[...enemies,...monsters].filter(n=>dist(n,world)<Math.max(42,n.kind==='monster'?n.radius:(n.hitRadius??0))).sort((a,b)=>dist(a,world)-dist(b,world))[0];
+  const hit=towerHit??[...enemies,...monsters].filter(n=>!isAlly(n)&&dist(n,world)<Math.max(42,n.kind==='monster'?n.radius:(n.hitRadius??0))).sort((a,b)=>dist(a,world)-dist(b,world))[0];
   if(hit){if(hit!==selected){selected=hit;state.attacking=false;attackChase=false;ui('attack').classList.remove('active');toast(`${hit.name} hedef seçildi`);}else if(!state.attacking)toggleAttack();}
   else{const glint=sparkles.find(g=>dist(g,world)<34);if(glint){routeTarget={x:glint.x,y:glint.y};destination=routeVia(routeTarget);attackChase=false;toast('Rota inci pırıltısına çizildi');return;}const chest=lootChests.find(c=>dist(c,world)<CHEST_CLICK_RADIUS);routeTarget=chest?{x:chest.x,y:chest.y}:navigablePoint(world);destination=routeVia(routeTarget);attackChase=false;if(chest)toast('Rota ganimet sandığına çizildi');}
 }
@@ -312,9 +317,13 @@ fitHud();
 // Günün etkinliği: üst ortada, gece yarısına kalan süreyle
 const dayEventEl=document.createElement('div');dayEventEl.className='day-event';document.querySelector('.hud')!.append(dayEventEl);
 let dayEventText='';
-function renderDayEvent(){const ev=dayEvent();const t=ev?`<b>${ev.day.toLocaleUpperCase('tr')} · ${ev.name.toLocaleUpperCase('tr')}</b><span>${ev.desc}</span><em>${untilMidnight()}</em>`:'';
-  if(t===dayEventText)return;dayEventText=t;dayEventEl.innerHTML=t;dayEventEl.classList.toggle('on',!!ev);}
-renderDayEvent();setInterval(renderDayEvent,15000);
+// Cuma: kuşatma açılınca "KATIL" düğmesi; test modunda her gün denemek için ayrıca açık
+function renderDayEvent(force=false){const ev=dayEvent(),w=siegeWindow(),join=w.open||ELITE_TEST_MODE;
+  const time=ev?.id==='siege'?(w.open?`bitimine ${Math.max(1,Math.ceil((w.end-Date.now())/60000))} dk`:w.upcoming?`20:00'de başlıyor`:'sona erdi'):untilMidnight();
+  const t=(ev?`<b>${ev.day.toLocaleUpperCase('tr')} · ${ev.name.toLocaleUpperCase('tr')}</b><span>${ev.desc}</span><em>${time}</em>`:'')+(join?`<button data-siege-join>${w.open?'KUŞATMAYA KATIL':'TEST · KUŞATMA'}</button>`:'');
+  if(t===dayEventText&&!force)return;dayEventText=t;dayEventEl.innerHTML=t;dayEventEl.classList.toggle('on',!!t);
+  const b=dayEventEl.querySelector('[data-siege-join]') as HTMLButtonElement|null;if(b)b.onclick=enterSiege;}
+setInterval(renderDayEvent,15000);
 {const hint=document.createElement('div');hint.className='rotate-hint';hint.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="18.5" r=".9" fill="currentColor"/></svg>Telefonunu yatay çevir<small>Yedi Deniz yatay ekranda oynanır</small>`;document.body.append(hint);}
 // HUD çerçeveleri: alt bar (CP/SP), gülle çerçevesi ve malzeme çerçevesi. Her biri kendi tutamağından tek başına taşınır.
 // Bir çerçeve başka bir çerçevenin kenarına yaklaştırılıp bırakılınca ona yapışır ve grup olur; alt bar tutulup taşınınca
@@ -445,13 +454,14 @@ function setupFleetIsland(){
   const map=mapDef(),f=map.fleet;ownTowers.length=0;towersDestroyedHere=0;if(!hasFleetIsland())return;
   // Kendi adanda yalnızca filonun diktiği kuleler vardır; boş kaideler FİLO sekmesinden inciyle doldurulur.
   if(fleetOwner()==='player'){if(guild){const slots=islandSlots(guild,currentMap);FLEET.towers.forEach(([dx,dy],i)=>{const t=slots[i];if(t)ownTowers.push({x:f.x+dx,y:f.y+dy,cooldown:Math.random()*2,slot:i,type:t.type});});}return;}
+  if(siege){spawnSiegeTowers();return;}
   FLEET.towers.forEach((_,i)=>{if(!ruinLeft(towerRuins,currentMap,i))spawnRivalTower(i);});
 }
 // Rakip filo kulesi; yıkılan kaidedeki kule 1 saat dolmadan geri gelmez (reviveRivalTowers)
 function spawnRivalTower(i:number){const map=mapDef(),f=map.fleet,t=fleetTower(map.tier),[dx,dy]=FLEET.towers[i];
   const tower:Enemy={kind:'ship',role:'heavy',tower:true,towerIndex:i,x:f.x+dx,y:f.y+dy,angle:0,hp:t.hp,maxHp:t.hp,cooldown:Math.random()*2,speed:0,damage:t.damage,reload:t.reload,rewardGold:0,rewardFame:0,color:'#555',name:`${f.name} Kulesi`,tier:map.tier,aggro:false,wander:0,slowTimer:0,homeX:f.x+dx,homeY:f.y+dy,combatTimer:0,hitRadius:34,fireRange:t.range};enemies.push(tower);
 }
-function reviveRivalTowers(){if(!hasFleetIsland()||fleetOwner()==='player')return;
+function reviveRivalTowers(){if(siege||!hasFleetIsland()||fleetOwner()==='player')return;
   FLEET.towers.forEach((_,i)=>{if(!ruinLeft(towerRuins,currentMap,i)&&!enemies.some(e=>e.tower&&e.towerIndex===i))spawnRivalTower(i);});}
 // ---------------------------------------------------------------- Harita bossları
 // Sayaç haritaya özeldir ve kalıcıdır; yalnızca o haritanın en güçlü NPC'si (ağır gemi) sayılır.
@@ -468,6 +478,7 @@ function spawnBoss(){
   toast(`${b.name} ${mapDef().name} sularında belirdi!`);rewardNotice(`BOSS   ${b.name.toLocaleUpperCase('tr')} BELİRDİ`);playBossHorn();playBossMusic(mapDef().tier);
 }
 function countBossKill(e:Enemy){
+  if(siege)return;
   const b=bossFor(currentMap);if(e.def?.id!==b.trigger||e.summoned)return;const st=bossOf(currentMap);if(st.pending)return;
   st.kills++;if(st.kills>=bossKillsNeeded(BOSS_KILLS)){st.kills=0;st.pending=true;spawnBoss();}saveBosses();
 }
@@ -491,6 +502,7 @@ function populateMap(){
   preload([...(hasFleetIsland()?[fleetBaseUrl(theme().fleet),fleetTowerUrl(theme().fleet)]:[]),...map.npcs.map(id=>NPCS[id].sprite),...map.monsters.map(id=>MONSTERS[id].sprite),...new Set(map.islands.map(i=>islandSheetUrl(i.look)))]);
   createMonsters();setupFleetIsland();
   for(let i=0;i<map.npcCount;i++)spawnEnemy();
+  if(siege){spawnSiegeAllies();ui('mapName').textContent=map.name;ui('mapSubtitle').textContent='BÜYÜK KUŞATMA';ui('mapBadge').className='map-badge danger-3';renderSiegeHud();return;}
   if(bossOf(currentMap).pending)spawnBoss();
   spawnTestCaptains();
   for(let i=0;i<3;i++){const p=randomSeaPoint(0);lootChests.push(createChest('drift',p.x,p.y,bonus.gilded,1+.5*(map.tier-1)));}
@@ -498,7 +510,7 @@ function populateMap(){
   ui('mapName').textContent=`${map.key} · ${map.name}`;ui('mapSubtitle').textContent=map.safe?'SAVAŞA KAPALI':`${theme().name.toLocaleUpperCase('tr')} · SEVİYE ${map.tier}`;ui('mapBadge').className=`map-badge ${map.safe?'safe':'danger-'+Math.min(3,Math.ceil(map.tier/3))}`;
 }
 function enterMap(key:MapKey,at:Vec){
-  currentMap=key;fleetSafe=null;fleetField=null;try{localStorage.setItem(WORLD_STORAGE,key);}catch{}populateMap();
+  currentMap=key;fleetSafe=null;fleetFields.clear();try{localStorage.setItem(WORLD_STORAGE,key);}catch{}populateMap();
   player.x=at.x;player.y=at.y;player.speed=0;destination=null;selected=null;state.attacking=false;ui('attack').classList.remove('active');
   camera.x=player.x;camera.y=player.y;jumpPrompt=null;mapFade=1;updateJumpPrompt();playMapJump();
   rewardNotice(`${mapDef().key}  ${mapDef().name.toLocaleUpperCase('tr')}   ${mapDef().safe?'SAVAŞA KAPALI':'SEVİYE '+mapDef().tier}`);
@@ -515,7 +527,7 @@ function useJump(){
   enterMap(target.key,at);
 }
 function updateJumpPrompt(){
-  const dir=edgeDir(),to=dir?neighbor(currentMap,dir):null,next=dir&&to?{dir,to}:null,el=ui('portalPrompt');
+  const dir=siege?null:edgeDir(),to=dir?neighbor(currentMap,dir):null,next=dir&&to?{dir,to}:null,el=ui('portalPrompt');
   if(!next){jumpPrompt=null;el.classList.remove('visible');el.innerHTML='';return;}
   if(next.to===jumpPrompt?.to&&next.dir===jumpPrompt?.dir)return;jumpPrompt=next;
   const target=MAPS[next.to],locked=state.level<target.tier,arrow={north:'↑',south:'↓',east:'→',west:'←'}[next.dir];
@@ -541,7 +553,7 @@ const FLEET_TEST_ENTRY=true;
 const FM_N=FLEET_MASK.n,FM_CELL=FLEET_MASK.cell,FM_HALF=FM_N*FM_CELL/2;
 const FLEET_GRID=(()=>{const g=new Uint8Array(FM_N*FM_N);let k=0;for(const part of FLEET_MASK.rle.split(',')){const v=+part[0],n=parseInt(part.slice(1),36);g.fill(v,k,k+n);k+=n;}return g;})();
 const fleetGrid=()=>FLEET_GRID;
-const fleetEnterable=()=>hasFleetIsland()&&(fleetOwner()==='player'||FLEET_TEST_ENTRY);
+const fleetEnterable=()=>hasFleetIsland()&&(siege?siegePhase(siege)>=2:fleetOwner()==='player'||FLEET_TEST_ENTRY);
 function fleetCellOf(p:Vec){const f=mapDef().fleet;return{i:Math.floor((p.x-f.x+FM_HALF)/FM_CELL),j:Math.floor((p.y-f.y+FM_HALF)/FM_CELL)};}
 function fleetCellValue(i:number,j:number){return i<0||j<0||i>=FM_N||j>=FM_N?1:fleetGrid()[j*FM_N+i];}
 // 0 kara, 1 açık deniz, 2 lagün/kanal (adanın içi)
@@ -581,7 +593,8 @@ const padClear=()=>fleetPads.shared.clear;
 function padCellOf(p:Vec){const c=fleetCellOf(p);return{i:clamp(c.i+FM_PAD,0,PN-1),j:clamp(c.j+FM_PAD,0,PN-1)};}
 function padCenter(i:number,j:number){return fleetCellCenter(i-FM_PAD,j-FM_PAD);}
 function padNearestOpen(c:{i:number;j:number}){if(padGrid()[c.j*PN+c.i])return c;for(let r=1;r<30;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){const i=c.i+dx,j=c.j+dy;if(i>=0&&j>=0&&i<PN&&j<PN&&padGrid()[j*PN+i])return{i,j};}return c;}
-let fleetField:{key:string;dist:Float32Array}|null=null;
+// hedef hücresine göre mesafe alanları (en son 8 hedef önbellekte)
+const fleetFields=new Map<string,Float32Array>();
 function buildFleetField(t:{i:number;j:number}){
   const D=new Float32Array(PN*PN).fill(Infinity),heap:number[]=[],push=(k:number)=>{heap.push(k);let n=heap.length-1;while(n>0){const p=(n-1)>>1;if(D[heap[p]]<=D[heap[n]])break;[heap[p],heap[n]]=[heap[n],heap[p]];n=p;}},
     pop=()=>{const top=heap[0],last=heap.pop()!;if(heap.length){heap[0]=last;let n=0;for(;;){const l=n*2+1,r=l+1;let m=n;if(l<heap.length&&D[heap[l]]<D[heap[m]])m=l;if(r<heap.length&&D[heap[r]]<D[heap[m]])m=r;if(m===n)break;[heap[m],heap[n]]=[heap[n],heap[m]];n=m;}}return top;};
@@ -590,17 +603,17 @@ function buildFleetField(t:{i:number;j:number}){
     const cl=padClear()[j],cost=(dx&&dy?1.414:1)*(cl>=3?1:cl===2?1.8:3.5),nd=D[k]+cost;if(nd<D[j]){D[j]=nd;push(j);}}}
   return D;
 }
-function routeVia(target:Vec):Vec{
-  if(!fleetEnterable()||fleetWideLine(player,target))return target;
+// from: yolu bulunacak gemi (varsayılan oyuncu); kuşatmada müttefik kaptanlar da kullanır
+function routeVia(target:Vec,from:Vec=player):Vec{
+  if(!fleetEnterable()||fleetWideLine(from,target))return target;
   const t=padNearestOpen(padCellOf(target)),key=`${currentMap}:${t.i},${t.j}`;
-  if(fleetField?.key!==key)fleetField={key,dist:buildFleetField(t)};
-  const D=fleetField.dist;let c=padNearestOpen(padCellOf(player));if(!Number.isFinite(D[c.j*PN+c.i]))return target;
+  let D=fleetFields.get(key);if(!D){D=buildFleetField(t);fleetFields.set(key,D);if(fleetFields.size>8)fleetFields.delete(fleetFields.keys().next().value!);}let c=padNearestOpen(padCellOf(from));if(!Number.isFinite(D[c.j*PN+c.i]))return target;
   // Yol boyunca kalın çizgiyle görülebilen en uzak hücre; kıyıya çok yakınken ince çizgiye, o da olmazsa sıradaki hücreye düşülür.
   let way:Vec|null=null,first:Vec|null=null;
-  for(let step=0;step<80;step++){const here=D[c.j*PN+c.i];if(here<=0){if(fleetWideLine(player,target)||(!way&&fleetClearLine(player,target)))return target;break;}let next=c,nd=here;
+  for(let step=0;step<80;step++){const here=D[c.j*PN+c.i];if(here<=0){if(fleetWideLine(from,target)||(!way&&fleetClearLine(from,target)))return target;break;}let next=c,nd=here;
     for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const i=c.i+dx,j=c.j+dy;if(i<0||j<0||i>=PN||j>=PN)continue;const v=D[j*PN+i];if(v<nd){nd=v;next={i,j};}}
     if(next===c)break;c=next;const cand=padCenter(c.i,c.j);if(!first)first=cand;
-    if(fleetWideLine(player,cand))way=cand;else if(!way&&step<3&&fleetClearLine(player,cand))way=cand;else if(way||step>=3)break;}
+    if(fleetWideLine(from,cand))way=cand;else if(!way&&step<3&&fleetClearLine(from,cand))way=cand;else if(way||step>=3)break;}
   return way??first??target;
 }
 function insideOwnLagoon(p:Vec){return hasFleetIsland()&&fleetOwner()==='player'&&fleetNav(p)===2;}
@@ -611,7 +624,7 @@ function navigablePoint(point:Vec){
 }
 function resolveIslandCollision(){
   if(ghostTimer>0)return;
-  const fc=fleetCollision(player);if(!fc&&hasFleetIsland())fleetSafe={x:player.x,y:player.y};if(fc){const hard=!fleetSafe||(fc.x!==player.x&&fc.y!==player.y);player.x=fc.x;player.y=fc.y;player.speed*=hard?.5:.9;if(!routeTarget)destination=null;if(collisionNotice<=0){toast(fleetEnterable()?`${fc.name} karasına çıkılamaz — lagüne güneydeki kanaldan girilir`:`${fc.name} rakip filonun adası — içeri girilemez`);collisionNotice=2;}}
+  const fc=fleetCollision(player);if(!fc&&hasFleetIsland())fleetSafe={x:player.x,y:player.y};if(fc){const hard=!fleetSafe||(fc.x!==player.x&&fc.y!==player.y);player.x=fc.x;player.y=fc.y;player.speed*=hard?.5:.9;if(!routeTarget)destination=null;if(collisionNotice<=0){toast(fleetEnterable()?`${fc.name} karasına çıkılamaz — lagüne doğu ve batı kapılarından girilir`:`${fc.name} rakip filonun adası — içeri girilemez`);collisionNotice=2;}}
   for(const island of islands){const shore=island.r*.72+28,d=dist(player,island);if(d<shore){const a=d>.01?Math.atan2(player.y-island.y,player.x-island.x):player.angle-Math.PI/2;player.x=island.x+Math.cos(a)*shore;player.y=island.y+Math.sin(a)*shore;player.speed*=.28;destination=null;if(collisionNotice<=0){toast(`${island.name} kıyısına daha fazla yaklaşamazsın`);collisionNotice=2;}}}
 }
 function setZoom(value:number){camera.targetZoom=clamp(value,.5,1.15);ui('zoomValue').textContent=`${Math.round(camera.targetZoom*100)}%`;}
@@ -669,6 +682,7 @@ function enemyFire(e:Enemy){
 function monsterFire(m:Monster){if(stealthTimer>0){m.cooldown=Math.max(m.cooldown,.4);return;}const a=Math.atan2(player.y-m.y,player.x-m.x);playSplash();for(const off of m.def.tier>=5?[-.12,0,.12]:[0])shots.push({x:m.x,y:m.y,vx:Math.cos(a+off)*210,vy:Math.sin(a+off)*210,life:2.4,owner:'enemy',damage:m.def.damage*(.85+Math.random()*.3),hit:false,ammo:'iron',visual:'spit'});m.cooldown=m.def.reload;}
 // Batınca bulunduğun denizde, düşmanlardan uzak rastgele bir noktada %10 gövdeyle yeniden doğ.
 function respawn(){
+  if(siege){siegeRespawn();return;}
   const deathMap=currentMap;
   currentMap=deathMap;
   try{localStorage.setItem(WORLD_STORAGE,deathMap);}catch{}
@@ -698,8 +712,8 @@ function splashAt(x:number,y:number,size=110){const eg=earGain({x,y});if(eg>.05)
 function ammoImpact(s:Shot,target:Target,hit:number){
   if(s.owner!=='player')return;
   if(s.ammo==='explosive'){const def=SPECIAL_AMMO.explosive,R=def.blastRadius;particles.push({x:target.x,y:target.y,vx:0,vy:0,life:.5,maxLife:.5,kind:'shock',size:R*2});burst(target.x,target.y,true);playExplosion(false);
-    const victims=([...enemies,...monsters] as Target[]).filter(o=>o!==target&&dist(o,target)<R);
-    for(const o of victims){const dmg=Math.round(hit*def.blastFactor);o.hp-=dmg;o.aggro=true;if(o.kind==='ship')o.lastHitBy='player';damageText(o.x,o.y,dmg);if(o.hp<=0){if(o.kind==='ship')sinkEnemy(o);else defeatMonster(o);}}}
+    const victims=([...enemies,...monsters] as Target[]).filter(o=>o!==target&&!isAlly(o)&&dist(o,target)<R);
+    for(const o of victims){const dmg=Math.round(hit*def.blastFactor);o.hp-=dmg;o.aggro=true;siegeHit(o,dmg,profile.nick);if(o.kind==='ship')o.lastHitBy='player';damageText(o.x,o.y,dmg);if(o.hp<=0){if(o.kind==='ship')sinkEnemy(o);else defeatMonster(o);}}}
   if(s.ammo==='leech'){const heal=hit*SPECIAL_AMMO.leech.leech;playHeal();state.hp=Math.min(effectiveMaxHp(),state.hp+heal);
     for(let n=0;n<4;n++){const a=Math.atan2(player.y-target.y,player.x-target.x)+(Math.random()-.5)*.8,sp=dist(player,target)/.7;particles.push({x:target.x,y:target.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:.7,maxLife:.7,kind:'soul',z:18,size:26});}}
 }
@@ -995,17 +1009,21 @@ function renderBonusSummary(){
 function renderNick(){
   ui('captainName').textContent=profile.nick.toLocaleUpperCase('tr');
   const wait=profile.named?profile.changedAt+NICK_COOLDOWN_MS-Date.now():0,cost=profile.named?NICK_CHANGE_COST:0,h=Math.ceil(wait/3600000);
-  ui('captainNick').innerHTML=`<div><span>KAPTAN ADI</span><strong>${guild?`<em class="guild-tag">[${escapeHtml(guild.tag)}]</em>`:''}${escapeHtml(profile.nick)}</strong><small>${rankOf(state.level)} · ${profile.named?`Değiştirme ücreti ${NICK_CHANGE_COST} İnci · iki değişiklik arası 1 gün`:'İlk adını ücretsiz belirleyebilirsin'}</small></div>
+  ui('captainNick').innerHTML=`<div><span>KAPTAN ADI</span><strong>${guild?`<em class="guild-tag">[${escapeHtml(guild.tag)}]</em>`:''}${escapeHtml(profile.nick)}</strong>${heroTitle?`<em class="hero-title">★ ${heroTitle.name} · ${Math.ceil((heroTitle.until-Date.now())/86_400_000)} gün</em>`:''}<small>${rankOf(state.level)} · ${profile.named?`Değiştirme ücreti ${NICK_CHANGE_COST} İnci · iki değişiklik arası 1 gün`:'İlk adını ücretsiz belirleyebilirsin'}</small></div>
     <div class="nick-form"><input id="nickInput" maxlength="${NICK_MAX}" placeholder="Yeni kaptan adı" ${wait>0?'disabled':''}/><button id="nickSave" ${wait>0?'disabled':''}>${wait>0?`${h} SAAT SONRA`:cost?`DEĞİŞTİR · ${cost} İNCİ`:'ADI KAYDET'}</button></div>`;
   const btn=document.getElementById('nickSave') as HTMLButtonElement|null;if(!btn||wait>0)return;
   btn.onclick=()=>{const n=(ui('nickInput') as HTMLInputElement).value.trim(),err=nickError(n);if(err){toast(err);return;}if(n===profile.nick){toast('Bu zaten senin adın');return;}
     if(cost&&state.pearls<cost){toast(`Ad değiştirmek için ${cost} inci gerekli`);return;}state.pearls-=cost;profile.nick=n;profile.changedAt=Date.now();profile.named=true;saveProfile(profile);saveAccount();updateUI();renderNick();rewardNotice(`KAPTAN ADI: ${n}${cost?`   −${cost} İNCİ`:''}`);};
 }
 // Gemi altındaki ad: [FİLO TAG] nick, altında rütbe
+// Kuşatma Kahramanı unvanı (bir hafta): ad altın çerçeveli bir levhada, altında unvan yazısı
+let heroTitle=loadTitle();setInterval(()=>{heroTitle=loadTitle();},60000);
 function drawPlayerLabel(){
   const p=worldToScreen(player),y=p.y+58,tag=guild?`[${guild.tag}]`:'',nick=profile.nick;
   ctx.save();ctx.font='700 14px Inter';ctx.textBaseline='middle';const tw=tag?ctx.measureText(tag).width+3:0,nw=ctx.measureText(nick).width,x0=p.x-(tw+nw)/2;
-  ctx.shadowColor='#000';ctx.shadowBlur=4;if(tag){ctx.fillStyle='#ffd24a';ctx.textAlign='left';ctx.fillText(tag,x0,y);}ctx.fillStyle='#f4f1ea';ctx.textAlign='left';ctx.fillText(nick,x0+tw,y);
+  if(heroTitle){const w=tw+nw+22,h=22;ctx.beginPath();ctx.roundRect(p.x-w/2,y-h/2,w,h,11);const g=ctx.createLinearGradient(0,y-h/2,0,y+h/2);g.addColorStop(0,'#5a3c0ccc');g.addColorStop(1,'#2a1a04cc');ctx.fillStyle=g;ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle='#ffd27a';ctx.stroke();
+    ctx.font='800 10px Cinzel, serif';ctx.textAlign='center';ctx.fillStyle='#ffd27a';ctx.shadowColor='#000';ctx.shadowBlur=4;ctx.fillText(`★ ${heroTitle.name.toLocaleUpperCase('tr')} ★`,p.x,y+19);ctx.font='700 14px Inter';}
+  ctx.shadowColor='#000';ctx.shadowBlur=4;if(tag){ctx.fillStyle='#ffd24a';ctx.textAlign='left';ctx.fillText(tag,x0,y);}ctx.fillStyle=heroTitle?'#ffe9b0':'#f4f1ea';ctx.textAlign='left';ctx.fillText(nick,x0+tw,y);
   ctx.restore();
 }
 // ---------------------------------------------------------------- Filo: hazine, bağış ve kule dikme
@@ -1184,8 +1202,9 @@ function update(dt:number){
   }
   player.angle=Math.atan2(Math.sin(player.angle),Math.cos(player.angle));
   for(const e of enemies){
-    if(e.tower){updateTower(e,dt);continue;}
-    if(e.captain){updateCaptain(e,dt);continue;}
+    if(e.tower){if(siege)updateSiegeTower(e,dt);else updateTower(e,dt);continue;}
+    if(e.captain){if(siege)updateSiegeCaptain(e,dt);else updateCaptain(e,dt);continue;}
+    if(e.commander){updateCommander(e,dt);continue;}
     if((e.frozen??0)>0){e.frozen=Math.max(0,e.frozen!-dt);e.cooldown=Math.max(e.cooldown,.5);continue;}
     const d=dist(e,player);e.wander+=dt;e.slowTimer=Math.max(0,e.slowTimer-dt);if(e.aggro){e.combatTimer-=dt;if(e.combatTimer<=0||Math.hypot(e.x-e.homeX,e.y-e.homeY)>680)e.aggro=false;}
     const homeDistance=Math.hypot(e.x-e.homeX,e.y-e.homeY);
@@ -1202,7 +1221,7 @@ function update(dt:number){
   for(let i=shots.length-1;i>=0;i--){
     const s=shots[i];
     if(s.foe){if(enemies.includes(s.foe)){const a=Math.atan2(s.foe.y-s.y,s.foe.x-s.x),sp=Math.hypot(s.vx,s.vy);s.vx=Math.cos(a)*sp;s.vy=Math.sin(a)*sp;s.life=Math.max(s.life,.12);}}
-    else if(s.owner==='enemy'&&state.invulnerable<=0&&ghostTimer<=0&&stealthTimer<=0){const a=Math.atan2(player.y-s.y,player.x-s.x),speed=Math.max(Math.hypot(s.vx,s.vy),Math.abs(player.speed)+220);s.vx=Math.cos(a)*speed;s.vy=Math.sin(a)*speed;s.life=Math.max(s.life,.12);}
+    else if(s.owner==='enemy'&&!s.noHome&&state.invulnerable<=0&&ghostTimer<=0&&stealthTimer<=0){const a=Math.atan2(player.y-s.y,player.x-s.x),speed=Math.max(Math.hypot(s.vx,s.vy),Math.abs(player.speed)+220);s.vx=Math.cos(a)*speed;s.vy=Math.sin(a)*speed;s.life=Math.max(s.life,.12);}
     if(s.owner==='player'&&s.target&&targetExists(s.target)){const a=Math.atan2(s.target.y-s.y,s.target.x-s.x),speed=Math.hypot(s.vx,s.vy);s.vx=Math.cos(a)*speed;s.vy=Math.sin(a)*speed;s.life=Math.max(s.life,.12);}
     if(s.flight===undefined){const aim=s.owner==='player'?s.target:s.foe??player,sp=Math.max(1,Math.hypot(s.vx,s.vy)),d=aim&&targetExistsOrPlayer(aim)?dist(s,aim):sp*s.life;s.flight=Math.max(.15,Math.min(s.life,d/sp));s.age=0;s.arc=Math.min(80,d*.13)*(s.splash?2.2:1);
       if(s.splash&&aim)particles.push({x:aim.x,y:aim.y,vx:0,vy:0,life:s.flight,maxLife:s.flight,kind:'target',size:120});}
@@ -1213,8 +1232,8 @@ function update(dt:number){
     s.x+=s.vx*dt;s.y+=s.vy*dt;s.life-=dt;
     if(s.owner==='player'){
       for(let j=enemies.length-1;j>=0&&s.life>0;j--){
-        const e=enemies[j];
-        if(dist(s,e)<(e.hitRadius??25)){const hit=eliteOnHit(e,s.damage*(s.ammo==='breaker'&&e.tower?SPECIAL_AMMO.breaker.towerFactor:1));s.hit=true;if(s.slow)e.slowTimer=Math.max(e.slowTimer,s.slow);if(s.splash)towerSplash(s,e);e.aggro=true;e.lastHitBy='player';e.combatTimer=12;if(s.ammo==='chain')e.slowTimer=3;if(s.ammo==='fire'){e.burnTimer=SPECIAL_AMMO.fire.burnSeconds;e.burnDps=Math.max(e.burnDps??0,hit*FIRE_DOT_SHARE*bonus.burn/SPECIAL_AMMO.fire.burnSeconds);}e.hp-=hit;damageText(e.x,e.y,hit,s.powder?DMG_GOLD:DMG_RED);burst(e.x,e.y);playHit();ammoImpact(s,e,hit);s.life=0;
+        const e=enemies[j];if(isAlly(e))continue;
+        if(dist(s,e)<(e.hitRadius??25)){const hit=eliteOnHit(e,s.damage*(s.ammo==='breaker'&&e.tower?SPECIAL_AMMO.breaker.towerFactor:1));s.hit=true;if(s.slow)e.slowTimer=Math.max(e.slowTimer,s.slow);if(s.splash)towerSplash(s,e);e.aggro=true;e.lastHitBy='player';e.combatTimer=12;if(s.ammo==='chain')e.slowTimer=3;if(s.ammo==='fire'){e.burnTimer=SPECIAL_AMMO.fire.burnSeconds;e.burnDps=Math.max(e.burnDps??0,hit*FIRE_DOT_SHARE*bonus.burn/SPECIAL_AMMO.fire.burnSeconds);}e.hp-=hit;siegeHit(e,hit,profile.nick);damageText(e.x,e.y,hit,s.powder?DMG_GOLD:DMG_RED);burst(e.x,e.y);playHit();ammoImpact(s,e,hit);s.life=0;
           if(e.hp<=0)sinkEnemy(e);
         }
       }
@@ -1254,14 +1273,138 @@ function update(dt:number){
   if(toastTimer>0){toastTimer-=dt;if(toastTimer<=0)ui('toast').classList.remove('show');}if(rewardTimer>0){rewardTimer-=dt;if(rewardTimer<=0){ui('rewardToast').classList.remove('show');const next=rewardQueue.shift();if(next)setTimeout(()=>showReward(next),220);}} uiClock-=dt;if(uiClock<=0){uiClock=.1;updateUI();};
 }
 
+// ---------------------------------------------------------------- Büyük Kuşatma (src/siege.ts)
+// Filo adası altyapısı Kara Kale olarak kullanılır. Test kaptanları sunucu gelene kadar diğer oyuncuların yerine
+// müttefik olarak savaşır: oyuncu onlara, onlar oyuncuya saldırmaz. Kaleden yıkılan hiçbir şey onarılmaz.
+const SIEGE_PARTICIPANTS=4,SIEGE_FIRE_RANGE=520;
+let siegeHudClock=0,siegeSaveClock=0;
+function siegeHit(t:Target,amount:number,who:string){if(!siege||t.kind!=='ship'||!t.siege||amount<=0)return;
+  const eff=Math.max(0,amount+Math.min(0,t.hp));siege.contrib[who]=(siege.contrib[who]??0)+eff;}
+function siegeTarget(i:number){const st=siegeStats(SIEGE_PARTICIPANTS),f=SIEGE_MAP.fleet,[dx,dy]=FLEET.towers[i],inner=INNER_TOWERS.includes(i),hp=inner?st.innerHp:st.wallHp;
+  return{kind:'ship',role:'heavy',tower:true,towerIndex:i,siege:true,x:f.x+dx,y:f.y+dy,angle:0,hp,maxHp:hp,cooldown:1+Math.random()*2,speed:0,damage:Math.round(st.towerDamage*(inner?1.3:1)),reload:inner?1.9:2.3,rewardGold:0,rewardFame:0,color:'#555',
+    name:inner?'Kara Kale İç Kulesi':`Kara Kale Sur Topu · ${gateOf(i)==='west'?'Batı':'Doğu'} Kapısı`,tier:8,aggro:false,wander:0,slowTimer:0,homeX:f.x+dx,homeY:f.y+dy,combatTimer:0,hitRadius:34,fireRange:inner?st.range+40:st.range} as Enemy;}
+function spawnSiegeTowers(){if(!siege)return;for(let i=0;i<FLEET.towers.length;i++)if(!siege.destroyed.includes(i))enemies.push(siegeTarget(i));
+  if(siegePhase(siege)===3)spawnCommander();}
+// Lagünde (maske değeri 2) verilen noktaya en yakın, kıyıdan uzak deniz hücresi
+function lagoonPoint(near:Vec):Vec{let best:Vec=near,bd=Infinity;const g=fleetGrid();
+  for(let j=2;j<FM_N-2;j++)for(let i=2;i<FM_N-2;i++){if(g[j*FM_N+i]!==2)continue;let open=true;for(let dy=-2;dy<=2&&open;dy++)for(let dx=-2;dx<=2;dx++)if(!g[(j+dy)*FM_N+i+dx]){open=false;break;}
+    if(!open)continue;const c=fleetCellCenter(i,j),d=dist(c,near);if(d<bd){bd=d;best=c;}}
+  return best;}
+function spawnCommander(){if(!siege||enemies.some(e=>e.commander))return;const st=siegeStats(SIEGE_PARTICIPANTS),f=SIEGE_MAP.fleet,p=lagoonPoint({x:f.x,y:f.y+210});
+  const b=[...MAP_KEYS].reverse().map(k=>bossFor(k)).find(x=>x.sprite)!,boss={...b,name:'Kara Kale Komutanı'};
+  const e=makeShip(boss as unknown as NpcDef,p.x,p.y,0);Object.assign(e,{boss,commander:true,siege:true,hitRadius:64,speed:0,hp:siege.commanderHp??st.commanderHp,maxHp:st.commanderHp,damage:st.commanderDamage,reload:2.2,name:boss.name,aggro:true,combatTimer:999,cooldown:2,wander:14});
+  enemies.push(e);siege.commanderHp=e.hp;saveSiege(siege);playBossHorn();playBossMusic(8);rewardNotice('3. AŞAMA   KARA KALE KOMUTANI SANCAK GEMİSİYLE ÇIKTI');}
+// Kuleler ve komutan en yakın saldırgana (oyuncu ya da müttefik kaptan) ateş eder
+function siegeAttackers(from:Vec,range:number){const out:Vec[]=[];if(state.invulnerable<=0&&stealthTimer<=0&&ghostTimer<=0&&dist(from,player)<range)out.push(player);
+  for(const a of enemies)if(isAlly(a)&&dist(a,from)<range)out.push(a);return out.sort((a,b)=>dist(a,from)-dist(b,from));}
+function siegeShot(x:number,y:number,a:number,speed:number,damage:number,t:Vec,extra:Partial<Shot>={}){shots.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life:2.4,owner:'enemy',damage,hit:false,ammo:'iron',...(t===player?{}:{foe:t as Enemy}),...extra});}
+function updateSiegeTower(e:Enemy,dt:number){e.cooldown-=dt;e.slowTimer=0;e.combatTimer=Math.max(0,e.combatTimer-dt);const R=e.fireRange??460,t=siegeAttackers(e,R)[0];
+  e.aggro=!!t||e.combatTimer>0;if(!t||e.cooldown>0)return;const m=towerMuzzle(e),a=Math.atan2(t.y-m.y,t.x-m.x);muzzleFlash(m.x,m.y,a,60);
+  for(const off of [-.05,.05])siegeShot(m.x,m.y,a+off,320,e.damage,t);if(dist(e,player)<900)playEnemyCannon(dist(e,player),(e.x-player.x)/600);e.cooldown=e.reload+Math.random()*.4;}
+function updateCommander(e:Enemy,dt:number){if((e.frozen??0)>0){e.frozen=Math.max(0,e.frozen!-dt);return;}e.slowTimer=Math.max(0,e.slowTimer-dt);
+  const t=siegeAttackers(e,560)[0];if(t)e.face={east:t.x>e.x,north:t.y<e.y};e.cooldown-=dt;e.wander-=dt;const enraged=e.hp<e.maxHp*.5;
+  if(t&&e.cooldown<=0){const a=Math.atan2(t.y-e.y,t.x-e.x);muzzleFlash(e.x+Math.cos(a)*34,e.y+Math.sin(a)*34,a,84);playEnemyCannon(dist(e,player)*.6,(e.x-player.x)/600);
+    for(const off of enraged?[-.24,-.12,0,.12,.24]:[-.15,0,.15])siegeShot(e.x,e.y,a+off,290,e.damage*(.85+Math.random()*.3),t);e.cooldown=e.reload*(enraged?.8:1);}
+  // Yaylım ateşi: her 14 sn'de çevresine 16 gülle (hedef takibi yok)
+  if(e.wander<=0){e.wander=14;spawnText(e,'YAYLIM ATEŞİ','#ffb070');playEnemyCannon(dist(e,player)*.5,(e.x-player.x)/600);
+    for(let k=0;k<16;k++){const a=k/16*Math.PI*2;siegeShot(e.x,e.y,a,260,e.damage*.6,player,{noHome:true,life:2});}}
+  // Canı yarıya inince iki muhafız gemisi çağırır (bir kez)
+  if(enraged&&!e.escortsCalled){e.escortsCalled=true;const def=NPCS['n8-2-heavy'];for(const k of [-1,1]){const p=lagoonPoint({x:e.x+k*160,y:e.y});const ship=makeShip(def,p.x,p.y,0);Object.assign(ship,{aggro:true,combatTimer:999,summoned:true,siege:true,name:'Kara Kale Muhafızı'});enemies.push(ship);}
+    rewardNotice('KOMUTAN MUHAFIZLARINI ÇAĞIRDI');}}
+// Müttefik kaptanlar: o aşamanın hedeflerine saldırır; 1. aşamada kale çemberinin dışından dolaşır, sonra lagüne girer
+function spawnSiegeAllies(){if(!siege)return;const TEST_CAPTAINS:[string,EliteShipId][]=[['ADM_AHMET','magma'],['ADM_YASİN','tempest'],['ADM_DOGAN','glacial']],sp=SIEGE_MAP.spawn;
+  TEST_CAPTAINS.forEach(([name,elite],i)=>{const x=sp.x+(i-1)*260,y=sp.y+60;
+    enemies.push({kind:'ship',role:'heavy',x,y,angle:0,hp:400000,maxHp:400000,cooldown:1+i*.6,speed:150,damage:1100,reload:2.3,rewardGold:0,rewardFame:0,color:'#2f6a5a',name,tier:8,aggro:false,wander:0,slowTimer:0,homeX:x,homeY:y,combatTimer:0,hitRadius:44,
+      captain:{elite,ammo:'iron',ammoClock:2+i*2,abilityCd:6+i*3,foe:null,orbit:null,orbitClock:0},face:{east:true,north:true}});});}
+function siegeFoes(){if(!siege)return[];const ph=siegePhase(siege);
+  return enemies.filter(o=>o.siege&&(ph===1?o.tower&&WALL_TOWERS.includes(o.towerIndex!):ph===2?o.tower:!o.tower));}
+function updateSiegeCaptain(e:Enemy,dt:number){const c=e.captain!,f=SIEGE_MAP.fleet,ring=FLEET.islandR+46;e.slowTimer=Math.max(0,e.slowTimer-dt);
+  if((e.frozen??0)>0){e.frozen=Math.max(0,e.frozen!-dt);return;}
+  const foes=siegeFoes();if(!c.foe||!enemies.includes(c.foe)||!foes.includes(c.foe)||Math.random()<dt*.15)c.foe=foes.sort((a,b)=>dist(a,e)-dist(b,e))[0]??null;
+  const foe=c.foe,open=siegePhase(siege!)>=2;
+  c.orbitClock-=dt;if(foe&&(!c.orbit||c.orbitClock<=0||dist(e,c.orbit)<30)){c.orbitClock=3+Math.random()*2;e.iso=null;
+    if(!open){const a=Math.atan2(foe.y-f.y,foe.x-f.x)+(Math.random()-.5)*.3;c.orbit={x:f.x+Math.cos(a)*ring,y:f.y+Math.sin(a)*ring};}
+    else{let pick:Vec|null=null;const a0=Math.random()*Math.PI*2;for(let k=0;k<16&&!pick;k++){const a=a0+k*Math.PI/8,r=150+Math.random()*120,q={x:foe.x+Math.cos(a)*r,y:foe.y+Math.sin(a)*r};if(fleetNav(q)===2)pick=q;}c.orbit=pick??lagoonPoint(foe);}}
+  // ara nokta: kapalıyken çemberin çevresinden dolaş, açıkken lagün yol bulucusunu kullan
+  let way:Vec|null=c.orbit;if(way){const ae=Math.atan2(e.y-f.y,e.x-f.x),at=Math.atan2(way.y-f.y,way.x-f.x),diff=Math.atan2(Math.sin(at-ae),Math.cos(at-ae));
+    if(!open&&Math.abs(diff)>.35){const a=ae+Math.sign(diff)*.5;way={x:f.x+Math.cos(a)*ring,y:f.y+Math.sin(a)*ring};}
+    else if(open)way=routeVia(way,e);}
+  e.face??={east:true,north:true};if(way){const st=isoAdvance(e.iso??null,e.x,e.y,way.x,way.y,e.speed*(e.slowTimer>0?.55:1)*1.4,dt,e.face);e.iso=st.m;
+    if(st.done)e.iso=null;else{e.x=clamp(e.x+st.mx,40,WORLD_WIDTH-40);e.y=clamp(e.y+st.my,40,WORLD_HEIGHT-40);const back=fleetCollision(e);if(back){e.x=back.x;e.y=back.y;}}}
+  for(const o of [player,...enemies.filter(x=>x.captain&&x!==e)] as Vec[]){const dx=e.x-o.x,dy=e.y-o.y,dd=Math.hypot(dx,dy)||1;if(dd<150){const k=(150-dd)*Math.min(1,dt*3);e.x+=dx/dd*k;e.y+=dy/dd*k*.6;}}
+  c.ammoClock-=dt;if(c.ammoClock<=0){c.ammoClock=5+Math.random()*4;const all:AmmoKind[]=['iron','chain','fire','grape','explosive','breaker','leech'];c.ammo=all[Math.floor(Math.random()*all.length)];}
+  if(!foe)return;const d=dist(e,foe);e.cooldown-=dt;if(d<SIEGE_FIRE_RANGE&&e.cooldown<=0){captainFire(e,foe);e.cooldown=e.reload;}
+  c.abilityCd-=dt;if(d<SIEGE_FIRE_RANGE&&c.abilityCd<=0){c.abilityCd=11+Math.random()*5;captainAbility(e,foe);}}
+function siegeTowerDown(e:Enemy){if(!siege||e.towerIndex===undefined)return;const before=siegePhase(siege),i=e.towerIndex;if(!siege.destroyed.includes(i))siege.destroyed.push(i);saveSiege(siege);
+  const after=siegePhase(siege);
+  if(WALL_TOWERS.includes(i)){const g=gateOf(i),left=gateLeft(siege,g);toast(left?`${g==='west'?'Batı':'Doğu'} kapısında ${left} sur topu kaldı`:`${g==='west'?'BATI':'DOĞU'} KAPISI DÜŞTÜ`);if(!left)rewardNotice(`${g==='west'?'BATI':'DOĞU'} KAPISI DÜŞTÜ`);}
+  else toast(`İç kule yıkıldı · ${INNER_TOWERS.filter(k=>!siege!.destroyed.includes(k)).length} kule kaldı`);
+  if(before===1&&after===2){fleetFields.clear();rewardNotice('2. AŞAMA   KAPILAR AÇILDI · LAGÜNE GİR, İÇ KULELERİ YIK');}
+  if(after===3)spawnCommander();renderSiegeHud();}
+// Katkı ödülü: ödenmemiş hasar kadar (ayrılınca ya da kuşatma bitince)
+function payContribution(){if(!siege)return null;const dmg=siege.contrib[profile.nick]??0,unpaid=dmg-siege.paid;if(unpaid<=0)return null;
+  const r=contribReward(unpaid,SIEGE_PARTICIPANTS),xp=xpGain(r.xp),gold=goldGainAch(r.gold);state.fame+=xp;state.gold+=gold;state.pearls+=r.pearls;siege.paid=dmg;saveSiege(siege);saveAccount();
+  return{xp,gold,pearls:r.pearls};}
+function siegeWon(e:Enemy){if(!siege)return;stopBossMusic();siege.result='won';siege.commanderHp=0;saveSiege(siege);
+  for(let n=0;n<4;n++)later(n*.25,()=>{burst(e.x+(Math.random()-.5)*90,e.y+(Math.random()-.5)*60,true);playExplosion();});
+  enemies.splice(0,enemies.length,...enemies.filter(o=>!o.siege));finishSiege(true);}
+function finishSiege(won:boolean){if(!siege)return;const reward=payContribution(),dmg=siege.contrib[profile.nick]??0,order=ranking(siege.contrib),rank=order.findIndex(([n])=>n===profile.nick)+1;
+  let chest:ReturnType<typeof victoryChest>|null=null,title=false;
+  if(won&&earnsChest(dmg,SIEGE_PARTICIPANTS)){chest=victoryChest(Math.random,EQUIPMENT.filter(q=>q.rarity===1).map(q=>q.id));state.pearls+=chest.pearls;
+    for(const [k,n] of Object.entries(chest.ammo))arsenal[k as keyof typeof chest.ammo]+=n!;arsenal.speed+=chest.speed;if(chest.equip)equipOwned[chest.equip]=(equipOwned[chest.equip]??0)+1;saveArsenal(arsenal);saveAccount();renderQuickSlots();}
+  if(won&&rank>0&&rank<=3&&dmg>0){heroTitle=grantTitle();title=true;}
+  playLevelUp();showSiegeResult(won,dmg,rank,order,reward,chest,title);renderSiegeHud();}
+function siegeRespawn(){const sp=SIEGE_MAP.spawn;player.x=sp.x+(Math.random()-.5)*200;player.y=sp.y;player.speed=0;destination=null;routeTarget=null;camera.x=player.x;camera.y=player.y;freeLook=null;
+  state.hp=effectiveMaxHp();state.invulnerable=10;state.attacking=false;selected=null;ui('attack').classList.remove('active');mapFade=1;playSplash();
+  toast('Gemin battı — kuşatma limanında tam gövdeyle doğdun, 10 sn korunuyorsun');}
+function updateSiege(dt:number){if(!siege)return;
+  siegeSaveClock-=dt;if(siegeSaveClock<=0){siegeSaveClock=2;const c=enemies.find(e=>e.commander);if(c){siege.commanderHp=Math.max(0,c.hp);}saveSiege(siege);}
+  if(!siege.result&&Date.now()>siege.end){siege.result='lost';saveSiege(siege);stopBossMusic();finishSiege(false);}
+  siegeHudClock-=dt;if(siegeHudClock<=0){siegeHudClock=.5;renderSiegeHud();}}
+function siegeTimeLeft(){if(!siege)return'';const min=Math.max(0,Math.ceil((siege.end-Date.now())/60000));return min>=60?`${Math.floor(min/60)} sa ${min%60} dk`:`${min} dk`;}
+const PHASE_NAMES=['','1. AŞAMA · DIŞ SURLAR','2. AŞAMA · İÇ KULELER','3. AŞAMA · KALE KOMUTANI','KALE DÜŞTÜ'];
+// Üst şerit: aşama, kapılar, yıkılma oranı ve kalan süre
+const siegeBar=document.createElement('div');siegeBar.className='siege-bar';document.querySelector('.hud')!.append(siegeBar);
+renderDayEvent();
+function renderSiegeHud(){siegeBar.classList.toggle('on',!!siege);dayEventEl.classList.toggle('hidden',!!siege);if(!siege)return;const ph=siegePhase(siege),pct=Math.round(siegeProgress(siege,SIEGE_PARTICIPANTS)*100);
+  const detail=ph===1?`Batı kapısı: ${gateLeft(siege,'west')} top · Doğu kapısı: ${gateLeft(siege,'east')} top`:ph===2?`İç kuleler: ${INNER_TOWERS.filter(i=>!siege!.destroyed.includes(i)).length} / 4`:ph===3?'Komutanın sancak gemisini batır':siege.result==='won'?'Zafer!':'';
+  const html=`<div><b>KARA KALE · ${siege.result==='lost'?'KUŞATMA BİTTİ':PHASE_NAMES[ph]}</b><small>${siege.result?'':`bitime ${siegeTimeLeft()}`}</small></div><div><span>${detail}</span><i><em style="width:${pct}%"></em></i><small>%${pct}</small></div><button data-siege-leave>AYRIL</button>`;
+  if(siegeBar.dataset.html===html)return;siegeBar.dataset.html=html;siegeBar.innerHTML=html;(siegeBar.querySelector('[data-siege-leave]') as HTMLButtonElement).onclick=leaveSiege;}
+// Sağ panel: komutan ve katkı sıralaması
+function siegePanelRows(){if(!siege)return[];const rows:string[]=[],order=ranking(siege.contrib).slice(0,10),total=Object.values(siege.contrib).reduce((a,b)=>a+b,0)||1;
+  rows.push(`<div class="event-row siege-board"><small>KATKI SIRALAMASI</small><ol>${order.map(([n,d])=>`<li class="${n===profile.nick?'me':''}"><b>${escapeHtml(n)}</b><em>${shortNum(Math.round(d))}</em><span>%${Math.round(d/total*100)}</span></li>`).join('')||'<li><b>Henüz hasar yok</b></li>'}</ol></div>`);
+  return rows;}
+function showSiegeResult(won:boolean,dmg:number,rank:number,order:[string,number][],reward:{xp:number;gold:number;pearls:number}|null,chest:ReturnType<typeof victoryChest>|null,title:boolean){
+  const el=document.createElement('div');el.className='siege-result';const ammoNames=chest?Object.entries(chest.ammo).map(([k,n])=>`${n} ${SPECIAL_AMMO[k as keyof typeof chest.ammo].name}`).join(' · '):'';
+  el.innerHTML=`<section><span class="eyebrow">BÜYÜK KUŞATMA</span><h2>${won?'KARA KALE DÜŞTÜ!':'KUŞATMA SONA ERDİ'}</h2><p>${won?'Kaptanlar kaleyi birlikte yıktı.':'Kale bu akşam ayakta kaldı; katkı ödülün verildi.'}</p>
+    <dl><dt>Verdiğin hasar</dt><dd>${Math.round(dmg).toLocaleString('tr-TR')}</dd><dt>Sıran</dt><dd>${rank>0?`${rank}. / ${order.length}`:'—'}</dd>
+    <dt>Katkı ödülü</dt><dd>${reward?`+${reward.xp.toLocaleString('tr-TR')} TP · +${reward.gold.toLocaleString('tr-TR')} Altın · +${reward.pearls} İnci`:'—'}</dd>
+    ${won?`<dt>Zafer sandığı</dt><dd>${chest?`+${chest.pearls} İnci · ${ammoNames} · +${chest.speed} Hız İksiri${chest.equip?` · ${EQUIPMENT.find(q=>q.id===chest.equip)?.name}`:''}`:'Kalenin en az %2\'si kadar hasar gerekli'}</dd>`:''}</dl>
+    ${title?`<div class="hero-award">★ ${HERO_TITLE.toLocaleUpperCase('tr')} ★<small>İlk 3'e girdin · unvanın 7 gün adının altında parlayacak</small></div>`:''}
+    <ol>${order.slice(0,5).map(([n,d],i)=>`<li class="${n===profile.nick?'me':''}"><b>${i+1}. ${escapeHtml(n)}</b><em>${shortNum(Math.round(d))}</em></li>`).join('')}</ol>
+    <button data-close>LİMANA DÖN</button></section>`;
+  document.querySelector('.hud')!.append(el);(el.querySelector('[data-close]') as HTMLButtonElement).onclick=()=>{el.remove();leaveSiege();};}
+function canEnterSiege(){return siegeWindow().open||ELITE_TEST_MODE;}
+function enterSiege(){if(siege)return;if(!canEnterSiege()){toast('Büyük Kuşatma her Cuma 20:00–22:00 arasında açılır');return;}if(inCombat()){toast('Savaş sırasında kuşatmaya geçilemez');return;}
+  const w=siegeWindow(),id=w.open?w.id:`test-${w.id}`;let s=loadSiege();
+  if(!s||s.id!==id||(!w.open&&(s.result||Date.now()>s.end)))s=newSiege(id,w.open?w.end:Date.now()+SIEGE_MS);
+  if(s.result){toast(s.result==='won'?'Kara Kale bu akşam düştü; gelecek Cuma yeniden kurulur':'Bu akşamki kuşatma sona erdi');return;}
+  siegeOrigin={map:currentMap,x:player.x,y:player.y};siege=s;saveSiege(s);fleetSafe=null;fleetFields.clear();populateMap();
+  const sp=SIEGE_MAP.spawn;player.x=sp.x;player.y=sp.y;player.speed=0;destination=null;routeTarget=null;selected=null;state.attacking=false;ui('attack').classList.remove('active');camera.x=player.x;camera.y=player.y;freeLook=null;
+  mapFade=1;playMapJump();eventPanelHtml='';rewardNotice('BÜYÜK KUŞATMA   KARA KALE');toast('Batı ve doğu kapılarını koruyan sur toplarını yık');}
+function leaveSiege(){if(!siege)return;const r=siege.result?null:payContribution();document.querySelector('.siege-result')?.remove();stopBossMusic();
+  const o=siegeOrigin;siege=null;siegeOrigin=null;fleetSafe=null;fleetFields.clear();populateMap();
+  if(o){player.x=o.x;player.y=o.y;}player.speed=0;destination=null;routeTarget=null;selected=null;state.attacking=false;camera.x=player.x;camera.y=player.y;freeLook=null;
+  mapFade=1;playMapJump();eventPanelHtml='';renderSiegeHud();renderDayEvent(true);if(r)rewardNotice(`KUŞATMA KATKISI   +${r.xp.toLocaleString('tr-TR')} TP   +${r.gold.toLocaleString('tr-TR')} Altın   +${r.pearls} İnci`);}
 function sinkEnemy(e:Enemy){
   const j=enemies.indexOf(e);if(j<0)return;
   if(e.captain){enemies.splice(j,1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}burst(e.x,e.y,true);playExplosion();playSink(earGain(e));splashAt(e.x,e.y,190);spawnText(e,`${e.name} BATTI`,'#ffb070');if(e.lastHitBy!=='captain'){if(claimRivalSp(rivalLog,e.name)){const sp=gainSp(RIVAL_SP*spMult());rewardNotice(`${e.name} BATIRILDI   +${sp} SP   (bugün ${rivalLog.kills[e.name]}/${RIVAL_DAILY_LIMIT})`);}else rewardNotice(`${e.name} BATIRILDI   bugün bu oyuncudan SP hakkın doldu`);}e.lastHitBy=undefined;
-    const map=currentMap;later(5,()=>{if(currentMap!==map)return;const a=Math.random()*Math.PI*2,p={x:clamp(e.homeX+Math.cos(a)*450,80,WORLD_WIDTH-80),y:clamp(e.homeY+Math.sin(a)*260,80,WORLD_HEIGHT-80)};Object.assign(e,{x:p.x,y:p.y,hp:e.maxHp,frozen:0,burnTimer:0,slowTimer:0});e.captain!.foe=null;enemies.push(e);spawnText(e,`${e.name} YENİDEN DENİZDE`,'#9fe8dc');});return;}
+    const map=currentMap,inst=siege;later(5,()=>{if(currentMap!==map||siege!==inst)return;const a=Math.random()*Math.PI*2,p={x:clamp(e.homeX+Math.cos(a)*450,80,WORLD_WIDTH-80),y:clamp(e.homeY+Math.sin(a)*260,80,WORLD_HEIGHT-80)};Object.assign(e,{x:p.x,y:p.y,hp:e.maxHp,frozen:0,burnTimer:0,slowTimer:0});e.captain!.foe=null;enemies.push(e);spawnText(e,`${e.name} YENİDEN DENİZDE`,'#9fe8dc');});return;}
   enemies.splice(j,1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}
   burst(e.x,e.y,true);playExplosion();playSink(earGain(e));splashAt(e.x,e.y,190);
   if(e.def&&!e.tower)wrecks.push({x:e.x,y:e.y,angle:e.angle,sprite:e.def.sprite,span:e.def.span,t:0,bubble:0});
   if(e.tower){destroyTower(e);return;}
+  if(e.commander){siegeWon(e);return;}
   if(e.boss){defeatBoss(e);return;}
   // NPC tecrübe puanı ve altın verir; savaş puanı (SP) yalnızca rakip oyuncu batırınca gelir (src/battle.ts).
   const eliteLoot=eliteLootMult();if(bannerTimer>0)spawnCoins(e,player);
@@ -1289,6 +1432,7 @@ function updateTower(e:Enemy,dt:number){
     playEnemyCannon(d,(e.x-player.x)/600);e.cooldown=e.reload+Math.random()*.4;}
 }
 function destroyTower(e:Enemy){
+  if(siege){siegeTowerDown(e);return;}
   towersDestroyedHere++;if(e.towerIndex!==undefined)markRuin(towerRuins,currentMap,e.towerIndex);const left=enemies.filter(x=>x.tower).length,f=mapDef().fleet;
   toast(left?`${f.name}: ${left} kule kaldı`:`${f.name} düştü!`);
   if(left>0)return;
@@ -1306,18 +1450,21 @@ function updateOwnTowers(dt:number){
 }
 // Havan: isabet noktasının çevresindeki diğer düşmanlara %60 hasar
 function towerSplash(s:Shot,hit:Target){burst(hit.x,hit.y,true);
-  for(const o of [...enemies,...monsters] as Target[]){if(o===hit||(o.kind==='ship'&&o.tower)||dist(o,hit)>(s.splash??0))continue;const dmg=s.damage*.6;o.hp-=dmg;if(o.kind==='ship')o.lastHitBy='player';damageText(o.x,o.y,dmg);
+  for(const o of [...enemies,...monsters] as Target[]){if(o===hit||isAlly(o)||(o.kind==='ship'&&o.tower)||dist(o,hit)>(s.splash??0))continue;const dmg=s.damage*.6;o.hp-=dmg;if(o.kind==='ship')o.lastHitBy='player';damageText(o.x,o.y,dmg);
     if(o.hp<=0){if(o.kind==='ship')sinkEnemy(o);else defeatMonster(o);}}}
 let ruinClock=5;
 function updateEvents(dt:number){
   ruinClock-=dt;if(ruinClock<=0){ruinClock=5;reviveRivalTowers();}
 
   updateOwnTowers(dt);
+  if(siege)updateSiege(dt);
   eventPanelClock-=dt;if(eventPanelClock>0)return;eventPanelClock=.25;
   const panel=ui('eventPanel'),rows:string[]=[];
+  if(siege)rows.push(...siegePanelRows());else{
   const boss=activeBoss(),bd=bossFor(currentMap),bossArt=`<i class="event-art" style="${portraitStyle(BOSS_ATLAS,bd.portrait,MAP_KEYS.length,BOSS_ATLAS_COLS)}"></i>`;
   if(boss)rows.push(`<button class="event-row boss" data-event-route="boss">${bossArt}<span><small>HARİTA BOSSU · ${Math.round(dist(boss,player))}m</small><strong>${bd.name}</strong><i><em style="width:${boss.hp/boss.maxHp*100}%"></em></i></span></button>`);
   if(treasure.active||treasure.parts>0){const a=treasure.active;rows.push(`<button class="event-row treasure" data-event-route="treasure"><img src="${TREASURE_ICON}" alt=""/><span><small>${a?'HAZİNE HARİTASI · HEDEF':'HAZİNE HARİTASI PARÇALARI'}</small><strong>${a?`${a.map} · ${a.label}`:`${treasure.parts} / ${TREASURE_PARTS} parça`}</strong>${a?'':`<i><em style="width:${treasure.parts/TREASURE_PARTS*100}%"></em></i>`}</span></button>`);}
+  }
   const html=rows.join('');if(html===eventPanelHtml)return;eventPanelHtml=html;
   panel.innerHTML=html;panel.classList.toggle('visible',rows.length>0);
   combatTargetsTop=`${rows.length&&panel.offsetHeight?panel.offsetTop+panel.offsetHeight+4:panel.offsetTop}px`;
@@ -1351,7 +1498,7 @@ function abilityHit(t:Target,dmg:number,raw=false){
   t.hp-=hit;t.aggro=true;t.combatTimer=12;damageText(t.x,t.y,hit);burst(t.x,t.y);eliteLeech(hit);
   if(t.hp<=0){if(t.kind==='ship')sinkEnemy(t);else defeatMonster(t);}
 }
-function targetsNear(p:Vec,r:number){const out:Target[]=[];enemies.forEach(e=>{if(dist(e,p)<r+(e.hitRadius??25))out.push(e);});monsters.forEach(m=>{if(dist(m,p)<r+m.radius)out.push(m);});return out;}
+function targetsNear(p:Vec,r:number){const out:Target[]=[];enemies.forEach(e=>{if(!isAlly(e)&&dist(e,p)<r+(e.hitRadius??25))out.push(e);});monsters.forEach(m=>{if(dist(m,p)<r+m.radius)out.push(m);});return out;}
 const immovable=(t:Target)=>t.kind==='ship'&&(!!t.tower||!!t.boss);
 function freezeTarget(t:Target,sec:number){if(t.kind==='ship'&&t.tower)return;const s=t.kind==='ship'&&t.boss?sec/2:sec;t.frozen=Math.max(t.frozen??0,s);spawnFrost(t,s);}
 function later(t:number,fn:()=>void){abilityQueue.push({t,fn});}
@@ -1435,7 +1582,7 @@ function dropMine(){
 function detonateMine(index:number){
   const mine=mines[index];mines.splice(index,1);playExplosion();burst(mine.x,mine.y,true);burst(mine.x,mine.y,true);
   const damage=Math.round((MINE.baseDamage+state.level*MINE.damagePerLevel)*bonus.mine);
-  for(const e of [...enemies])if(dist(e,mine)<MINE.blastRadius){e.aggro=true;e.lastHitBy='player';e.combatTimer=12;e.hp-=damage;damageText(e.x,e.y,damage);if(e.hp<=0)sinkEnemy(e);}
+  for(const e of [...enemies])if(dist(e,mine)<MINE.blastRadius&&!isAlly(e)){e.aggro=true;e.lastHitBy='player';e.combatTimer=12;e.hp-=damage;siegeHit(e,damage,profile.nick);damageText(e.x,e.y,damage);if(e.hp<=0)sinkEnemy(e);}
   for(const m of monsters)if(dist(m,mine)<MINE.blastRadius+m.radius*.5){m.aggro=true;m.combatTimer=12;m.hp-=damage;damageText(m.x,m.y,damage);if(m.hp<=0)defeatMonster(m);}
 }
 function updateArsenal(dt:number){
@@ -1681,12 +1828,12 @@ function captainFire(e:Enemy,foe:Vec){const c=e.captain!,a=Math.atan2(foe.y-e.y,
     shots.push({x:e.x,y:e.y,vx:Math.cos(a+off)*300,vy:Math.sin(a+off)*300,life:2.4,owner:'enemy',damage:e.damage*(.85+Math.random()*.3)*(c.ammo==='iron'?1:1.4),hit:false,ammo:c.ammo,captain:e,foe:fe??undefined});});}
   e.cooldown=e.reload*(.9+Math.random()*.3);}
 // kaptan güllesi başka bir kaptana isabet etti
-function captainHit(t:Enemy,s:Shot,from:Enemy|null){const dmg=Math.round(s.damage);t.hp-=dmg;t.lastHitBy='captain';damageText(t.x,t.y,dmg,DMG_RED);burst(t.x,t.y);
+function captainHit(t:Enemy,s:Shot,from:Enemy|null){const dmg=Math.round(s.damage);t.hp-=dmg;t.lastHitBy='captain';if(from)siegeHit(t,dmg,from.name);damageText(t.x,t.y,dmg,DMG_RED);burst(t.x,t.y);
   if(s.ammo==='chain')t.slowTimer=3;if(s.ammo==='fire'){t.burnTimer=6;t.burnDps=Math.max(t.burnDps??0,dmg*.08);}
   if(s.ammo==='explosive')splashAt(t.x,t.y,120);if(s.ammo==='leech'&&from){from.hp=Math.min(from.maxHp,from.hp+dmg*.25);spawnSoul(t,from);}
   if(from&&t.captain&&!t.captain.foe)t.captain.foe=from;if(t.hp<=0)sinkEnemy(t);}
 function captainDamage(t:Vec,amount:number,from:Enemy){const e=enemies.includes(t as Enemy)?t as Enemy:null;
-  if(e){e.hp-=amount;e.lastHitBy='captain';damageText(e.x,e.y,Math.round(amount),DMG_RED);if(e.hp<=0)sinkEnemy(e);}
+  if(e){e.hp-=amount;e.lastHitBy='captain';siegeHit(e,amount,from.name);damageText(e.x,e.y,Math.round(amount),DMG_RED);if(e.hp<=0)sinkEnemy(e);}
   else if(state.invulnerable<=0&&ghostTimer<=0&&domeTimer<=0){const taken=amount*bonus.taken*eliteTakenMult();state.hp-=taken;damageText(player.x,player.y,Math.round(taken),'#ff6a5a');if(state.hp<=0)respawn();}
   void from;}
 function captainAbility(e:Enemy,foe:Vec){const c=e.captain!,ship=eliteById(c.elite),P=e.damage*6;spawnText(e,ship.ability.toLocaleUpperCase('tr'),'#ffcf5a');
@@ -1696,7 +1843,7 @@ function captainAbility(e:Enemy,foe:Vec){const c=e.captain!,ship=eliteById(c.eli
 function drawCaptain(e:Enemy,s:Vec){const c=e.captain!,im=eliteIsoImage(ELITE_ISO[c.elite]);if(!im.complete||!im.naturalWidth)return;
   const f=e.face??{east:true,north:false},idx=f.north?(f.east?0:3):(f.east?1:2),h=im.naturalHeight,D=158;
   drawHullWater(e,100);ctx.save();ctx.translate(s.x,s.y);if((e.frozen??0)>0)ctx.filter='saturate(.4) brightness(1.3) hue-rotate(160deg)';ctx.drawImage(im,idx*h,0,h,h,-D/2,-D*.7,D,D);ctx.restore();
-  const top=-122;drawHealthBar(s.x,s.y+top,80,e.hp/e.maxHp,'#f0584a');ctx.fillStyle='#ffd98a';ctx.font='800 11px Inter';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=4;ctx.fillText(e.name,s.x,s.y+top-8);ctx.shadowBlur=0;}
+  const top=-122;drawHealthBar(s.x,s.y+top,80,e.hp/e.maxHp,siege?'#4fd18a':'#f0584a');ctx.fillStyle=siege?'#9fe8dc':'#ffd98a';ctx.font='800 11px Inter';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=4;ctx.fillText(e.name,s.x,s.y+top-8);ctx.shadowBlur=0;}
 // Batan gemi: yan yatar, suya gömülür, kabarcıklar çıkarır
 function drawWreck(w:Wreck){const s=worldToScreen(w),k=Math.min(1,w.t/WRECK_TIME);ctx.save();ctx.globalAlpha=Math.max(0,1-k*k);ctx.translate(s.x,s.y+k*12);ctx.rotate(Math.sin(w.t*3)*.05+k*.35);ctx.scale(1-k*.2,1-k*.5);drawNpcShip(ctx,w.sprite,w.span,0,0,w.angle,performance.now());ctx.restore();}
 // ---------------------------------------------------------------- Gemi–su etkileşimi
@@ -1802,7 +1949,7 @@ function drawCoordRulers(){
   ctx.restore();
 }
 let lastCoord='';
-function updateCoordBadge(){const text=`${currentMap} - ${coordLabel(player)}`;if(text!==lastCoord){lastCoord=text;ui('mapCoord').textContent=text;}}
+function updateCoordBadge(){const text=`${siege?'KALE':currentMap} - ${coordLabel(player)}`;if(text!==lastCoord){lastCoord=text;ui('mapCoord').textContent=text;}}
 function drawMinimap(){const W=188,H=133,sx=(x:number)=>x/WORLD_WIDTH*W,sy=(y:number)=>y/WORLD_HEIGHT*H,th=theme();
   mini.clearRect(0,0,W,H);void th;
   for(const dir of ['north','south','east','west'] as Dir[]){const to=neighbor(currentMap,dir);if(!to)continue;mini.fillStyle=state.level>=MAPS[to].tier?'#6fd6c4aa':'#e07a5f88';if(dir==='north')mini.fillRect(W/2-14,0,28,2);if(dir==='south')mini.fillRect(W/2-14,H-2,28,2);if(dir==='west')mini.fillRect(0,H/2-12,2,24);if(dir==='east')mini.fillRect(W-2,H/2-12,2,24);}
@@ -1821,4 +1968,4 @@ function drawMinimap(){const W=188,H=133,sx=(x:number)=>x/WORLD_WIDTH*W,sy=(y:nu
 let manualClock=false;
 let last=performance.now();function loop(now:number){const dt=Math.min(.033,(now-last)/1000);last=now;if(!manualClock){update(dt);draw();}requestAnimationFrame(loop);}fillTestCannons();renderQuickSlots();updateUI();requestAnimationFrame(loop);
 // Yalnızca geliştirme sunucusunda: tarayıcı testleri için durum erişimi.
-if(import.meta.env.DEV)(window as any).__ky={isoFace,spawnBoss:()=>spawnBoss(),elite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;eliteAbility.cooldown=0;activateEliteAbility();},treasure,rollTreasurePart,manual:(on:boolean)=>{manualClock=on;},step:(dt:number)=>{update(dt);draw();},noFade:()=>{mapFade=0;},cinematic,makeShip,NPCS,MONSTERS,state,player,camera,enemies,monsters,respawn,enterMap,mapDef,fleetOwner,lootChests,sparkles,sinkEnemy,burst,splashAt,shots,particles,wrecks,select:(t:Target)=>{selected=t;state.attacking=true;},ammo:(id:AmmoKind)=>{state.ammo=id;renderQuickSlots();},ability:()=>{eliteAbility.cooldown=0;activateEliteAbility();},potion:()=>activateAbility('speed'),setElite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;fitCannonsToCapacity();},route:(v:Vec)=>{routeTarget=navigablePoint(v);destination=routeVia(routeTarget);},fleetNav,get routeTarget(){return routeTarget;},get selected(){return selected;},get destination(){return destination;}};
+if(import.meta.env.DEV)(window as any).__ky={isoFace,spawnBoss:()=>spawnBoss(),elite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;eliteAbility.cooldown=0;activateEliteAbility();},treasure,rollTreasurePart,manual:(on:boolean)=>{manualClock=on;},step:(dt:number)=>{update(dt);draw();},noFade:()=>{mapFade=0;},cinematic,makeShip,NPCS,MONSTERS,state,player,camera,enemies,monsters,respawn,enterMap,mapDef,fleetOwner,lootChests,sparkles,sinkEnemy,burst,splashAt,enterSiege,leaveSiege,get siege(){return siege;},shots,particles,wrecks,select:(t:Target)=>{selected=t;state.attacking=true;},ammo:(id:AmmoKind)=>{state.ammo=id;renderQuickSlots();},ability:()=>{eliteAbility.cooldown=0;activateEliteAbility();},potion:()=>activateAbility('speed'),setElite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;fitCannonsToCapacity();},route:(v:Vec)=>{routeTarget=navigablePoint(v);destination=routeVia(routeTarget);},fleetNav,get routeTarget(){return routeTarget;},get selected(){return selected;},get destination(){return destination;}};

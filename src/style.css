@@ -777,3 +777,24 @@ body{touch-action:manipulation;-webkit-tap-highlight-color:transparent;overscrol
 /* Günün etkinliği şeridi (üst orta, TP/EP çubuğunun altında) */
 .day-event{display:none;position:absolute;top:66px;left:50%;transform:translateX(-50%);pointer-events:none;align-items:center;gap:10px;padding:5px 14px;border:1px solid #d8b26899;border-radius:999px;background:linear-gradient(90deg,#2a1d0acc,#10262ccc 40%,#10262ccc 60%,#2a1d0acc);box-shadow:0 4px 14px #0008;white-space:nowrap;font:600 11px Inter;color:#dfe8e4}
 .day-event.on{display:flex}.day-event b{font:700 11px Cinzel,serif;letter-spacing:.06em;color:#ffd27a}.day-event em{font-style:normal;color:#9fe8dc;font-weight:700}
+.day-event.hidden{display:none!important}
+.day-event button{pointer-events:auto;border:1px solid #ffd27a;border-radius:999px;background:linear-gradient(#7a1e12,#3a0c06);color:#ffe2a0;font:800 10px Inter;letter-spacing:.06em;padding:5px 12px;cursor:pointer;box-shadow:0 0 12px #ff6a3a55}
+.day-event button:hover{background:linear-gradient(#9a2a18,#4a100a)}
+/* Büyük Kuşatma: üst şerit */
+.siege-bar{display:none;position:absolute;top:62px;left:50%;transform:translateX(-50%);z-index:6;pointer-events:auto;align-items:center;gap:12px;padding:6px 8px 6px 16px;border:1px solid #ff8a5a99;border-radius:10px;background:linear-gradient(90deg,#3a0e08e6,#101c22e6 30%,#101c22e6 70%,#3a0e08e6);box-shadow:0 6px 18px #000a;white-space:nowrap;font:600 11px Inter;color:#dfe8e4}
+.siege-bar.on{display:flex}.siege-bar>div{display:flex;align-items:center;gap:10px;justify-content:space-between}.siege-bar>div+div{margin-top:3px}.siege-bar.on{flex-wrap:wrap;width:440px;display:grid;grid-template-columns:1fr auto;column-gap:10px}.siege-bar>button{grid-row:1/3;grid-column:2}.siege-bar b{font:700 12px Cinzel,serif;letter-spacing:.06em;color:#ffb070}.siege-bar span{color:#cfe0dc}
+.siege-bar i{display:block;flex:1;min-width:90px;height:8px;border-radius:4px;background:#061016;border:1px solid #ff8a5a55;overflow:hidden}.siege-bar i em{display:block;height:100%;background:linear-gradient(90deg,#ff5a2a,#ffd27a)}
+.siege-bar small{color:#9fe8dc;font-weight:700}.siege-bar button{border:1px solid #c69a4e;border-radius:6px;background:#0a2028;color:#f2d59b;font:700 10px Inter;padding:5px 10px;cursor:pointer}
+/* sağ panel: katkı sıralaması */
+.event-row.siege-board{display:block;cursor:default;text-align:left}.siege-board small{color:#ffb070;font-weight:800;letter-spacing:.08em;font-size:9px}
+.siege-board ol{margin:4px 0 0;padding:0;list-style:none;counter-reset:r}.siege-board li{display:grid;grid-template-columns:1fr auto 34px;gap:6px;padding:2px 0;font:600 11px Inter;color:#dfe8e4;counter-increment:r}
+.siege-board li b::before{content:counter(r) ". ";color:#8fb7b0}.siege-board li em{font-style:normal;color:#ffd27a}.siege-board li span{color:#8fb7b0;text-align:right}.siege-board li.me b{color:#9fe8dc}
+/* sonuç penceresi */
+.siege-result{position:absolute;inset:0;z-index:45;display:flex;align-items:center;justify-content:center;background:#02090dcc;pointer-events:auto}
+.siege-result section{width:min(520px,90%);padding:24px 28px;border:1px solid #c69a4e;border-radius:12px;background:linear-gradient(#10262c,#071418);box-shadow:0 20px 60px #000c;text-align:center;color:#dfe8e4;font:13px Inter}
+.siege-result h2{margin:6px 0;font:700 26px Cinzel,serif;color:#ffd27a;letter-spacing:.04em}.siege-result p{color:#b9cbc6;margin:0 0 14px}
+.siege-result dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;text-align:left;margin:0 0 14px}.siege-result dt{color:#8fb7b0}.siege-result dd{margin:0;color:#f0e6d0;font-weight:600}
+.siege-result ol{list-style:none;margin:0 0 16px;padding:0}.siege-result li{display:flex;justify-content:space-between;padding:3px 10px;border-radius:5px}.siege-result li.me{background:#173a40;color:#9fe8dc}.siege-result li em{font-style:normal;color:#ffd27a}
+.siege-result button{border:1px solid #d8b268;border-radius:6px;background:linear-gradient(#3a2a12,#1c140a);color:#ffe2a0;font:800 12px Inter;letter-spacing:.06em;padding:10px 26px;cursor:pointer}
+.hero-award{margin:0 0 14px;padding:10px;border:1px solid #ffd27a;border-radius:8px;background:linear-gradient(#5a3c0c,#2a1a04);color:#ffd27a;font:800 15px Cinzel,serif;letter-spacing:.08em}.hero-award small{display:block;margin-top:4px;font:500 11px Inter;letter-spacing:0;color:#f0e0b0}
+.hero-title{display:block;margin:2px 0;font:800 11px Cinzel,serif;font-style:normal;letter-spacing:.06em;color:#ffd27a}
