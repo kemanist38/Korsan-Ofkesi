@@ -104,7 +104,8 @@ const mini = minimap.getContext('2d')!;
 const playerShipImage=new Image();playerShipImage.src='/assets/starter-ship-v2.webp';
 document.documentElement.style.setProperty('--starter-ship',`url("${playerShipImage.src}")`);
 // Başlangıç gemisi "Yedi Deniz": 8 yönlü sayfa (4 × 2, 256 px; elitlerle aynı kare sırası)
-const directionalShipImage=new Image();directionalShipImage.src='/assets/starter-ship-dir-v2.webp';
+// Başlangıç gemisi: elitler gibi 4 görünüş (KD, GD, GB, KB)
+const directionalShipImage=new Image();directionalShipImage.src='/assets/starter-ship-iso-v1.webp';
 document.documentElement.style.setProperty('--pirate-icons','url("/assets/pirate-ui-icons-v1.webp")');
 ([['/assets/icon-world-v2.webp','worldMapIcon'],['/assets/icon-world-v2.webp','menuWorldIcon'],['/assets/icon-ship-nav-v2.webp','shipNavIcon']] as const).forEach(([src,id])=>{const img=document.getElementById(id) as HTMLImageElement|null;if(img)img.src=src;});
 const cannonAssetSources:Record<CannonKind,string>={cast:'/assets/cannon-cast-v1.webp',long:'/assets/cannon-long-v1.webp',rapid:'/assets/cannon-rapid-v1.webp',heavy:'/assets/cannon-heavy-v1.webp'};
@@ -1719,10 +1720,6 @@ function drawShip(p:Vec,angle:number,color:string,scale=1){
   ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(1,-29);ctx.lineTo(14,-24);ctx.lineTo(1,-19);ctx.closePath();ctx.fill();
   ctx.fillStyle='#171817';for(const x of [-15,15])for(const y of [-8,3,14]){ctx.beginPath();ctx.arc(x,y,2.2,0,7);ctx.fill();}ctx.restore();
 }
-const SHIP_DIRECTION_FRAMES=[4,3,6,5,0,1,2,7] as const;
-// Açı birçok tur dönünce -2π'nin altına inebilir; negatif mod boş kare (görünmez gemi) verirdi → her zaman 0..7
-function shipCompass(angle:number){return((Math.round(angle/(Math.PI/4))%8)+8)%8;}
-function shipDirectionFrame(angle:number){return SHIP_DIRECTION_FRAMES[shipCompass(angle)];}
 // Elit gemiler 4 çapraz görünüşle çizilir (ELITE_ISO); görünüş son gidilen çapraza göre seçilir
 const eliteIsoImages=new Map<string,HTMLImageElement>();
 function eliteIsoImage(src:string){let im=eliteIsoImages.get(src);if(!im){im=new Image();im.decoding='async';im.src=`${src}?r=${SHIP_ART_REV}`;eliteIsoImages.set(src,im);}return im;}
@@ -1746,8 +1743,7 @@ function drawPlayerShip(){
   }
   ctx.save();ctx.translate(s.x,s.y);ctx.shadowColor='#000b';ctx.shadowBlur=13;ctx.globalAlpha=(state.invulnerable&&Math.floor(performance.now()/120)%2?.55:1)*shipAlpha();if(ghostTimer>0){ctx.filter='saturate(.35) brightness(1.35)';ctx.shadowColor='#5fffd0';};
   if(directionalShipImage.complete&&directionalShipImage.naturalWidth){
-    const frame=shipDirectionFrame(isoFaceAngle(isoFace)),sx=(frame%4)*256,sy=Math.floor(frame/4)*256;
-    ctx.drawImage(directionalShipImage,sx,sy,256,256,-80,-86,160,160);
+    const F=directionalShipImage.naturalHeight;ctx.drawImage(directionalShipImage,isoIndex()*F,0,F,F,-80,-86,160,160);
   }else ctx.drawImage(playerShipImage,-75,-80,150,150);
   ctx.restore();
 }

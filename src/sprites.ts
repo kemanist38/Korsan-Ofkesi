@@ -12,9 +12,14 @@ export function preload(srcs:string[]){srcs.filter(Boolean).forEach(load);}
 const SHIP={frame:192,dirs:16,cols:8,anchorX:96,anchorY:108.35,pxPerUnit:1.23};
 export const shipDrawSize=(span:number)=>span*SHIP.pxPerUnit;
 export const shipLabelOffset=(span:number)=>-Math.round(shipDrawSize(span)*.46);
+// 4 görünüşlü sayfa (genişlik = 4 × yükseklik): elitler gibi sıra KD, GD, GB, KB; açı hangi çeyrekteyse o çapraz çizilir.
+// Kare içindeki yerleşim eski 16 yönlü sayfanın çapası ve boyuyla aynıdır (gemi oyunda aynı yerde ve büyüklükte kalır).
+export function isoQuadrant(angle:number){const a=((angle%(Math.PI*2))+Math.PI*2)%(Math.PI*2);return a<Math.PI/2?0:a<Math.PI?1:a<Math.PI*1.5?2:3;}
 export function drawNpcShip(ctx:CanvasRenderingContext2D,sprite:string,span:number,x:number,y:number,angle:number,time:number){
   if(!sprite)return false;
   const sheet=load(sprite);if(!ready(sheet))return false;
+  if(sheet.naturalWidth===sheet.naturalHeight*4){const F=sheet.naturalHeight,size=shipDrawSize(span),i=isoQuadrant(angle);void time;
+    ctx.save();ctx.shadowColor='#000a';ctx.shadowBlur=11;ctx.shadowOffsetY=3;ctx.drawImage(sheet,i*F,0,F,F,x-size*SHIP.anchorX/SHIP.frame,y-size*SHIP.anchorY/SHIP.frame,size,size);ctx.restore();return true;}
   const step=Math.PI*2/SHIP.dirs,index=((Math.round(angle/step)%SHIP.dirs)+SHIP.dirs)%SHIP.dirs;
   // Kare boyu sayfadan okunur (NPC 192 px, boss 224 px); çapa karenin aynı oranındadır.
   const F=sheet.naturalWidth/SHIP.cols,size=shipDrawSize(span),k=size/F;void time;
