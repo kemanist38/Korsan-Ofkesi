@@ -86,7 +86,9 @@ export function drawBastion(ctx:CanvasRenderingContext2D,slot:number,x:number,y:
 }
 // Filo kulesi (600 × 1006 px görsel, 115,6 × 193,9 dünya birimi): pagoda çatılı yuvarlak taş kule.
 // Çapa = gövdenin alt elips merkezi (299,7; 863 px); kaidenin taban merkezine oturur ve kaideyi örter.
-export const TOWER_ART={w:115.6,h:193.9,anchorX:299.7/600,anchorY:863/1006};
+// slim: gövde yatayda inceltilir (kule ve kaidesi daha narin görünsün); boy aynı kalır.
+export const TOWER_SLIM=.8;
+export const TOWER_ART={w:115.6*TOWER_SLIM,h:193.9,anchorX:299.7/600,anchorY:863/1006};
 export function drawBuiltTower(ctx:CanvasRenderingContext2D,_frame:number,slot:number,x:number,y:number,alpha=1){
   const art=tintedArt(fleetTowerUrl(''),towerTheme);if(slot<0||slot>=16||!art)return false;
   ctx.save();ctx.globalAlpha=alpha;
