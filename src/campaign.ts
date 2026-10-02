@@ -53,27 +53,31 @@ export const GOLD_PER_HP=.65/60;
 export const killReward=(hp:number,tier:number)=>({xp:Math.round(hp*XP_PER_HP(tier)),gold:Math.round(hp*GOLD_PER_HP)});
 export const hpScale=(tier:number)=>Math.pow(1.6,tier-1);
 export const dmgScale=(tier:number)=>1+.5*(tier-1);
-const npc=(id:string,name:string,role:'light'|'heavy',tier:number,sprite='',span=role==='light'?104:112):Omit<NpcDef,'portrait'>=>{
+// Her denizde üç boy gemi: küçük (x-1-light), orta (x-1-heavy ve x-2-light aynı gemi), büyük (x-2-heavy).
+// span: geminin dünyadaki boyu (birim); başlangıç gemisi ~130 birim.
+export const NPC_SPAN={small:84,medium:112,large:144} as const;
+export const npcSize=(id:string)=>id.endsWith('-1-light')?'small':id.endsWith('-2-heavy')?'large':'medium';
+const npc=(id:string,name:string,role:'light'|'heavy',tier:number,sprite=''):Omit<NpcDef,'portrait'>=>{const span=NPC_SPAN[npcSize(id)];
   const dmg=role==='light'?750:1650,t=tier-1,hp=Math.round((role==='light'?2500:6000)*hpScale(tier)),r=killReward(hp,tier);
   return{id,name,sprite,span,role,tier,hp,damage:Math.round(dmg*dmgScale(tier)),reload:role==='light'?2.6:2.7,speed:(role==='light'?50:34)+t*1.5,gold:r.gold,xp:r.xp};
 };
 const NPC_LIST:Omit<NpcDef,'portrait'>[]=[
-  npc('n1-1-light','Kıyı Sandalı','light',1,'/assets/trial-coast-boat-iso-v2.webp'),npc('n1-1-heavy','Tüccar Yelkenlisi','heavy',1,'/assets/trial-coast-merchant-iso-v2.webp',104),
-  npc('n1-2-light','Tüccar Yelkenlisi','light',1,'/assets/trial-coast-merchant-iso-v2.webp'),npc('n1-2-heavy','Kraliyet Firkateyni','heavy',1,'/assets/trial-coast-frigate-iso-v2.webp',104),
-  npc('n2-1-light','Sedef Kayığı','light',2,'/assets/pearl-boat-iso-v2.webp'),npc('n2-1-heavy','Mercan Kesici','heavy',2,'/assets/pearl-cutter-iso-v2.webp',104),
+  npc('n1-1-light','Kıyı Sandalı','light',1,'/assets/trial-coast-boat-iso-v2.webp'),npc('n1-1-heavy','Tüccar Yelkenlisi','heavy',1,'/assets/trial-coast-merchant-iso-v2.webp'),
+  npc('n1-2-light','Tüccar Yelkenlisi','light',1,'/assets/trial-coast-merchant-iso-v2.webp'),npc('n1-2-heavy','Kraliyet Firkateyni','heavy',1,'/assets/trial-coast-frigate-iso-v2.webp'),
+  npc('n2-1-light','Sedef Kayığı','light',2,'/assets/pearl-boat-iso-v2.webp'),npc('n2-1-heavy','Mercan Kesici','heavy',2,'/assets/pearl-cutter-iso-v2.webp'),
   npc('n2-2-light','Mercan Kesici','light',2,'/assets/pearl-cutter-iso-v2.webp'),npc('n2-2-heavy','İnci Kraliçe Kalyonu','heavy',2,'/assets/pearl-galleon-iso-v2.webp'),
-  npc('n3-1-light','Yeşim Sürüklenen','light',3,'/assets/azur-boat-iso-v1.webp'),npc('n3-1-heavy','Kristal Yelkenli','heavy',3,'/assets/azur-sail-iso-v1.webp',104),
-  npc('n3-2-light','Kristal Yelkenli','light',3,'/assets/azur-sail-iso-v1.webp'),npc('n3-2-heavy','Kadim Azur Gardiyanı','heavy',3,'/assets/azur-guardian-iso-v1.webp',124),
-  npc('n4-1-light','Solgun Ruh','light',4,'/assets/haunt-boat-iso-v1.webp'),npc('n4-1-heavy','Lanetli Yelken','heavy',4,'/assets/haunt-sail-iso-v1.webp',104),
-  npc('n4-2-light','Lanetli Yelken','light',4,'/assets/haunt-sail-iso-v1.webp'),npc('n4-2-heavy','Gece Dehşeti Fırkateyni','heavy',4,'/assets/haunt-frigate-iso-v1.webp',124),
-  npc('n5-1-light','Buz Kırıcı Sandal','light',5,'/assets/frost-boat-v1.webp'),npc('n5-1-heavy','Donuk Yelkenli','heavy',5,'/assets/frost-sail-v1.webp',104),
-  npc('n5-2-light','Donuk Yelkenli','light',5,'/assets/frost-sail-v1.webp'),npc('n5-2-heavy','Kış Zıpkını Kalyonu','heavy',5,'/assets/frost-galleon-v1.webp',124),
-  npc('n6-1-light','Rüzgar Gülü','light',6,'/assets/storm-boat-v1.webp'),npc('n6-1-heavy','Yağmur Yaran','heavy',6,'/assets/storm-sail-v1.webp',104),
-  npc('n6-2-light','Yağmur Yaran','light',6,'/assets/storm-sail-v1.webp'),npc('n6-2-heavy','Şimşek Lordu','heavy',6,'/assets/storm-galleon-v1.webp',124),
-  npc('n7-1-light','Karanlık İzci','light',7,'/assets/void-boat-v1.webp'),npc('n7-1-heavy','Obsidyen Bıçağı','heavy',7,'/assets/void-sail-v1.webp',104),
-  npc('n7-2-light','Obsidyen Bıçağı','light',7,'/assets/void-sail-v1.webp'),npc('n7-2-heavy','Hiçlik Savaşçısı','heavy',7,'/assets/void-galleon-v1.webp',124),
-  npc('n8-1-light','Kül Sandalı','light',8,'/assets/lava-boat-v1.webp'),npc('n8-1-heavy','Lav Yaran','heavy',8,'/assets/lava-sail-v1.webp',104),
-  npc('n8-2-light','Lav Yaran','light',8,'/assets/lava-sail-v1.webp'),npc('n8-2-heavy','Cehennem Kalyonu','heavy',8,'/assets/lava-galleon-v1.webp',124),
+  npc('n3-1-light','Yeşim Sürüklenen','light',3,'/assets/azur-boat-iso-v1.webp'),npc('n3-1-heavy','Kristal Yelkenli','heavy',3,'/assets/azur-sail-iso-v1.webp'),
+  npc('n3-2-light','Kristal Yelkenli','light',3,'/assets/azur-sail-iso-v1.webp'),npc('n3-2-heavy','Kadim Azur Gardiyanı','heavy',3,'/assets/azur-guardian-iso-v1.webp'),
+  npc('n4-1-light','Solgun Ruh','light',4,'/assets/haunt-boat-iso-v1.webp'),npc('n4-1-heavy','Lanetli Yelken','heavy',4,'/assets/haunt-sail-iso-v1.webp'),
+  npc('n4-2-light','Lanetli Yelken','light',4,'/assets/haunt-sail-iso-v1.webp'),npc('n4-2-heavy','Gece Dehşeti Fırkateyni','heavy',4,'/assets/haunt-frigate-iso-v1.webp'),
+  npc('n5-1-light','Buz Kırıcı Sandal','light',5,'/assets/frost-boat-v1.webp'),npc('n5-1-heavy','Donuk Yelkenli','heavy',5,'/assets/frost-sail-v1.webp'),
+  npc('n5-2-light','Donuk Yelkenli','light',5,'/assets/frost-sail-v1.webp'),npc('n5-2-heavy','Kış Zıpkını Kalyonu','heavy',5,'/assets/frost-galleon-v1.webp'),
+  npc('n6-1-light','Rüzgar Gülü','light',6,'/assets/storm-boat-v1.webp'),npc('n6-1-heavy','Yağmur Yaran','heavy',6,'/assets/storm-sail-v1.webp'),
+  npc('n6-2-light','Yağmur Yaran','light',6,'/assets/storm-sail-v1.webp'),npc('n6-2-heavy','Şimşek Lordu','heavy',6,'/assets/storm-galleon-v1.webp'),
+  npc('n7-1-light','Karanlık İzci','light',7,'/assets/void-boat-v1.webp'),npc('n7-1-heavy','Obsidyen Bıçağı','heavy',7,'/assets/void-sail-v1.webp'),
+  npc('n7-2-light','Obsidyen Bıçağı','light',7,'/assets/void-sail-v1.webp'),npc('n7-2-heavy','Hiçlik Savaşçısı','heavy',7,'/assets/void-galleon-v1.webp'),
+  npc('n8-1-light','Kül Sandalı','light',8,'/assets/lava-boat-v1.webp'),npc('n8-1-heavy','Lav Yaran','heavy',8,'/assets/lava-sail-v1.webp'),
+  npc('n8-2-light','Lav Yaran','light',8,'/assets/lava-sail-v1.webp'),npc('n8-2-heavy','Cehennem Kalyonu','heavy',8,'/assets/lava-galleon-v1.webp'),
 ];
 export const NPCS:Record<string,NpcDef>=Object.fromEntries(NPC_LIST.map((n,i)=>[n.id,{...n,portrait:i}]));
 
