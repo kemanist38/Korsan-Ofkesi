@@ -27,8 +27,9 @@ export function neighbor(key:MapKey,dir:Dir):MapKey|null{
 export const tierOf=(key:MapKey)=>Number(key.split('/')[0]);
 
 // Seviye atlamak için gereken tecrübe (TP); seviye yalnızca TP ile atlanır, her seviyede sayaç sıfırlanır.
-// LEVEL_XP[n] = n. seviyeden n+1'e geçiş. Kendi seviyesindeki denizde ~60, 90, 120, 160, 200, 250, 300 NPC batırmaya denk gelir.
-export const LEVEL_XP=[0,2000,5000,11000,23000,47000,93000,180000];
+// LEVEL_XP[n] = n. seviyeden n+1'e geçiş. Kendi seviyesindeki denizde ~150, 400, 900, 1.800, 3.500, 6.500, 12.000 NPC
+// batırmaya denk gelir (saatte ~240 batırmayla 8. seviyeye toplam ~100 saat). Seviye uzun bir yolculuktur.
+export const LEVEL_XP=[0,5000,22000,80000,260000,800000,2400000,7000000];
 export const xpNeed=(level:number)=>level>=MAX_LEVEL?Infinity:LEVEL_XP[level];
 
 type Theme={name:string;sea:[string,string];tint:string;look:IslandLook;fleet:FleetTheme;label:string};

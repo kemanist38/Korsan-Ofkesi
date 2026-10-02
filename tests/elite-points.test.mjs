@@ -7,11 +7,11 @@ const code=ts.transpile(readFileSync(new URL('../src/arsenal.ts',import.meta.url
 const A=await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
 
 test('elite levels rise with elite points and cap at 15',()=>{
-  assert.equal(A.eliteLevelFromEp(0),1);assert.equal(A.eliteLevelEp(2),1000);
-  assert.equal(A.eliteLevelFromEp(999),1);assert.equal(A.eliteLevelFromEp(1000),2);
+  assert.equal(A.eliteLevelFromEp(0),1);assert.equal(A.eliteLevelEp(2),10000);
+  assert.equal(A.eliteLevelFromEp(9999),1);assert.equal(A.eliteLevelFromEp(10000),2);
   for(let l=2;l<=A.ELITE_MAX_LEVEL;l++)assert.ok(A.eliteLevelEp(l)>A.eliteLevelEp(l-1),'thresholds increase');
   assert.equal(A.eliteLevelFromEp(1e9),A.ELITE_MAX_LEVEL);
-  assert.equal(A.eliteLevelEp(15),82000);assert.equal(A.eliteLevelFromEp(81999),14);assert.equal(A.eliteLevelFromEp(82000),15);
+  assert.equal(A.eliteLevelEp(15),1750000);assert.equal(A.eliteLevelFromEp(1749999),14);assert.equal(A.eliteLevelFromEp(1750000),15);
   for(let l=3;l<=A.ELITE_MAX_LEVEL;l++)assert.ok(A.eliteLevelEp(l)-A.eliteLevelEp(l-1)>=A.eliteLevelEp(l-1)-A.eliteLevelEp(l-2),'each step costs at least as much as the one before');
 });
 test('only pearl ammo earns elite points, more for pricier balls',()=>{
