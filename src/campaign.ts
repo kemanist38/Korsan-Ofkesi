@@ -58,9 +58,9 @@ const npc=(id:string,name:string,role:'light'|'heavy',tier:number,sprite='',span
   return{id,name,sprite,span,role,tier,hp,damage:Math.round(dmg*dmgScale(tier)),reload:role==='light'?2.6:2.7,speed:(role==='light'?50:34)+t*1.5,gold:r.gold,xp:r.xp};
 };
 const NPC_LIST:Omit<NpcDef,'portrait'>[]=[
-  npc('n1-1-light','Kıyı Sandalı','light',1,'/assets/trial-coast-boat-iso-v1.webp'),npc('n1-1-heavy','Tüccar Yelkenlisi','heavy',1,'/assets/trial-coast-merchant-iso-v1.webp',104),
-  npc('n1-2-light','Tüccar Yelkenlisi','light',1,'/assets/trial-coast-merchant-iso-v1.webp'),npc('n1-2-heavy','Kraliyet Firkateyni','heavy',1,'/assets/trial-coast-frigate-iso-v1.webp',104),
-  npc('n2-1-light','Sedef Kayığı','light',2,'/assets/pearl-boat-iso-v1.webp'),npc('n2-1-heavy','Mercan Kesici','heavy',2,'/assets/pearl-cutter-iso-v1.webp',104),
+  npc('n1-1-light','Kıyı Sandalı','light',1,'/assets/trial-coast-boat-iso-v2.webp'),npc('n1-1-heavy','Tüccar Yelkenlisi','heavy',1,'/assets/trial-coast-merchant-iso-v2.webp',104),
+  npc('n1-2-light','Tüccar Yelkenlisi','light',1,'/assets/trial-coast-merchant-iso-v2.webp'),npc('n1-2-heavy','Kraliyet Firkateyni','heavy',1,'/assets/trial-coast-frigate-iso-v2.webp',104),
+  npc('n2-1-light','Sedef Kayığı','light',2,'/assets/pearl-boat-iso-v2.webp'),npc('n2-1-heavy','Mercan Kesici','heavy',2,'/assets/pearl-cutter-iso-v1.webp',104),
   npc('n2-2-light','Mercan Kesici','light',2,'/assets/pearl-cutter-iso-v1.webp'),npc('n2-2-heavy','İnci Kraliçe Kalyonu','heavy',2,'/assets/pearl-galleon-iso-v1.webp'),
   npc('n3-1-light','Yeşim Sürüklenen','light',3,'/assets/azur-boat-v1.webp'),npc('n3-1-heavy','Kristal Yelkenli','heavy',3,'/assets/azur-sail-v1.webp',104),
   npc('n3-2-light','Kristal Yelkenli','light',3,'/assets/azur-sail-v1.webp'),npc('n3-2-heavy','Kadim Azur Gardiyanı','heavy',3,'/assets/azur-guardian-v1.webp',124),
