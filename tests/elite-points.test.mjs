@@ -11,6 +11,8 @@ test('elite levels rise with elite points and cap at 15',()=>{
   assert.equal(A.eliteLevelFromEp(999),1);assert.equal(A.eliteLevelFromEp(1000),2);
   for(let l=2;l<=A.ELITE_MAX_LEVEL;l++)assert.ok(A.eliteLevelEp(l)>A.eliteLevelEp(l-1),'thresholds increase');
   assert.equal(A.eliteLevelFromEp(1e9),A.ELITE_MAX_LEVEL);
+  assert.equal(A.eliteLevelEp(15),82000);assert.equal(A.eliteLevelFromEp(81999),14);assert.equal(A.eliteLevelFromEp(82000),15);
+  for(let l=3;l<=A.ELITE_MAX_LEVEL;l++)assert.ok(A.eliteLevelEp(l)-A.eliteLevelEp(l-1)>=A.eliteLevelEp(l-1)-A.eliteLevelEp(l-2),'each step costs at least as much as the one before');
 });
 test('only pearl ammo earns elite points, more for pricier balls',()=>{
   const order=['grape','fire','breaker','explosive','leech'];
