@@ -798,3 +798,30 @@ body{touch-action:manipulation;-webkit-tap-highlight-color:transparent;overscrol
 .siege-result button{border:1px solid #d8b268;border-radius:6px;background:linear-gradient(#3a2a12,#1c140a);color:#ffe2a0;font:800 12px Inter;letter-spacing:.06em;padding:10px 26px;cursor:pointer}
 .hero-award{margin:0 0 14px;padding:10px;border:1px solid #ffd27a;border-radius:8px;background:linear-gradient(#5a3c0c,#2a1a04);color:#ffd27a;font:800 15px Cinzel,serif;letter-spacing:.08em}.hero-award small{display:block;margin-top:4px;font:500 11px Inter;letter-spacing:0;color:#f0e0b0}
 .hero-title{display:block;margin:2px 0;font:800 11px Cinzel,serif;font-style:normal;letter-spacing:.06em;color:#ffd27a}
+/* İnci Hazinesi: soldaki DÜNYA / GÖREVLER düğmelerinin altında inci düğmesi ve paket kartları */
+.quest-bust.pearl-bust{top:156px}.quest-bust.pearl-bust img{width:42px;height:42px;object-fit:contain;border-radius:0}
+#pearlResource{cursor:pointer;position:relative}
+#pearlResource .pearl-plus{position:absolute;right:-7px;top:50%;transform:translateY(-50%);width:18px;height:18px;display:grid;place-items:center;border:1px solid #e3b85e;border-radius:50%;background:#2f6b4a;color:#fff;font:700 14px/1 Inter;font-style:normal}
+.pearl-shop{width:min(860px,calc(94 * 1vw / var(--ui,1)))}
+.pearl-shop header p{margin:6px 0 0;color:#8fa5a7;font-size:11px}
+.pearl-packs{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+.pearl-pack{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:16px 10px 12px;border:1px solid #b9985255;border-radius:9px;background:radial-gradient(circle at 50% 25%,#1d4a52,#071a21 70%);text-align:center}
+.pearl-pack.tagged{border-color:#e3b85e;box-shadow:0 0 18px #e3b85e33}
+.pearl-pack img{width:64px;height:64px;object-fit:contain;filter:drop-shadow(0 4px 8px #000a)}
+.pearl-pack h4{margin:2px 0 0;font:700 13px Cinzel;color:#ecd09a}
+.pearl-pack strong{color:#e8fbff;font:700 18px Cinzel}
+.pearl-pack small{min-height:14px;color:#8fa5a7;font-size:10px}.pearl-pack small b{color:#7fe0a0}
+.pearl-pack button{margin-top:6px;width:100%;padding:9px 6px;border:1px solid #e3b85e;border-radius:6px;background:linear-gradient(#5c8a3a,#2f5a20);color:#fff6d8;font:700 13px Inter;cursor:pointer}
+.pearl-pack button:hover{filter:brightness(1.15)}
+.pack-tag{position:absolute;top:-9px;left:50%;transform:translateX(-50%);padding:2px 8px;border-radius:6px;background:#c23b2a;color:#fff;font:700 9px Inter;font-style:normal;white-space:nowrap}
+.pearl-note{margin:14px 0 0;color:#8fa5a7;font-size:10px;text-align:center}
+.vip-block{margin-top:16px;padding:14px;border:1px solid #e3b85e88;border-radius:9px;background:linear-gradient(120deg,#3a2a10e6,#12202ae6)}
+.vip-head{display:flex;align-items:center;gap:12px}.vip-head h3{margin:0;font:700 16px Cinzel;color:#ffe09b;letter-spacing:.08em}.vip-head p{margin:3px 0 0;color:#cdb98a;font-size:11px}
+.vip-crown{display:grid;place-items:center;width:46px;height:46px;border:2px solid #e3b85e;border-radius:50%;background:radial-gradient(circle,#8a5a14,#2a1a06);color:#ffe09b;font:800 13px Cinzel}
+.vip-status{margin-left:auto;padding:4px 10px;border-radius:12px;background:#0006;color:#9fb0b0;font:700 11px Inter}.vip-status.on{background:#2f6b4a;color:#fff}
+.vip-packs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.vip-pack{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px;border:1px solid #e3b85e55;border-radius:8px;background:#0b1a20cc}
+.vip-pack strong{font:700 18px Cinzel;color:#ffe09b}.vip-pack small{color:#9fb0b0;font-size:10px}
+.vip-pack button{margin-top:6px;width:100%;padding:8px 6px;border:1px solid #e3b85e;border-radius:6px;background:linear-gradient(#b8862e,#6a4a14);color:#fff6d8;font:700 13px Inter;cursor:pointer}
+.pearl-title{margin:18px 0 0;font:700 14px Cinzel;color:#b9eee8;letter-spacing:.1em}
+.pearl-shop .pearl-packs{margin-top:10px}
