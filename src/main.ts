@@ -1320,12 +1320,12 @@ function spawnCommander(){if(!siege||enemies.some(e=>e.commander))return;const s
 // Kuleler ve komutan en yakın saldırgana (oyuncu ya da müttefik kaptan) ateş eder
 function siegeAttackers(from:Vec,range:number){const out:Vec[]=[];if(state.invulnerable<=0&&stealthTimer<=0&&ghostTimer<=0&&dist(from,player)<range)out.push(player);
   for(const a of enemies)if(isAlly(a)&&dist(a,from)<range)out.push(a);return out.sort((a,b)=>dist(a,from)-dist(b,from));}
-function siegeShot(x:number,y:number,a:number,speed:number,damage:number,t:Vec,extra:Partial<Shot>={}){shots.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life:2.4,owner:'enemy',damage,hit:false,ammo:'iron',...(t===player?{}:{foe:t as Enemy}),...extra});}
-function updateSiegeTower(e:Enemy,dt:number){e.cooldown-=dt;e.slowTimer=0;e.combatTimer=Math.max(0,e.combatTimer-dt);const R=e.fireRange??460,t=siegeAttackers(e,R)[0];
+function siegeShot(x:number,y:number,a:number,speed:number,damage:number,t:Vec,extra:Partial<Shot>={}){shots.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life:Math.max(2.4,Math.hypot(t.x-x,t.y-y)/speed+.5),owner:'enemy',damage,hit:false,ammo:'iron',...(t===player?{}:{foe:t as Enemy}),...extra});}
+function updateSiegeTower(e:Enemy,dt:number){e.cooldown-=dt;e.slowTimer=0;e.combatTimer=Math.max(0,e.combatTimer-dt);const R=towerReach(e),t=siegeAttackers(e,R)[0];
   e.aggro=!!t||e.combatTimer>0;if(!t||e.cooldown>0)return;const m=towerMuzzle(e),a=Math.atan2(t.y-m.y,t.x-m.x);muzzleFlash(m.x,m.y,a,60);
   for(const off of [-.05,.05])siegeShot(m.x,m.y,a+off,320,e.damage,t);if(dist(e,player)<900)playEnemyCannon(dist(e,player),(e.x-player.x)/600);e.cooldown=e.reload+Math.random()*.4;}
 function updateCommander(e:Enemy,dt:number){if((e.frozen??0)>0){e.frozen=Math.max(0,e.frozen!-dt);return;}e.slowTimer=Math.max(0,e.slowTimer-dt);
-  const t=siegeAttackers(e,560)[0];if(t)e.face={east:t.x>e.x,north:t.y<e.y};e.cooldown-=dt;e.wander-=dt;const enraged=e.hp<e.maxHp*.5;
+  const t=siegeAttackers(e,Math.max(560,effectiveRange()+TOWER_REACH_MARGIN))[0];if(t)e.face={east:t.x>e.x,north:t.y<e.y};e.cooldown-=dt;e.wander-=dt;const enraged=e.hp<e.maxHp*.5;
   if(t&&e.cooldown<=0){const a=Math.atan2(t.y-e.y,t.x-e.x);muzzleFlash(e.x+Math.cos(a)*34,e.y+Math.sin(a)*34,a,84);playEnemyCannon(dist(e,player)*.6,(e.x-player.x)/600);
     for(const off of enraged?[-.24,-.12,0,.12,.24]:[-.15,0,.15])siegeShot(e.x,e.y,a+off,290,e.damage*(.85+Math.random()*.3),t);e.cooldown=e.reload*(enraged?.8:1);}
   // Yaylım ateşi: her 14 sn'de çevresine 16 gülle (hedef takibi yok)
@@ -1446,12 +1446,16 @@ function defeatMonster(m:Monster){
   rewardNotice(`+${goldGain} Altın   +${fame} TP`);recordQuestProgress('monster',d.id);
   const p=randomSeaPoint(900);m.hp=m.maxHp;m.aggro=false;m.burnTimer=0;m.x=p.x;m.y=p.y;m.homeX=m.x;m.homeY=m.y;m.combatTimer=0;selected=null;state.attacking=false;toast(`${m.name} yenildi`);
 }
+// Kule menzili hiçbir zaman oyuncunun top menzilinin altında kalmaz: kuleye ateş edebilen gemiyi kule de vurur
+// (uzun top + geliştirme + donanım kuleyi menzil dışından vuramaz). Saldırı altındaki kule yetenek menzilini (+150) de kapsar.
+const TOWER_REACH_MARGIN=60,TOWER_ALERT_REACH=200;
+function towerReach(e:Enemy){return Math.max(e.fireRange??460,effectiveRange()+(e.combatTimer>0?TOWER_ALERT_REACH:TOWER_REACH_MARGIN));}
 function updateTower(e:Enemy,dt:number){
-  const d=dist(e,player);e.cooldown-=dt;e.combatTimer=Math.max(0,e.combatTimer-dt);e.slowTimer=0;e.burnTimer=Math.max(0,(e.burnTimer??0));
-  e.aggro=!mapDef().safe&&(d<(e.fireRange??460)+30||e.combatTimer>0);
+  const d=dist(e,player),reach=towerReach(e);e.cooldown-=dt;e.combatTimer=Math.max(0,e.combatTimer-dt);e.slowTimer=0;e.burnTimer=Math.max(0,(e.burnTimer??0));
+  e.aggro=!mapDef().safe&&(d<reach+30||e.combatTimer>0);
   if(e.hp<e.maxHp)e.hp=Math.min(e.maxHp,e.hp+e.maxHp*(e.aggro?.004:.02)*dt);
-  if(e.aggro&&d<(e.fireRange??460)&&e.cooldown<=0&&state.invulnerable<=0&&stealthTimer<=0){const muzzle=towerMuzzle(e),tx=muzzle.x,ty=muzzle.y,a=Math.atan2(player.y-ty,player.x-tx);
-    muzzleFlash(tx,ty,a,60);for(const off of [-.05,.05])shots.push({x:tx,y:ty,vx:Math.cos(a+off)*320,vy:Math.sin(a+off)*320,life:2.2,owner:'enemy',damage:e.damage,hit:false,ammo:theme().fleet==='lava'?'fire':'iron'});
+  if(e.aggro&&d<reach&&e.cooldown<=0&&state.invulnerable<=0&&stealthTimer<=0){const muzzle=towerMuzzle(e),tx=muzzle.x,ty=muzzle.y,a=Math.atan2(player.y-ty,player.x-tx);
+    muzzleFlash(tx,ty,a,60);for(const off of [-.05,.05])shots.push({x:tx,y:ty,vx:Math.cos(a+off)*320,vy:Math.sin(a+off)*320,life:Math.max(2.2,d/320+.5),owner:'enemy',damage:e.damage,hit:false,ammo:theme().fleet==='lava'?'fire':'iron'});
     playEnemyCannon(d,(e.x-player.x)/600);e.cooldown=e.reload+Math.random()*.4;}
 }
 function destroyTower(e:Enemy){
@@ -1991,4 +1995,4 @@ function drawMinimap(){const W=188,H=133,sx=(x:number)=>x/WORLD_WIDTH*W,sy=(y:nu
 let manualClock=false;
 let last=performance.now();function loop(now:number){const dt=Math.min(.033,(now-last)/1000);last=now;if(!manualClock){update(dt);draw();}requestAnimationFrame(loop);}fillTestCannons();renderQuickSlots();updateUI();requestAnimationFrame(loop);
 // Yalnızca geliştirme sunucusunda: tarayıcı testleri için durum erişimi.
-if(import.meta.env.DEV)(window as any).__ky={isoFace,spawnBoss:()=>spawnBoss(),elite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;eliteAbility.cooldown=0;activateEliteAbility();},treasure,rollTreasurePart,manual:(on:boolean)=>{manualClock=on;},step:(dt:number)=>{update(dt);draw();},noFade:()=>{mapFade=0;},cinematic,makeShip,NPCS,MONSTERS,state,player,camera,enemies,monsters,respawn,enterMap,mapDef,fleetOwner,lootChests,sparkles,sinkEnemy,burst,splashAt,enterSiege,leaveSiege,get siege(){return siege;},shots,particles,wrecks,select:(t:Target)=>{selected=t;state.attacking=true;},ammo:(id:AmmoKind)=>{state.ammo=id;renderQuickSlots();},ability:()=>{eliteAbility.cooldown=0;activateEliteAbility();},potion:()=>activateAbility('speed'),setElite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;fitCannonsToCapacity();},route:(v:Vec)=>{routeTarget=navigablePoint(v);destination=routeVia(routeTarget);},fleetNav,get routeTarget(){return routeTarget;},get selected(){return selected;},get destination(){return destination;}};
+if(import.meta.env.DEV)(window as any).__ky={isoFace,range:()=>effectiveRange(),spawnBoss:()=>spawnBoss(),elite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;eliteAbility.cooldown=0;activateEliteAbility();},treasure,rollTreasurePart,manual:(on:boolean)=>{manualClock=on;},step:(dt:number)=>{update(dt);draw();},noFade:()=>{mapFade=0;},cinematic,makeShip,NPCS,MONSTERS,state,player,camera,enemies,monsters,respawn,enterMap,mapDef,fleetOwner,lootChests,sparkles,sinkEnemy,burst,splashAt,enterSiege,leaveSiege,get siege(){return siege;},shots,particles,wrecks,select:(t:Target)=>{selected=t;state.attacking=true;},ammo:(id:AmmoKind)=>{state.ammo=id;renderQuickSlots();},ability:()=>{eliteAbility.cooldown=0;activateEliteAbility();},potion:()=>activateAbility('speed'),setElite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;fitCannonsToCapacity();},route:(v:Vec)=>{routeTarget=navigablePoint(v);destination=routeVia(routeTarget);},fleetNav,get routeTarget(){return routeTarget;},get selected(){return selected;},get destination(){return destination;}};
