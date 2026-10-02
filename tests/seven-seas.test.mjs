@@ -69,3 +69,8 @@ test('each map offers its own four quests whose rewards grow with the map level'
   const g=k=>QUESTS.find(q=>q.id===`q${k}-heavy`);
   for(let t=2;t<=8;t++){assert.ok(g(`${t}/1`).gold>g(`${t-1}/1`).gold);assert.ok(g(`${t}/1`).xp>g(`${t-1}/1`).xp);assert.ok(g(`${t}/1`).pearls>g(`${t-1}/1`).pearls);}
 });
+test('levels 1–8 need only XP; each level costs more than the last and level 8 is the cap',()=>{
+  assert.deepEqual(world.LEVEL_XP,[0,2000,5000,11000,23000,47000,93000,180000]);
+  for(let l=2;l<world.MAX_LEVEL;l++)assert.ok(world.xpNeed(l)>world.xpNeed(l-1));
+  assert.equal(world.xpNeed(world.MAX_LEVEL),Infinity);
+});
