@@ -105,7 +105,7 @@ const playerShipImage=new Image();playerShipImage.src='/assets/starter-ship-v2.w
 document.documentElement.style.setProperty('--starter-ship',`url("${playerShipImage.src}")`);
 // Başlangıç gemisi "Yedi Deniz": 8 yönlü sayfa (4 × 2, 256 px; elitlerle aynı kare sırası)
 // Başlangıç gemisi: elitler gibi 4 görünüş (KD, GD, GB, KB)
-const directionalShipImage=new Image();directionalShipImage.src='/assets/starter-ship-iso-v1.webp';
+const directionalShipImage=new Image();directionalShipImage.src='/assets/starter-ship-iso-v2.webp';
 document.documentElement.style.setProperty('--pirate-icons','url("/assets/pirate-ui-icons-v1.webp")');
 ([['/assets/icon-world-v2.webp','worldMapIcon'],['/assets/icon-world-v2.webp','menuWorldIcon'],['/assets/icon-ship-nav-v2.webp','shipNavIcon']] as const).forEach(([src,id])=>{const img=document.getElementById(id) as HTMLImageElement|null;if(img)img.src=src;});
 const cannonAssetSources:Record<CannonKind,string>={cast:'/assets/cannon-cast-v1.webp',long:'/assets/cannon-long-v1.webp',rapid:'/assets/cannon-rapid-v1.webp',heavy:'/assets/cannon-heavy-v1.webp'};
