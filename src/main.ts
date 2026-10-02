@@ -5,7 +5,7 @@ import './style.css';
 import {ACTIONS,loadSettings,saveSettings,keyLabel,normalizeKey,DEFAULT_BINDS,type ActionId} from './settings';
 import {playBossMusic,stopBossMusic,playBossHorn,setAudio,unlockAudio,playCannon,playEnemyCannon,playHit,playExplosion,playCoins,playWind,playShield,playSplash,playLevelUp,playMapJump,playSink,playHeal,playClick} from './audio';
 import {drawSeaSparkle,drawNpcShip,drawMonsterSheet,drawChestSprite,drawIslandSprite,drawFleetBase,drawBastion,drawBuiltTower,drawMineSprite,seaTilePattern,islandSheetUrl,shipLabelOffset,portraitStyle,preload,fleetBaseUrl,fleetTowerUrl,setTowerTheme,TOWER_LABEL_OFFSET,FLEET_ART,drawFleetOccluder} from './sprites';
-import {MAPS,GRID,THEMES,NPCS,MONSTERS,QUESTS,QUEST_COOLDOWN_MS,FLEET,WORLD_WIDTH,WORLD_HEIGHT,MAX_LEVEL,xpNeed,neighbor,bossFor,BOSS_KILLS,BOSS_ATLAS,BOSS_ATLAS_COLS,MAP_KEYS,type BossDef,type MapDef,tierOf,fleetTower,fleetReward,PORTRAIT_COUNT,PORTRAIT_COLS,PORTRAIT_ATLAS,GRID_COLS,GRID_ROWS,CELL_W,CELL_H,colName,rowName,gridCell,coordLabel,type MapKey,type WorldIsland,type NpcDef,type MonsterDef,type Dir,type QuestDef} from './campaign';
+import {MAPS,GRID,THEMES,NPCS,MONSTERS,QUESTS,QUEST_COOLDOWN_MS,FLEET,FLEET_SCALE,WORLD_WIDTH,WORLD_HEIGHT,MAX_LEVEL,xpNeed,neighbor,bossFor,BOSS_KILLS,BOSS_ATLAS,BOSS_ATLAS_COLS,MAP_KEYS,type BossDef,type MapDef,tierOf,fleetTower,fleetReward,PORTRAIT_COUNT,PORTRAIT_COLS,PORTRAIT_ATLAS,GRID_COLS,GRID_ROWS,CELL_W,CELL_H,colName,rowName,gridCell,coordLabel,type MapKey,type WorldIsland,type NpcDef,type MonsterDef,type Dir,type QuestDef} from './campaign';
 import {ACHIEVEMENTS,loadAchievements,saveAchievements,unlockReached,achievementBonus,bonusText,badgeStyle,type AchStat} from './achievements';
 import {loadDaily,saveDaily,dailyStatus,claimDaily,dailyReward,type DailyReward} from './daily';
 import {TREASURE_PARTS,PART_CHANCE,DIG_RADIUS,DIG_SECONDS,TREASURE_ICON,loadTreasure,saveTreasure,treasureReward} from './treasure';
@@ -571,7 +571,7 @@ function dist(a:Vec,b:Vec){return Math.hypot(a.x-b.x,a.y-b.y);}
 // Filo adası: görselden üretilen seyir maskesi (src/fleetMask.ts). Kara hücreleri geçilmez; açık deniz, kanal ve
 // lagün suyu seyredilebilir. Test süresince tüm filo adalarına girilebilir (FLEET_TEST_ENTRY).
 const FLEET_TEST_ENTRY=true;
-const FM_N=FLEET_MASK.n,FM_CELL=FLEET_MASK.cell,FM_HALF=FM_N*FM_CELL/2;
+const FM_N=FLEET_MASK.n,FM_CELL=FLEET_MASK.cell*FLEET_SCALE,FM_HALF=FM_N*FM_CELL/2;
 const FLEET_GRID=(()=>{const g=new Uint8Array(FM_N*FM_N);let k=0;for(const part of FLEET_MASK.rle.split(',')){const v=+part[0],n=parseInt(part.slice(1),36);g.fill(v,k,k+n);k+=n;}return g;})();
 const fleetGrid=()=>FLEET_GRID;
 const fleetEnterable=()=>hasFleetIsland()&&(siege?siegePhase(siege)>=2:fleetOwner()==='player'||FLEET_TEST_ENTRY);
@@ -1313,7 +1313,7 @@ function lagoonPoint(near:Vec):Vec{let best:Vec=near,bd=Infinity;const g=fleetGr
   for(let j=2;j<FM_N-2;j++)for(let i=2;i<FM_N-2;i++){if(g[j*FM_N+i]!==2)continue;let open=true;for(let dy=-2;dy<=2&&open;dy++)for(let dx=-2;dx<=2;dx++)if(!g[(j+dy)*FM_N+i+dx]){open=false;break;}
     if(!open)continue;const c=fleetCellCenter(i,j),d=dist(c,near);if(d<bd){bd=d;best=c;}}
   return best;}
-function spawnCommander(){if(!siege||enemies.some(e=>e.commander))return;const st=siegeStats(SIEGE_PARTICIPANTS),f=SIEGE_MAP.fleet,p=lagoonPoint({x:f.x,y:f.y+210});
+function spawnCommander(){if(!siege||enemies.some(e=>e.commander))return;const st=siegeStats(SIEGE_PARTICIPANTS),f=SIEGE_MAP.fleet,p=lagoonPoint({x:f.x,y:f.y+210*FLEET_SCALE});
   const b=[...MAP_KEYS].reverse().map(k=>bossFor(k)).find(x=>x.sprite)!,boss={...b,name:'Kara Kale Komutanı'};
   const e=makeShip(boss as unknown as NpcDef,p.x,p.y,0);Object.assign(e,{boss,commander:true,siege:true,hitRadius:64,speed:0,hp:siege.commanderHp??st.commanderHp,maxHp:st.commanderHp,damage:st.commanderDamage,reload:2.2,name:boss.name,aggro:true,combatTimer:999,cooldown:2,wander:14});
   enemies.push(e);siege.commanderHp=e.hp;saveSiege(siege);playBossHorn();playBossMusic(8);rewardNotice('3. AŞAMA   KARA KALE KOMUTANI SANCAK GEMİSİYLE ÇIKTI');}

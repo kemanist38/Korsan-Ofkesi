@@ -1,5 +1,6 @@
 // Raster sprite sayfaları: NPC gemileri, canavarlar, adalar, filo adaları, sandıklar, mayınlar.
 // Görseller tools/asset-studio içindeki 3B modellerden üretilir (npm run render).
+import {FLEET_SCALE} from './campaign';
 export type ChestKind='wood'|'gilded';
 
 const cache=new Map<string,HTMLImageElement>();
@@ -57,7 +58,7 @@ export function drawIslandSprite(ctx:CanvasRenderingContext2D,island:{look:strin
 // Deniz farkı renk tonuyla verilir: görsel yüklenince tema başına bir kez boyanıp önbelleğe alınır.
 export const fleetBaseUrl=(_theme:string)=>'/assets/fleet-island-v3.webp';
 export const fleetTowerUrl=(_theme:string)=>'/assets/fleet-tower-v5.webp';
-export const FLEET_ART={w:1500,h:838};
+export const FLEET_ART={w:1500*FLEET_SCALE,h:838*FLEET_SCALE};
 const FLEET_TINT:Record<string,{dark:number;color:string;alpha:number}>={
   coral:{dark:0,color:'#ff9fb6',alpha:.1},verdant:{dark:0,color:'#7fcf5f',alpha:.1},misty:{dark:.04,color:'#d8c8a8',alpha:.06},
   ice:{dark:0,color:'#cfeaff',alpha:.24},storm:{dark:.1,color:'#7f98c4',alpha:.16},abyss:{dark:.32,color:'#7a3cff',alpha:.16},lava:{dark:.26,color:'#ff6a2a',alpha:.14}};
@@ -75,7 +76,7 @@ export function drawFleetBase(ctx:CanvasRenderingContext2D,theme:string,x:number
 }
 // İç adanın yüksek parçaları (kale ve üst iki kule kaidesi): arkasından geçen geminin üstüne yeniden çizilir ki gemi
 // gerçekten arkada kalsın. rects: ada merkezine göre dünya birimi [x0,y0,x1,y1].
-export const FLEET_OCCLUDERS:[number,number,number,number][]=[[-92,-248,92,-70],[-252,-218,-144,-70],[144,-218,252,-70]];
+export const FLEET_OCCLUDERS:[number,number,number,number][]=([[-92,-248,92,-70],[-252,-218,-144,-70],[144,-218,252,-70]] as [number,number,number,number][]).map(r=>r.map(v=>v*FLEET_SCALE) as [number,number,number,number]);
 export function drawFleetOccluder(ctx:CanvasRenderingContext2D,theme:string,x:number,y:number){
   const art=tintedArt(fleetBaseUrl(theme),theme);if(!art)return;const k=art.width/FLEET_ART.w;
   for(const [x0,y0,x1,y1] of FLEET_OCCLUDERS)ctx.drawImage(art,(x0+FLEET_ART.w/2)*k,(y0+FLEET_ART.h/2)*k,(x1-x0)*k,(y1-y0)*k,x+x0,y+y0,x1-x0,y1-y0);
@@ -86,16 +87,16 @@ export function drawBastion(ctx:CanvasRenderingContext2D,slot:number,x:number,y:
 }
 // Filo kulesi (600 × 1006 px görsel, 115,6 × 193,9 dünya birimi): pagoda çatılı yuvarlak taş kule.
 // Çapa = gövdenin alt elips merkezi (299,7; 863 px); kaidenin taban merkezine oturur ve kaideyi örter.
-// slim: gövde yatayda inceltilir (kule ve kaidesi daha narin görünsün); boy aynı kalır.
-export const TOWER_SLIM=.8;
-export const TOWER_ART={w:115.6*TOWER_SLIM,h:193.9,anchorX:299.7/600,anchorY:863/1006};
+// Kule %80 genişlik, %90 boy: ada %80 ölçekte çizildiği için kaidesine tam oturur ve surlara göre fazla yükselmez.
+export const TOWER_SLIM=.8,TOWER_TALL=.9;
+export const TOWER_ART={w:115.6*TOWER_SLIM,h:193.9*TOWER_TALL,anchorX:299.7/600,anchorY:863/1006};
 export function drawBuiltTower(ctx:CanvasRenderingContext2D,_frame:number,slot:number,x:number,y:number,alpha=1){
   const art=tintedArt(fleetTowerUrl(''),towerTheme);if(slot<0||slot>=16||!art)return false;
   ctx.save();ctx.globalAlpha=alpha;
   ctx.drawImage(art,x-TOWER_ART.w*TOWER_ART.anchorX,y-TOWER_ART.h*TOWER_ART.anchorY,TOWER_ART.w,TOWER_ART.h);
   ctx.restore();return true;
 }
-export const TOWER_LABEL_OFFSET=-172;
+export const TOWER_LABEL_OFFSET=-156;
 
 // Ganimet sandıkları: 2 kare (tahta, yaldızlı), 128 px.
 const CHEST={frame:128,anchorX:64,anchorY:70.8,size:46};

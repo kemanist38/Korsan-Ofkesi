@@ -137,10 +137,14 @@ export function coordLabel(p:{x:number;y:number}){const g=gridCell(p);return`${c
 // ortada kaleli iç ada. Seyir alanı src/fleetMask.ts maskesinden gelir (tools/asset-studio/fleet-raster-mask.mjs).
 // towers: 16 kaidenin taban merkezi; üst sur soldan sağa 6, alt sur 6, iç ada 4 (ikisi batı, ikisi doğu kapısına bakar).
 // Kayıtlı filo kulelerinin sırası korunur (ilk 8 yuva eski kayıtlarla aynı indekstir).
-export const FLEET={islandR:760,wallR:600,gap:.6,
-  towers:[[-568,-135],[-393,-250],[-140,-306],[140,-306],[393,-250],[568,-135],
+// FLEET_SCALE: ada dünyada bu oranda çizilir (kaideler ince kuleye otursun diye %80). Kule yerleri, maske ve yarıçaplar
+// aynı oranla küçülür; aşağıdaki ham sayılar görselin 1500 × 838 birimlik ölçüsündedir.
+export const FLEET_SCALE=.8;
+const FLEET_TOWERS_RAW:[number,number][]=[[-568,-135],[-393,-250],[-140,-306],[140,-306],[393,-250],[568,-135],
     [-571,138],[-395,244],[-138,303],[138,303],[395,244],[571,138],
-    [-198,-87],[198,-87],[-198,42],[198,42]] as [number,number][]};
+    [-198,-87],[198,-87],[-198,42],[198,42]];
+export const FLEET={islandR:760*FLEET_SCALE,wallR:600*FLEET_SCALE,gap:.6,
+  towers:FLEET_TOWERS_RAW.map(([x,y])=>[Math.round(x*FLEET_SCALE),Math.round(y*FLEET_SCALE)]) as [number,number][]};
 // Kuleler filo savaşı ölçeğinde: tek gemi yıkamaz, saldırı kesilince hızla onarılır.
 // 16 kule: toplam ateş gücü eski 8 kuleyle yaklaşık aynı kalsın diye kule başına hasar ve can düşürüldü.
 export const fleetTower=(tier:number)=>{return{hp:Math.round(110000*hpScale(tier)),damage:Math.round(560*dmgScale(tier)),reload:2.2,range:460,ownDamage:Math.round(800*hpScale(tier))};};
