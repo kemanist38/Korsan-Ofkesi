@@ -28,8 +28,8 @@ export const tierOf=(key:MapKey)=>Number(key.split('/')[0]);
 
 // Seviye atlamak için gereken tecrübe (TP); seviye yalnızca TP ile atlanır, her seviyede sayaç sıfırlanır.
 // LEVEL_XP[n] = n. seviyeden n+1'e geçiş. Kendi seviyesindeki denizde ~150, 400, 900, 1.800, 3.500, 6.500, 12.000 NPC
-// batırmaya denk gelir (saatte ~240 batırmayla 8. seviyeye toplam ~100 saat). Seviye uzun bir yolculuktur.
-export const LEVEL_XP=[0,5000,22000,80000,260000,800000,2400000,7000000];
+// batırmaya denk gelir: 8. seviyeye toplam ~150 saat (her gün uzun oynayan biri için ~2 hafta). Seviye uzun bir yolculuktur.
+export const LEVEL_XP=[0,7500,33000,120000,390000,1200000,3600000,10500000];
 export const xpNeed=(level:number)=>level>=MAX_LEVEL?Infinity:LEVEL_XP[level];
 
 type Theme={name:string;sea:[string,string];tint:string;look:IslandLook;fleet:FleetTheme;label:string};
@@ -49,9 +49,9 @@ export type NpcDef={id:string;name:string;sprite:string;span:number;role:'light'
 // Seafight'taki gibi ödül canla orantılıdır: aynı denizde can başına tecrübe ve altın NPC ile canavarda aynıdır.
 // NPC ve canavar yalnızca tecrübe puanı (TP) ve altın verir; savaş puanı sadece rakip oyuncu batırınca kazanılır.
 // Seafight ölçeği: başlangıç gemisi 75.000 can, 50–100 top; tek gülle (demir) 20 hasar. Bu yüzden NPC canları binlerle başlar
-// (Seafight 1. harita NPC'leri 1.500–4.000 can) ve her denizde ×1,6 büyür. Ödül yine canla orantılıdır.
+// (Seafight 1. harita NPC'leri 1.500–4.000 can; burada 1,5 katı: 3.750 / 9.000) ve her denizde ×1,6 büyür. Ödül yine canla orantılıdır.
 export const XP_PER_HP=(_tier:number)=>1/120;
-export const GOLD_PER_HP=.65/60;
+export const GOLD_PER_HP=.65/90;
 export const killReward=(hp:number,tier:number)=>({xp:Math.round(hp*XP_PER_HP(tier)),gold:Math.round(hp*GOLD_PER_HP)});
 export const hpScale=(tier:number)=>Math.pow(1.6,tier-1);
 export const dmgScale=(tier:number)=>1+.5*(tier-1);
@@ -60,7 +60,7 @@ export const dmgScale=(tier:number)=>1+.5*(tier-1);
 export const NPC_SPAN={small:84,medium:112,large:144} as const;
 export const npcSize=(id:string)=>id.endsWith('-1-light')?'small':id.endsWith('-2-heavy')?'large':'medium';
 const npc=(id:string,name:string,role:'light'|'heavy',tier:number,sprite=''):Omit<NpcDef,'portrait'>=>{const span=NPC_SPAN[npcSize(id)];
-  const dmg=role==='light'?750:1650,t=tier-1,hp=Math.round((role==='light'?2500:6000)*hpScale(tier)),r=killReward(hp,tier);
+  const dmg=role==='light'?750:1650,t=tier-1,hp=Math.round((role==='light'?3750:9000)*hpScale(tier)),r=killReward(hp,tier);
   return{id,name,sprite,span,role,tier,hp,damage:Math.round(dmg*dmgScale(tier)),reload:role==='light'?2.6:2.7,speed:(role==='light'?50:34)+t*1.5,gold:r.gold,xp:r.xp};
 };
 const NPC_LIST:Omit<NpcDef,'portrait'>[]=[
@@ -86,7 +86,7 @@ export const NPCS:Record<string,NpcDef>=Object.fromEntries(NPC_LIST.map((n,i)=>[
 // ---------------------------------------------------------------- Canavarlar
 export type MonsterDef={id:string;name:string;sprite:string;span:number;frame:number;anchorY:number;radius:number;tier:number;hp:number;damage:number;reload:number;gold:number;xp:number;portrait:number};
 // Canavar, aynı denizin ağır NPC'sinden yaklaşık 2,2 kat daha dayanıklıdır (Seafight'ta canavarlar ağır NPC'lerin 1,5–2 katı).
-const mon=(id:string,name:string,tier:number,radius=54,sprite='',span=140,anchorY=133.4):Omit<MonsterDef,'portrait'>=>{const t=tier-1,hp=Math.round(13000*hpScale(tier)),r=killReward(hp,tier);
+const mon=(id:string,name:string,tier:number,radius=54,sprite='',span=140,anchorY=133.4):Omit<MonsterDef,'portrait'>=>{const t=tier-1,hp=Math.round(19500*hpScale(tier)),r=killReward(hp,tier);
   return{id,name,sprite,span,frame:256,anchorY,radius,tier,hp,damage:Math.round(1500*dmgScale(tier)),reload:2.8-t*.08,gold:r.gold,xp:r.xp};};
 // Her seviyede tek canavar türü; görsel tek kare (güneybatıya bakan, 256 px). portrait: portre atlasındaki sabit karesi.
 const MONSTER_LIST:(Omit<MonsterDef,'portrait'>&{slot:number})[]=[
