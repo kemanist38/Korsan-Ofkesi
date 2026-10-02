@@ -48,8 +48,8 @@ test('NPC and monster rewards scale with hitpoints and give only XP and gold',()
     assert.equal(d.xp,Math.round(d.hp*XP_PER_HP(d.tier)));assert.equal(d.gold,Math.round(d.hp*GOLD_PER_HP));
     assert.ok(!('wood' in d)&&!('pearls' in d),`${d.id} gives only XP and gold`);}
   const heavy=NPCS['n3-1-heavy'],monster=MONSTERS['m3-2'];assert.ok(monster.hp>heavy.hp*2&&monster.hp<heavy.hp*2.5);
-  // Seafight ölçeği: 1. deniz NPC canları binlerle başlar (Seafight 1.500–4.000)
-  assert.equal(NPCS['n1-1-light'].hp,2500);assert.equal(NPCS['n1-1-heavy'].hp,6000);
+  // 1. deniz NPC canları: küçük 3.750, orta 9.000 (Seafight ölçeğinin 1,5 katı; seviye uzun sürsün)
+  assert.equal(NPCS['n1-1-light'].hp,3750);assert.equal(NPCS['n1-1-heavy'].hp,9000);
 });
 test('every map has its own boss, summoned by 200 of the map\'s strongest NPC',()=>{
   const {bossFor,BOSS_KILLS,MAP_KEYS:keys,MAPS:maps,NPCS}=world;assert.equal(BOSS_KILLS,200);
@@ -70,7 +70,7 @@ test('each map offers its own four quests whose rewards grow with the map level'
   for(let t=2;t<=8;t++){assert.ok(g(`${t}/1`).gold>g(`${t-1}/1`).gold);assert.ok(g(`${t}/1`).xp>g(`${t-1}/1`).xp);assert.ok(g(`${t}/1`).pearls>g(`${t-1}/1`).pearls);}
 });
 test('levels 1–8 need only XP; each level costs more than the last and level 8 is the cap',()=>{
-  assert.deepEqual(world.LEVEL_XP,[0,5000,22000,80000,260000,800000,2400000,7000000]);
+  assert.deepEqual(world.LEVEL_XP,[0,7500,33000,120000,390000,1200000,3600000,10500000]);
   for(let l=2;l<world.MAX_LEVEL;l++)assert.ok(world.xpNeed(l)>world.xpNeed(l-1));
   assert.equal(world.xpNeed(world.MAX_LEVEL),Infinity);
 });

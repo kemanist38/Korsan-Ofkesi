@@ -36,8 +36,9 @@ export const FIRE_DOT_SHARE=.8;
 // (≈ harcanan her inci için 10 elit puan). Seafight'ta da elit puan elit/inci güllesiyle yapılan atışlardan gelir.
 export const ELITE_POINTS_PER_BALL={grape:.1,fire:.2,breaker:.3,explosive:.4,leech:.5} as const;
 // Elit sınıf (1–15) yalnızca elit puanla (EP) yükselir. Eşikler toplam EP'dir ve her basamak bir öncekinden pahalıdır.
-// ELITE_EP[n] = Elit n'nin açıldığı toplam EP (Elit 1 = 0, inciyle açılır). ~10 EP / harcanan inci: Elit 15 ≈ 175.000 inci.
-export const ELITE_EP=[0,0,10000,25000,50000,85000,130000,190000,270000,370000,500000,660000,860000,1100000,1400000,1750000];
+// ELITE_EP[n] = Elit n'nin açıldığı toplam EP (Elit 1 = 0, inciyle açılır). ~10 EP / harcanan inci: Elit 15 ≈ 500.000 inci
+// (≈ 12,5 milyon patlayıcı gülle); her gün oynayıp inci alan biri için ~3–4 hafta.
+export const ELITE_EP=[0,0,25000,65000,130000,230000,360000,530000,750000,1020000,1360000,1780000,2300000,2950000,3850000,5000000];
 export const ELITE_MAX_LEVEL=15;
 export const eliteLevelEp=(level:number)=>ELITE_EP[Math.max(1,Math.min(ELITE_MAX_LEVEL,level))];
 export const eliteLevelFromEp=(ep:number)=>{let l=1;while(l<ELITE_MAX_LEVEL&&ep>=eliteLevelEp(l+1))l++;return l;};
