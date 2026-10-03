@@ -327,7 +327,7 @@ function renderDayEvent(force=false){const ev=dayEvent(),w=siegeWindow(),join=w.
   if(t===dayEventText&&!force)return;dayEventText=t;dayEventEl.innerHTML=t;dayEventEl.classList.toggle('on',!!t);
   const b=dayEventEl.querySelector('[data-siege-join]') as HTMLButtonElement|null;if(b)b.onclick=enterSiege;}
 setInterval(renderDayEvent,15000);
-{const hint=document.createElement('div');hint.className='rotate-hint';hint.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="18.5" r=".9" fill="currentColor"/></svg>Telefonunu yatay çevir<small>Yedi Deniz yatay ekranda oynanır</small>`;document.body.append(hint);}
+{const hint=document.createElement('div');hint.className='rotate-hint';hint.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="18.5" r=".9" fill="currentColor"/></svg>Telefonunu yatay çevir<small>Pirate Rage yatay ekranda oynanır</small>`;document.body.append(hint);}
 // HUD çerçeveleri: alt bar (CP/SP), gülle çerçevesi ve malzeme çerçevesi. Her biri kendi tutamağından tek başına taşınır.
 // Bir çerçeve başka bir çerçevenin kenarına yaklaştırılıp bırakılınca ona yapışır ve grup olur; alt bar tutulup taşınınca
 // ona bağlı tüm çerçeveler birlikte gelir. Gülle/malzeme çerçevesi tek tutulunca gruptan ayrılır (ona bağlı olanlar yerinde
