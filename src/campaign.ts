@@ -76,8 +76,8 @@ const NPC_LIST:Omit<NpcDef,'portrait'>[]=[
   npc('n5-2-light','Donuk Yelkenli','light',5,'/assets/frost-sail-iso-v3.webp'),npc('n5-2-heavy','Kış Zıpkını Kalyonu','heavy',5,'/assets/frost-galleon-iso-v3.webp'),
   npc('n6-1-light','Rüzgar Gülü','light',6,'/assets/storm-boat-iso-v3.webp'),npc('n6-1-heavy','Yağmur Yaran','heavy',6,'/assets/storm-sail-iso-v3.webp'),
   npc('n6-2-light','Yağmur Yaran','light',6,'/assets/storm-sail-iso-v3.webp'),npc('n6-2-heavy','Şimşek Lordu','heavy',6,'/assets/storm-galleon-iso-v3.webp'),
-  npc('n7-1-light','Karanlık İzci','light',7,'/assets/void-boat-v1.webp'),npc('n7-1-heavy','Obsidyen Bıçağı','heavy',7,'/assets/void-sail-v1.webp'),
-  npc('n7-2-light','Obsidyen Bıçağı','light',7,'/assets/void-sail-v1.webp'),npc('n7-2-heavy','Hiçlik Savaşçısı','heavy',7,'/assets/void-galleon-v1.webp'),
+  npc('n7-1-light','Karanlık İzci','light',7,'/assets/void-boat-iso-v3.webp'),npc('n7-1-heavy','Obsidyen Bıçağı','heavy',7,'/assets/void-sail-iso-v3.webp'),
+  npc('n7-2-light','Obsidyen Bıçağı','light',7,'/assets/void-sail-iso-v3.webp'),npc('n7-2-heavy','Hiçlik Savaşçısı','heavy',7,'/assets/void-galleon-iso-v3.webp'),
   npc('n8-1-light','Kül Sandalı','light',8,'/assets/lava-boat-v1.webp'),npc('n8-1-heavy','Lav Yaran','heavy',8,'/assets/lava-sail-v1.webp'),
   npc('n8-2-light','Lav Yaran','light',8,'/assets/lava-sail-v1.webp'),npc('n8-2-heavy','Cehennem Kalyonu','heavy',8,'/assets/lava-galleon-v1.webp'),
 ];
