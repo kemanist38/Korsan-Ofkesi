@@ -56,8 +56,8 @@ export function drawIslandSprite(ctx:CanvasRenderingContext2D,island:{look:strin
 
 // Ortak filo adası (tüm denizlerde aynı görsel, 1500 × 838 dünya birimi) ve tek tip filo kulesi.
 // Deniz farkı renk tonuyla verilir: görsel yüklenince tema başına bir kez boyanıp önbelleğe alınır.
-export const fleetBaseUrl=(_theme:string)=>'/assets/fleet-island-v3.webp';
-export const fleetTowerUrl=(_theme:string)=>'/assets/fleet-tower-v5.webp';
+export const fleetBaseUrl=(_theme:string)=>'/assets/fleet-island-v4.webp';
+export const fleetTowerUrl=(_theme:string)=>'/assets/fleet-tower-v6.webp';
 export const FLEET_ART={w:1500*FLEET_SCALE,h:838*FLEET_SCALE};
 const FLEET_TINT:Record<string,{dark:number;color:string;alpha:number}>={
   coral:{dark:0,color:'#ff9fb6',alpha:.1},verdant:{dark:0,color:'#7fcf5f',alpha:.1},misty:{dark:.04,color:'#d8c8a8',alpha:.06},
@@ -70,13 +70,13 @@ function tintedArt(url:string,theme:string){const img=load(url);if(!ready(img))r
   const t=FLEET_TINT[theme];if(t){x.globalCompositeOperation='source-atop';if(t.dark){x.globalAlpha=t.dark;x.fillStyle='#000';x.fillRect(0,0,c.width,c.height);}x.globalAlpha=t.alpha;x.fillStyle=t.color;x.fillRect(0,0,c.width,c.height);}
   tinted.set(key,c);return c;}
 export function drawFleetBase(ctx:CanvasRenderingContext2D,theme:string,x:number,y:number){
-  // Saydam deniz/lagün; doğu ve batı kapıları, 16 boş yuvarlak kule kaidesi.
+  // Saydam deniz/lagün; doğu ve batı kapıları, 16 boş kare kule kaidesi.
   const art=tintedArt(fleetBaseUrl(theme),theme);if(!art)return false;
   ctx.drawImage(art,x-FLEET_ART.w/2,y-FLEET_ART.h/2,FLEET_ART.w,FLEET_ART.h);return true;
 }
 // İç adanın yüksek parçaları (kale ve üst iki kule kaidesi): arkasından geçen geminin üstüne yeniden çizilir ki gemi
 // gerçekten arkada kalsın. rects: ada merkezine göre dünya birimi [x0,y0,x1,y1].
-export const FLEET_OCCLUDERS:[number,number,number,number][]=([[-92,-248,92,-70],[-252,-218,-144,-70],[144,-218,252,-70]] as [number,number,number,number][]).map(r=>r.map(v=>v*FLEET_SCALE) as [number,number,number,number]);
+export const FLEET_OCCLUDERS:[number,number,number,number][]=([[-86,-230,86,48],[-237,-134,-71,-29],[99,-131,249,-28]] as [number,number,number,number][]).map(r=>r.map(v=>v*FLEET_SCALE) as [number,number,number,number]);
 export function drawFleetOccluder(ctx:CanvasRenderingContext2D,theme:string,x:number,y:number){
   const art=tintedArt(fleetBaseUrl(theme),theme);if(!art)return;const k=art.width/FLEET_ART.w;
   for(const [x0,y0,x1,y1] of FLEET_OCCLUDERS)ctx.drawImage(art,(x0+FLEET_ART.w/2)*k,(y0+FLEET_ART.h/2)*k,(x1-x0)*k,(y1-y0)*k,x+x0,y+y0,x1-x0,y1-y0);
@@ -85,18 +85,16 @@ export function drawFleetOccluder(ctx:CanvasRenderingContext2D,theme:string,x:nu
 export function drawBastion(ctx:CanvasRenderingContext2D,slot:number,x:number,y:number,alpha=1){
   return drawBuiltTower(ctx,0,slot,x,y,alpha);
 }
-// Filo kulesi (600 × 1006 px görsel, 115,6 × 193,9 dünya birimi): pagoda çatılı yuvarlak taş kule.
-// Çapa = gövdenin alt elips merkezi (299,7; 863 px); kaidenin taban merkezine oturur ve kaideyi örter.
-// Kule %80 genişlik, %90 boy: ada %80 ölçekte çizildiği için kaidesine tam oturur ve surlara göre fazla yükselmez.
-export const TOWER_SLIM=.8,TOWER_TALL=.9;
-export const TOWER_ART={w:115.6*TOWER_SLIM,h:193.9*TOWER_TALL,anchorX:299.7/600,anchorY:863/1006};
+// İnce kare taş kule: onaylı ada tasarımıyla aynı çatı ve ışık, 65 × 158 dünya birimi.
+// Çapa, kare temelin alt ucudur; 16 kaidenin tamamında aynı sprite kullanılır.
+export const TOWER_ART={w:65,h:158,anchorX:.5,anchorY:.987};
 export function drawBuiltTower(ctx:CanvasRenderingContext2D,_frame:number,slot:number,x:number,y:number,alpha=1){
   const art=tintedArt(fleetTowerUrl(''),towerTheme);if(slot<0||slot>=16||!art)return false;
   ctx.save();ctx.globalAlpha=alpha;
   ctx.drawImage(art,x-TOWER_ART.w*TOWER_ART.anchorX,y-TOWER_ART.h*TOWER_ART.anchorY,TOWER_ART.w,TOWER_ART.h);
   ctx.restore();return true;
 }
-export const TOWER_LABEL_OFFSET=-156;
+export const TOWER_LABEL_OFFSET=-164;
 
 // Ganimet sandıkları: 2 kare (tahta, yaldızlı), 128 px.
 const CHEST={frame:128,anchorX:64,anchorY:70.8,size:46};

@@ -1,13 +1,12 @@
 import type {TowerType} from './guild';
 
-// Single fleet tower art (sprites.ts TOWER_ART): 92.5 × 174.5 world units (80% width, 90% height), anchored on the foundation's base centre.
-// Keep picking and firing aligned with the rendered tower, not its ground point.
+// Slender square fleet tower: 65 × 158 world units, anchored at the bottom of its foundation.
 type Point={x:number;y:number};
 export function towerContains(point:Point,tower:Point,built=true){
   const x=point.x-tower.x,y=point.y-tower.y;
-  return built?Math.abs(x)<=45&&y>=-135&&y<=22:Math.abs(x)<=44&&y>=-60&&y<=16;
+  return built?Math.abs(x)<=32&&y>=-154&&y<=3:Math.abs(x)<=30&&y>=-44&&y<=5;
 }
 export function towerMuzzle(tower:Point,_type:TowerType='cannon'):Point{
-  // Namlu ağzı: görselde (486,471) px; kule %80 genişlik, %90 boyda çizilir
-  return{x:tower.x+29,y:tower.y-68};
+  // Muzzle in cropped art: (130, 545) / (590, 1430), pointing down-left.
+  return{x:tower.x-18.2,y:tower.y-95.8};
 }

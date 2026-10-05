@@ -4,7 +4,7 @@
 import {chromium} from 'playwright';import fs from 'node:fs';import path from 'node:path';import {fileURLToPath} from 'node:url';
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const BASE_W=1500,N=190,CELL=8,HALF=N*CELL/2;
-const src='data:image/webp;base64,'+fs.readFileSync(path.join(ROOT,'public/assets/fleet-island-v3.webp')).toString('base64');
+const src='data:image/webp;base64,'+fs.readFileSync(path.join(ROOT,'public/assets/fleet-island-v4.webp')).toString('base64');
 const b=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/opt/pw-browsers/chromium'});const p=await b.newPage();
 const land=await p.evaluate(async([src,BASE_W,N,CELL,HALF])=>{const i=new Image();i.src=src;await i.decode();const W=i.width,H=i.height,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.drawImage(i,0,0);const d=x.getImageData(0,0,W,H).data;
   const s=W/BASE_W,bh=H/s,out=[];
@@ -22,5 +22,5 @@ const values=[];for(let k=0;k<N*N;k++){const wx=(k%N+.5)*CELL-HALF,wy=((k/N|0)+.
 const at=(wx,wy)=>values[Math.floor((wy+HALF)/CELL)*N+Math.floor((wx+HALF)/CELL)];
 if(at(-430,-20)!==2||at(430,-20)!==2)throw new Error('Lagün kapılardan açık denize bağlanmalı');
 const runs=[];let cur=values[0],n=0;for(const v of values){if(v===cur)n++;else{runs.push(cur+n.toString(36));cur=v;n=1;}}runs.push(cur+n.toString(36));
-fs.writeFileSync(path.join(ROOT,'src/fleetMask.ts'),`// Generated from public/assets/fleet-island-v3.webp alpha by tools/asset-studio/fleet-raster-mask.mjs.\n// ${N} x ${N} cells, ${CELL} world units; origin (-${HALF},-${HALF}). 0 land, 1 sea, 2 lagoon.\nexport const FLEET_MASK={n:${N},cell:${CELL},rle:'${runs.join(',')}'};\n`);
+fs.writeFileSync(path.join(ROOT,'src/fleetMask.ts'),`// Generated from public/assets/fleet-island-v4.webp alpha by tools/asset-studio/fleet-raster-mask.mjs.\n// ${N} x ${N} cells, ${CELL} world units; origin (-${HALF},-${HALF}). 0 land, 1 sea, 2 lagoon.\nexport const FLEET_MASK={n:${N},cell:${CELL},rle:'${runs.join(',')}'};\n`);
 console.log(`${values.filter(v=>v===0).length} land, ${values.filter(v=>v===1).length} sea, ${values.filter(v=>v===2).length} lagoon cells`);
