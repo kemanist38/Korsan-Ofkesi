@@ -1,4 +1,4 @@
-# Yedi Deniz Korsan Oyunu
+# Pirate Rage: Korsan Öfkesi
 
 Tarayıcıda çalışan, üstten görünüşlü korsan gemisi savaş prototipi. Tamamen özgün kod ve prosedürel Canvas çizimleri kullanır; üçüncü taraf oyun kodu veya telifli asset içermez.
 

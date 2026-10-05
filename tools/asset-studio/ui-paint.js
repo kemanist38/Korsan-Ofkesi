@@ -1,4 +1,4 @@
-// Yedi Deniz Korsan Oyunu — arayüz raster boyamaları: dünya paftası parşömen tomarı (Seafight tarzı).
+// Pirate Rage: Korsan Öfkesi — arayüz raster boyamaları: dünya paftası parşömen tomarı (Seafight tarzı).
 import {canvas,rng,grain,noise2} from './textures.js';
 
 // 480 × 640: üstte ve altta kıvrık parşömen rulosu, iki yanda kırmızı-beyaz çizgili direk, ortada lekeli parşömen

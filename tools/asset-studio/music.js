@@ -1,4 +1,4 @@
-// Yedi Deniz Korsan Oyunu — boss müzikleri. Her deniz teması (1–8) için kendi tonu, dizisi, temposu ve çalgılarıyla
+// Pirate Rage: Korsan Öfkesi — boss müzikleri. Her deniz teması (1–8) için kendi tonu, dizisi, temposu ve çalgılarıyla
 // 8 ölçülük, kesintisiz dönen (loop) bir savaş parçası OfflineAudioContext ile sentezlenir.
 // music.mjs → public/assets/music/boss-<tema>.mp3
 import {Kit,rng,SR} from './sfx.js';

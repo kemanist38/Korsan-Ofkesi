@@ -1,4 +1,4 @@
-// Yedi Deniz Korsan Oyunu — 18 haritanın NPC gemileri ve canavarlarının görsel katalogu.
+// Pirate Rage: Korsan Öfkesi — 18 haritanın NPC gemileri ve canavarlarının görsel katalogu.
 // Kimlikler (ör. "n3-2-heavy") oyundaki src/campaign.ts ile birebir aynıdır.
 
 // ---------------------------------------------------------------- Amblemler (yelken) ve sancak işaretleri

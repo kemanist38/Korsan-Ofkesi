@@ -1,8 +1,8 @@
 {
-  "name": "yedi-deniz-asset-studio",
+  "name": "pirate-rage-asset-studio",
   "private": true,
   "type": "module",
-  "description": "Yedi Deniz Korsan Oyunu raster assetlerini 3B modellerden üreten atölye",
+  "description": "Pirate Rage: Korsan Öfkesi raster assetlerini 3B modellerden üreten atölye",
   "scripts": {
     "render": "node render.mjs"
   },
