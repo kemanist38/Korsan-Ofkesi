@@ -18,7 +18,7 @@ function scenario(count,lethalIndex=count-1){
     localStorage:{setItem:noop},randomSafePlayerPoint:()=>({x:2700,y:500}),effectiveMaxHp:()=>225,
     fleetSafe:{x:100,y:100},collisionNotice:1,destination:{x:150,y:150},routeTarget:{x:150,y:150},
     selected:{},salvoQueue:[{}],enemies:[{x:800,y:800,aggro:true,combatTimer:10}],monsters:[{x:900,y:900,aggro:true,combatTimer:10}],
-    bonus:{taken:1},eliteEnabled:()=>false,elitePassive:()=>false,eliteTakenMult:()=>1,ghostTimer:0,domeTimer:0,rageTimer:0,stealthTimer:0,DMG_GOLD:'#ffd23a',DMG_RED:'#ff4a3a',DMG_BLUE:'#5fb8ff',playerHitClock:0,spawnRipple:()=>{},spawnText:()=>{},useConsumable:()=>1,
+    bonus:{taken:1},eliteEnabled:()=>false,elitePassive:()=>false,eliteTakenMult:()=>1,rage:{meter:0,salvos:0,time:0},gainRage:noop,rageFromHit:()=>0,DMG_GOLD:'#ffd23a',DMG_RED:'#ff4a3a',DMG_BLUE:'#5fb8ff',playerHitClock:0,spawnText:()=>{},useConsumable:()=>1,
     dist:(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),damageText:noop,playHit:noop,burst:noop,
     ui:()=>({classList:{remove:noop}}),mapFade:0,playSplash:noop,saveAccount:noop,toast:noop,
     mapDef:()=>({key:'5/2'}),coordLabel:()=>'',targetExists:()=>false,
