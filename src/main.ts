@@ -19,7 +19,7 @@ import {SIEGE_MS,WALL_TOWERS,INNER_TOWERS,gateOf,gateLeft,siegeWindow,newSiege,l
 import {dayEvent,spMult,xpMult,epMult,goldMult,sparkleMult,bossKillsNeeded,untilMidnight} from './events';
 import {TALENTS,OFFICERS,OFFICER_MAX_RANK,officerCost,officerSlots,talentPoints,loadCrew,saveCrew,spentPoints,computeBonus,type TalentId,type OfficerId} from './crew';
 import {FLEET_MASK} from './fleetMask';
-import {drawVfx,drawVfxAnim,EXPLOSION_ROW,SPLASH_ROW} from './vfx';
+import {drawVfx,drawVfxAnim,drawAnim,EXPLOSION_ROW,SPLASH_ROW} from './vfx';
 import {towerContains,towerMuzzle} from './towerGeometry';
 import {loadGuild,saveGuild,islandSlots,towerTypeCost,tagError,canBuild,TOWER_TYPES,ROLE_NAMES,TOWER_SLOTS,type TowerType,type GuildRole,GUILD_NAME_MAX,GUILD_TAG_MAX,type Guild} from './guild';
 import {loadProfile,saveProfile,nickError,rankOf,NICK_CHANGE_COST,NICK_COOLDOWN_MS,NICK_MAX} from './profile';
@@ -40,7 +40,7 @@ type EnemyRole='light'|'heavy';
 // Test kaptanı: elit gemili, oyuncu gibi savaşan yapay rakip (yalnız test modunda 1/1'de)
 type Captain={elite:EliteShipId;ammo:AmmoKind;ammoClock:number;foe:Enemy|null;orbit:Vec|null;orbitClock:number};
 type Enemy = Vec & { kind:'ship'; captain?:Captain; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number; lastHitBy?:'player'|'captain'; siege?:boolean; commander?:boolean;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
-type ParticleKind='flare'|'ember'|'glint'|'wisp'|'foam'|'smoke'|'spark'|'damage'|'flash'|'explosion'|'splash'|'splinter'|'bubble'|'plank'|'firePuff'|'target'|'poison'|'soul'|'shock';
+type ParticleKind='debris'|'flare'|'ember'|'glint'|'wisp'|'foam'|'smoke'|'spark'|'damage'|'flash'|'explosion'|'splash'|'splinter'|'bubble'|'plank'|'firePuff'|'target'|'poison'|'soul'|'shock';
 // z: su üstünden yükseklik (ekranda yukarı kayar); vz ile savrulan parçalar suya düşer
 type Particle = Vec & { vx:number; vy:number; life:number; maxLife:number; kind:ParticleKind; text?:string; color?:string; z?:number; vz?:number; rot?:number; vr?:number; size?:number; variant?:number };
 type Wreck = Vec & { angle:number; sprite:string; span:number; t:number; bubble:number };
@@ -713,8 +713,9 @@ function respawn(){
 function burst(x:number,y:number,large=false){
   const R=Math.random,TAU=Math.PI*2;
   particles.push({x,y,vx:0,vy:0,life:large?.32:.2,maxLife:large?.32:.2,kind:'flare',z:10,size:large?120:80});
+  particles.push({x,y,vx:0,vy:0,life:large?.7:.5,maxLife:large?.7:.5,kind:'debris',size:large?170:110});
   particles.push({x,y,vx:0,vy:0,life:large?.85:.5,maxLife:large?.85:.5,kind:'explosion',size:large?230:130});
-  for(let n=0;n<(large?10:4);n++){const a=R()*TAU,sp=40+R()*(large?130:70);particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp*.6,life:1+R()*.8,maxLife:1.8,kind:'splinter',z:8,vz:90+R()*(large?170:110),rot:R()*6,vr:(R()-.5)*16,size:32+R()*16,variant:n%3});}
+  for(let n=0;n<(large?5:2);n++){const a=R()*TAU,sp=40+R()*(large?130:70);particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp*.6,life:1+R()*.8,maxLife:1.8,kind:'splinter',z:8,vz:90+R()*(large?170:110),rot:R()*6,vr:(R()-.5)*16,size:32+R()*16,variant:n%3});}
   for(let n=0;n<(large?16:7);n++){const a=R()*TAU,sp=70+R()*(large?190:120);particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp*.6,life:.35+R()*.45,maxLife:.8,kind:'ember',z:10,vz:80+R()*160,size:large?8:6});}
   for(let n=0;n<(large?6:3);n++)particles.push({x:x+(R()-.5)*24,y:y+(R()-.5)*16,vx:(R()-.5)*22,vy:-12-R()*14,life:1.3+R()*.9,maxLife:2.2,kind:'wisp',z:16+R()*10,size:large?30+R()*12:18+R()*8});
   if(large){for(let n=0;n<3;n++)particles.push({x:x+(R()-.5)*30,y:y+(R()-.5)*18,vx:(R()-.5)*12,vy:-10-R()*8,life:1.8+R()*.8,maxLife:2.6,kind:'smoke',z:20,size:70,variant:n%4,rot:R()*6});
@@ -1752,10 +1753,11 @@ function drawShotBall(s:Shot){const p=worldToScreen(s),y=p.y-shotHeight(s),spin=
 function drawParticle(p:Particle){if(!onScreen(p,260))return;const s=worldToScreen(p),a=Math.max(0,Math.min(1,p.life/p.maxLife)),y=s.y-(p.z??0),size=p.size;
   switch(p.kind){
     case 'damage':ctx.globalAlpha=a;ctx.font='800 15px Inter';ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='#000c';ctx.strokeText(p.text||'',s.x,y);ctx.fillStyle=p.color||DMG_GOLD;ctx.fillText(p.text||'',s.x,y);ctx.globalAlpha=1;return;
-    case 'explosion':drawVfxAnim(ctx,EXPLOSION_ROW,1-a,s.x,y-(size??90)*.12,size??90);return;
-    case 'splash':drawVfxAnim(ctx,SPLASH_ROW,1-a,s.x,y-(size??70)*.28,size??70);return;
+    case 'explosion':if(!drawAnim(ctx,'explosion',1-a,s.x,y-(size??90)*.15,(size??90)*1.05))drawVfxAnim(ctx,EXPLOSION_ROW,1-a,s.x,y-(size??90)*.12,size??90);return;
+    case 'splash':if(!drawAnim(ctx,'splash',1-a,s.x,y-(size??70)*.3,(size??70)*1.1))drawVfxAnim(ctx,SPLASH_ROW,1-a,s.x,y-(size??70)*.28,size??70);return;
+    case 'debris':drawAnim(ctx,'debris',1-a,s.x,y,size??110);return;
     case 'flash':drawShotSprite(ctx,'muzzle',s.x,y,p.rot??0,(size??40)/40*(.8+.35*(1-a)),Math.min(1,a*1.6));return;
-    case 'smoke':drawVfx(ctx,'smoke',s.x,y,(size??22)*(1+(1-a)*1.1),{alpha:a*.75,variant:p.variant??0,rot:p.rot});return;
+    case 'smoke':if(!drawAnim(ctx,'smoke',1-a,s.x,y,(size??22)*2.1,Math.min(1,a*2)*.8))drawVfx(ctx,'smoke',s.x,y,(size??22)*(1+(1-a)*1.1),{alpha:a*.75,variant:p.variant??0,rot:p.rot});return;
     case 'spark':drawVfx(ctx,'ember',s.x,y,size??12,{alpha:a});return;
     case 'flare':drawFlare(ctx,s.x,y,(size??80)*(.55+.45*(1-a)),Math.min(1,a*1.5));return;
     case 'ember':drawFlare(ctx,s.x,y,(size??7)*(1.2+.8*a),Math.min(1,a*1.4));return;
