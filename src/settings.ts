@@ -1,10 +1,10 @@
 // Oyuncu ayarları: ses ve değiştirilebilir tuş atamaları.
-export type ActionId='forward'|'back'|'left'|'right'|'attack'|'repair'|'recenter'|'jump'|'speed'|'shield'|'mine'|'map'|'zoomIn'|'zoomOut'
+export type ActionId='forward'|'back'|'left'|'right'|'attack'|'repair'|'rage'|'recenter'|'jump'|'speed'|'shield'|'mine'|'map'|'zoomIn'|'zoomOut'
   |'ammo1'|'ammo2'|'ammo3'|'ammo4'|'ammo5'|'ammo6'|'item1'|'item2'|'item3'|'item4'|'item5'|'item6';
 
 export const ACTIONS:{id:ActionId;label:string;group:string}[]=[
   {id:'forward',label:'İleri',group:'Hareket'},{id:'back',label:'Yavaşla / dur',group:'Hareket'},{id:'left',label:'Sola dön',group:'Hareket'},{id:'right',label:'Sağa dön',group:'Hareket'},
-  {id:'attack',label:'Saldır / saldırıyı bırak',group:'Savaş'},{id:'repair',label:'Tamir et',group:'Savaş'},
+  {id:'attack',label:'Saldır / saldırıyı bırak',group:'Savaş'},{id:'repair',label:'Tamir et',group:'Savaş'},{id:'rage',label:'Korsan Öfkesi',group:'Savaş'},
   {id:'speed',label:'Rüzgâr Hamlesi',group:'Savaş'},{id:'shield',label:'Kalkan (aç/kapat)',group:'Savaş'},{id:'mine',label:'Deniz Mayını',group:'Savaş'},
   {id:'recenter',label:'Gemiyi ortala',group:'Kamera ve harita'},{id:'zoomIn',label:'Yakınlaştır',group:'Kamera ve harita'},{id:'zoomOut',label:'Uzaklaştır',group:'Kamera ve harita'},
   {id:'map',label:'Dünya haritası',group:'Kamera ve harita'},{id:'jump',label:'Harita atla',group:'Kamera ve harita'},
@@ -12,7 +12,7 @@ export const ACTIONS:{id:ActionId;label:string;group:string}[]=[
   {id:'item1',label:'Sarf yuvası 1',group:'Sarf malzemeleri'},{id:'item2',label:'Sarf yuvası 2',group:'Sarf malzemeleri'},{id:'item3',label:'Sarf yuvası 3',group:'Sarf malzemeleri'},{id:'item4',label:'Sarf yuvası 4',group:'Sarf malzemeleri'},{id:'item5',label:'Sarf yuvası 5',group:'Sarf malzemeleri'},{id:'item6',label:'Sarf yuvası 6',group:'Sarf malzemeleri'},
 ];
 export const DEFAULT_BINDS:Record<ActionId,string>={
-  forward:'w',back:'s',left:'a',right:'d',attack:'r',repair:'f',recenter:'v',jump:'j',speed:'z',shield:'x',mine:'c',map:'m',zoomIn:'+',zoomOut:'-',
+  forward:'w',back:'s',left:'a',right:'d',attack:'r',repair:'f',rage:'q',recenter:'v',jump:'j',speed:'z',shield:'x',mine:'c',map:'m',zoomIn:'+',zoomOut:'-',
   ammo1:'1',ammo2:'2',ammo3:'3',ammo4:'4',ammo5:'5',ammo6:'6',item1:'7',item2:'8',item3:'9',item4:'0',item5:'',item6:'',
 };
 export type Settings={sound:boolean;volume:number;binds:Record<ActionId,string>};
