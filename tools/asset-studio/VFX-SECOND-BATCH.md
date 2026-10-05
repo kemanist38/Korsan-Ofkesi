@@ -1,20 +1,13 @@
-# VFX batch 6–12
+# Lightweight effects revision
 
-Six supplied sheets are mapped in attachment order to fire, hit-spark, heal,
-levelup, sink and rage. Shield is excluded: there is no shield animation file
-or rendering path in the current repository. The shield item and its stats,
-icon and sound remain available.
+Only repair (vfx-heal-v1.webp), rage (vfx-rage-v1.webp) and the existing speed effect remain from the optional effect set.
+Deleted: fire, hit-spark, levelup, sink sheets and the painted explosion/splash/smoke/debris atlas vfx-anim-v1.webp.
+Their runtime loaders and calls were removed. Impact/death burst particle creation and wreck bubbles were removed.
 
-Built-in imagegen background extraction prompt: Preserve all eight frames in
-4x2 reading order, colors, relative sizes and registration. Remove background,
-grid lines and labels; use true alpha. For sink, remove green gutters and square
-teal sea tiles while retaining circular foam, vortex and debris.
+Reference: supplied WhatsApp clip, especially 34–38 seconds. A defeated target disappears without a large explosion or vortex.
+NPCs, monsters and rival captains now use the same 1.1-second fade and slight downward drift.
+A pose is captured once on death, not redrawn/reallocated each frame. Up to 24 visible wrecks are retained;
+offscreen deaths allocate none, expired wrecks are released, and map changes clear the list.
+Rewards, HP, burn damage, respawn rules and shield gameplay are preserved.
 
-Final assets: public/assets/vfx-{fire,hit-spark,heal,levelup,sink,rage}-v1.webp.
-Each is an 8x1 strip of 192px cells. Uniform cell crops remove divider remnants;
-frames retain common scale and position. Luminous effects use screen blending;
-the whirlpool uses normal alpha and the sea-plane projection beneath wrecks.
-
-Fire and rage interpolate neighboring frames and loop. Hit, levelup and sink
-play once. Repair plays while healing is permitted (stationary, or VIP).
-Build validation: npm run build. No browser gameplay validation available.
+Validated with production build and a focused lifecycle check. Browser gameplay and many-player load testing were not available.
