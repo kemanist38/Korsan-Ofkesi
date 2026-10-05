@@ -21,6 +21,7 @@ import {dayEvent,spMult,xpMult,epMult,goldMult,sparkleMult,bossKillsNeeded,until
 import {TALENTS,OFFICERS,OFFICER_MAX_RANK,officerCost,officerSlots,talentPoints,loadCrew,saveCrew,spentPoints,computeBonus,type TalentId,type OfficerId} from './crew';
 import {FLEET_MASK} from './fleetMask';
 import {drawVfx,drawEffect} from './vfx';
+import {fleetTowerRegen} from './fleetBalance';
 import {towerContains,towerMuzzle} from './towerGeometry';
 import {loadGuild,saveGuild,islandSlots,towerTypeCost,tagError,canBuild,TOWER_TYPES,ROLE_NAMES,TOWER_SLOTS,type TowerType,type GuildRole,GUILD_NAME_MAX,GUILD_TAG_MAX,type Guild} from './guild';
 import {loadProfile,saveProfile,nickError,rankOf,NICK_CHANGE_COST,NICK_COOLDOWN_MS,NICK_MAX} from './profile';
@@ -1448,10 +1449,10 @@ function towerReach(e:Enemy){return Math.max(e.fireRange??460,effectiveRange()+(
 function updateTower(e:Enemy,dt:number){
   const d=dist(e,player),reach=towerReach(e);e.cooldown-=dt;e.combatTimer=Math.max(0,e.combatTimer-dt);e.slowTimer=0;e.burnTimer=Math.max(0,(e.burnTimer??0));
   e.aggro=!mapDef().safe&&(d<reach+30||e.combatTimer>0);
-  if(e.hp<e.maxHp)e.hp=Math.min(e.maxHp,e.hp+e.maxHp*(e.aggro?.004:.02)*dt);
+  if(e.hp<e.maxHp)e.hp=Math.min(e.maxHp,e.hp+(e.siege?e.maxHp*(e.aggro?.004:.02):fleetTowerRegen(e.maxHp,e.combatTimer>0))*dt);
   if(e.aggro&&d<reach&&e.cooldown<=0&&state.invulnerable<=0){const muzzle=towerMuzzle(e),tx=muzzle.x,ty=muzzle.y,a=Math.atan2(player.y-ty,player.x-tx);
     muzzleFlash(tx,ty,a,60);for(const off of [-.05,.05])shots.push({x:tx,y:ty,vx:Math.cos(a+off)*320,vy:Math.sin(a+off)*320,life:Math.max(2.2,d/320+.5),owner:'enemy',damage:e.damage,hit:false,ammo:theme().fleet==='lava'?'fire':'iron'});
-    playEnemyCannon(d,(e.x-player.x)/600);e.cooldown=e.reload+Math.random()*.4;}
+    playEnemyCannon(d,(e.x-player.x)/600);e.cooldown=e.reload+(e.siege?Math.random()*.4:0);}
 }
 function destroyTower(e:Enemy){
   if(siege){siegeTowerDown(e);return;}

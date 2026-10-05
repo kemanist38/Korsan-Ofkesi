@@ -147,8 +147,8 @@ const FLEET_TOWERS_RAW:[number,number][]=[
 export const FLEET={islandR:760*FLEET_SCALE,wallR:600*FLEET_SCALE,gap:.6,
   towers:FLEET_TOWERS_RAW.map(([x,y])=>[Math.round(x*FLEET_SCALE),Math.round(y*FLEET_SCALE)]) as [number,number][]};
 // Kuleler filo savaşı ölçeğinde: tek gemi yıkamaz, saldırı kesilince hızla onarılır.
-// 16 kule: toplam ateş gücü eski 8 kuleyle yaklaşık aynı kalsın diye kule başına hasar ve can düşürüldü.
-export const fleetTower=(tier:number)=>{return{hp:Math.round(110000*hpScale(tier)),damage:Math.round(560*dmgScale(tier)),reload:2.2,range:460,ownDamage:Math.round(800*hpScale(tier))};};
+// 16 kule: her kule 5 tam gelişmiş gemilik saldırı referansına göre dengelenir.
+export {fleetTowerStats as fleetTower} from './fleetBalance';
 export const fleetReward=(tier:number)=>({gold:300*tier,xp:Math.round(500*Math.pow(tier,1.2))});
 
 // ---------------------------------------------------------------- Denizler

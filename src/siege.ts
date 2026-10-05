@@ -4,7 +4,7 @@
 //   2. aşama · iç kuleler: iç adadaki 4 kule (tek tip, daha dayanıklı).
 //   3. aşama · kale komutanı: lagünde sancak gemisi; batınca kale düşer ve zafer sandığı açılır.
 // Yıkılan hiçbir şey onarılmaz. Ödül verilen hasara göredir; ilk 3'e bir haftalık "Kuşatma Kahramanı" unvanı verilir.
-import {FLEET,fleetTower} from './campaign';
+import {FLEET,hpScale,dmgScale} from './campaign';
 
 export const SIEGE_DAY=5,SIEGE_START_H=20,SIEGE_END_H=22,SIEGE_TIER=8;
 export const SIEGE_MS=(SIEGE_END_H-SIEGE_START_H)*3_600_000;
@@ -31,7 +31,8 @@ export function siegePhase(s:SiegeSave):SiegePhase{
 export const gateLeft=(s:SiegeSave,gate:'west'|'east')=>WALL_TOWERS.filter(i=>gateOf(i)===gate&&!s.destroyed.includes(i)).length;
 
 // Can ve hasar: katılımcı sayısına göre ölçeklenir (4 kaptan = 1×). Sunucu gelene kadar katılımcılar oyuncu + 3 test kaptanı.
-export function siegeStats(participants=4){const k=Math.max(1,participants)/4,t=fleetTower(SIEGE_TIER);
+// Etkinlik değerleri korunur; normal filo adası dengelemesi bu ayrı etkinliği değiştirmez.
+export function siegeStats(participants=4){const k=Math.max(1,participants)/4,t={hp:Math.round(110000*hpScale(SIEGE_TIER)),damage:Math.round(560*dmgScale(SIEGE_TIER)),range:460};
   return{wallHp:Math.round(t.hp*k),innerHp:Math.round(t.hp*2.5*k),commanderHp:Math.round(t.hp*10*k),towerDamage:t.damage,commanderDamage:Math.round(t.damage*1.6),range:t.range};}
 // Kalenin toplam canı: payların ve ödüllerin ölçüsü
 export function siegeTotalHp(participants=4){const s=siegeStats(participants);return s.wallHp*WALL_TOWERS.length+s.innerHp*INNER_TOWERS.length+s.commanderHp;}
