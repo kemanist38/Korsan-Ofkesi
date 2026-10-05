@@ -19,7 +19,7 @@ import {SIEGE_MS,WALL_TOWERS,INNER_TOWERS,gateOf,gateLeft,siegeWindow,newSiege,l
 import {dayEvent,spMult,xpMult,epMult,goldMult,sparkleMult,bossKillsNeeded,untilMidnight} from './events';
 import {TALENTS,OFFICERS,OFFICER_MAX_RANK,officerCost,officerSlots,talentPoints,loadCrew,saveCrew,spentPoints,computeBonus,type TalentId,type OfficerId} from './crew';
 import {FLEET_MASK} from './fleetMask';
-import {drawVfx,drawVfxAnim,drawAnim,EXPLOSION_ROW,SPLASH_ROW} from './vfx';
+import {drawVfx,drawVfxAnim,drawAnim,drawEffect,EXPLOSION_ROW,SPLASH_ROW} from './vfx';
 import {towerContains,towerMuzzle} from './towerGeometry';
 import {loadGuild,saveGuild,islandSlots,towerTypeCost,tagError,canBuild,TOWER_TYPES,ROLE_NAMES,TOWER_SLOTS,type TowerType,type GuildRole,GUILD_NAME_MAX,GUILD_TAG_MAX,type Guild} from './guild';
 import {loadProfile,saveProfile,nickError,rankOf,NICK_CHANGE_COST,NICK_COOLDOWN_MS,NICK_MAX} from './profile';
@@ -40,7 +40,7 @@ type EnemyRole='light'|'heavy';
 // Test kaptanı: elit gemili, oyuncu gibi savaşan yapay rakip (yalnız test modunda 1/1'de)
 type Captain={elite:EliteShipId;ammo:AmmoKind;ammoClock:number;foe:Enemy|null;orbit:Vec|null;orbitClock:number};
 type Enemy = Vec & { kind:'ship'; captain?:Captain; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number; lastHitBy?:'player'|'captain'; siege?:boolean; commander?:boolean;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
-type ParticleKind='debris'|'flare'|'ember'|'glint'|'wisp'|'foam'|'smoke'|'spark'|'damage'|'flash'|'explosion'|'splash'|'splinter'|'bubble'|'plank'|'firePuff'|'target'|'poison'|'soul'|'shock';
+type ParticleKind='hitSpark'|'levelup'|'sink'|'debris'|'flare'|'ember'|'glint'|'wisp'|'foam'|'smoke'|'spark'|'damage'|'flash'|'explosion'|'splash'|'splinter'|'bubble'|'plank'|'firePuff'|'target'|'poison'|'soul'|'shock';
 // z: su üstünden yükseklik (ekranda yukarı kayar); vz ile savrulan parçalar suya düşer
 type Particle = Vec & { vx:number; vy:number; life:number; maxLife:number; kind:ParticleKind; text?:string; color?:string; z?:number; vz?:number; rot?:number; vr?:number; size?:number; variant?:number };
 type Wreck = Vec & { angle:number; sprite:string; span:number; t:number; bubble:number };
@@ -698,6 +698,7 @@ function enemyFire(e:Enemy){
 function monsterFire(m:Monster){const a=Math.atan2(player.y-m.y,player.x-m.x);playSplash();for(const off of m.def.tier>=5?[-.12,0,.12]:[0])shots.push({x:m.x,y:m.y,vx:Math.cos(a+off)*210,vy:Math.sin(a+off)*210,life:2.4,owner:'enemy',damage:m.def.damage*(.85+Math.random()*.3),hit:false,ammo:'iron',visual:'spit'});m.cooldown=m.def.reload;}
 // Batınca bulunduğun denizde, düşmanlardan uzak rastgele bir noktada %10 gövdeyle yeniden doğ.
 function respawn(){
+  particles.push({x:player.x,y:player.y,vx:0,vy:0,life:3.2,maxLife:3.2,kind:'sink',size:180});
   if(siege){siegeRespawn();return;}
   const deathMap=currentMap;
   currentMap=deathMap;
@@ -711,6 +712,7 @@ function respawn(){
 }
 // Vuruş: parlak çekirdek ışığı, patlama animasyonu, savrulup suya düşen tahta kıymıkları, parlak korlar ve açık renkli barut dumanı
 function burst(x:number,y:number,large=false){
+  if(!large)particles.push({x,y,vx:0,vy:0,life:.4,maxLife:.4,kind:'hitSpark',size:65});
   const R=Math.random,TAU=Math.PI*2;
   particles.push({x,y,vx:0,vy:0,life:large?.32:.2,maxLife:large?.32:.2,kind:'flare',z:10,size:large?120:80});
   particles.push({x,y,vx:0,vy:0,life:large?.7:.5,maxLife:large?.7:.5,kind:'debris',size:large?170:110});
@@ -1287,7 +1289,7 @@ function update(dt:number){
     if(p.vz!==undefined){p.z=(p.z??0)+p.vz*dt;p.vz-=340*dt;if(p.z<=0){p.z=0;p.vz=undefined;p.vx*=.25;p.vy*=.25;p.vr=(p.vr??0)*.1;if(p.kind==='splinter')particles.push({x:p.x,y:p.y,vx:0,vy:0,life:.4,maxLife:.4,kind:'foam',size:20,variant:0});}}
     if(p.life<=0)particles.splice(i,1);}
   for(let i=wrecks.length-1;i>=0;i--){const w=wrecks[i];w.t+=dt;w.bubble-=dt;if(w.bubble<=0){w.bubble=.09;const a=Math.random()*Math.PI*2,r=Math.random()*26;particles.push({x:w.x+Math.cos(a)*r,y:w.y+Math.sin(a)*r*.6,vx:0,vy:-6,life:.7,maxLife:.7,kind:Math.random()<.6?'bubble':'foam',size:10+Math.random()*10,variant:0});}if(w.t>=WRECK_TIME)wrecks.splice(i,1);}
-  let need=xpNeed(state.level);while(state.fame>=need){state.fame-=need;state.level++;setAch('level',state.level);state.maxHp=baseMaxHp();state.hp=effectiveMaxHp();saveAccount();playLevelUp();rewardNotice(`SEVİYE ${state.level}   +${HP_PER_LEVEL.toLocaleString('tr-TR')} Azami Gövde   +1 Yetenek Puanı   ${state.level}/1 AÇILDI`);toast(`Seviye ${state.level}! Yeni denizler açıldı`);need=xpNeed(state.level);}
+  let need=xpNeed(state.level);while(state.fame>=need){state.fame-=need;state.level++;setAch('level',state.level);state.maxHp=baseMaxHp();state.hp=effectiveMaxHp();saveAccount();playLevelUp();particles.push({x:player.x,y:player.y-35,vx:0,vy:0,life:1.6,maxLife:1.6,kind:'levelup',size:220});rewardNotice(`SEVİYE ${state.level}   +${HP_PER_LEVEL.toLocaleString('tr-TR')} Azami Gövde   +1 Yetenek Puanı   ${state.level}/1 AÇILDI`);toast(`Seviye ${state.level}! Yeni denizler açıldı`);need=xpNeed(state.level);}
   if(toastTimer>0){toastTimer-=dt;if(toastTimer<=0)ui('toast').classList.remove('show');}if(rewardTimer>0){rewardTimer-=dt;if(rewardTimer<=0){ui('rewardToast').classList.remove('show');const next=rewardQueue.shift();if(next)setTimeout(()=>showReward(next),220);}} uiClock-=dt;if(uiClock<=0){uiClock=.1;updateUI();};
 }
 
@@ -1415,6 +1417,7 @@ function leaveSiege(){if(!siege)return;const r=siege.result?null:payContribution
   mapFade=1;playMapJump();eventPanelHtml='';renderSiegeHud();renderDayEvent(true);if(r)rewardNotice(`KUŞATMA KATKISI   +${r.xp.toLocaleString('tr-TR')} TP   +${r.gold.toLocaleString('tr-TR')} Altın   +${r.pearls} İnci`);}
 function sinkEnemy(e:Enemy){
   const j=enemies.indexOf(e);if(j<0)return;
+  if(!e.tower)particles.push({x:e.x,y:e.y,vx:0,vy:0,life:3.2,maxLife:3.2,kind:'sink',size:180});
   if(e.captain){enemies.splice(j,1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}burst(e.x,e.y,true);playExplosion();playSink(earGain(e));splashAt(e.x,e.y,190);spawnText(e,`${e.name} BATTI`,'#ffb070');if(e.lastHitBy!=='captain'){gainRage(rage,RAGE_PER_RIVAL);if(claimRivalSp(rivalLog,e.name)){const sp=gainSp(RIVAL_SP*spMult());rewardNotice(`${e.name} BATIRILDI   +${sp} SP   (bugün ${rivalLog.kills[e.name]}/${RIVAL_DAILY_LIMIT})`);}else rewardNotice(`${e.name} BATIRILDI   bugün bu oyuncudan SP hakkın doldu`);}e.lastHitBy=undefined;
     const map=currentMap,inst=siege;later(5,()=>{if(currentMap!==map||siege!==inst)return;const a=Math.random()*Math.PI*2,p={x:clamp(e.homeX+Math.cos(a)*450,80,WORLD_WIDTH-80),y:clamp(e.homeY+Math.sin(a)*260,80,WORLD_HEIGHT-80)};Object.assign(e,{x:p.x,y:p.y,hp:e.maxHp,frozen:0,burnTimer:0,slowTimer:0});e.captain!.foe=null;enemies.push(e);spawnText(e,`${e.name} YENİDEN DENİZDE`,'#9fe8dc');});return;}
   enemies.splice(j,1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}
@@ -1741,7 +1744,7 @@ function drawFleetIsland(){
   ctx.textAlign='center';ctx.font='700 14px Cinzel';ctx.fillStyle=owned?'#9fe8dc':'#f0b8a8';ctx.shadowColor='#000';ctx.shadowBlur=6;ctx.fillText(f.name,s.x,s.y-FLEET_ART.h/2-24);ctx.font='700 9px Inter';ctx.fillText(owned?'FİLO ADAN · LAGÜNDE ONARIM':fleetEnterable()?'RAKİP FİLO · TEST: GİRİŞ AÇIK (DOĞU VE BATI KAPILARI)':'RAKİP FİLO · GİRİŞ YASAK',s.x,s.y-FLEET_ART.h/2-10);ctx.shadowBlur=0;
 }
 // ---- atış ve savaş efektleri (src/vfx.ts atlası)
-const UNDER=new Set<ParticleKind>(['foam','bubble','plank','target']);
+const UNDER=new Set<ParticleKind>(['sink','foam','bubble','plank','target']);
 function targetExistsOrPlayer(t:Target|typeof player){return t===player||targetExists(t as Target);}
 function shotHeight(s:Shot){if(!s.flight)return 0;const p=Math.min(1,(s.age??0)/s.flight);return (s.arc??0)*4*p*(1-p);}
 function drawShotShadow(s:Shot){const p=worldToScreen(s),h=shotHeight(s),k=1-Math.min(.5,h/160);drawVfx(ctx,'shadow',p.x,p.y+2,16*k,{alpha:.6*k});}
@@ -1755,6 +1758,9 @@ function drawParticle(p:Particle){if(!onScreen(p,260))return;const s=worldToScre
     case 'damage':ctx.globalAlpha=a;ctx.font='800 15px Inter';ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='#000c';ctx.strokeText(p.text||'',s.x,y);ctx.fillStyle=p.color||DMG_GOLD;ctx.fillText(p.text||'',s.x,y);ctx.globalAlpha=1;return;
     case 'explosion':if(!drawAnim(ctx,'explosion',1-a,s.x,y-(size??90)*.15,(size??90)*1.05))drawVfxAnim(ctx,EXPLOSION_ROW,1-a,s.x,y-(size??90)*.12,size??90);return;
     case 'splash':if(!drawAnim(ctx,'splash',1-a,s.x,y-(size??70)*.3,(size??70)*1.1))drawVfxAnim(ctx,SPLASH_ROW,1-a,s.x,y-(size??70)*.28,size??70);return;
+    case 'hitSpark':drawEffect(ctx,'hit-spark',1-a,s.x,y,size??65);return;
+    case 'levelup':drawEffect(ctx,'levelup',1-a,s.x,y,size??220,Math.min(1,a*3));return;
+    case 'sink':ctx.save();ctx.translate(s.x,y);ctx.scale(1,.55);drawEffect(ctx,'sink',1-a,0,0,size??180,Math.min(1,a*4));ctx.restore();return;
     case 'debris':drawAnim(ctx,'debris',1-a,s.x,y,size??110);return;
     case 'flash':drawShotSprite(ctx,'muzzle',s.x,y,p.rot??0,(size??40)/40*(.8+.35*(1-a)),Math.min(1,a*1.6));return;
     case 'smoke':if(!drawAnim(ctx,'smoke',1-a,s.x,y,(size??22)*2.1,Math.min(1,a*2)*.8))drawVfx(ctx,'smoke',s.x,y,(size??22)*(1+(1-a)*1.1),{alpha:a*.75,variant:p.variant??0,rot:p.rot});return;
@@ -1874,11 +1880,14 @@ function draw(){
   const pattern=seaTilePattern(ctx);if(pattern){const vw=w/camera.zoom,vh=h/camera.zoom;pattern.setTransform(new DOMMatrix().translateSelf(-camera.x+w/2,-camera.y+h/2).scaleSelf(1.5,1.5));ctx.fillStyle=pattern;ctx.fillRect(w/2-vw/2,h/2-vh/2,vw,vh);}
   ctx.globalAlpha=.12;ctx.fillStyle=th.label;ctx.font='700 42px Cinzel';ctx.textAlign='center';for(const label of map.labels){const p=worldToScreen(label);ctx.fillText(label.text,p.x,p.y);}ctx.globalAlpha=1;
   drawCoordGrid();drawMapEdges();islands.forEach(i=>{if(onScreen(i,i.r+260))drawIsland(i);});drawFleetIsland();lootChests.forEach(drawLootChest);drawTreasureMark();sparkles.forEach(drawSparkle);mines.forEach(m=>{const p=worldToScreen(m);drawMineSprite(ctx,p.x,p.y,performance.now(),m.arm>0,m.life<5);});monsters.forEach(m=>{if(onScreen(m,320))drawMonster(m);});
-  wrecks.forEach(drawWreck);particles.forEach(p=>{if(UNDER.has(p.kind))drawParticle(p);});shots.forEach(drawShotShadow);
+  particles.forEach(p=>{if(UNDER.has(p.kind))drawParticle(p);});wrecks.forEach(drawWreck);shots.forEach(drawShotShadow);
   if(selected&&targetExists(selected))drawTargetMarker(selected);
   enemies.filter(e=>onScreen(e,e.boss?420:300)).sort((a,b)=>a.y-b.y).forEach(e=>{const s=worldToScreen(e);if(e.captain){drawCaptain(e,s);return;}if(e.boss)drawBossAura(e,s);if(!e.tower)drawHullWater(e,hullLength(e));const raster=e.tower?drawBastion(ctx,e.towerIndex??0,s.x,s.y):e.def?drawNpcShip(ctx,e.def.sprite,e.def.span,s.x,s.y,npcFaceAngle(e),performance.now()):false;if(!raster)return;const top=raster?(e.tower?TOWER_LABEL_OFFSET:shipLabelOffset(e.def!.span)):-42;if(e.boss){drawBossFlag(s,top);drawBossPlate(e,s,top);return;}const bw=e.tower||e.role==='heavy'?72:56;drawHealthBar(s.x,s.y+top,bw,e.hp/e.maxHp,e.tower?'#f09a4f':e.role==='heavy'?'#f0584a':'#4fd0da');ctx.fillStyle='#e6dccb';ctx.font='600 10px Inter';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText(e.name,s.x,s.y+top-7);ctx.shadowBlur=0;});
   drawPlayerMarker();drawHullWater(player,hullLength(player));
-  drawPlayerShip();drawFleetOccluders();drawPlayerLabel();
+  drawPlayerShip();
+  for(const o of [...enemies,...monsters])if((o.burnTimer??0)>0&&onScreen(o,160)){const p=worldToScreen(o);drawEffect(ctx,'fire',performance.now()/850+o.x*.001,p.x,p.y-30,80,.9,true);}
+  if(state.repairing&&(isVip()||player.speed<=4)){const p=worldToScreen(player);drawEffect(ctx,'heal',(performance.now()%1800)/1800,p.x,p.y-42,155,.65);}
+  drawFleetOccluders();drawPlayerLabel();
   particles.forEach(p=>{if(!UNDER.has(p.kind)&&p.kind!=='damage')drawParticle(p);});shots.forEach(drawShotBall);
   drawAbilityFx(ctx,worldToScreen,innerWidth,innerHeight);
   particles.forEach(p=>{if(p.kind==='damage')drawParticle(p);});

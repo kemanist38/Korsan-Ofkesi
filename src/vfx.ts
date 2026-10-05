@@ -35,3 +35,18 @@ function drawCell(ctx:CanvasRenderingContext2D,c:number,r:number,x:number,y:numb
   else ctx.drawImage(atlas,c*CELL,r*CELL,CELL,CELL,x-size/2,y-size/2,size,size);
   ctx.globalAlpha=prev;
 }
+
+// Eight registered frames per supplied effect. Shield deliberately has no VFX.
+const effectNames=['fire','hit-spark','heal','levelup','sink','rage'] as const;
+export type EffectName=typeof effectNames[number];
+const effects=Object.fromEntries(effectNames.map(name=>{const image=new Image();image.decoding='async';image.src=`/assets/vfx-${name}-v1.webp`;return[name,image];})) as Record<EffectName,HTMLImageElement>;
+export function drawEffect(ctx:CanvasRenderingContext2D,name:EffectName,progress:number,x:number,y:number,size:number,alpha=1,loop=false){
+  const image=effects[name];if(!image.complete||!image.naturalWidth)return false;
+  const phase=loop?((progress%1)+1)%1:Math.max(0,Math.min(.999999,progress));
+  const pos=phase*8,frame=Math.floor(pos),mix=pos-frame,cell=image.naturalHeight;
+  ctx.save();ctx.globalAlpha*=alpha;if(name!=='sink')ctx.globalCompositeOperation='screen';
+  const paint=(f:number,a:number)=>{const prev=ctx.globalAlpha;ctx.globalAlpha*=a;ctx.drawImage(image,f*cell,0,cell,cell,x-size/2,y-size/2,size,size);ctx.globalAlpha=prev;};
+  // Interpolate looping fire/rage to avoid a hard jump between supplied poses.
+  if(loop){paint(frame,1-mix);paint((frame+1)%8,mix);}else paint(frame,1);
+  ctx.restore();return true;
+}

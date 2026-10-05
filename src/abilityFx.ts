@@ -1,4 +1,5 @@
-// Ekran efektleri (prosedürel, görsel dosyası gerektirmez): Korsan Öfkesi alevleri, uçan yazılar ve can emici ruhu.
+import {drawEffect} from './vfx';
+// Ekran efektleri (Korsan Öfkesi raster animasyon kullanır): Korsan Öfkesi alevleri, uçan yazılar ve can emici ruhu.
 // Gemi/hedef referansı verilen efektler (a) o nesneyi her karede izler; çizim her karede worldToScreen ile yapılır.
 type Vec={x:number;y:number};
 type Kind='soul'|'rage'|'text';
@@ -20,7 +21,6 @@ export function updateAbilityFx(dt:number){
   for(let i=fx.length-1;i>=0;i--){fx[i].t+=dt;if(fx[i].t>=fx[i].dur)fx.splice(i,1);}
 }
 
-function rng(seed:number){let s=seed>>>0||1;return()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};}
 function glow(ctx:CanvasRenderingContext2D,x:number,y:number,r:number,inner:string,outer:string){
   const g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,inner);g.addColorStop(1,outer);ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fill();
 }
@@ -33,12 +33,7 @@ function drawSoul(ctx:CanvasRenderingContext2D,f:Fx,w2s:(v:Vec)=>Vec){
 }
 // Korsan Öfkesi: gemiyi saran kızıl hale ve gövdeden yükselen alev dilleri
 function drawRage(ctx:CanvasRenderingContext2D,f:Fx,w2s:(v:Vec)=>Vec){
-  const s=w2s(f.a!),a=life(f,.2,.4),t=f.t,r=rng(f.seed);
-  ctx.save();ctx.globalAlpha=a;ctx.globalCompositeOperation='lighter';
-  glow(ctx,s.x,s.y-10,120,'rgba(255,90,20,.26)','rgba(255,30,0,0)');
-  for(let i=0;i<20;i++){const ang=i/20*TAU,ph=(t*1.8+r())%1,rad=66+Math.sin(t*5+i)*7,x=s.x+Math.cos(ang)*rad,y=s.y+Math.sin(ang)*rad*.55-10-ph*70,w=(1-ph)*9+3,h=(1-ph)*22+6;
-    ctx.fillStyle=`rgba(255,${70+r()*140},20,${(1-ph)*.75})`;ctx.beginPath();ctx.moveTo(x,y-h);ctx.quadraticCurveTo(x+w,y,x,y+h*.35);ctx.quadraticCurveTo(x-w,y,x,y-h);ctx.fill();}
-  ctx.restore();
+  const s=w2s(f.a!);drawEffect(ctx,'rage',f.t/1.1,s.x,s.y-20,185,life(f,.2,.4)*.85,true);
 }
 function drawText(ctx:CanvasRenderingContext2D,f:Fx,w2s:(v:Vec)=>Vec){
   const s=w2s(f.a!),[text,color]=(f.s||'').split('|'),k=f.t/f.dur,a=life(f,.1,.5);
