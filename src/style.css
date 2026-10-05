@@ -828,3 +828,5 @@ body{touch-action:manipulation;-webkit-tap-highlight-color:transparent;overscrol
 @keyframes ragePulse{0%,100%{box-shadow:0 0 0 2px #ff7a2a,0 0 10px #ff4a1477}50%{box-shadow:0 0 0 4px #ffb03a,0 0 28px #ff4a14}}
 .menu-window>header{gap:14px}.menu-window>header .menu-logo{width:86px;height:auto;flex:0 0 auto;filter:drop-shadow(0 0 10px #ff4a1a44)}
 .menu-window>header>div{margin-right:auto}
+
+.ship-design-heading{grid-column:1/-1;margin:8px 0 2px;color:#e8c989;font:700 12px Cinzel;letter-spacing:1px}
