@@ -1,0 +1,99 @@
+/* Pirate Rage window skin: charcoal enamel, dark crimson, narrow warm-metal edges.
+   Raster item/ship artwork stays unchanged; this sheet only styles the interface. */
+:root{
+  --rage-panel:#141316;--rage-inner:#1d1719;--rage-edge:#725047;
+  --rage-gold:#edc78c;--rage-muted:#bdaea7;--rage-hot:#e96c32;
+  --shop-width:min(740px,calc(calc(100 * 1vw / var(--ui,1)) - 24px));
+  --shop-height:min(550px,calc(calc(100 * 1dvh / var(--ui,1)) - 24px));
+  --shop-top:max(12px,calc((calc(100 * 1dvh / var(--ui,1)) - 550px)/2));
+  --shop-nav-height:62px;
+}
+.shop-tabs{border:1px solid var(--rage-edge);border-bottom-color:#b26943;border-radius:10px 10px 0 0;background:linear-gradient(#352326,#181417);box-shadow:inset 0 1px #c3a08c44,0 8px 25px #0008;padding:4px 6px;grid-template-columns:repeat(7,minmax(0,1fr)) 40px}
+.shop-tabs button{background:transparent;border-color:transparent;border-radius:5px;color:var(--rage-muted);font-size:10px}
+.shop-tabs button.active,.shop-tabs button:hover{background:linear-gradient(#65302a,#31191c);border-color:#ae6244;color:#ffe1af;box-shadow:inset 0 -2px #ed8c46}
+.shop-tabs button .nav-img,.shop-tabs button .sprite,.shop-tabs .equip-nav{width:28px;height:28px}
+.shop-tabs .shop-close{width:36px;height:40px;border:1px solid #76504a;border-radius:5px;background:#261c20;color:#e7c5af}
+body.shop-open .shop-overlay{background:#07060999;padding-bottom:12px}
+.shop-overlay .shop-window,.captain-overlay .captain-profile,.quest-overlay .quest-log,.quest-overlay .daily-window,.buy-confirm>section{
+  border:1px solid var(--rage-edge);border-image:none;border-radius:9px;
+  background:radial-gradient(ellipse at 0 0,#62251d26,transparent 65%),linear-gradient(135deg,#211a1e,#111216 80%);
+  box-shadow:inset 0 0 0 3px #111013,inset 0 0 0 4px #b7835733,0 16px 45px #000c;
+  color:#eee0d3;scrollbar-width:thin;scrollbar-color:#77463a #151216;
+}
+.shop-overlay .shop-window{border-radius:0 0 9px 9px;padding:12px 16px 16px}
+.shop-overlay .shop-window::before{content:none}
+.captain-overlay .captain-profile,.quest-overlay .quest-log,.quest-overlay .daily-window{padding:18px;max-height:calc(100 * 1dvh / var(--ui,1) - 24px);overflow:auto;overscroll-behavior:contain}
+.shop-window>header,.captain-profile>header,.quest-log>header,.daily-window>header{padding:0 0 10px;margin-bottom:10px;border-bottom:1px solid #9e513b66;background:none}
+.shop-window>header h2,.captain-profile>header h2,.quest-log>header h2,.daily-window>header h2{color:var(--rage-gold);font-size:18px;letter-spacing:.06em}
+.shop-window>header .eyebrow,.menu-window>header .eyebrow{display:none}
+.captain-profile>header>button,.quest-log>header>button,.daily-window>header>button{border-radius:5px;border-color:#805045;background:#281c20;color:#f0c5a6;width:38px;height:38px}
+.shop-window button:focus-visible,.captain-profile button:focus-visible,.quest-log button:focus-visible,.slot-bar button:focus-visible,.buy-details summary:focus-visible{outline:2px solid #ffbd71;outline-offset:2px}
+.captain-overlay .menu-window{width:min(520px,calc(100 * 1vw / var(--ui,1) - 24px))}
+.menu-window>header .menu-logo{width:54px;filter:drop-shadow(0 3px 6px #0008)}
+.menu-window .menu-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.menu-window .menu-grid button{min-height:90px;padding:10px 4px;border:1px solid #69443c;border-radius:6px;background:linear-gradient(145deg,#302126,#171519);color:#dfc4ad;box-shadow:inset 0 1px #d8ad7030}
+.menu-window .menu-grid button:hover{border-color:#d58a53;background:linear-gradient(#4c2625,#25181b)}
+.menu-window .menu-grid button img{width:40px;height:40px;object-fit:contain;filter:drop-shadow(0 3px 4px #0009)}
+.menu-window .menu-grid button span{font-size:10px;line-height:1.4}
+/* Compact purchases: price always visible; optional detail expands in place. */
+.shop-window .market-list{gap:6px}
+.shop-window .market-item.buy-row,.shop-window .buy-row:has(.cannon-shop-art){grid-template-columns:42px minmax(0,1fr) 150px;padding:8px 10px;gap:10px;border:1px solid #69443c;border-radius:5px;background:linear-gradient(110deg,#261c20,#171519);box-shadow:inset 0 1px #e2b28312}
+.shop-window .market-item h4{margin:0 0 4px;font-size:13px;color:#efd0ad}
+.shop-window .market-item em{font-size:12px;color:#edc78c;font-style:normal}
+.shop-window .ammo-icon{width:38px;height:38px}
+.shop-window .ammo-icon>b{background:#181317;color:#d3b7a0}
+.buy-details{margin:3px 0 5px;color:var(--rage-muted);font-size:12px}
+.buy-details summary{cursor:pointer;width:fit-content;min-height:24px;line-height:24px;color:#c8a48b}
+.buy-details p,.buy-details small{color:#c5b8b2!important;line-height:1.4}
+.shop-window .buy-box{grid-template-columns:1fr 1fr;gap:5px;align-items:center}
+.shop-window .buy-box input{background:#0e1014;border:1px solid #67453f;border-radius:4px;color:#f4dfc7;min-height:38px;font-size:16px;grid-column:1}
+.shop-window .buy-box button{grid-column:2;grid-row:1;min-height:38px;border-color:#b16b48;background:linear-gradient(#733a2b,#402020);color:#ffe0b1;font-size:10px;padding:5px}
+.shop-window .buy-box button:disabled{opacity:.4}
+.shop-window .buy-total{grid-column:1/-1;text-align:right;font-size:11px;color:#c7b4a7}
+/* One grid, no duplicate oversized preview or nested buttons. */
+.shop-window.elite-ship-window{height:auto;max-height:calc(var(--shop-height) - var(--shop-nav-height))}
+.shop-window .elite-ship-layout{display:block;overflow:auto;min-height:0}
+.shop-window .elite-ship-detail,.shop-window .elite-ship-detail[hidden]{display:none}
+.shop-window .elite-ship-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:2px 4px 4px;overflow:visible}
+.shop-window .ship-design-heading{grid-column:1/-1;margin:6px 0 2px;padding-bottom:5px;border-bottom:1px solid #744538;color:#d6a87f;font-size:11px;letter-spacing:.12em}
+.shop-window .elite-card{position:relative;display:flex;flex-direction:column;min-height:0;padding:8px;border:1px solid #68433c;border-radius:6px;background:radial-gradient(ellipse at 50% 20%,#54302277,transparent 65%),#19171b;box-shadow:inset 0 1px #d19a6622;opacity:1;filter:none;transform:none;text-align:center}
+.shop-window .elite-card.active{border-color:#db9155;background:radial-gradient(ellipse at top,#71382866,transparent 70%),#21191b;box-shadow:inset 0 0 0 1px #b5773d55}
+.shop-window .elite-card.previewed{outline:1px solid #d78955;outline-offset:1px}
+.shop-window .ship-preview-button{width:100%;padding:0;border:0;background:none;cursor:pointer;color:#f1d2af}
+.shop-window .elite-card .elite-art,.shop-window .elite-card .starter-ship-art{width:100%;height:82px;margin:0;object-fit:contain}
+.shop-window .elite-card strong{font-size:12px;line-height:1.4;min-height:2.8em;display:block;color:#efd0ad}
+.shop-window .ship-requirement{font-size:11px;color:#e8b876;margin:5px 0}
+.shop-window .ship-effect{font:12px/1.4 Inter,system-ui,sans-serif;color:#cbbab0;margin:0 0 8px;flex:1}
+.shop-window .ship-select{width:100%;min-height:36px;padding:7px;border:1px solid #ae6846;border-radius:4px;background:linear-gradient(#71372a,#3a2022);color:#ffe0af;font-size:11px;font-weight:700;cursor:pointer}
+.shop-window .ship-select:disabled{cursor:default;background:#262024;border-color:#655149;color:#b4a399}
+.shop-window .elite-card.locked .elite-art{filter:grayscale(.6);opacity:.65}
+/* Task information remains complete, but repeated category/number labels are removed. */
+#questOverlay .quest-log{width:min(580px,calc(100 * 1vw / var(--ui,1) - 24px))}
+.quest-intro{font-size:12px;color:#b8a79d;margin:4px 0 8px}.quest-list{gap:7px;margin-top:8px}
+.quest-tier{font-size:12px;color:#dfa879;margin:0 0 3px}
+.quest-entry{grid-template-columns:minmax(0,1fr) 85px;gap:10px;padding:10px 12px;border-color:#67453c;background:#20191d;border-radius:5px}
+.quest-entry.active{border-color:#bd7846;background:#35201e}.quest-entry.completed{opacity:.65}
+.quest-number,.quest-copy>span{display:none}.quest-copy h3{font-size:13px;color:#efd0ad;margin:0 0 4px}.quest-copy p{font-size:12px;color:#c3b4aa;line-height:1.4}
+.quest-rewards{flex-wrap:wrap;gap:5px 10px;margin:7px 0 4px}.quest-rewards b{font-size:10px;color:#e9ba78}.quest-copy small{font-size:11px;color:#bdada3}
+.quest-entry>button,.cancel-confirm button{min-height:38px;background:linear-gradient(#673228,#382024);border-color:#995a40;color:#f4d0aa;border-radius:4px}
+.cancel-confirm{grid-column:1/-1}.quest-entry>button:disabled{background:#292126;color:#b4a299}
+/* HUD shortcut frames use the same enamel instead of the old wooden slots. */
+.slot-bar .quick-slot,.ammo-picker button{border:1px solid #805345;border-radius:5px;background:radial-gradient(ellipse at 50% 30%,#51312c,#18151a 75%);box-shadow:inset 0 0 0 2px #151317,inset 0 0 0 3px #a67d4d38}
+.slot-bar .quick-slot.active,.ammo-picker button.current{border-color:#ffa863;box-shadow:inset 0 0 0 1px #df803c,0 0 7px #dc532755}
+.slot-bar .quick-slot>kbd{color:#efc59b}.slot-bar .quick-slot>b{background:#100d11e6;color:#f6e0c7}
+.ammo-picker{background:linear-gradient(#302025,#141216);border:1px solid #965d47;box-shadow:0 8px 22px #000b}.ammo-picker small{color:#e7b780}
+.bar-toggle{background:#352025}.bar-toggle i{border-right-color:#da966c}
+.corner-buttons .round-button,.world-map-button,.quest-bust,.combat-action>b,.chat-toggle{background:radial-gradient(ellipse at 40% 20%,#55312b,#181419 80%);border-color:#936149;color:#f0c593;box-shadow:inset 0 0 0 2px #171317,0 4px 10px #0008}
+.buy-confirm dl{background:#141115}.buy-confirm button{background:linear-gradient(#683229,#321c20);border-color:#985d43;color:#efd0ad}
+.shop-window .starter-ship-art{background-image:var(--starter-ship)}
+.resource,.panel.zoom-controls,.top-status{background:linear-gradient(#2c2024,#131217);border-color:#81533f;color:#c8aa91}
+.captain-stat-grid article,.captain-medals,.crew-card,.guild-island,.settings-group{background:#20191d;border-color:#66443b}
+@media(max-width:640px){
+  :root{--shop-width:calc(100 * 1vw / var(--ui,1) - 16px);--shop-top:8px;--shop-height:calc(100 * 1dvh / var(--ui,1) - 16px);--shop-nav-height:58px}
+  .shop-overlay .shop-window{padding:10px}.shop-tabs{gap:1px;padding:3px}.shop-tabs button{font-size:8px}.shop-tabs button .nav-img,.shop-tabs button .sprite,.shop-tabs .equip-nav{width:25px;height:25px}
+  .shop-window .elite-ship-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.shop-window .elite-card .elite-art{height:70px}.shop-window .ship-select{min-height:40px}
+  .menu-window .menu-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}.menu-window .menu-grid button{min-height:78px}.menu-window .menu-grid button span{font-size:9px}
+  .shop-window .market-item.buy-row,.shop-window .buy-row:has(.cannon-shop-art){grid-template-columns:34px minmax(0,1fr) 130px;gap:7px;padding:8px}.shop-window .ammo-icon{width:32px;height:32px}
+}
+@media(max-width:380px){.menu-window .menu-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.shop-window .market-item.buy-row{grid-template-columns:34px minmax(0,1fr)}.shop-window .buy-box{grid-column:2}.quest-entry{grid-template-columns:minmax(0,1fr)}.quest-entry>button{justify-self:end;min-width:90px}}
+@media(max-height:500px){:root{--shop-top:6px;--shop-height:calc(100 * 1dvh / var(--ui,1) - 12px);--shop-nav-height:52px}.shop-tabs button .nav-img,.shop-tabs button .sprite,.shop-tabs .equip-nav{width:24px;height:24px}.shop-window>header{min-height:24px;padding-bottom:6px;margin-bottom:7px}.shop-window>header h2{font-size:15px}.menu-window>header .menu-logo{width:38px}.menu-window .menu-grid button{min-height:70px}}
