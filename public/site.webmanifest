@@ -1,0 +1,14 @@
+{
+  "name": "Pirate Rage: Korsan Öfkesi",
+  "short_name": "Pirate Rage",
+  "description": "Online korsan gemi savaşı oyunu",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#050608",
+  "theme_color": "#07151b",
+  "icons": [
+    {"src": "/assets/icon-app-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "/assets/icon-app-512.webp", "sizes": "512x512", "type": "image/webp"}
+  ]
+}

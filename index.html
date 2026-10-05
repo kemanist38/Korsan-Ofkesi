@@ -6,9 +6,25 @@
     <meta name="theme-color" content="#07151b" />
     <meta name="description" content="Pirate Rage: Korsan Öfkesi — tarayıcı tabanlı korsan deniz savaşı" />
     <title>Pirate Rage: Korsan Öfkesi</title>
-    <link rel="icon" type="image/webp" href="/assets/logo-yedi-deniz-v1.webp" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/icon-app-32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/icon-app-180.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta property="og:title" content="Pirate Rage: Korsan Öfkesi" />
+    <meta property="og:description" content="Online korsan gemi savaşı: gemini güçlendir, filo kur, adaları fethet." />
+    <meta property="og:image" content="/assets/logo-pirate-rage-v1.webp" />
+    <style>
+      /* Açılış ekranı: oyun yüklenirken logo; JS hazır olunca söner (src/main.ts) */
+      #splash{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh;background:radial-gradient(circle at 50% 42%,#3a0d08 0%,#120506 45%,#050608 80%);transition:opacity .6s}
+      #splash.gone{opacity:0;pointer-events:none}
+      #splash img{width:min(56vh,70vw);height:auto;filter:drop-shadow(0 0 28px #ff4a1a55)}
+      #splash b{font:700 clamp(14px,3.2vh,26px) Georgia,serif;letter-spacing:.32em;color:#f3d29a;text-shadow:0 2px 8px #000}
+      #splash i{display:block;width:min(40vh,50vw);height:4px;border-radius:2px;background:#ffffff1a;overflow:hidden}
+      #splash i::after{content:"";display:block;width:40%;height:100%;background:linear-gradient(90deg,#ff7a1a,#ffd27a);animation:splashbar 1.1s ease-in-out infinite}
+      @keyframes splashbar{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+    </style>
   </head>
   <body>
+    <div id="splash"><img src="/assets/logo-pirate-rage-v1.webp" alt="Pirate Rage" /><b>KORSAN ÖFKESİ</b><i></i></div>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
