@@ -27,7 +27,7 @@ import {createChest,chestRewardText,CHEST_PICKUP_RADIUS,CHEST_CLICK_RADIUS,DRIFT
 import {ELITE_SHIPS,ELITE_ISO,eliteById,type EliteShipId} from './elite-ships';
 import {isoAdvance,type IsoMove,type IsoFace} from './iso-move';
 import {spawnText,spawnSoul,spawnRage,clearRageFx,screenTint,updateAbilityFx,drawAbilityFx} from './abilityFx';
-import {newRage,rageActive,rageReady,gainRage,rageFromHit,startRage,rageSalvo,tickRage,RAGE_MAX,RAGE_SPEED,RAGE_SALVOS,RAGE_PER_KILL,RAGE_PER_MONSTER,RAGE_PER_TOWER} from './rage';
+import {newRage,rageActive,rageReady,gainRage,startRage,rageSalvo,tickRage,RAGE_MAX,RAGE_SPEED,RAGE_SALVOS,RAGE_PER_RIVAL,RAGE_PER_BOSS} from './rage';
 
 type Vec = { x: number; y: number };
 type AmmoKind = 'iron'|'chain'|SpecialAmmo;
@@ -507,7 +507,7 @@ function bossFire(e:Enemy){
   if(enraged&&!e.escortsCalled){e.escortsCalled=true;const def=NPCS[mapDef().npcs[1]];for(let k=0;k<2;k++){const ship=makeShip(def,e.x+(k?70:-70),e.y+50,e.angle);ship.aggro=true;ship.combatTimer=20;ship.summoned=true;ship.name=`${e.name} Muhafızı`;enemies.push(ship);}toast(`${e.name} muhafızlarını çağırdı!`);}
 }
 function defeatBoss(e:Enemy){
-  const b=e.boss!;stopBossMusic();state.fame+=xpGain(b.xp);bumpAch('boss');state.pearls+=b.pearls;bossOf(currentMap).pending=false;saveBosses();saveAccount();
+  const b=e.boss!;stopBossMusic();gainRage(rage,RAGE_PER_BOSS);state.fame+=xpGain(b.xp);bumpAch('boss');state.pearls+=b.pearls;bossOf(currentMap).pending=false;saveBosses();saveAccount();
   for(let n=0;n<3;n++)setTimeout(()=>{burst(e.x+(Math.random()-.5)*80,e.y+(Math.random()-.5)*50,true);playExplosion();},n*260);
   rewardNotice(`${b.name.toLocaleUpperCase('tr')} BATIRILDI   +${b.xp.toLocaleString('tr-TR')} TP   +${b.pearls} İnci`);toast(`${b.name} denizin dibine gönderildi!`);
 }
@@ -1269,7 +1269,7 @@ function update(dt:number){
       else{
       state.repairing=false;playerHitClock=0;
       const shieldF=useConsumable('shield'),taken=s.damage*bonus.taken*shieldF*eliteTakenMult();
-      state.hp-=taken;gainRage(rage,rageFromHit(taken,effectiveMaxHp()));damageText(player.x,player.y,Math.round(taken),shieldF<1?DMG_BLUE:DMG_RED);playHit(true);burst(player.x,player.y);
+      state.hp-=taken;damageText(player.x,player.y,Math.round(taken),shieldF<1?DMG_BLUE:DMG_RED);playHit(true);burst(player.x,player.y);
       }
       if(state.hp<=0){
         respawn();
@@ -1414,7 +1414,7 @@ function leaveSiege(){if(!siege)return;const r=siege.result?null:payContribution
   mapFade=1;playMapJump();eventPanelHtml='';renderSiegeHud();renderDayEvent(true);if(r)rewardNotice(`KUŞATMA KATKISI   +${r.xp.toLocaleString('tr-TR')} TP   +${r.gold.toLocaleString('tr-TR')} Altın   +${r.pearls} İnci`);}
 function sinkEnemy(e:Enemy){
   const j=enemies.indexOf(e);if(j<0)return;
-  if(e.captain){enemies.splice(j,1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}burst(e.x,e.y,true);playExplosion();playSink(earGain(e));splashAt(e.x,e.y,190);spawnText(e,`${e.name} BATTI`,'#ffb070');if(e.lastHitBy!=='captain'){if(claimRivalSp(rivalLog,e.name)){const sp=gainSp(RIVAL_SP*spMult());rewardNotice(`${e.name} BATIRILDI   +${sp} SP   (bugün ${rivalLog.kills[e.name]}/${RIVAL_DAILY_LIMIT})`);}else rewardNotice(`${e.name} BATIRILDI   bugün bu oyuncudan SP hakkın doldu`);}e.lastHitBy=undefined;
+  if(e.captain){enemies.splice(j,1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}burst(e.x,e.y,true);playExplosion();playSink(earGain(e));splashAt(e.x,e.y,190);spawnText(e,`${e.name} BATTI`,'#ffb070');if(e.lastHitBy!=='captain'){gainRage(rage,RAGE_PER_RIVAL);if(claimRivalSp(rivalLog,e.name)){const sp=gainSp(RIVAL_SP*spMult());rewardNotice(`${e.name} BATIRILDI   +${sp} SP   (bugün ${rivalLog.kills[e.name]}/${RIVAL_DAILY_LIMIT})`);}else rewardNotice(`${e.name} BATIRILDI   bugün bu oyuncudan SP hakkın doldu`);}e.lastHitBy=undefined;
     const map=currentMap,inst=siege;later(5,()=>{if(currentMap!==map||siege!==inst)return;const a=Math.random()*Math.PI*2,p={x:clamp(e.homeX+Math.cos(a)*450,80,WORLD_WIDTH-80),y:clamp(e.homeY+Math.sin(a)*260,80,WORLD_HEIGHT-80)};Object.assign(e,{x:p.x,y:p.y,hp:e.maxHp,frozen:0,burnTimer:0,slowTimer:0});e.captain!.foe=null;enemies.push(e);spawnText(e,`${e.name} YENİDEN DENİZDE`,'#9fe8dc');});return;}
   enemies.splice(j,1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}
   burst(e.x,e.y,true);playExplosion();playSink(earGain(e));splashAt(e.x,e.y,190);
@@ -1423,7 +1423,7 @@ function sinkEnemy(e:Enemy){
   if(e.commander){siegeWon(e);return;}
   if(e.boss){defeatBoss(e);return;}
   // NPC tecrübe puanı ve altın verir; savaş puanı (SP) yalnızca rakip oyuncu batırınca gelir (src/battle.ts).
-  const eliteLoot=eliteLootMult();gainRage(rage,RAGE_PER_KILL);
+  const eliteLoot=eliteLootMult();
   const goldGain=goldGainAch(e.rewardGold*(1+bonus.bounty)*eliteLoot),fame=xpGain(e.rewardFame);state.gold+=goldGain;state.fame+=fame;saveAccount();bumpAch('npc');if(e.role==='heavy')bumpAch('heavy');
   rewardNotice(`+${goldGain} Altın   +${fame} TP`);toast(`${e.name} batırıldı`);if(e.def)recordQuestProgress('npc',e.def.id);countBossKill(e);if(!e.summoned)setTimeout(spawnEnemy,1800);
 }
@@ -1434,7 +1434,7 @@ function gainSp(n:number){const before=battleRank(state.battlePoints).index;stat
   const r=battleRank(state.battlePoints);if(r.index>before){playLevelUp();rewardNotice(`YENİ SAVAŞ RÜTBESİ: ${r.name.toLocaleUpperCase('tr')}`);}return n;}
 function defeatMonster(m:Monster){
   playExplosion();const d=m.def;
-  const eliteLoot=eliteLootMult();gainRage(rage,RAGE_PER_MONSTER);
+  const eliteLoot=eliteLootMult();
   const goldGain=goldGainAch(d.gold*(1+bonus.bounty)*eliteLoot),fame=xpGain(d.xp);state.gold+=goldGain;state.fame+=fame;saveAccount();bumpAch('monster');
   rewardNotice(`+${goldGain} Altın   +${fame} TP`);recordQuestProgress('monster',d.id);
   const p=randomSeaPoint(900);m.hp=m.maxHp;m.aggro=false;m.burnTimer=0;m.x=p.x;m.y=p.y;m.homeX=m.x;m.homeY=m.y;m.combatTimer=0;selected=null;state.attacking=false;toast(`${m.name} yenildi`);
@@ -1453,7 +1453,7 @@ function updateTower(e:Enemy,dt:number){
 }
 function destroyTower(e:Enemy){
   if(siege){siegeTowerDown(e);return;}
-  gainRage(rage,RAGE_PER_TOWER);towersDestroyedHere++;if(e.towerIndex!==undefined)markRuin(towerRuins,currentMap,e.towerIndex);const left=enemies.filter(x=>x.tower).length,f=mapDef().fleet;
+  towersDestroyedHere++;if(e.towerIndex!==undefined)markRuin(towerRuins,currentMap,e.towerIndex);const left=enemies.filter(x=>x.tower).length,f=mapDef().fleet;
   toast(left?`${f.name}: ${left} kule kaldı`:`${f.name} düştü!`);
   if(left>0)return;
   fleetOwners[currentMap]='player';saveFleetOwners(fleetOwners);clearRuins(towerRuins,currentMap);if(guild){guild.towers[currentMap]=Array(TOWER_SLOTS).fill(null);saveGuild(guild);}const r=fleetReward(mapDef().tier);state.gold+=r.gold;state.fame+=r.xp;saveAccount();
@@ -1511,10 +1511,10 @@ function eliteOnHit(t:Target,hit:number){
   eliteLeech(hit);return hit;
 }
 function later(t:number,fn:()=>void){abilityQueue.push({t,fn});}
-// Korsan Öfkesi: bar dolunca basılır; sonraki 2 salvo %25 güçlü, gemi %15 hızlı ve alevler içinde (en çok 10 sn)
+// Korsan Öfkesi: bar dolunca basılır; sonraki 2 salvo %25 güçlü, gemi %15 hızlı ve alevler içinde (en çok 5 sn)
 function activateRage(){
   if(rageActive(rage)){toast(`Korsan Öfkesi açık · ${rage.salvos} güçlü salvo kaldı`);return;}
-  if(!startRage(rage)){toast(`Öfke barı dolmadı (%${Math.floor(rage.meter)}) — hasar aldıkça ve gemi batırdıkça dolar`);return;}
+  if(!startRage(rage)){toast(`Öfke barı dolmadı (%${Math.floor(rage.meter)}) — rakip oyuncu ve boss batırdıkça dolar`);return;}
   spawnText(player,'KORSAN ÖFKESİ!','#ff7a2a');spawnRage(player,rage.time);screenTint(.35,'200,40,10');playExplosion();playWind();
   for(let n=0;n<30;n++){const a=Math.random()*Math.PI*2,sp=60+Math.random()*90;particles.push({x:player.x,y:player.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp*.5,life:.6+Math.random()*.4,maxLife:1,kind:'ember',z:10+Math.random()*30,size:10+Math.random()*14,color:n%2?'#ff6a1a':'#ffd27a'});}
 }
