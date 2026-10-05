@@ -15,6 +15,16 @@ export const vfxReady=()=>atlas.complete&&atlas.naturalWidth>0;
 export function drawVfx(ctx:CanvasRenderingContext2D,name:VfxName,x:number,y:number,size:number,{rot=0,alpha=1,variant=0}:{rot?:number;alpha?:number;variant?:number}={}){
   if(!vfxReady())return false;const [c,r]=VFX[name];drawCell(ctx,c+variant,r,x,y,size,rot,alpha);return true;
 }
+// Yeni boyalı animasyon sayfası (kullanıcı görselleri): her satır bir efekt, 8 kare × 192 px, saydam zemin.
+const anim=new Image();anim.src='/assets/vfx-anim-v1.webp';
+const ANIM_CELL=192;
+export const ANIM={explosion:0,splash:1,smoke:2,debris:3} as const;
+export type AnimName=keyof typeof ANIM;
+// t: 0..1 ilerleme; size: karenin ekrandaki kenarı. Sayfa yüklenmediyse eski atlasa düşmek için false döner.
+export function drawAnim(ctx:CanvasRenderingContext2D,name:AnimName,t:number,x:number,y:number,size:number,alpha=1){
+  if(!anim.complete||!anim.naturalWidth)return false;const f=Math.max(0,Math.min(7,Math.floor(t*8))),prev=ctx.globalAlpha;ctx.globalAlpha=prev*alpha;
+  ctx.drawImage(anim,f*ANIM_CELL,ANIM[name]*ANIM_CELL,ANIM_CELL,ANIM_CELL,x-size/2,y-size/2,size,size);ctx.globalAlpha=prev;return true;
+}
 // t: 0..1 animasyon ilerlemesi
 export function drawVfxAnim(ctx:CanvasRenderingContext2D,row:number,t:number,x:number,y:number,size:number,alpha=1){
   if(!vfxReady())return false;drawCell(ctx,Math.min(ANIM_FRAMES-1,Math.floor(t*ANIM_FRAMES)),row,x,y,size,0,alpha);return true;
