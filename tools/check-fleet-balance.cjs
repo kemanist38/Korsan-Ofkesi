@@ -7,9 +7,9 @@ vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/fleetBalance.ts','utf
 const {fleetTowerStats,fleetTowerRegen}=exportsObject;
 // Level 8, elite 15, all upgrades 10, epic gear, all damage/HP medals;
 // gunner + surgeon rank 5, tough rank 5, shield, powder, first two shots with rage.
-const shipHp=(75000+7*2500+10*2500+15*5000)*1.29;
-const salvo=(100+10*5+15*25)*20*2.1*1.38*1.25*2.25*2.6*1.21*1.1;
-const reload=2.65*.6*.86*1.15,taken=.85*.8*.9;
+const shipHp=(75000+7*2500+10*2500)*1.45;
+const salvo=315*20*2.1*1.38*1.25*2.25*2.6*1.33*1.1;
+const reload=2.65*.6*.86*1.15/1.08,taken=.85*.8*.9*.95;
 function fight(tier,count){
   const tower=fleetTowerStats(tier),ships=Array(count).fill(shipHp),next=Array(count).fill(0);
   let hp=tower.hp,time=0,fireAt=1;
