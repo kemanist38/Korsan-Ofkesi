@@ -86,7 +86,7 @@ body.shop-open .shop-overlay{background:#07060999;padding-bottom:12px}
 .corner-buttons .round-button,.world-map-button,.quest-bust,.combat-action>b,.chat-toggle{background:radial-gradient(ellipse at 40% 20%,#55312b,#181419 80%);border-color:#936149;color:#f0c593;box-shadow:inset 0 0 0 2px #171317,0 4px 10px #0008}
 .buy-confirm dl{background:#141115}.buy-confirm button{background:linear-gradient(#683229,#321c20);border-color:#985d43;color:#efd0ad}
 .shop-window .starter-ship-art{background-image:var(--starter-ship)}
-.resource,.panel.zoom-controls,.top-status{background:linear-gradient(#2c2024,#131217);border-color:#81533f;color:#c8aa91}
+.resource{background:linear-gradient(#2c2024,#131217);border-color:#81533f;color:#c8aa91}
 .captain-stat-grid article,.captain-medals,.crew-card,.guild-island,.settings-group{background:#20191d;border-color:#66443b}
 @media(max-width:640px){
   :root{--shop-width:calc(100 * 1vw / var(--ui,1) - 16px);--shop-top:8px;--shop-height:calc(100 * 1dvh / var(--ui,1) - 16px);--shop-nav-height:58px}
@@ -99,3 +99,10 @@ body.shop-open .shop-overlay{background:#07060999;padding-bottom:12px}
 @media(max-height:500px){:root{--shop-top:6px;--shop-height:calc(100 * 1dvh / var(--ui,1) - 12px);--shop-nav-height:52px}.shop-tabs button .nav-img,.shop-tabs button .sprite,.shop-tabs .equip-nav{width:24px;height:24px}.shop-window>header{min-height:24px;padding-bottom:6px;margin-bottom:7px}.shop-window>header h2{font-size:15px}.menu-window>header .menu-logo{width:38px}.menu-window .menu-grid button{min-height:70px}}
 .sink-notices{position:absolute;top:clamp(100px,calc(12 * 1vw / var(--ui,1)),132px);left:50%;transform:translateX(-50%);z-index:12;display:grid;gap:4px;width:max-content;max-width:70%;pointer-events:none;text-align:center;font:500 12px/1.4 Inter,sans-serif;color:#ffe1b0;text-shadow:0 1px 3px #000,0 0 5px #000}
 .sink-notices>div{padding:3px 10px;border-radius:4px;background:#100b09b8;overflow-wrap:anywhere}
+.top-status .top-level{box-sizing:border-box;width:11.5%;aspect-ratio:1;display:grid;place-items:center;border:3px solid #bb8249;border-radius:50%;background:radial-gradient(circle at 38% 28%,#723b23 0%,#3b1c13 52%,#170d0b 100%);box-shadow:0 0 0 3px #3b1110,0 0 0 5px #a6482b,0 0 0 7px #291313,inset 0 0 0 2px #e4ae6355,inset 0 3px 8px #0009,0 4px 12px #000b;color:#ffe1a2;font-size:clamp(15px,calc(3.4 * 1vw / var(--ui,1)),28px);text-shadow:0 2px 3px #140603}
+.top-status .status-line>i{border:1px solid #ad8154;border-radius:6px;background:#120f11;box-shadow:0 0 0 1px #251b13,inset 0 2px 5px #000c;overflow:hidden}
+.top-status .status-line>i>em{border-radius:4px;box-shadow:inset 0 1px 2px #fff5}
+.top-status .xp-line>i>em{background:linear-gradient(90deg,#56229a,#b15aff)}
+.top-status .elite-line>i>em{background:linear-gradient(90deg,#127567,#43dcb0)}
+.top-status .status-line b{left:19%;right:2%;font-variant-numeric:tabular-nums;white-space:nowrap}
+.map-cluster .zoom-controls button:focus-visible{outline:2px solid #ffd98b;outline-offset:2px;background:#ffe09b20}
