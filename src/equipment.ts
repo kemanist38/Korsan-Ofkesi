@@ -11,17 +11,17 @@ export const RARITY_NAMES=['Sıradan','Nadir','Destansı'] as const;
 const g=(amount:number):Price=>({amount,currency:'gold'}),p=(amount:number):Price=>({amount,currency:'pearls'});
 export const EQUIPMENT:EquipDef[]=[
   {id:'sail-0',slot:'sail',rarity:0,name:'Kanvas Yelken',price:g(5000),stats:{speed:.05}},
-  {id:'sail-1',slot:'sail',rarity:1,name:'İpek Yelken',price:p(150),stats:{speed:.10}},
-  {id:'sail-2',slot:'sail',rarity:2,name:'Fırtına Yelkeni',price:p(600),stats:{speed:.16}},
+  {id:'sail-1',slot:'sail',rarity:1,name:'İpek Yelken',price:p(600),stats:{speed:.10}},
+  {id:'sail-2',slot:'sail',rarity:2,name:'Fırtına Yelkeni',price:p(2500),stats:{speed:.16}},
   {id:'figure-0',slot:'figure',rarity:0,name:'Ahşap Deniz Kızı',price:g(8000),stats:{damage:.04}},
-  {id:'figure-1',slot:'figure',rarity:1,name:'Tunç Aslan',price:p(200),stats:{damage:.08}},
-  {id:'figure-2',slot:'figure',rarity:2,name:'Altın Kraken',price:p(800),stats:{damage:.13}},
+  {id:'figure-1',slot:'figure',rarity:1,name:'Tunç Aslan',price:p(800),stats:{damage:.08}},
+  {id:'figure-2',slot:'figure',rarity:2,name:'Altın Kraken',price:p(3500),stats:{damage:.13}},
   {id:'armor-0',slot:'armor',rarity:0,name:'Meşe Kaplama',price:g(6000),stats:{hp:.06}},
-  {id:'armor-1',slot:'armor',rarity:1,name:'Bakır Kaplama',price:p(180),stats:{hp:.12}},
-  {id:'armor-2',slot:'armor',rarity:2,name:'Ejder Pulu Zırh',price:p(700),stats:{hp:.20}},
+  {id:'armor-1',slot:'armor',rarity:1,name:'Bakır Kaplama',price:p(720),stats:{hp:.12}},
+  {id:'armor-2',slot:'armor',rarity:2,name:'Ejder Pulu Zırh',price:p(3000),stats:{hp:.20}},
   {id:'carriage-0',slot:'carriage',rarity:0,name:'Demir Kundak',price:g(7000),stats:{reload:.05}},
-  {id:'carriage-1',slot:'carriage',rarity:1,name:'Çelik Kundak',price:p(200),stats:{reload:.09}},
-  {id:'carriage-2',slot:'carriage',rarity:2,name:'Döner Kundak',price:p(800),stats:{reload:.14,range:40}},
+  {id:'carriage-1',slot:'carriage',rarity:1,name:'Çelik Kundak',price:p(800),stats:{reload:.09}},
+  {id:'carriage-2',slot:'carriage',rarity:2,name:'Döner Kundak',price:p(3000),stats:{reload:.14,range:40}},
 ];
 export const equipById=(id:string)=>EQUIPMENT.find(e=>e.id===id);
 export const equipCell=(e:EquipDef)=>({col:EQUIP_SLOTS.findIndex(s=>s.id===e.slot),row:e.rarity});

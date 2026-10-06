@@ -1,3 +1,4 @@
+import {ELITE_THRESHOLD_SCALE} from './economy';
 // Özel yetenekler ve yeni mühimmatlar. Hesap kaydına dokunmamak için ayrı anahtarda saklanır.
 export type AbilityId='speed'|'mine';
 export type ArsenalStock={fire:number;grape:number;mine:number;powder:number;shield:number;speed:number;explosive:number;breaker:number;leech:number;seeded:boolean;seededV2:boolean;ballsV1:boolean};
@@ -32,13 +33,11 @@ export type SpecialAmmo=keyof typeof SPECIAL_AMMO;
 
 // Ateş güllesi yanması (Seafight Pyreball: 50 hasar + 12 sn boyunca 3 sn'de bir 10 = gülle başına %80 ek hasar)
 export const FIRE_DOT_SHARE=.8;
-// Elit puan: yalnızca inciyle alınan (elit) güllelerle ateş edilince kazanılır; gülle başına, gülle değeriyle orantılı
-// (≈ harcanan her inci için 10 elit puan). Seafight'ta da elit puan elit/inci güllesiyle yapılan atışlardan gelir.
-export const ELITE_POINTS_PER_BALL={grape:.1,fire:.2,breaker:.3,explosive:.4,leech:.5} as const;
+// Her tüketilen elit gülle 0,10 EP verir; gülle fiyatı ilerleme hızını belirlemez.
+export const ELITE_POINTS_PER_BALL={grape:.1,fire:.1,breaker:.1,explosive:.1,leech:.1} as const;
 // Elit sınıf (1–15) yalnızca elit puanla (EP) yükselir. Eşikler toplam EP'dir ve her basamak bir öncekinden pahalıdır.
-// ELITE_EP[n] = Elit n'nin açıldığı toplam EP (Elit 1 = 0, inciyle açılır). ~10 EP / harcanan inci: Elit 15 ≈ 500.000 inci
-// (≈ 12,5 milyon patlayıcı gülle); her gün oynayıp inci alan biri için ~3–4 hafta.
-export const ELITE_EP=[0,0,25000,65000,130000,230000,360000,530000,750000,1020000,1360000,1780000,2300000,2950000,3850000,5000000];
+// Toplam EP eşikleri. Elit 15: 3,6 milyon EP; hedef bazlı tüketim modeli tools/simulate-economy.cjs içinde.
+export const ELITE_EP=[0,0,25000,65000,130000,230000,360000,530000,750000,1020000,1360000,1780000,2300000,2950000,3850000,5000000].map(n=>Math.round(n*ELITE_THRESHOLD_SCALE));
 export const ELITE_MAX_LEVEL=15;
 export const eliteLevelEp=(level:number)=>ELITE_EP[Math.max(1,Math.min(ELITE_MAX_LEVEL,level))];
 export const eliteLevelFromEp=(ep:number)=>{let l=1;while(l<ELITE_MAX_LEVEL&&ep>=eliteLevelEp(l+1))l++;return l;};
@@ -46,10 +45,10 @@ export const MINE={armSeconds:1,triggerRadius:46,blastRadius:95,baseDamage:4000,
 
 // Dükkân birim fiyatları (altın). Oyuncu istediği adedi yazar; toplam = adet × birim fiyat.
 // Temel gülle (zincir) altınla, güçlü gülleler inciyle alınır; inci fiyatı sırasıyla artar.
-// Seafight'taki gibi her top her salvoda 1 gülle harcar, bu yüzden gülleler 100'lük birim fiyatla satılır (per=100).
+// Her top her salvoda 1 gülle harcar. Elit fiyatları 300, zincir fiyatı 100 gülle içindir.
 export type Price={amount:number;currency:'gold'|'pearls';per?:number};
 export const priceOf=(p:Price,qty:number)=>Math.ceil(qty*p.amount/(p.per??1));
-export const AMMO_PRICES={chain:{amount:10,currency:'gold',per:100},grape:{amount:1,currency:'pearls',per:100},fire:{amount:2,currency:'pearls',per:100},breaker:{amount:3,currency:'pearls',per:100},explosive:{amount:4,currency:'pearls',per:100},leech:{amount:5,currency:'pearls',per:100}} as const satisfies Record<string,Price>;
+export const AMMO_PRICES={chain:{amount:10,currency:'gold',per:100},grape:{amount:1,currency:'pearls',per:300},fire:{amount:2,currency:'pearls',per:300},breaker:{amount:3,currency:'pearls',per:300},explosive:{amount:4,currency:'pearls',per:300},leech:{amount:5,currency:'pearls',per:300}} as const satisfies Record<string,Price>;
 export const SUPPLY_PRICES={powder:{amount:3,currency:'gold'},shield:{amount:3,currency:'gold'},speed:{amount:2,currency:'pearls'},mine:{amount:5,currency:'pearls'}} as const satisfies Record<string,Price>;
 export type SupplyId=keyof typeof SUPPLY_PRICES;
 

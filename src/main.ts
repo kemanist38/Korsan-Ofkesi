@@ -1,3 +1,4 @@
+import {ELITE_ENTRY_PRICE,CANNON_COSTS,UPGRADE_PRICE_MULTIPLIER,ELITE_ECONOMY_VERSION,migrateElitePoints} from './economy';
 import {migrateQuestRules,type SavedQuests} from './quest-migration';
 import {ELITE_CANNON_CAPACITY,ELITE_REWARDS,cumulativeEliteBonus,eliteBonusText} from './elite-progression';
 import {drawMysticPlayerMarker} from './player-marker';
@@ -55,7 +56,7 @@ type Target = Enemy|Monster;
 type UpgradeKind = 'hull'|'damage'|'range'|'reload'|'speed'|'repair';
 type QuickItemId = 'iron'|'chain'|SpecialAmmo|'mine'|'powder'|'shield'|'repairkit'|'speed';
 type ShipSelection='starter'|EliteShipId;
-const ELITE_ONE_PRICE=250;
+const ELITE_ONE_PRICE=ELITE_ENTRY_PRICE;
 // Test süresince elit gemiler ve 8. seviyeye kadar tüm haritalar açık.
 const ELITE_TEST_MODE=true;
 const CANNONS:Record<CannonKind,{name:string;damage:number;range:number;reload:number}>={
@@ -129,9 +130,9 @@ const keys = new Set<string>();
 const QUEST_STORAGE='yedi-deniz-quests-v2';
 const ACCOUNT_STORAGE='yedi-deniz-account-v1';
 let storedQuests:SavedQuests|null=null;
-let storedAccount:{pearls?:number;gold:number;wood?:number;fame:number;level:number;maxHp:number;hp:number;chainAmmo:number;elitePoints?:number;battlePoints?:number;cannonType?:CannonKind;cannonInventory?:CannonStock;mountedCannons?:CannonStock;equipOwned?:Record<string,number>;equipped?:Partial<Record<EquipSlot,string|null>>;quickSlots?:Array<QuickItemId|null>;upgrades:Record<UpgradeKind,number>;eliteShip?:EliteShipId;activeShip?:ShipSelection;elitePurchased?:boolean;currentMap?:MapKey}|null=null;
+let storedAccount:{pearls?:number;gold:number;wood?:number;fame:number;level:number;maxHp:number;hp:number;chainAmmo:number;elitePoints?:number;eliteEconomyVersion?:number;battlePoints?:number;cannonType?:CannonKind;cannonInventory?:CannonStock;mountedCannons?:CannonStock;equipOwned?:Record<string,number>;equipped?:Partial<Record<EquipSlot,string|null>>;quickSlots?:Array<QuickItemId|null>;upgrades:Record<UpgradeKind,number>;eliteShip?:EliteShipId;activeShip?:ShipSelection;elitePurchased?:boolean;currentMap?:MapKey}|null=null;
 try{storedQuests=migrateQuestRules(JSON.parse(localStorage.getItem(QUEST_STORAGE)||'null'));if(storedQuests)localStorage.setItem(QUEST_STORAGE,JSON.stringify(storedQuests));}catch{storedQuests=null;}
-try{storedAccount=JSON.parse(localStorage.getItem(ACCOUNT_STORAGE)||'null');}catch{storedAccount=null;}
+try{storedAccount=JSON.parse(localStorage.getItem(ACCOUNT_STORAGE)||'null');if(storedAccount){storedAccount.elitePoints=migrateElitePoints(storedAccount.elitePoints??0,storedAccount.eliteEconomyVersion);storedAccount.eliteEconomyVersion=ELITE_ECONOMY_VERSION;}}catch{storedAccount=null;}
 const storedActive=storedQuests?.active&&QUESTS.some(q=>q.id===storedQuests!.active)?storedQuests.active:null;
 const BASE_HP=75000,HP_PER_LEVEL=2500,HP_PER_HULL=2500,BASE_CANNONS=100;
 const upgrades:Record<UpgradeKind,number>={hull:storedAccount?.upgrades?.hull||0,damage:storedAccount?.upgrades?.damage||0,range:storedAccount?.upgrades?.range||0,reload:storedAccount?.upgrades?.reload||0,speed:storedAccount?.upgrades?.speed||0,repair:storedAccount?.upgrades?.repair||0};
@@ -684,7 +685,7 @@ function fireAtTarget(){
   player.cooldown=(1-equipBonus().reload)*cannon.reload*Math.max(.6,1-upgrades.reload*.04)*bonus.reload/(1+eliteBonus().reload)*(state.ammo==='chain'?1.18:1)*(isSpecial(state.ammo)?SPECIAL_AMMO[state.ammo].reload:1);
 }
 function gainElitePoints(ep:number){
-  ep*=epMult();if(ep<=0)return;const before=eliteLevelFromEp(state.elitePoints);state.elitePoints+=ep;const after=eliteLevelFromEp(state.elitePoints);saveAccount();
+  ep*=epMult();if(ep<=0)return;const before=eliteLevelFromEp(state.elitePoints);state.elitePoints=Math.round((state.elitePoints+ep)*1000)/1000;const after=eliteLevelFromEp(state.elitePoints);saveAccount();
   if(after>before&&elitePurchased){const ship=ELITE_SHIPS.find(x=>x.level===after);rewardNotice(`ELİT ${after} AÇILDI${ship?`   ${ship.name.toLocaleUpperCase('tr')}`:''}`);toast('Yeni elit gemi TERSANE\'de açıldı');}
 }
 // Elit puan çubuğu: mevcut elit seviyesinden bir sonrakine ilerleme
@@ -757,7 +758,7 @@ function sinkNotice(name:string,sp:number){
   setTimeout(()=>line.remove(),4000);
 }
 function saveQuestState(){localStorage.setItem(QUEST_STORAGE,JSON.stringify({rulesVersion:2,active:state.activeQuest,progress:questProgress,cooldowns:questCooldownUntil}));}
-function saveAccount(){localStorage.setItem(ACCOUNT_STORAGE,JSON.stringify({pearls:state.pearls,gold:state.gold,fame:state.fame,level:state.level,maxHp:state.maxHp,hp:state.hp,chainAmmo:state.chainAmmo,elitePoints:state.elitePoints,battlePoints:state.battlePoints,cannonType:state.cannonType,cannonInventory,mountedCannons,equipOwned,equipped,quickSlots,upgrades,eliteShip:activeEliteShip,activeShip,elitePurchased,currentMap}));try{localStorage.setItem(WORLD_STORAGE,currentMap);}catch{}}
+function saveAccount(){localStorage.setItem(ACCOUNT_STORAGE,JSON.stringify({pearls:state.pearls,gold:state.gold,fame:state.fame,level:state.level,maxHp:state.maxHp,hp:state.hp,chainAmmo:state.chainAmmo,elitePoints:state.elitePoints,eliteEconomyVersion:ELITE_ECONOMY_VERSION,battlePoints:state.battlePoints,cannonType:state.cannonType,cannonInventory,mountedCannons,equipOwned,equipped,quickSlots,upgrades,eliteShip:activeEliteShip,activeShip,elitePurchased,currentMap}));try{localStorage.setItem(WORLD_STORAGE,currentMap);}catch{}}
 function effectiveRange(){return(CANNONS[state.cannonType].range+upgrades.range*18+bonus.range+equipBonus().range+(elitePassive('jade')?20:0))*(state.ammo==='grape'?SPECIAL_AMMO.grape.rangeFactor:1);}
 function effectiveSpeed(){return(128+upgrades.speed*5)*bonus.speed*(1+equipBonus().speed+eliteBonus().speed)*(abilityActive('speed')?SPEED_BOOST:1)*(elitePassive('tempest')?1.05:1)*(elitePassive('sand')?1.1:1)*(rageActive(rage)?RAGE_SPEED:1);}
 function cannonCapacity(){return earnedEliteLevel()>0?ELITE_CANNON_CAPACITY:BASE_CANNONS;}
@@ -767,7 +768,7 @@ function cannonAsset(kind:CannonKind){
 }
 function cooldownText(until:number){const minutes=Math.max(1,Math.ceil((until-Date.now())/60000)),hours=Math.floor(minutes/60),mins=minutes%60;return hours>0?`${hours} sa ${mins} dk`:`${mins} dk`;}
 let pendingUpgrade:UpgradeKind|null=null;
-function upgradeCost(kind:UpgradeKind){return Math.round(UPGRADES[kind].pearls*(1+upgrades[kind]*.55));}
+function upgradeCost(kind:UpgradeKind){return Math.round(UPGRADES[kind].pearls*UPGRADE_PRICE_MULTIPLIER*(1+upgrades[kind]*.55));}
 function upgradeIcon(kind:UpgradeKind){return `<i class="sprite icon-${kind}"></i>`;}
 function openShipMenu(){pendingUpgrade=null;renderShipMenu();ui('shipOverlay').classList.add('open');}
 function closeShipMenu(){pendingUpgrade=null;ui('shipOverlay').classList.remove('open');}
@@ -833,7 +834,7 @@ function bindCannonDrag(){
 }
 // Top dükkânı: toplar altınla alınır ve depoya gider.
 // Döküm top altınla; uzun, seri ve ağır toplar inciyle alınır (inci fiyatı sırasıyla artar).
-const CANNON_PRICES:Record<CannonKind,Price>={cast:{amount:40,currency:'gold'},long:{amount:1,currency:'pearls'},rapid:{amount:2,currency:'pearls'},heavy:{amount:3,currency:'pearls'}};
+const CANNON_PRICES:Record<CannonKind,Price>=CANNON_COSTS;
 function equipIcon(id:string,cls='equip-icon'){const e=equipById(id);return e?`<i class="${cls} rarity-${e.rarity}" style="${equipIconStyle(e)}"></i>`:'';}
 function openEquipShop(){renderEquipShop();ui('equipShopOverlay').classList.add('open');}
 function closeEquipShop(){ui('equipShopOverlay').classList.remove('open');}
@@ -966,7 +967,7 @@ function openMarket(){renderMarket();ui('marketOverlay').classList.add('open');}
 function closeMarket(){ui('marketOverlay').classList.remove('open');}
 function renderMarket(){
   renderBuyRows('marketList',(Object.keys(AMMO_PRICES) as (keyof typeof AMMO_PRICES)[]).map(id=>({id,name:QUICK_ITEMS[id].name,art:`<div class="ammo-icon">${itemAsset(id)}<b>${quickCount(id)}</b></div>`,
-    desc:id==='chain'?QUICK_ITEMS.chain.description:SPECIAL_AMMO[id].description,unit:AMMO_PRICES[id],give:(n:number)=>{if(id==='chain')state.chainAmmo+=n;else arsenal[id]+=n;},after:renderMarket})));
+    desc:id==='chain'?QUICK_ITEMS.chain.description:`${SPECIAL_AMMO[id].description} · Her gülle ${ELITE_POINTS_PER_BALL[id].toLocaleString('tr-TR')} EP`,unit:AMMO_PRICES[id],give:(n:number)=>{if(id==='chain')state.chainAmmo+=n;else arsenal[id]+=n;},after:renderMarket})));
 }
 function openSupply(){renderSupply();ui('supplyOverlay').classList.add('open');}
 function closeSupply(){ui('supplyOverlay').classList.remove('open');}
