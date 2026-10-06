@@ -106,3 +106,8 @@ body.shop-open .shop-overlay{background:#07060999;padding-bottom:12px}
 .top-status .elite-line>i>em{background:linear-gradient(90deg,#127567,#43dcb0)}
 .top-status .status-line b{left:19%;right:2%;font-variant-numeric:tabular-nums;white-space:nowrap}
 .map-cluster .zoom-controls button:focus-visible{outline:2px solid #ffd98b;outline-offset:2px;background:#ffe09b20}
+.combat-target .target-info b{font-size:8px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.siege-board li{grid-template-columns:minmax(0,1fr) auto 28px;gap:4px;font-variant-numeric:tabular-nums}
+.siege-board li b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.siege-board li em{font-size:10px;white-space:nowrap}
+.slot-bar .quick-slot>b{left:0;right:0;padding:0;font-size:7px;text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}

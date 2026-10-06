@@ -522,7 +522,7 @@ function bossFire(e:Enemy){
 function defeatBoss(e:Enemy){
   const b=e.boss!;stopBossMusic();gainRage(rage,RAGE_PER_BOSS);state.fame+=xpGain(b.xp);bumpAch('boss');state.pearls+=b.pearls;bossOf(currentMap).pending=false;saveBosses();saveAccount();
   for(let n=0;n<3;n++)setTimeout(()=>{burst(e.x+(Math.random()-.5)*80,e.y+(Math.random()-.5)*50,true);playExplosion();},n*260);
-  rewardNotice(`${b.name.toLocaleUpperCase('tr')} BATIRILDI   +${b.xp.toLocaleString('tr-TR')} TP   +${b.pearls} İnci`);toast(`${b.name} denizin dibine gönderildi!`);
+  rewardNotice(`${b.name.toLocaleUpperCase('tr')} BATIRILDI   +${b.xp.toLocaleString('tr-TR')} TP   +${fmt(b.pearls)} İnci`);toast(`${b.name} denizin dibine gönderildi!`);
 }
 function populateMap(){
   stopBossMusic();abilityQueue.length=0;
@@ -780,13 +780,13 @@ function renderShipMenu(){
   document.querySelectorAll<HTMLButtonElement>('[data-inv-mode]').forEach(b=>{b.classList.toggle('active',b.dataset.invMode===invMode);b.onclick=()=>{invMode=b.dataset.invMode as typeof invMode;renderShipMenu();};});
   if(invMode==='equip'){renderEquipInventory();return;}
   state.cannon=mountedCannonCount();const activeCannon=CANNONS[state.cannonType],kinds=Object.keys(CANNONS) as CannonKind[];
-  ui('shipSummary').innerHTML=`<b>${state.cannon} / ${cannonCapacity()}</b><small>SALVO HASARI ${Math.round(state.cannon*BALL_DAMAGE*(1+equipBonus().damage+achBonus().damage+eliteBonus().damage)*(1+upgrades.damage*.11)*activeCannon.damage*bonus.damage)}</small>`;
+  ui('shipSummary').innerHTML=`<b>${state.cannon} / ${cannonCapacity()}</b><small>SALVO HASARI ${fmt(Math.round(state.cannon*BALL_DAMAGE*(1+equipBonus().damage+achBonus().damage+eliteBonus().damage)*(1+upgrades.damage*.11)*activeCannon.damage*bonus.damage))}</small>`;
   const tiles=(side:'depot'|'ship')=>{const list=kinds.filter(k=>(side==='ship'?mountedCannons[k]:cannonInventory[k])>0);
-    return list.map(k=>`<button class="inv-tile ${invSelected===k?'selected':''} ${side==='ship'&&state.cannonType===k?'active':''}" data-inv="${k}" data-side="${side}" title="${CANNONS[k].name} Top">${cannonAsset(k)}<b>${side==='ship'?mountedCannons[k]:cannonInventory[k]}</b>${side==='ship'&&state.cannonType===k?'<i>AKTİF</i>':''}</button>`).join('')+'<span class="inv-empty"></span>'.repeat(Math.max(0,INV_CELLS-list.length));};
+    return list.map(k=>`<button class="inv-tile ${invSelected===k?'selected':''} ${side==='ship'&&state.cannonType===k?'active':''}" data-inv="${k}" data-side="${side}" title="${CANNONS[k].name} Top">${cannonAsset(k)}<b>${fmt(side==='ship'?mountedCannons[k]:cannonInventory[k])}</b>${side==='ship'&&state.cannonType===k?'<i>AKTİF</i>':''}</button>`).join('')+'<span class="inv-empty"></span>'.repeat(Math.max(0,INV_CELLS-list.length));};
   ui('invDepot').innerHTML=tiles('depot');ui('invShip').innerHTML=tiles('ship');
   const c=CANNONS[invSelected],active=state.cannonType===invSelected,prev=(document.getElementById('invAmount') as HTMLInputElement|null)?.value??'1';
   ui('cannonRows').innerHTML=`<div class="inv-info-art">${cannonAsset(invSelected)}</div><h3>${c.name} Top</h3>
-    <dl><dt>Hasar</dt><dd>×${c.damage.toFixed(2)}</dd><dt>Menzil</dt><dd>${c.range}</dd><dt>Dolum</dt><dd>${c.reload.toFixed(2)} sn</dd><dt>Depoda</dt><dd>${cannonInventory[invSelected]}</dd><dt>Gemide</dt><dd>${mountedCannons[invSelected]}</dd></dl>
+    <dl><dt>Hasar</dt><dd>×${c.damage.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})}</dd><dt>Menzil</dt><dd>${c.range}</dd><dt>Dolum</dt><dd>${c.reload.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})} sn</dd><dt>Depoda</dt><dd>${fmt(cannonInventory[invSelected])}</dd><dt>Gemide</dt><dd>${fmt(mountedCannons[invSelected])}</dd></dl>
     <label class="inv-amount"><span>Adet</span><input type="number" min="1" value="${prev}" id="invAmount"/><button type="button" id="invAll" title="Hepsini seç">HEPSİ</button></label>
     <button class="inv-equip" id="invEquip" ${mountedCannons[invSelected]<=0||active?'disabled':''}>${active?'AKTİF TOP':'AKTİF YAP'}</button>`;
   const amount=()=>Math.max(1,Math.floor(Number((ui('invAmount') as HTMLInputElement).value)||1));
@@ -800,11 +800,11 @@ function renderShipMenu(){
 function renderEquipInventory(){
   const b=equipBonus();ui('shipSummary').innerHTML=`<b>${EQUIP_SLOTS.filter(s=>equipped[s.id]).length} / ${EQUIP_SLOTS.length}</b><small>TAKILI DONANIM</small>`;
   const owned=EQUIPMENT.filter(e=>(equipOwned[e.id]??0)>0);
-  ui('invDepot').innerHTML=owned.map(e=>`<button class="inv-tile equip-tile rarity-${e.rarity} ${invEquipSel===e.id?'selected':''}" data-inv="${e.id}" data-side="depot" title="${e.name}">${equipIcon(e.id)}<b>${equipOwned[e.id]}</b></button>`).join('')+'<span class="inv-empty"></span>'.repeat(Math.max(0,INV_CELLS-owned.length));
+  ui('invDepot').innerHTML=owned.map(e=>`<button class="inv-tile equip-tile rarity-${e.rarity} ${invEquipSel===e.id?'selected':''}" data-inv="${e.id}" data-side="depot" title="${e.name}">${equipIcon(e.id)}<b>${fmt(equipOwned[e.id])}</b></button>`).join('')+'<span class="inv-empty"></span>'.repeat(Math.max(0,INV_CELLS-owned.length));
   ui('invShip').innerHTML=EQUIP_SLOTS.map(sl=>{const id=equipped[sl.id],e=id?equipById(id):undefined;
     return e?`<button class="inv-tile equip-tile rarity-${e.rarity} ${invEquipSel===e.id?'selected':''}" data-inv="${e.id}" data-side="ship" title="${e.name}">${equipIcon(e.id)}<small class="slot-name">${sl.name}</small></button>`:`<span class="inv-empty equip-slot"><small>${sl.name}</small></span>`;}).join('');
   const e=invEquipSel?equipById(invEquipSel):undefined;
-  ui('cannonRows').innerHTML=e?`<div class="inv-info-art">${equipIcon(e.id,'equip-icon big')}</div><h3>${e.name}</h3><dl><dt>Yuva</dt><dd>${EQUIP_SLOTS.find(s=>s.id===e.slot)!.name}</dd><dt>Nadirlik</dt><dd class="rarity-text-${e.rarity}">${RARITY_NAMES[e.rarity]}</dd><dt>Etki</dt><dd>${equipStatText(e.stats)}</dd><dt>Depoda</dt><dd>${equipOwned[e.id]??0}</dd><dt>Gemide</dt><dd>${equipped[e.slot]===e.id?'Takılı':'—'}</dd></dl>
+  ui('cannonRows').innerHTML=e?`<div class="inv-info-art">${equipIcon(e.id,'equip-icon big')}</div><h3>${e.name}</h3><dl><dt>Yuva</dt><dd>${EQUIP_SLOTS.find(s=>s.id===e.slot)!.name}</dd><dt>Nadirlik</dt><dd class="rarity-text-${e.rarity}">${RARITY_NAMES[e.rarity]}</dd><dt>Etki</dt><dd>${equipStatText(e.stats)}</dd><dt>Depoda</dt><dd>${fmt(equipOwned[e.id]??0)}</dd><dt>Gemide</dt><dd>${equipped[e.slot]===e.id?'Takılı':'—'}</dd></dl>
     <button class="inv-equip" id="invEquipToggle">${equipped[e.slot]===e.id?'YUVADAN ÇIKAR':'GEMİYE TAK'}</button>`
     :`<h3>Donanım</h3><p class="inv-hint">Bir parçaya dokun. Sağa sürükle ya da ➡ ile gemiye tak; ⬅ ile depoya al.</p><dl><dt>Hız</dt><dd>+%${Math.round(b.speed*100)}</dd><dt>Top hasarı</dt><dd>+%${Math.round(b.damage*100)}</dd><dt>Can</dt><dd>+%${Math.round(b.hp*100)}</dd><dt>Dolum</dt><dd>−%${Math.round(b.reload*100)}</dd><dt>Menzil</dt><dd>+${b.range}</dd></dl>`;
   const toggle=document.getElementById('invEquipToggle');if(toggle&&e)toggle.onclick=()=>equipped[e.slot]===e.id?unequipSlot(e.slot):equipItem(e.id);
@@ -839,15 +839,15 @@ function equipIcon(id:string,cls='equip-icon'){const e=equipById(id);return e?`<
 function openEquipShop(){renderEquipShop();ui('equipShopOverlay').classList.add('open');}
 function closeEquipShop(){ui('equipShopOverlay').classList.remove('open');}
 function renderEquipShop(){
-  renderBuyRows('equipShopList',EQUIPMENT.map(e=>({id:e.id,name:e.name,art:`<div class="ammo-icon equip-shop-art rarity-${e.rarity}">${equipIcon(e.id)}<b>${equipOwned[e.id]??0}</b></div>`,
-    desc:`${EQUIP_SLOTS.find(s=>s.id===e.slot)!.name} · ${RARITY_NAMES[e.rarity]} · ${equipStatText(e.stats)}`,note:`Depoda ${equipOwned[e.id]??0}${equipped[e.slot]===e.id?' · Gemide takılı':''} · ENVANTER → DONANIM'dan gemiye tak`,unit:e.price,
+  renderBuyRows('equipShopList',EQUIPMENT.map(e=>({id:e.id,name:e.name,art:`<div class="ammo-icon equip-shop-art rarity-${e.rarity}">${equipIcon(e.id)}<b>${fmt(equipOwned[e.id]??0)}</b></div>`,
+    desc:`${EQUIP_SLOTS.find(s=>s.id===e.slot)!.name} · ${RARITY_NAMES[e.rarity]} · ${equipStatText(e.stats)}`,note:`Depoda ${fmt(equipOwned[e.id]??0)}${equipped[e.slot]===e.id?' · Gemide takılı':''} · ENVANTER → DONANIM'dan gemiye tak`,unit:e.price,
     give:(n:number)=>{equipOwned[e.id]=(equipOwned[e.id]??0)+n;},after:renderEquipShop})));
 }
 function openCannonShop(){renderCannonShop();ui('cannonShopOverlay').classList.add('open');}
 function closeCannonShop(){ui('cannonShopOverlay').classList.remove('open');}
 function renderCannonShop(){
   renderBuyRows('cannonShopList',(Object.keys(CANNONS) as CannonKind[]).map(kind=>{const c=CANNONS[kind];return{id:kind,name:`${c.name} Top`,art:`<div class="ammo-icon cannon-shop-art">${cannonAsset(kind)}</div>`,
-    desc:`Hasar ×${c.damage.toFixed(2)} · Menzil ${c.range} · Dolum ${c.reload.toFixed(2)} sn`,note:`Depoda ${cannonInventory[kind]} · Gemide ${mountedCannons[kind]} · Toplar depoya gider`,unit:CANNON_PRICES[kind],
+    desc:`Hasar ×${c.damage.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})} · Menzil ${c.range} · Dolum ${c.reload.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})} sn`,note:`Depoda ${fmt(cannonInventory[kind])} · Gemide ${fmt(mountedCannons[kind])} · Toplar depoya gider`,unit:CANNON_PRICES[kind],
     give:(n:number)=>{cannonInventory[kind]+=n;},after:renderCannonShop};}));
 }
 // Gemi değişince (ör. elitten başlangıç gemisine) yuva sayısı düşebilir; taşan toplar depoya iner.
@@ -870,7 +870,7 @@ function equipStarterShip(){
 }
 function purchaseEliteOne(){
   if(elitePurchased)return;
-  if(state.pearls<ELITE_ONE_PRICE){toast(`Elit 1 için ${ELITE_ONE_PRICE} İnci gerekli`);return;}
+  if(state.pearls<ELITE_ONE_PRICE){toast(`Elit 1 için ${fmt(ELITE_ONE_PRICE)} İnci gerekli`);return;}
   activeSpecialDesign=null;saveSpecialDesign(null);state.pearls-=ELITE_ONE_PRICE;elitePurchased=true;activeEliteShip='phantom';activeShip='phantom';previewShip='phantom';saveAccount();renderEliteShips();updateUI();rewardNotice('ELİT 1 AÇILDI   HAYALET KADIRGA');toast('Hayalet Kadırga satın alındı');
 }
 function renderEliteShips(){
@@ -881,7 +881,7 @@ function renderEliteShips(){
   const starter=card('starter','Yedi Deniz','<span class="starter-ship-art" role="img" aria-label="Başlangıç gemisi"></span>','0 EP','Özel pasif yok.',activeShip==='starter'&&!activeSpecialDesign);
   const cards=ELITE_SHIPS.map(ship=>{
     const purchase=ship.level===1&&!elitePurchased&&!ELITE_TEST_MODE;
-    const requirement=`${eliteLevelEp(ship.level).toLocaleString('tr-TR')} EP${purchase?` · ${ELITE_ONE_PRICE} İnci`:''}`;
+    const requirement=`${eliteLevelEp(ship.level).toLocaleString('tr-TR')} EP${purchase?` · ${fmt(ELITE_ONE_PRICE)} İnci`:''}`;
     return card(ship.id,ship.name,`<img class="elite-art" src="${eliteArtUrl(ship.id)}" alt="" draggable="false"/>`,requirement,`Kalıcı: ${eliteBonusText(ELITE_REWARDS[ship.level],true)} · Tasarım: ${ship.passive}`,activeShip===ship.id&&!activeSpecialDesign,ship.level>unlocked&&!purchase,purchase?'SATIN AL':'SEÇ');
   }).join('');
   const grid=ui('eliteShipGrid'),scroll=ui('eliteShipGrid').parentElement!.scrollTop;
@@ -913,14 +913,14 @@ const DEV_BRANCHES:{name:string;icon:string;nodes:({kind:'pearl';id:UpgradeKind}
 ];
 function renderUpgrades(){
   const free=talentPoints(state.level)-spentPoints(crew);
-  ui('upgradeList').innerHTML=`<p class="talent-points">İnci: <b>${state.pearls}</b> · Yetenek puanı: <b>${free}</b> <small>İnci ile temel güçler, seviye başına kazanılan yetenek puanıyla özel yetenekler açılır.</small>${spentPoints(crew)>0?'<button id="resetTalents">PUANLARI SIFIRLA · 5 İNCİ</button>':''}</p><div class="talent-branches">${DEV_BRANCHES.map(branch=>`<section class="talent-branch"><header><img src="${branch.icon}" alt=""/><h3>${branch.name}</h3></header>${branch.nodes.map(node=>{
-    if(node.kind==='pearl'){const item=UPGRADES[node.id],level=upgrades[node.id],maxed=level>=10;return`<button class="talent pearl-node ${level?'owned':''} ${maxed?'maxed':''} ${pendingUpgrade===node.id?'selected':''}" data-upgrade="${node.id}" ${maxed?'disabled':''}><span class="talent-icon">${upgradeIcon(node.id)}</span><span><strong>${item.name}</strong><small>${item.effect} / seviye</small></span><b>${level}/10<em>${maxed?'AZAMİ':`◈ ${upgradeCost(node.id)}`}</em></b></button>`;}
+  ui('upgradeList').innerHTML=`<p class="talent-points">İnci: <b>${fmt(state.pearls)}</b> · Yetenek puanı: <b>${free}</b> <small>İnci ile temel güçler, seviye başına kazanılan yetenek puanıyla özel yetenekler açılır.</small>${spentPoints(crew)>0?'<button id="resetTalents">PUANLARI SIFIRLA · 5 İNCİ</button>':''}</p><div class="talent-branches">${DEV_BRANCHES.map(branch=>`<section class="talent-branch"><header><img src="${branch.icon}" alt=""/><h3>${branch.name}</h3></header>${branch.nodes.map(node=>{
+    if(node.kind==='pearl'){const item=UPGRADES[node.id],level=upgrades[node.id],maxed=level>=10;return`<button class="talent pearl-node ${level?'owned':''} ${maxed?'maxed':''} ${pendingUpgrade===node.id?'selected':''}" data-upgrade="${node.id}" ${maxed?'disabled':''}><span class="talent-icon">${upgradeIcon(node.id)}</span><span><strong>${item.name}</strong><small>${item.effect} / seviye</small></span><b>${level}/10<em>${maxed?'AZAMİ':`◈ ${fmt(upgradeCost(node.id))}`}</em></b></button>`;}
     const t=TALENTS[node.id],rank=crew.talents[node.id]||0,maxed=rank>=t.max;return`<button class="talent ${rank?'owned':''} ${maxed?'maxed':''}" data-talent="${node.id}" ${free<=0||maxed?'disabled':''}><img src="${t.icon}" alt=""/><span><strong>${t.name}</strong><small>${t.per} / kademe</small></span><b>${rank}/${t.max}<em>1 PUAN</em></b></button>`;}).join('')}</section>`).join('')}</div>`;
   document.querySelectorAll<HTMLButtonElement>('[data-upgrade]').forEach(button=>button.onclick=()=>requestUpgrade(button.dataset.upgrade as UpgradeKind));
   document.querySelectorAll<HTMLButtonElement>('[data-talent]').forEach(b=>b.onclick=()=>{const id=b.dataset.talent as TalentId;if(talentPoints(state.level)-spentPoints(crew)<=0)return;crew.talents[id]=(crew.talents[id]||0)+1;refreshBonus();renderUpgrades();toast(`${TALENTS[id].name} ${crew.talents[id]}. kademe`);});
   const reset=document.getElementById('resetTalents');if(reset)reset.onclick=()=>{if(state.pearls<5){toast('Sıfırlamak için 5 İnci gerekli');return;}state.pearls-=5;crew.talents={};saveAccount();refreshBonus();renderUpgrades();updateUI();toast('Yetenek puanları iade edildi');};
   if(!pendingUpgrade){ui('upgradeConfirm').classList.remove('visible');ui('upgradeConfirm').innerHTML='';return;}
-  const item=UPGRADES[pendingUpgrade],cost=upgradeCost(pendingUpgrade);ui('upgradeConfirm').classList.add('visible');ui('upgradeConfirm').innerHTML=`<div><strong>${item.name} yükseltmesini onaylıyor musun?</strong><span>${cost} İnci harcanacak.</span></div><button id="confirmUpgrade">SATIN AL</button><button id="cancelUpgrade">VAZGEÇ</button>`;
+  const item=UPGRADES[pendingUpgrade],cost=upgradeCost(pendingUpgrade);ui('upgradeConfirm').classList.add('visible');ui('upgradeConfirm').innerHTML=`<div><strong>${item.name} yükseltmesini onaylıyor musun?</strong><span>${fmt(cost)} İnci harcanacak.</span></div><button id="confirmUpgrade">SATIN AL</button><button id="cancelUpgrade">VAZGEÇ</button>`;
   ui('confirmUpgrade').onclick=buyUpgrade;ui('cancelUpgrade').onclick=()=>{pendingUpgrade=null;renderUpgrades();};
 }
 function equipCannon(kind:CannonKind){
@@ -941,8 +941,6 @@ const CURRENCY_NAME={gold:'altın',pearls:'inci'} as const;
 const wallet=(c:Price['currency'])=>c==='gold'?state.gold:state.pearls;
 const BUY_MAX=100000;
 const fmt=(n:number)=>n.toLocaleString('tr-TR');
-// Yuvalardaki küçük sayaçlar için kısa yazım: 9.999 · 999 B · 4,99 Mn · 1,2 Mr (B = bin, Mn = milyon, Mr = milyar)
-const shortNum=(n:number)=>{const s=(v:number,u:string)=>`${(v<10?Math.floor(v*100)/100:v<100?Math.floor(v*10)/10:Math.floor(v)).toLocaleString('tr-TR')} ${u}`;return n<10000?n.toLocaleString('tr-TR'):n<1e6?s(n/1e3,'B'):n<1e9?s(n/1e6,'Mn'):s(n/1e9,'Mr');};
 let pendingBuy:{row:BuyRow;qty:number}|null=null;
 function renderBuyRows(listId:string,rows:BuyRow[]){
   const list=ui(listId);
@@ -977,7 +975,7 @@ function renderSupply(){
 }
 let loadoutTab:'ammo'|'consumable'='ammo';
 let pendingQuickItem:QuickItemId|null=null;
-function quickCount(item:QuickItemId){if(item==='iron')return'∞';if(item==='chain')return shortNum(state.chainAmmo);if(isSpecial(item)||item==='mine'||item==='powder'||item==='shield'||item==='speed')return shortNum(arsenal[item]);return'';}
+function quickCount(item:QuickItemId){if(item==='iron')return'∞';if(item==='chain')return fmt(state.chainAmmo);if(isSpecial(item)||item==='mine'||item==='powder'||item==='shield'||item==='speed')return fmt(arsenal[item]);return'';}
 function slotKey(index:number){return keyLabel(settings.binds[(index<AMMO_ROW?`ammo${index+1}`:`item${index-AMMO_ROW+1}`) as ActionId]);}
 function itemAsset(item:QuickItemId){return rasterItemAssets[item]?`<img class="raster-item" src="${rasterItemAssets[item]}" alt="${QUICK_ITEMS[item].name}" draggable="false"/>`:`<i class="sprite icon-${QUICK_ITEMS[item].icon}"></i>`;}
 function quickSlotHtml(item:QuickItemId|null,index:number){const row=index<AMMO_ROW?'ammo-row':'item-row',key=slotKey(index),k=key==='—'?'':key;
@@ -1053,10 +1051,10 @@ function renderNick(){
   ui('captainName').textContent=profile.nick.toLocaleUpperCase('tr');
   const wait=profile.named?profile.changedAt+NICK_COOLDOWN_MS-Date.now():0,cost=profile.named?NICK_CHANGE_COST:0,h=Math.ceil(wait/3600000);
   ui('captainNick').innerHTML=`<div><span>KAPTAN ADI</span><strong>${guild?`<em class="guild-tag">[${escapeHtml(guild.tag)}]</em>`:''}${escapeHtml(profile.nick)}</strong>${heroTitle?`<em class="hero-title">★ ${heroTitle.name} · ${Math.ceil((heroTitle.until-Date.now())/86_400_000)} gün</em>`:''}<small>${rankOf(state.level)} · ${profile.named?`Değiştirme ücreti ${NICK_CHANGE_COST} İnci · iki değişiklik arası 1 gün`:'İlk adını ücretsiz belirleyebilirsin'}</small></div>
-    <div class="nick-form"><input id="nickInput" maxlength="${NICK_MAX}" placeholder="Yeni kaptan adı" ${wait>0?'disabled':''}/><button id="nickSave" ${wait>0?'disabled':''}>${wait>0?`${h} SAAT SONRA`:cost?`DEĞİŞTİR · ${cost} İNCİ`:'ADI KAYDET'}</button></div>`;
+    <div class="nick-form"><input id="nickInput" maxlength="${NICK_MAX}" placeholder="Yeni kaptan adı" ${wait>0?'disabled':''}/><button id="nickSave" ${wait>0?'disabled':''}>${wait>0?`${h} SAAT SONRA`:cost?`DEĞİŞTİR · ${fmt(cost)} İNCİ`:'ADI KAYDET'}</button></div>`;
   const btn=document.getElementById('nickSave') as HTMLButtonElement|null;if(!btn||wait>0)return;
   btn.onclick=()=>{const n=(ui('nickInput') as HTMLInputElement).value.trim(),err=nickError(n);if(err){toast(err);return;}if(n===profile.nick){toast('Bu zaten senin adın');return;}
-    if(cost&&state.pearls<cost){toast(`Ad değiştirmek için ${cost} inci gerekli`);return;}state.pearls-=cost;profile.nick=n;profile.changedAt=Date.now();profile.named=true;saveProfile(profile);saveAccount();updateUI();renderNick();rewardNotice(`KAPTAN ADI: ${n}${cost?`   −${cost} İNCİ`:''}`);};
+    if(cost&&state.pearls<cost){toast(`Ad değiştirmek için ${fmt(cost)} inci gerekli`);return;}state.pearls-=cost;profile.nick=n;profile.changedAt=Date.now();profile.named=true;saveProfile(profile);saveAccount();updateUI();renderNick();rewardNotice(`KAPTAN ADI: ${n}${cost?`   −${fmt(cost)} İNCİ`:''}`);};
 }
 // Gemi altındaki ad: [FİLO TAG] nick, altında rütbe
 // Kuşatma Kahramanı unvanı (bir hafta): ad altın çerçeveli bir levhada, altında unvan yazısı
@@ -1082,15 +1080,15 @@ function renderGuild(){
   // Kule resmi: tek tip filo kulesi
   const art=(_slot:number,_type:TowerType,ghost=false)=>`<i class="tower-art ${ghost?'ghost':''}"></i>`;
   const islandHtml=islands.length?islands.map(k=>{const m=MAPS[k],slots=islandSlots(g,k),cost=towerTypeCost(m.tier,buildType),built=slots.filter(Boolean).length;
-    return`<article class="guild-island"><header><div><span class="eyebrow">${m.key} · Seviye ${m.tier}</span><h4>${m.fleet.name}</h4></div><b>${built} / ${TOWER_SLOTS} kule</b></header><div class="tower-slots">${slots.map((t,i)=>t?`<div class="tower-slot built">${art(i,t.type)}<small>${TOWER_TYPES[t.type].name}</small><em><span style="width:${Math.round(t.hp/t.maxHp*100)}%"></span></em></div>`:(ruin=>ruin?`<button class="tower-slot empty ruined" disabled title="Yıkılan kule 1 saat dolmadan yeniden dikilemez">${art(i,buildType,true)}<small>Kaide ${i+1} · yıkık</small><b>${ruinLabel(ruin)} sonra</b></button>`:`<button class="tower-slot empty" data-build="${k}:${i}" ${!allowed||g.treasury<cost?'disabled':''}>${art(i,buildType,true)}<small>Kaide ${i+1}</small><b>${allowed?`DİK · ${cost} İnci`:'YETKİ YOK'}</b></button>`)(ruinLeft(towerRuins,k,i))).join('')}</div></article>`;}).join('')
+    return`<article class="guild-island"><header><div><span class="eyebrow">${m.key} · Seviye ${m.tier}</span><h4>${m.fleet.name}</h4></div><b>${built} / ${TOWER_SLOTS} kule</b></header><div class="tower-slots">${slots.map((t,i)=>t?`<div class="tower-slot built">${art(i,t.type)}<small>${TOWER_TYPES[t.type].name}</small><em><span style="width:${Math.round(t.hp/t.maxHp*100)}%"></span></em></div>`:(ruin=>ruin?`<button class="tower-slot empty ruined" disabled title="Yıkılan kule 1 saat dolmadan yeniden dikilemez">${art(i,buildType,true)}<small>Kaide ${i+1} · yıkık</small><b>${ruinLabel(ruin)} sonra</b></button>`:`<button class="tower-slot empty" data-build="${k}:${i}" ${!allowed||g.treasury<cost?'disabled':''}>${art(i,buildType,true)}<small>Kaide ${i+1}</small><b>${allowed?`DİK · ${fmt(cost)} İnci`:'YETKİ YOK'}</b></button>`)(ruinLeft(towerRuins,k,i))).join('')}</div></article>`;}).join('')
     :`<p class="guild-empty">Filonun henüz bir adası yok. Adalar 5. seviye ve üstü denizlerdedir. Bir adanın bütün kulelerini yıkınca ada filona katılır ve kaideleri boşalır.</p>`;
   const testClaim=FLEET_TEST_ENTRY&&hasFleetIsland()&&fleetOwner()!=='player'?`<button class="guild-test" id="guildClaim">TEST: ${here} adasını filona kat</button>`:'';
   const testRole=FLEET_TEST_ENTRY?`<label class="guild-test-role">TEST · rolün <select id="guildRole">${(Object.keys(ROLE_NAMES) as GuildRole[]).map(r=>`<option value="${r}" ${g.role===r?'selected':''}>${ROLE_NAMES[r]}</option>`).join('')}</select></label>`:'';
-  panel.innerHTML=`<div class="guild-head"><div><span class="eyebrow">Filo</span><h3><em class="guild-tag">[${escapeHtml(g.tag)}]</em> ${escapeHtml(g.name)}</h3><small>${ROLE_NAMES[g.role]}: ${escapeHtml(profile.nick)} (sen) · Üye: 1</small></div><div class="guild-treasury"><span>FİLO HAZİNESİ</span><strong><i class="sprite icon-pearl"></i>${g.treasury} İnci</strong><small>Senin bağışın: ${g.donated} İnci</small></div></div>
-    <div class="guild-members"><span class="eyebrow">Filo üyeleri ve yetkiler</span><div class="member-row"><b>[${escapeHtml(g.tag)}]${escapeHtml(profile.nick)}</b><em class="role ${g.role}">${ROLE_NAMES[g.role]}</em><small>Bağış: ${g.donated} İnci</small></div><p>Kule dikme yetkisi yalnızca <b>Filo Başkanı</b> ve <b>Başkan Yardımcısı</b>ndadır. Başkan, üyelerden birini yardımcı atar. Diğer üyeler hazineye inci bağışlar.</p>${testRole}</div>
-    <div class="guild-donate"><span>İnci bağışla <small>(elindeki: ${state.pearls})</small></span>${[10,50,100].map(n=>`<button data-donate="${n}" ${state.pearls<n?'disabled':''}>+${n}</button>`).join('')}<input id="donateAmount" type="number" min="1" max="${state.pearls}" placeholder="Miktar"/><button id="donateCustom">BAĞIŞLA</button></div>
+  panel.innerHTML=`<div class="guild-head"><div><span class="eyebrow">Filo</span><h3><em class="guild-tag">[${escapeHtml(g.tag)}]</em> ${escapeHtml(g.name)}</h3><small>${ROLE_NAMES[g.role]}: ${escapeHtml(profile.nick)} (sen) · Üye: 1</small></div><div class="guild-treasury"><span>FİLO HAZİNESİ</span><strong><i class="sprite icon-pearl"></i>${fmt(g.treasury)} İnci</strong><small>Senin bağışın: ${fmt(g.donated)} İnci</small></div></div>
+    <div class="guild-members"><span class="eyebrow">Filo üyeleri ve yetkiler</span><div class="member-row"><b>[${escapeHtml(g.tag)}]${escapeHtml(profile.nick)}</b><em class="role ${g.role}">${ROLE_NAMES[g.role]}</em><small>Bağış: ${fmt(g.donated)} İnci</small></div><p>Kule dikme yetkisi yalnızca <b>Filo Başkanı</b> ve <b>Başkan Yardımcısı</b>ndadır. Başkan, üyelerden birini yardımcı atar. Diğer üyeler hazineye inci bağışlar.</p>${testRole}</div>
+    <div class="guild-donate"><span>İnci bağışla <small>(elindeki: ${fmt(state.pearls)})</small></span>${[10,50,100].map(n=>`<button data-donate="${n}" ${state.pearls<n?'disabled':''}>+${n}</button>`).join('')}<input id="donateAmount" type="number" min="1" max="${state.pearls}" placeholder="Miktar"/><button id="donateCustom">BAĞIŞLA</button></div>
     ${testClaim}<div class="guild-islands">${islandHtml}</div>`;
-  const donate=(n:number)=>{n=Math.floor(n);if(!(n>0)){toast('Geçerli bir miktar gir');return;}if(state.pearls<n){toast('Yeterli incin yok');return;}state.pearls-=n;g.treasury+=n;g.donated+=n;saveGuild(g);saveAccount();updateUI();playCoins();rewardNotice(`FİLO HAZİNESİNE +${n} İNCİ BAĞIŞLANDI`);renderGuild();};
+  const donate=(n:number)=>{n=Math.floor(n);if(!(n>0)){toast('Geçerli bir miktar gir');return;}if(state.pearls<n){toast('Yeterli incin yok');return;}state.pearls-=n;g.treasury+=n;g.donated+=n;saveGuild(g);saveAccount();updateUI();playCoins();rewardNotice(`FİLO HAZİNESİNE +${fmt(n)} İNCİ BAĞIŞLANDI`);renderGuild();};
   // Restore the selected foundation after type changes, donations and construction.
   panel.querySelectorAll<HTMLElement>('.guild-island').forEach((article,index)=>{
     article.querySelectorAll<HTMLElement>('.tower-slot').forEach((slot,i)=>{
@@ -1104,7 +1102,7 @@ function renderGuild(){
     const [k,i]=b.dataset.build!.split(':') as [MapKey,string],m=MAPS[k],type=buildType,cost=towerTypeCost(m.tier,type),slots=islandSlots(g,k);
     if(slots[+i]){toast('Bu kaidede zaten bir kule var');renderGuild();return;}
     const ruin=ruinLeft(towerRuins,k,+i);if(ruin){toast(`Bu kaidedeki kule yıkıldı; ${ruinLabel(ruin)} sonra yeniden dikilebilir`);renderGuild();return;}
-    if(g.treasury<cost){toast(`Filo hazinesinde ${cost} inci gerekli`);return;}g.treasury-=cost;const hp=fleetTower(m.tier).hp;slots[+i]={hp,maxHp:hp,type};saveGuild(g);if(k===currentMap)setupFleetIsland();playCoins();rewardNotice(`${m.fleet.name.toLocaleUpperCase('tr')}   ${+i+1}. KAİDEYE ${TOWER_TYPES[type].name.toLocaleUpperCase('tr')} DİKİLDİ   −${cost} İNCİ`);renderGuild();});
+    if(g.treasury<cost){toast(`Filo hazinesinde ${fmt(cost)} inci gerekli`);return;}g.treasury-=cost;const hp=fleetTower(m.tier).hp;slots[+i]={hp,maxHp:hp,type};saveGuild(g);if(k===currentMap)setupFleetIsland();playCoins();rewardNotice(`${m.fleet.name.toLocaleUpperCase('tr')}   ${+i+1}. KAİDEYE ${TOWER_TYPES[type].name.toLocaleUpperCase('tr')} DİKİLDİ   −${fmt(cost)} İNCİ`);renderGuild();});
   const role=document.getElementById('guildRole') as HTMLSelectElement|null;if(role)role.onchange=()=>{g.role=role.value as GuildRole;saveGuild(g);renderGuild();toast(`Test: rolün ${ROLE_NAMES[g.role]}`);};
   const claim=document.getElementById('guildClaim');if(claim)claim.onclick=()=>{fleetOwners[currentMap]='player';saveFleetOwners(fleetOwners);clearRuins(towerRuins,currentMap);g.towers[currentMap]=Array(TOWER_SLOTS).fill(null);saveGuild(g);enemies.splice(0,enemies.length,...enemies.filter(e=>!e.tower));setupFleetIsland();rewardNotice(`TEST · ${map.fleet.name.toLocaleUpperCase('tr')} FİLONA KATILDI`);renderGuild();};
 }
@@ -1113,7 +1111,7 @@ function closeCrew(){ui('crewOverlay').classList.remove('open');}
 function renderCrew(){
   const slots=officerSlots(state.level);
   ui('crewPanel').innerHTML=`<p class="talent-points">Görevdeki subaylar: <b>${crew.active.length} / ${slots}</b> <small>Yuvalar 3. ve 6. seviyede açılır. Yalnızca görevdeki subaylar bonus verir.</small></p><div class="officer-grid">${(Object.keys(OFFICERS) as OfficerId[]).map(id=>{const o=OFFICERS[id],rank=crew.officers[id]||0,active=crew.active.includes(id),cost=officerCost(rank),maxed=rank>=OFFICER_MAX_RANK;
-    return`<article class="officer ${active?'active':''} ${rank?'hired':''}"><img src="${o.icon}" alt=""/><div><span>${o.title}</span><h4>${o.name}</h4><small>${o.per} / rütbe</small><i>${'★'.repeat(rank)}${'☆'.repeat(OFFICER_MAX_RANK-rank)}</i></div><footer>${rank?`<button data-officer-toggle="${id}">${active?'GÖREVDEN AL':'GÖREVE AL'}</button>`:''}<button data-officer-rank="${id}" ${maxed?'disabled':''}>${maxed?'AZAMİ RÜTBE':rank?`RÜTBE ↑ ${cost} ALTIN`:`İŞE AL · ${cost} ALTIN`}</button></footer></article>`;}).join('')}</div>`;
+    return`<article class="officer ${active?'active':''} ${rank?'hired':''}"><img src="${o.icon}" alt=""/><div><span>${o.title}</span><h4>${o.name}</h4><small>${o.per} / rütbe</small><i>${'★'.repeat(rank)}${'☆'.repeat(OFFICER_MAX_RANK-rank)}</i></div><footer>${rank?`<button data-officer-toggle="${id}">${active?'GÖREVDEN AL':'GÖREVE AL'}</button>`:''}<button data-officer-rank="${id}" ${maxed?'disabled':''}>${maxed?'AZAMİ RÜTBE':rank?`RÜTBE ↑ ${fmt(cost)} ALTIN`:`İŞE AL · ${fmt(cost)} ALTIN`}</button></footer></article>`;}).join('')}</div>`;
   document.querySelectorAll<HTMLButtonElement>('[data-officer-rank]').forEach(b=>b.onclick=()=>{const id=b.dataset.officerRank as OfficerId,rank=crew.officers[id]||0,cost=officerCost(rank);if(rank>=OFFICER_MAX_RANK)return;if(state.gold<cost){toast('Yeterli altının yok');return;}state.gold-=cost;crew.officers[id]=rank+1;if(!rank&&crew.active.length<officerSlots(state.level))crew.active.push(id);saveAccount();refreshBonus();renderCrew();updateUI();rewardNotice(`${OFFICERS[id].name}   ${rank?`${rank+1}. RÜTBE`:'TAYFAYA KATILDI'}`);});
   document.querySelectorAll<HTMLButtonElement>('[data-officer-toggle]').forEach(b=>b.onclick=()=>{const id=b.dataset.officerToggle as OfficerId,i=crew.active.indexOf(id);if(i>=0)crew.active.splice(i,1);else{if(crew.active.length>=officerSlots(state.level)){toast('Boş subay yuvası yok');return;}crew.active.push(id);}refreshBonus();renderCrew();});
 }
@@ -1137,7 +1135,7 @@ function renderQuestLog(){
     const cooling=(questCooldownUntil[quest.id]??0)>Date.now(),active=state.activeQuest===quest.id,progress=questProgress[quest.id]??0;
     const status=cooling?cooldownText(questCooldownUntil[quest.id]):active?'İPTAL':progress>0?'DEVAM':'BAŞLAT';
     const action=pendingCancel===quest.id?`<div class="cancel-confirm"><strong>Emin misin?</strong><button data-confirm-cancel="${quest.id}">İPTALİ ONAYLA</button><button data-keep-quest="${quest.id}">VAZGEÇ</button></div>`:`<button data-quest="${quest.id}" ${cooling?'disabled':''}>${status}</button>`;
-    return `<article class="quest-entry ${active?'active':''} ${cooling?'completed':''}"><div class="quest-number">${String(index+1).padStart(2,'0')}</div><div class="quest-copy"><span>${cooling?'BEKLEMEDE':quest.kind==='npc'?'GEMİ AVI':quest.kind==='monster'?'DENİZ CANAVARI':quest.kind==='sparkle'?'PIRILTI':'GANİMET'}</span><h3>${quest.title.split(': ').pop()}</h3><p>${quest.description}</p><div class="quest-rewards"><b>${quest.gold.toLocaleString('tr-TR')} ALTIN</b><b>${quest.xp.toLocaleString('tr-TR')} TP</b><b>◈ ${quest.pearls} İNCİ</b></div><small>${cooling?'Yeniden açılmasına: '+cooldownText(questCooldownUntil[quest.id]):`${Math.min(progress,quest.required)} / ${quest.required} ${questUnit(quest)}`}</small></div>${action}</article>`;
+    return `<article class="quest-entry ${active?'active':''} ${cooling?'completed':''}"><div class="quest-number">${String(index+1).padStart(2,'0')}</div><div class="quest-copy"><span>${cooling?'BEKLEMEDE':quest.kind==='npc'?'GEMİ AVI':quest.kind==='monster'?'DENİZ CANAVARI':quest.kind==='sparkle'?'PIRILTI':'GANİMET'}</span><h3>${quest.title.split(': ').pop()}</h3><p>${quest.description}</p><div class="quest-rewards"><b>${quest.gold.toLocaleString('tr-TR')} ALTIN</b><b>${quest.xp.toLocaleString('tr-TR')} TP</b><b>◈ ${fmt(quest.pearls)} İNCİ</b></div><small>${cooling?'Yeniden açılmasına: '+cooldownText(questCooldownUntil[quest.id]):`${Math.min(progress,quest.required)} / ${quest.required} ${questUnit(quest)}`}</small></div>${action}</article>`;
   }).join('');
   document.querySelectorAll<HTMLButtonElement>('[data-quest]').forEach(button=>button.onclick=()=>{const id=button.dataset.quest!;state.activeQuest===id?requestQuestCancel(id):startQuest(id);});
   document.querySelectorAll<HTMLButtonElement>('[data-confirm-cancel]').forEach(button=>button.onclick=()=>cancelQuest(button.dataset.confirmCancel!));
@@ -1161,7 +1159,7 @@ function recordQuestProgress(kind:QuestDef['kind'],id:string){
   questProgress[quest.id]=(questProgress[quest.id]??0)+1;saveQuestState();
   if(questProgress[quest.id]<quest.required)return;
   state.gold+=goldGainAch(quest.gold);state.fame+=xpGain(quest.xp);state.pearls+=quest.pearls;bumpAch('quest');
-  rewardNotice(`GÖREV TAMAMLANDI   +${quest.gold.toLocaleString('tr-TR')} Altın   +${quest.pearls} İnci   +${quest.xp.toLocaleString('tr-TR')} TP`);
+  rewardNotice(`GÖREV TAMAMLANDI   +${quest.gold.toLocaleString('tr-TR')} Altın   +${fmt(quest.pearls)} İnci   +${quest.xp.toLocaleString('tr-TR')} TP`);
   toast(`${quest.title} tamamlandı`);questProgress[quest.id]=0;questCooldownUntil[quest.id]=Date.now()+QUEST_COOLDOWN_MS;state.activeQuest=null;saveQuestState();saveAccount();
 }
 function updateUI(){
@@ -1171,7 +1169,7 @@ function updateUI(){
   const need=xpNeed(state.level);ui('xpText').textContent=Number.isFinite(need)?`${state.fame.toLocaleString('tr-TR')} / ${need.toLocaleString('tr-TR')}`:state.fame.toLocaleString('tr-TR');(ui('xpBar') as HTMLElement).style.width=`${Number.isFinite(need)?Math.min(100,state.fame/need*100):100}%`;ui('level').textContent=String(state.level);ui('captainLevel').textContent=String(state.level);ui('profileElite').textContent=eliteProgress().text;ui('profileBattle').textContent=`${battleRank(state.battlePoints).name} · ${spText()}`;(ui('profileEliteBar') as HTMLElement).style.width=`${eliteProgress().pct}%`;(ui('profileBattleBar') as HTMLElement).style.width=`${battleRank(state.battlePoints).pct}%`;
   (ui('xpHudBar') as HTMLElement).style.width=`${Number.isFinite(need)?Math.min(100,state.fame/need*100):100}%`;ui('xpHudText').textContent=Number.isFinite(need)?`${state.fame.toLocaleString('tr-TR')} / ${need.toLocaleString('tr-TR')}`:state.fame.toLocaleString('tr-TR');(ui('hpHudBar') as HTMLElement).style.width=`${Math.max(0,state.hp/effectiveMaxHp()*100)}%`;ui('hpHudText').textContent=`${Math.ceil(state.hp).toLocaleString('tr-TR')} / ${effectiveMaxHp().toLocaleString('tr-TR')}`;(ui('eliteBar') as HTMLElement).style.width=`${eliteProgress().pct}%`;ui('eliteText').textContent=eliteProgress().text;(ui('battleBar') as HTMLElement).style.width=`${battleRank(state.battlePoints).pct}%`;ui('battleText').textContent=spText();
   const quest=state.activeQuest===null?null:questById(state.activeQuest);ui('questTitle').textContent=quest?.title||'Görev seçilmedi';ui('questDescription').textContent=quest?.description||'Kaptan, yapmak istediğin görevi görev defterinden seçebilirsin.';ui('quest').textContent=quest?`${questProgress[quest.id]??0} / ${quest.required} ${questUnit(quest)}`:'Hazır olduğunda bir görev başlat';ui('questBadge').textContent=quest?`${questProgress[quest.id]??0}/${quest.required}`:'';ui('openQuestTop').classList.toggle('has-quest',!!quest);
-  ui('reloadText').textContent=player.cooldown>0?`${player.cooldown.toFixed(1)} sn`:'HAZIR';ui('attack').classList.toggle('reloading',player.cooldown>0);
+  ui('reloadText').textContent=player.cooldown>0?`${player.cooldown.toLocaleString('tr-TR',{minimumFractionDigits:1,maximumFractionDigits:1})} sn`:'HAZIR';ui('attack').classList.toggle('reloading',player.cooldown>0);
   ui('attackLabel').textContent=state.attacking?'SALDIRIYI İPTAL ET':'SALDIR';ui('attack').classList.toggle('active',state.attacking);
   ui('repair').classList.toggle('active',state.repairing);
   {const b=ui('rageButton'),on=rageActive(rage),ready=rageReady(rage);b.classList.toggle('active',on);b.classList.toggle('ready',ready);
@@ -1188,7 +1186,7 @@ function renderCombatTargets(){
   const root=ui('combatTargets');root.classList.toggle('visible',visibleCombatTargets.length>0);
   // sağda, olay panelinin (hazine vb.) hemen altında dur; konum yalnız panel değişince okunur
   if(root.style.top!==combatTargetsTop)root.style.top=combatTargetsTop;
-  const html=visibleCombatTargets.map((target,index)=>{const active=target===selected;const fighting=target.aggro||(active&&state.attacking);const role=target.kind==='ship'&&target.captain?'TEST KAPTANI · '+eliteById(target.captain.elite).name.toLocaleUpperCase('tr'):target.kind==='ship'&&target.boss?'HARİTA BOSSU':target.kind==='ship'&&target.tower?'FİLO KULESİ · FİLO SAVAŞI':target.kind==='monster'?'DENİZ CANAVARI':target.role==='heavy'?'AĞIR GEMİ':'HAFİF GEMİ';const portrait=target.kind==='monster'?target.def.portrait:target.def?.portrait??-1;return `<button class="combat-target ${active?'selected':''}" data-combat-target="${index}"><span class="target-portrait ${target.kind} ${target.kind==='ship'?target.role:''}">${target.kind==='ship'&&target.boss?`<i class="portrait-art" style="${portraitStyle(BOSS_ATLAS,target.boss.portrait,MAP_KEYS.length,BOSS_ATLAS_COLS)}"></i>`:portrait>=0?`<i class="portrait-art" style="${portraitStyle(PORTRAIT_ATLAS,portrait,PORTRAIT_COUNT,PORTRAIT_COLS)}"></i>`:target.kind==='ship'&&target.captain?`<i class="portrait-art tower-art" style="background-image:url(${eliteArtUrl(target.captain.elite)})"></i>`:`<i class="portrait-art tower-art" style="background-image:url(${fleetTowerUrl(theme().fleet)})"></i>`}</span><span class="target-info"><small>${target.kind==='monster'?role:'SV '+target.tier+' · '+role}</small><strong>${target.name}</strong><i><em style="width:${Math.max(0,target.hp/target.maxHp*100)}%"></em></i><b>${Math.ceil(target.hp)} / ${target.maxHp}</b></span><span class="target-state">${fighting?'SAVAŞ':'HEDEF'}</span></button>`;}).join('');
+  const html=visibleCombatTargets.map((target,index)=>{const active=target===selected;const fighting=target.aggro||(active&&state.attacking);const role=target.kind==='ship'&&target.captain?'TEST KAPTANI · '+eliteById(target.captain.elite).name.toLocaleUpperCase('tr'):target.kind==='ship'&&target.boss?'HARİTA BOSSU':target.kind==='ship'&&target.tower?'FİLO KULESİ · FİLO SAVAŞI':target.kind==='monster'?'DENİZ CANAVARI':target.role==='heavy'?'AĞIR GEMİ':'HAFİF GEMİ';const portrait=target.kind==='monster'?target.def.portrait:target.def?.portrait??-1;return `<button class="combat-target ${active?'selected':''}" data-combat-target="${index}"><span class="target-portrait ${target.kind} ${target.kind==='ship'?target.role:''}">${target.kind==='ship'&&target.boss?`<i class="portrait-art" style="${portraitStyle(BOSS_ATLAS,target.boss.portrait,MAP_KEYS.length,BOSS_ATLAS_COLS)}"></i>`:portrait>=0?`<i class="portrait-art" style="${portraitStyle(PORTRAIT_ATLAS,portrait,PORTRAIT_COUNT,PORTRAIT_COLS)}"></i>`:target.kind==='ship'&&target.captain?`<i class="portrait-art tower-art" style="background-image:url(${eliteArtUrl(target.captain.elite)})"></i>`:`<i class="portrait-art tower-art" style="background-image:url(${fleetTowerUrl(theme().fleet)})"></i>`}</span><span class="target-info"><small>${target.kind==='monster'?role:'SV '+target.tier+' · '+role}</small><strong>${target.name}</strong><i><em style="width:${Math.max(0,target.hp/target.maxHp*100)}%"></em></i><b>${fmt(Math.ceil(target.hp))} / ${fmt(target.maxHp)}</b></span><span class="target-state">${fighting?'SAVAŞ':'HEDEF'}</span></button>`;}).join('');
   if(html===combatTargetsHtml)return;combatTargetsHtml=html;root.innerHTML=html;
   root.querySelectorAll<HTMLButtonElement>('[data-combat-target]').forEach(button=>button.onpointerdown=()=>{const target=visibleCombatTargets[Number(button.dataset.combatTarget)];if(target){selected=target;updateUI();}});
 }
@@ -1415,16 +1413,16 @@ function renderSiegeHud(){siegeBar.classList.toggle('on',!!siege);dayEventEl.cla
   if(siegeBar.dataset.html===html)return;siegeBar.dataset.html=html;siegeBar.innerHTML=html;(siegeBar.querySelector('[data-siege-leave]') as HTMLButtonElement).onclick=leaveSiege;}
 // Sağ panel: komutan ve katkı sıralaması
 function siegePanelRows(){if(!siege)return[];const rows:string[]=[],order=ranking(siege.contrib).slice(0,10),total=Object.values(siege.contrib).reduce((a,b)=>a+b,0)||1;
-  rows.push(`<div class="event-row siege-board"><small>KATKI SIRALAMASI</small><ol>${order.map(([n,d])=>`<li class="${n===profile.nick?'me':''}"><b>${escapeHtml(n)}</b><em>${shortNum(Math.round(d))}</em><span>%${Math.round(d/total*100)}</span></li>`).join('')||'<li><b>Henüz hasar yok</b></li>'}</ol></div>`);
+  rows.push(`<div class="event-row siege-board"><small>KATKI SIRALAMASI</small><ol>${order.map(([n,d])=>`<li class="${n===profile.nick?'me':''}"><b>${escapeHtml(n)}</b><em>${fmt(Math.round(d))}</em><span>%${Math.round(d/total*100)}</span></li>`).join('')||'<li><b>Henüz hasar yok</b></li>'}</ol></div>`);
   return rows;}
 function showSiegeResult(won:boolean,dmg:number,rank:number,order:[string,number][],reward:{xp:number;gold:number;pearls:number}|null,chest:ReturnType<typeof victoryChest>|null,title:boolean){
-  const el=document.createElement('div');el.className='siege-result';const ammoNames=chest?Object.entries(chest.ammo).map(([k,n])=>`${n} ${SPECIAL_AMMO[k as keyof typeof chest.ammo].name}`).join(' · '):'';
+  const el=document.createElement('div');el.className='siege-result';const ammoNames=chest?Object.entries(chest.ammo).map(([k,n])=>`${fmt(n)} ${SPECIAL_AMMO[k as keyof typeof chest.ammo].name}`).join(' · '):'';
   el.innerHTML=`<section><span class="eyebrow">BÜYÜK KUŞATMA</span><h2>${won?'KARA KALE DÜŞTÜ!':'KUŞATMA SONA ERDİ'}</h2><p>${won?'Kaptanlar kaleyi birlikte yıktı.':'Kale bu akşam ayakta kaldı; katkı ödülün verildi.'}</p>
     <dl><dt>Verdiğin hasar</dt><dd>${Math.round(dmg).toLocaleString('tr-TR')}</dd><dt>Sıran</dt><dd>${rank>0?`${rank}. / ${order.length}`:'—'}</dd>
-    <dt>Katkı ödülü</dt><dd>${reward?`+${reward.xp.toLocaleString('tr-TR')} TP · +${reward.gold.toLocaleString('tr-TR')} Altın · +${reward.pearls} İnci`:'—'}</dd>
-    ${won?`<dt>Zafer sandığı</dt><dd>${chest?`+${chest.pearls} İnci · ${ammoNames} · +${chest.speed} Hız İksiri${chest.equip?` · ${EQUIPMENT.find(q=>q.id===chest.equip)?.name}`:''}`:'Kalenin en az %2\'si kadar hasar gerekli'}</dd>`:''}</dl>
+    <dt>Katkı ödülü</dt><dd>${reward?`+${reward.xp.toLocaleString('tr-TR')} TP · +${reward.gold.toLocaleString('tr-TR')} Altın · +${fmt(reward.pearls)} İnci`:'—'}</dd>
+    ${won?`<dt>Zafer sandığı</dt><dd>${chest?`+${fmt(chest.pearls)} İnci · ${ammoNames} · +${fmt(chest.speed)} Hız İksiri${chest.equip?` · ${EQUIPMENT.find(q=>q.id===chest.equip)?.name}`:''}`:'Kalenin en az %2\'si kadar hasar gerekli'}</dd>`:''}</dl>
     ${title?`<div class="hero-award">★ ${HERO_TITLE.toLocaleUpperCase('tr')} ★<small>İlk 3'e girdin · unvanın 7 gün adının altında parlayacak</small></div>`:''}
-    <ol>${order.slice(0,5).map(([n,d],i)=>`<li class="${n===profile.nick?'me':''}"><b>${i+1}. ${escapeHtml(n)}</b><em>${shortNum(Math.round(d))}</em></li>`).join('')}</ol>
+    <ol>${order.slice(0,5).map(([n,d],i)=>`<li class="${n===profile.nick?'me':''}"><b>${i+1}. ${escapeHtml(n)}</b><em>${fmt(Math.round(d))}</em></li>`).join('')}</ol>
     <button data-close>LİMANA DÖN</button></section>`;
   document.querySelector('.hud')!.append(el);(el.querySelector('[data-close]') as HTMLButtonElement).onclick=()=>{el.remove();leaveSiege();};}
 function canEnterSiege(){return siegeWindow().open||ELITE_TEST_MODE;}
@@ -1438,7 +1436,7 @@ function enterSiege(){if(siege)return;if(!canEnterSiege()){toast('Büyük Kuşat
 function leaveSiege(){if(!siege)return;const r=siege.result?null:payContribution();document.querySelector('.siege-result')?.remove();stopBossMusic();
   const o=siegeOrigin;siege=null;siegeOrigin=null;fleetSafe=null;fleetFields.clear();populateMap();
   if(o){player.x=o.x;player.y=o.y;}player.speed=0;destination=null;routeTarget=null;selected=null;state.attacking=false;camera.x=player.x;camera.y=player.y;freeLook=null;
-  mapFade=1;playMapJump();eventPanelHtml='';renderSiegeHud();renderDayEvent(true);if(r)rewardNotice(`KUŞATMA KATKISI   +${r.xp.toLocaleString('tr-TR')} TP   +${r.gold.toLocaleString('tr-TR')} Altın   +${r.pearls} İnci`);}
+  mapFade=1;playMapJump();eventPanelHtml='';renderSiegeHud();renderDayEvent(true);if(r)rewardNotice(`KUŞATMA KATKISI   +${r.xp.toLocaleString('tr-TR')} TP   +${r.gold.toLocaleString('tr-TR')} Altın   +${fmt(r.pearls)} İnci`);}
 function sinkEnemy(e:Enemy){
   const j=enemies.indexOf(e);if(j<0)return;
   if(!e.tower)spawnWreck(e);
@@ -1452,7 +1450,7 @@ function sinkEnemy(e:Enemy){
   // NPC tecrübe puanı ve altın verir; savaş puanı (SP) yalnızca rakip oyuncu batırınca gelir (src/battle.ts).
   const eliteLoot=eliteLootMult();
   const goldGain=goldGainAch(e.rewardGold*(1+bonus.bounty)*eliteLoot),fame=xpGain(e.rewardFame);state.gold+=goldGain;state.fame+=fame;saveAccount();bumpAch('npc');if(e.role==='heavy')bumpAch('heavy');
-  rewardNotice(`+${goldGain} Altın   +${fame} TP`);toast(`${e.name} batırıldı`);if(e.def)recordQuestProgress('npc',e.def.id);countBossKill(e);if(!e.summoned)setTimeout(spawnEnemy,1800);
+  rewardNotice(`+${fmt(goldGain)} Altın   +${fmt(fame)} TP`);toast(`${e.name} batırıldı`);if(e.def)recordQuestProgress('npc',e.def.id);countBossKill(e);if(!e.summoned)setTimeout(spawnEnemy,1800);
 }
 // Savaş puanı kazancı; rütbe atlanırsa duyurulur
 const spText=()=>{const r=battleRank(state.battlePoints);return r.next?`${fmt(state.battlePoints)} / ${fmt(r.next.sp)}`:fmt(state.battlePoints);};
@@ -1464,7 +1462,7 @@ function defeatMonster(m:Monster){
   playExplosion();const d=m.def;
   const eliteLoot=eliteLootMult();
   const goldGain=goldGainAch(d.gold*(1+bonus.bounty)*eliteLoot),fame=xpGain(d.xp);state.gold+=goldGain;state.fame+=fame;saveAccount();bumpAch('monster');
-  rewardNotice(`+${goldGain} Altın   +${fame} TP`);recordQuestProgress('monster',d.id);
+  rewardNotice(`+${fmt(goldGain)} Altın   +${fmt(fame)} TP`);recordQuestProgress('monster',d.id);
   const p=randomSeaPoint(900);m.hp=m.maxHp;m.aggro=false;m.burnTimer=0;m.x=p.x;m.y=p.y;m.homeX=m.x;m.homeY=m.y;m.combatTimer=0;selected=null;state.attacking=false;toast(`${m.name} yenildi`);
 }
 // Kule menzili hiçbir zaman oyuncunun top menzilinin altında kalmaz: kuleye ateş edebilen gemiyi kule de vurur
@@ -1485,7 +1483,7 @@ function destroyTower(e:Enemy){
   toast(left?`${f.name}: ${left} kule kaldı`:`${f.name} düştü!`);
   if(left>0)return;
   fleetOwners[currentMap]='player';saveFleetOwners(fleetOwners);clearRuins(towerRuins,currentMap);if(guild){guild.towers[currentMap]=Array(TOWER_SLOTS).fill(null);saveGuild(guild);}const r=fleetReward(mapDef().tier);state.gold+=r.gold;state.fame+=r.xp;saveAccount();
-  setupFleetIsland();rewardNotice(`${f.name.toLocaleUpperCase('tr')} FİLONA KATILDI   +${r.gold} Altın   +${r.xp} TP`);
+  setupFleetIsland();rewardNotice(`${f.name.toLocaleUpperCase('tr')} FİLONA KATILDI   +${fmt(r.gold)} Altın   +${fmt(r.xp)} TP`);
 }
 // Filonun diktiği kuleler: tek tip filo kulesi, menzildeki en yakın düşmana top atar.
 function updateOwnTowers(dt:number){
@@ -1510,7 +1508,7 @@ function updateEvents(dt:number){
   const panel=ui('eventPanel'),rows:string[]=[];
   if(siege)rows.push(...siegePanelRows());else{
   const boss=activeBoss(),bd=bossFor(currentMap),bossArt=`<i class="event-art" style="${portraitStyle(BOSS_ATLAS,bd.portrait,MAP_KEYS.length,BOSS_ATLAS_COLS)}"></i>`;
-  if(boss)rows.push(`<button class="event-row boss" data-event-route="boss">${bossArt}<span><small>HARİTA BOSSU · ${Math.round(dist(boss,player))}m</small><strong>${bd.name}</strong><i><em style="width:${boss.hp/boss.maxHp*100}%"></em></i></span></button>`);
+  if(boss)rows.push(`<button class="event-row boss" data-event-route="boss">${bossArt}<span><small>HARİTA BOSSU · ${fmt(Math.round(dist(boss,player)))}m</small><strong>${bd.name}</strong><i><em style="width:${boss.hp/boss.maxHp*100}%"></em></i></span></button>`);
   if(treasure.active||treasure.parts>0){const a=treasure.active;rows.push(`<button class="event-row treasure" data-event-route="treasure"><img src="${TREASURE_ICON}" alt=""/><span><small>${a?'HAZİNE HARİTASI · HEDEF':'HAZİNE HARİTASI PARÇALARI'}</small><strong>${a?`${a.map} · ${a.label}`:`${treasure.parts} / ${TREASURE_PARTS} parça`}</strong>${a?'':`<i><em style="width:${treasure.parts/TREASURE_PARTS*100}%"></em></i>`}</span></button>`);}
   }
   const html=rows.join('');if(html===eventPanelHtml)return;eventPanelHtml=html;
@@ -1600,7 +1598,7 @@ function updateArsenal(dt:number){
   for(const e of [...enemies])if(e.burnTimer&&e.burnTimer>0){e.burnTimer-=dt;e.hp-=(e.burnDps||burnDps)*dt;if(e.burnTimer<=0)e.burnDps=0;if(e.hp<=0)sinkEnemy(e);}
   for(const m of monsters)if(m.burnTimer&&m.burnTimer>0){m.burnTimer-=dt;m.hp-=(m.burnDps||burnDps)*dt;if(m.burnTimer<=0)m.burnDps=0;if(m.hp<=0)defeatMonster(m);}
   for(const id of ['speed','mine'] as AbilityId[]){const t=abilityTimers[id],button=document.getElementById(`ability-${id}`);if(!button)continue;
-    const cd=Math.min(1,t.cooldown/(ABILITIES[id].cooldown*bonus.cooldown)),label=t.active>0&&id!=='mine'?`${Math.ceil(t.active)} SN`:t.cooldown>0?`${Math.ceil(t.cooldown)}`:id==='mine'?`${shortNum(arsenal.mine)} · ${ABILITIES.mine.key}`:`${shortNum(arsenal.speed)} · ${ABILITIES.speed.key}`;
+    const cd=Math.min(1,t.cooldown/(ABILITIES[id].cooldown*bonus.cooldown)),label=t.active>0&&id!=='mine'?`${Math.ceil(t.active)} SN`:t.cooldown>0?`${Math.ceil(t.cooldown)}`:id==='mine'?`${fmt(arsenal.mine)} · ${ABILITIES.mine.key}`:`${fmt(arsenal.speed)} · ${ABILITIES.speed.key}`;
     button.style.setProperty('--cd',cd.toFixed(3));button.classList.toggle('active',t.active>0&&id!=='mine');const small=button.querySelector('small');if(small&&small.textContent!==label)small.textContent=label;}
 }
 // ---------------------------------------------------------------- Başarımlar
@@ -1609,19 +1607,19 @@ function setAch(stat:AchStat,v:number){if(v>ach.stats[stat]){ach.stats[stat]=v;c
 let achSaveAt=0;
 function checkAchievements(){
   const fresh=unlockReached(ach);
-  for(const d of fresh){state.pearls+=d.pearls;rewardNotice(`BAŞARIM · ${d.name.toLocaleUpperCase('tr')}   +${d.pearls} İnci`);toast(`Başarım açıldı: ${d.name}`);}
+  for(const d of fresh){state.pearls+=d.pearls;rewardNotice(`BAŞARIM · ${d.name.toLocaleUpperCase('tr')}   +${fmt(d.pearls)} İnci`);toast(`Başarım açıldı: ${d.name}`);}
   if(fresh.length){const hadCollection=achBonusCache.damage>0;achBonusCache=achievementBonus(ach);if(!hadCollection&&achBonusCache.damage>0)rewardNotice('ANA MADALYA KOLEKSİYONU TAMAMLANDI · +%5 hasar · +%5 can');saveAccount();playLevelUp();saveAchievements(ach);return;}
   const now=performance.now();if(now-achSaveAt>2000){achSaveAt=now;saveAchievements(ach);}
 }
 function renderAchievements(){
   const b=achBonus();ui('achSummary').innerHTML=`<b>${ach.unlocked.length} / ${ACHIEVEMENTS.length}</b> madalya · Ana koleksiyon ödülü: ${bonusText(b)||'17 madalya tamamlanınca +%5 hasar ve +%5 can'}`;
   ui('achGrid').innerHTML=ACHIEVEMENTS.map((d,i)=>{const done=ach.unlocked.includes(d.id),v=Math.min(ach.stats[d.stat],d.goal);
-    return`<article class="ach-card ${done?'done':''}"><i class="ach-badge" style="${badgeStyle(i)}"></i><div><h4>${d.name}</h4><p>${d.desc}</p><small>${d.pearls} İnci</small><span class="ach-bar"><em style="width:${v/d.goal*100}%"></em></span><b>${done?'✓ AÇILDI':`${v.toLocaleString('tr-TR')} / ${d.goal.toLocaleString('tr-TR')}`}</b></div></article>`;}).join('');
+    return`<article class="ach-card ${done?'done':''}"><i class="ach-badge" style="${badgeStyle(i)}"></i><div><h4>${d.name}</h4><p>${d.desc}</p><small>${fmt(d.pearls)} İnci</small><span class="ach-bar"><em style="width:${v/d.goal*100}%"></em></span><b>${done?'✓ AÇILDI':`${v.toLocaleString('tr-TR')} / ${d.goal.toLocaleString('tr-TR')}`}</b></div></article>`;}).join('');
 }
 setAch('level',state.level);
 // ---------------------------------------------------------------- Günlük giriş ödülü
 let daily=loadDaily();
-function dailyText(r:DailyReward){return[r.gold&&`${r.gold.toLocaleString('tr-TR')} Altın`,r.pearls&&`${r.pearls} İnci`,r.chain&&`${r.chain} Zincir Güllesi`,r.fire&&`${r.fire} Ateş Güllesi`,r.explosive&&`${r.explosive} Patlayıcı Gülle`,r.powder&&`${r.powder} Kara Barut`,r.shield&&`${r.shield} Kalkan`,r.equip&&'Sıradan Donanım'].filter(Boolean) as string[];}
+function dailyText(r:DailyReward){return[r.gold&&`${r.gold.toLocaleString('tr-TR')} Altın`,r.pearls&&`${fmt(r.pearls)} İnci`,r.chain&&`${fmt(r.chain)} Zincir Güllesi`,r.fire&&`${fmt(r.fire)} Ateş Güllesi`,r.explosive&&`${fmt(r.explosive)} Patlayıcı Gülle`,r.powder&&`${fmt(r.powder)} Kara Barut`,r.shield&&`${fmt(r.shield)} Kalkan`,r.equip&&'Sıradan Donanım'].filter(Boolean) as string[];}
 function openDaily(){renderDaily();ui('dailyOverlay').classList.add('open');}
 function closeDaily(){ui('dailyOverlay').classList.remove('open');}
 function renderDaily(){
@@ -1668,7 +1666,7 @@ function updateTreasure(dt:number){
   const spot=treasure.active!,m=MAPS[spot.map],r=treasureReward(m.tier,NPCS[m.npcs[0]].gold);dig=null;treasure.active=null;treasure.found++;saveTreasure(treasure);bumpAch('treasure');
   state.gold+=r.gold;state.pearls+=r.pearls;if(r.equip)equipOwned[r.equip]=(equipOwned[r.equip]??0)+1;saveAccount();playCoins();playLevelUp();
   for(let n=0;n<3;n++)burst(spot.x+(Math.random()-.5)*30,spot.y+(Math.random()-.5)*20,false);
-  rewardNotice(`HAZİNE BULUNDU   +${r.gold.toLocaleString('tr-TR')} Altın   +${r.pearls} İnci${r.equip?`   +${equipById(r.equip)!.name}`:''}`);toast('Hazine sandığı çıkarıldı!');
+  rewardNotice(`HAZİNE BULUNDU   +${r.gold.toLocaleString('tr-TR')} Altın   +${fmt(r.pearls)} İnci${r.equip?`   +${equipById(r.equip)!.name}`:''}`);toast('Hazine sandığı çıkarıldı!');
 }
 function drawTreasureMark(){
   const a=treasure.active;if(!a||a.map!==currentMap||dist(player,a)>380)return;const s=worldToScreen(a),t=performance.now()/1000;
@@ -1689,7 +1687,7 @@ function updateSparkles(dt:number){
     const loot=1,light=NPCS[mapDef().npcs[0]],gold=Math.max(1,Math.round(light.gold*(.1+Math.random()*.1)*loot*goldMult())),xp=Math.max(1,Math.round(light.xp*.15)),pearl=Math.random()<.2?1:0;
     state.gold+=gold;state.fame+=xp;state.pearls+=pearl;recordQuestProgress('sparkle',currentMap);saveAccount();playCoins();
     for(let n=0;n<8;n++){const a=Math.random()*Math.PI*2,sp=30+Math.random()*50;particles.push({x:g.x,y:g.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:.5,maxLife:.5,kind:'foam'});}
-    particles.push({x:g.x,y:g.y-10,vx:0,vy:-26,life:1.1,maxLife:1.1,kind:'damage',text:`+${gold} Altın${pearl?' +1 İnci':''} +${xp} TP`});
+    particles.push({x:g.x,y:g.y-10,vx:0,vy:-26,life:1.1,maxLife:1.1,kind:'damage',text:`+${fmt(gold)} Altın${pearl?' +1 İnci':''} +${fmt(xp)} TP`});
     if(routeTarget&&dist(routeTarget,g)<4){routeTarget=null;destination=null;}
     sparkleQueue.push(SPARKLE_RESPAWN/sparkleMult());}
   for(let i=sparkleQueue.length-1;i>=0;i--){sparkleQueue[i]-=dt;if(sparkleQueue[i]<=0){sparkleQueue.splice(i,1);spawnSparkle();}}
