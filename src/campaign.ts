@@ -1,3 +1,4 @@
+import {PVE_HP,PVE_XP} from './pve-balance';
 // Pirate Rage: Korsan Öfkesi kampanyası: 8 seviye, 16 deniz. Her denizin kendi NPC gemileri, canavarı ve filo adası vardır.
 // Güç ve ödüller denizin seviyesiyle birlikte artar.
 export type MapKey='1/1'|'1/2'|'2/1'|'2/2'|'3/1'|'3/2'|'4/1'|'4/2'|'5/1'|'5/2'|'6/1'|'6/2'|'7/1'|'7/2'|'8/1'|'8/2';
@@ -27,9 +28,9 @@ export function neighbor(key:MapKey,dir:Dir):MapKey|null{
 export const tierOf=(key:MapKey)=>Number(key.split('/')[0]);
 
 // Seviye atlamak için gereken tecrübe (TP); seviye yalnızca TP ile atlanır, her seviyede sayaç sıfırlanır.
-// LEVEL_XP[n] = n. seviyeden n+1'e geçiş. Kendi seviyesindeki denizde ~150, 400, 900, 1.800, 3.500, 6.500, 12.000 NPC
-// batırmaya denk gelir: 8. seviyeye toplam ~150 saat (her gün uzun oynayan biri için ~2 hafta). Seviye uzun bir yolculuktur.
-export const LEVEL_XP=[0,7500,33000,120000,390000,1200000,3600000,10500000];
+// LEVEL_XP[n] = n → n+1. Offline model: ~140 active hours, 10h/day, 8h quests.
+// See tools/simulate-leveling.cjs for loadout/travel assumptions and sensitivity checks.
+export const LEVEL_XP=[0,74000,242000,753000,2054000,4363000,6161000,10542000];
 export const xpNeed=(level:number)=>level>=MAX_LEVEL?Infinity:LEVEL_XP[level];
 
 type Theme={name:string;sea:[string,string];tint:string;look:IslandLook;fleet:FleetTheme;label:string};
@@ -46,7 +47,7 @@ export const THEMES:Record<number,Theme>={
 
 // ---------------------------------------------------------------- NPC gemileri
 export type NpcDef={id:string;name:string;sprite:string;span:number;role:'light'|'heavy';tier:number;hp:number;damage:number;reload:number;speed:number;gold:number;xp:number;portrait:number};
-// Seafight'taki gibi ödül canla orantılıdır: aynı denizde can başına tecrübe ve altın NPC ile canavarda aynıdır.
+// Can ve TP ayrı denge tablolarından gelir; altın önceki ekonomi ölçeğini korur.
 // NPC ve canavar yalnızca tecrübe puanı (TP) ve altın verir; savaş puanı sadece rakip oyuncu batırınca kazanılır.
 // Seafight ölçeği: başlangıç gemisi 75.000 can, 50–100 top; tek gülle (demir) 20 hasar. Bu yüzden NPC canları binlerle başlar
 // (Seafight 1. harita NPC'leri 1.500–4.000 can; burada 1,5 katı: 3.750 / 9.000) ve her denizde ×1,6 büyür. Ödül yine canla orantılıdır.
@@ -60,7 +61,7 @@ export const dmgScale=(tier:number)=>1+.5*(tier-1);
 export const NPC_SPAN={small:84,medium:112,large:144} as const;
 export const npcSize=(id:string)=>id.endsWith('-1-light')?'small':id.endsWith('-2-heavy')?'large':'medium';
 const npc=(id:string,name:string,role:'light'|'heavy',tier:number,sprite=''):Omit<NpcDef,'portrait'>=>{const span=NPC_SPAN[npcSize(id)];
-  const dmg=role==='light'?750:1650,t=tier-1,hp=Math.round((role==='light'?3750:9000)*hpScale(tier)),r=killReward(hp,tier);
+  const dmg=role==='light'?750:1650,t=tier-1,size=npcSize(id)==='small'?0:npcSize(id)==='medium'?1:2,hp=PVE_HP[tier][size],r={xp:PVE_XP[tier][size],gold:killReward(Math.round((size===0?3750:9000)*hpScale(tier)),tier).gold};
   return{id,name,sprite,span,role,tier,hp,damage:Math.round(dmg*dmgScale(tier)),reload:role==='light'?2.6:2.7,speed:(role==='light'?50:34)+t*1.5,gold:r.gold,xp:r.xp};
 };
 const NPC_LIST:Omit<NpcDef,'portrait'>[]=[
@@ -86,7 +87,7 @@ export const NPCS:Record<string,NpcDef>=Object.fromEntries(NPC_LIST.map((n,i)=>[
 // ---------------------------------------------------------------- Canavarlar
 export type MonsterDef={id:string;name:string;sprite:string;span:number;frame:number;anchorY:number;radius:number;tier:number;hp:number;damage:number;reload:number;gold:number;xp:number;portrait:number};
 // Canavar, aynı denizin ağır NPC'sinden yaklaşık 2,2 kat daha dayanıklıdır (Seafight'ta canavarlar ağır NPC'lerin 1,5–2 katı).
-const mon=(id:string,name:string,tier:number,radius=54,sprite='',span=140,anchorY=133.4):Omit<MonsterDef,'portrait'>=>{const t=tier-1,hp=Math.round(19500*hpScale(tier)),r=killReward(hp,tier);
+const mon=(id:string,name:string,tier:number,radius=54,sprite='',span=140,anchorY=133.4):Omit<MonsterDef,'portrait'>=>{const t=tier-1,hp=PVE_HP[tier][3],r={xp:PVE_XP[tier][3],gold:killReward(Math.round(19500*hpScale(tier)),tier).gold};
   return{id,name,sprite,span,frame:256,anchorY,radius,tier,hp,damage:Math.round(1500*dmgScale(tier)),reload:2.8-t*.08,gold:r.gold,xp:r.xp};};
 // Her seviyede tek canavar türü; görsel tek kare (güneybatıya bakan, 256 px). portrait: portre atlasındaki sabit karesi.
 const MONSTER_LIST:(Omit<MonsterDef,'portrait'>&{slot:number})[]=[
@@ -110,7 +111,7 @@ export const PORTRAIT_ATLAS='/assets/trial-coast-portraits-v1.webp';
 
 // ---------------------------------------------------------------- Harita bossları
 // Her haritada o haritanın en güçlü NPC'sinden (ağır gemi) 200 tane batırılınca haritanın bossu çıkar.
-// Boss yalnızca tecrübe puanı ve inci verir. Can: ağır NPC ×30, hasar ×2 (3 güllelik yelpaze), canı yarıya inince 2 muhafız çağırır.
+// Boss yalnızca tecrübe puanı ve inci verir. Can: büyük NPC ×10, hasar ×2 (3 güllelik yelpaze), canı yarıya inince 2 muhafız çağırır.
 export const BOSS_KILLS=200;
 // Boss görselleri denize göre: aynı denizin iki haritası aynı boss gemisini kullanır. Portre atlası 8×2, hücre i = harita sırası.
 export const BOSS_ATLAS='/assets/boss-portraits-v2.webp',BOSS_ATLAS_COLS=8;
@@ -120,9 +121,9 @@ const BOSS_NAMES:Record<MapKey,string>={
   '3/1':'Kadim Azur İmparatoru','3/2':'Kadim Azur İmparatoru','4/1':'Gece Dehşet İmparatoru','4/2':'Gece Dehşet İmparatoru',
   '5/1':'Kış Zıpkın İmparatoru','5/2':'Kış Zıpkın İmparatoru','6/1':'Şimşek İmparatoru','6/2':'Şimşek İmparatoru',
   '7/1':'Hiçlik İmparatoru','7/2':'Hiçlik İmparatoru','8/1':'Cehennem Lordu','8/2':'Cehennem Lordu'};
-export const bossFor=(key:MapKey):BossDef=>{const m=MAPS[key],h=NPCS[m.npcs[1]],hp=h.hp*30,i=MAP_KEYS.indexOf(key);
+export const bossFor=(key:MapKey):BossDef=>{const m=MAPS[key],h=NPCS[`n${m.tier}-2-heavy`],hp=h.hp*10,i=MAP_KEYS.indexOf(key);
   return{key,id:`boss-${key.replace('/','-')}`,name:BOSS_NAMES[key],sprite:`/assets/boss-t${m.tier}-v${m.tier>=5?2:1}.webp`,span:260,role:'heavy',tier:m.tier,hp,damage:h.damage*2,reload:2.2,speed:Math.round(h.speed*.8),gold:0,
-    xp:Math.round(hp/60),pearls:50*m.tier,portrait:i,trigger:h.id};};
+    xp:h.xp*20,pearls:50*m.tier,portrait:i,trigger:h.id};};
 
 // ---------------------------------------------------------------- Koordinat ızgarası
 // Seafight tarzı: üstte soldan sağa 00–60 sütun, solda yukarıdan aşağı AA–CZ satır. Konum "35AJ" gibi yazılır.
@@ -219,17 +220,17 @@ for(const key of MAP_KEYS){
 // ---------------------------------------------------------------- Görevler (seviyeye göre)
 // Görevler haritaya özeldir: her haritanın 4 görevi o haritanın NPC ve canavarlarıyla yapılır.
 // Oyuncu hangi haritadaysa (kendi seviyesine kadar her harita açık) o haritanın görevlerini alır.
-// Ödül, görevdeki batırmaların normal ödülünün 1,5 katıdır; böylece harita seviyesi arttıkça ödül de artar. İnci ödülü seviyeyle büyür.
-export type QuestDef={id:string;map:MapKey;tier:number;title:string;description:string;kind:'npc'|'monster'|'chest';ids:string[];required:number;gold:number;xp:number;pearls:number};
-export const QUEST_BONUS=1.5;
+// Ek görev TP ödülü, batırmaların normal ödülünün yarısıdır; böylece harita seviyesi arttıkça ödül de artar. İnci ödülü seviyeyle büyür.
+export type QuestDef={id:string;map:MapKey;tier:number;title:string;description:string;kind:'npc'|'monster'|'chest'|'sparkle';ids:string[];required:number;gold:number;xp:number;pearls:number};
+export const QUEST_BONUS=.5;
 export const QUESTS:QuestDef[]=MAP_KEYS.flatMap(key=>{
   const m=MAPS[key],t=m.tier,L=NPCS[m.npcs[0]],H=NPCS[m.npcs[1]],Mo=MONSTERS[m.monster],pay=(n:number,u:{gold:number;xp:number},k=QUEST_BONUS)=>({gold:Math.round(n*u.gold*k),xp:Math.round(n*u.xp*k)});
-  const nL=15+t*3,nH=8+t*2,nM=t<5?2:3,nC=5+t,head=`${key} ${m.name}`;
+  const nL=20,nH=20,nM=20,nC=20,head=`${key} ${m.name}`;
   return[
     {id:`q${key}-light`,map:key,tier:t,title:`${head}: Devriye Avı`,description:`${L.name} gemilerinden ${nL} tanesini batır.`,kind:'npc',ids:[L.id],required:nL,...pay(nL,L),pearls:2+t},
     {id:`q${key}-heavy`,map:key,tier:t,title:`${head}: Ağır Filo`,description:`${H.name} gemilerinden ${nH} tanesini denizin dibine gönder.`,kind:'npc',ids:[H.id],required:nH,...pay(nH,H),pearls:3+2*t},
     {id:`q${key}-monster`,map:key,tier:t,title:`${head}: Canavar Avı`,description:`${Mo.name} canavarından ${nM} tanesini yen.`,kind:'monster',ids:[Mo.id],required:nM,...pay(nM,Mo),pearls:5+2*t},
-    {id:`q${key}-chest`,map:key,tier:t,title:`${head}: Ganimet Avı`,description:`Bu denizde sürüklenen ${nC} ganimet sandığını topla.`,kind:'chest',ids:[key],required:nC,...pay(nC,{gold:L.gold*4,xp:L.xp*3},1),pearls:4+2*t},
+    {id:`q${key}-sparkle`,map:key,tier:t,title:`${head}: Pırıltı Avı`,description:`Bu denizde ${nC} inci pırıltısı topla.`,kind:'sparkle',ids:[key],required:nC,...pay(nC,{gold:L.gold,xp:Math.round(L.xp*.5)},1),pearls:4+2*t},
   ];
 });
-export const QUEST_COOLDOWN_MS=2*60*60*1000;
+export const QUEST_COOLDOWN_MS=8*60*60*1000;
