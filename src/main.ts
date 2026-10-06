@@ -208,6 +208,9 @@ let currentMap:MapKey=(()=>{try{const k=(storedAccount?.currentMap||localStorage
 // Büyük Kuşatma sürerken (siege dolu) deniz Kara Kale'ye dönüşür; currentMap oyuncunun geldiği deniz olarak kalır.
 let siege:SiegeSave|null=null,siegeOrigin:{map:MapKey;x:number;y:number}|null=null;
 const SIEGE_MAP:MapDef={...MAPS['7/1'],name:'Kara Kale',description:'Büyük Kuşatma: bütün kaptanlar birlikte Kara Kale\'ye saldırır.',safe:false,npcs:[],monster:'',monsters:[],npcCount:0,heavyShare:0,islands:[],labels:[],fleet:{x:3000,y:1800,name:'Kara Kale'},spawn:{x:3000,y:2850}};
+// Kuşatma gemileri normal haritanın boş NPC listesinden bağımsızdır.
+const SIEGE_COMMANDER:BossDef={...bossFor('8/2'),name:'Kara Kale Komutanı'};
+const SIEGE_GUARD:NpcDef={...NPCS['n8-2-heavy'],name:'Kara Kale Muhafızı'};
 const mapDef=()=>siege?SIEGE_MAP:MAPS[currentMap];
 const isAlly=(o:Target|Vec)=>!!siege&&(o as Enemy).kind==='ship'&&!!(o as Enemy).captain;
 const theme=()=>THEMES[mapDef().tier];
@@ -522,7 +525,7 @@ function populateMap(){
   const map=mapDef();islands.splice(0,islands.length,...map.islands.map(i=>({...i})));
   enemies.length=0;shots.length=0;salvoQueue.length=0;particles.length=0;wrecks.length=0;lootChests.length=0;sparkles.length=0;sparkleQueue.length=0;mines.length=0;driftClock=DRIFT_RESPAWN_SECONDS;
   setTowerTheme(theme().fleet);
-  preload([...(hasFleetIsland()?[fleetBaseUrl(theme().fleet),fleetTowerUrl(theme().fleet)]:[]),...map.npcs.map(id=>NPCS[id].sprite),...map.monsters.map(id=>MONSTERS[id].sprite),...new Set(map.islands.map(i=>islandSheetUrl(i.look)))]);
+  preload([...(hasFleetIsland()?[fleetBaseUrl(theme().fleet),fleetTowerUrl(theme().fleet)]:[]),...(siege?[SIEGE_COMMANDER.sprite,SIEGE_GUARD.sprite]:[]),...map.npcs.map(id=>NPCS[id].sprite),...map.monsters.map(id=>MONSTERS[id].sprite),...new Set(map.islands.map(i=>islandSheetUrl(i.look)))]);
   createMonsters();setupFleetIsland();
   for(let i=0;i<map.npcCount;i++)spawnEnemy();
   if(siege){spawnSiegeAllies();ui('mapName').textContent=map.name;ui('mapSubtitle').textContent='BÜYÜK KUŞATMA';ui('mapBadge').className='map-badge danger-3';renderSiegeHud();return;}
@@ -1328,7 +1331,7 @@ function lagoonPoint(near:Vec):Vec{let best:Vec=near,bd=Infinity;const g=fleetGr
     if(!open)continue;const c=fleetCellCenter(i,j),d=dist(c,near);if(d<bd){bd=d;best=c;}}
   return best;}
 function spawnCommander(){if(!siege||enemies.some(e=>e.commander))return;const st=siegeStats(SIEGE_PARTICIPANTS),f=SIEGE_MAP.fleet,p=lagoonPoint({x:f.x,y:f.y+210*FLEET_SCALE});
-  const b=[...MAP_KEYS].reverse().map(k=>bossFor(k)).find(x=>x.sprite)!,boss={...b,name:'Kara Kale Komutanı'};
+  const boss=SIEGE_COMMANDER;
   const e=makeShip(boss as unknown as NpcDef,p.x,p.y,0);Object.assign(e,{boss,commander:true,siege:true,hitRadius:64,speed:0,hp:siege.commanderHp??st.commanderHp,maxHp:st.commanderHp,damage:st.commanderDamage,reload:2.2,name:boss.name,aggro:true,combatTimer:999,cooldown:2,wander:14});
   enemies.push(e);siege.commanderHp=e.hp;saveSiege(siege);playBossHorn();playBossMusic(8);rewardNotice('3. AŞAMA   KARA KALE KOMUTANI SANCAK GEMİSİYLE ÇIKTI');}
 // Kuleler ve komutan en yakın saldırgana (oyuncu ya da müttefik kaptan) ateş eder
@@ -1346,7 +1349,7 @@ function updateCommander(e:Enemy,dt:number){if((e.frozen??0)>0){e.frozen=Math.ma
   if(e.wander<=0){e.wander=14;spawnText(e,'YAYLIM ATEŞİ','#ffb070');playEnemyCannon(dist(e,player)*.5,(e.x-player.x)/600);
     for(let k=0;k<16;k++){const a=k/16*Math.PI*2;siegeShot(e.x,e.y,a,260,e.damage*.6,player,{noHome:true,life:2});}}
   // Canı yarıya inince iki muhafız gemisi çağırır (bir kez)
-  if(enraged&&!e.escortsCalled){e.escortsCalled=true;const def=NPCS['n8-2-heavy'];for(const k of [-1,1]){const p=lagoonPoint({x:e.x+k*160,y:e.y});const ship=makeShip(def,p.x,p.y,0);Object.assign(ship,{aggro:true,combatTimer:999,summoned:true,siege:true,name:'Kara Kale Muhafızı'});enemies.push(ship);}
+  if(enraged&&!e.escortsCalled){e.escortsCalled=true;for(const k of [-1,1]){const p=lagoonPoint({x:e.x+k*160,y:e.y});const ship=makeShip(SIEGE_GUARD,p.x,p.y,0);Object.assign(ship,{aggro:true,combatTimer:999,summoned:true,siege:true});enemies.push(ship);}
     rewardNotice('KOMUTAN MUHAFIZLARINI ÇAĞIRDI');}}
 // Müttefik kaptanlar: o aşamanın hedeflerine saldırır; 1. aşamada kale çemberinin dışından dolaşır, sonra lagüne girer
 function spawnSiegeAllies(){if(!siege)return;const TEST_CAPTAINS:[string,EliteShipId][]=[['ADM_AHMET','magma'],['ADM_YASİN','tempest'],['ADM_DOGAN','glacial']],sp=SIEGE_MAP.spawn;
