@@ -643,7 +643,24 @@ function buildFleetField(t:{i:number;j:number}){
   return D;
 }
 // from: yolu bulunacak gemi (varsayılan oyuncu); kuşatmada müttefik kaptanlar da kullanır
-function routeVia(target:Vec,from:Vec=player):Vec{
+// Küçük adalar: hedefe giden doğru bir adanın kıyısına çok yaklaşıyorsa adanın yanından geçen bir ara nokta verilir.
+// Her karede yeniden hesaplandığı için gemi adanın etrafından dolanıp hedefe devam eder (kıyıya takılıp titremez).
+function islandDetour(from:Vec,target:Vec):Vec{
+  const dx=target.x-from.x,dy=target.y-from.y,L2=dx*dx+dy*dy;if(L2<1)return target;
+  let best:{t:number;p:Vec}|null=null;
+  for(const island of islands){const clear=island.r*.72+28+50;
+    const t=Math.max(0,Math.min(1,((island.x-from.x)*dx+(island.y-from.y)*dy)/L2)),cx=from.x+dx*t,cy=from.y+dy*t,d=Math.hypot(cx-island.x,cy-island.y);
+    // hedef bu adanın kıyısındaysa ve yol adanın içinden geçmiyorsa (en yakın nokta hedefin kendisi) dolanmaya gerek yok
+    if(d>=clear||t>.97||(best&&t>=best.t))continue;
+    // en yakın noktanın bulunduğu taraftan dolan; doğru adanın tam ortasından geçiyorsa gemiye göre yan taraf seçilir
+    let nx=cx-island.x,ny=cy-island.y,n=Math.hypot(nx,ny);if(n<1){nx=-dy;ny=dx;n=Math.hypot(nx,ny);}
+    // ara nokta adanın yanından biraz ileride: gemi oraya varınca ada çoktan geride kalır (çapraz adımlarla geri dönüp titremez)
+    const L=Math.sqrt(L2),ux=dx/L,uy=dy/L,R=clear+45,ahead=Math.min(clear*.8,Math.max(0,(1-t)*L));
+    best={t,p:{x:island.x+nx/n*R+ux*ahead,y:island.y+ny/n*R+uy*ahead}};}
+  return best?best.p:target;
+}
+function routeVia(target:Vec,from:Vec=player):Vec{const way=fleetRoute(target,from);return way===target?islandDetour(from,target):way;}
+function fleetRoute(target:Vec,from:Vec):Vec{
   if(!fleetEnterable()||fleetWideLine(from,target))return target;
   const t=padNearestOpen(padCellOf(target)),key=`${currentMap}:${t.i},${t.j}`;
   let D=fleetFields.get(key);if(!D){D=buildFleetField(t);fleetFields.set(key,D);if(fleetFields.size>8)fleetFields.delete(fleetFields.keys().next().value!);}let c=padNearestOpen(padCellOf(from));if(!Number.isFinite(D[c.j*PN+c.i]))return target;
