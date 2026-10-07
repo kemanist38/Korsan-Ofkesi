@@ -23,10 +23,14 @@ test('the same rival gives SP at most three times a day',()=>{
   assert.equal(b.claimRivalSp(log,'ADM_AHMET','2026-10-02'),true,'ertesi gün sıfırlanır');
 });
 test('battle rank follows total SP and caps at the last rank',()=>{
-  assert.equal(battle.battleRank(0).name,'Tayfa');
-  assert.equal(battle.battleRank(499).name,'Tayfa');
-  assert.equal(battle.battleRank(500).name,'Lostromo');
-  assert.equal(Math.round(battle.battleRank(1250).pct),50);
+  assert.equal(battle.BATTLE_RANKS.length,30);
+  assert.equal(battle.battleRank(0).name,'Liman Faresi');
+  assert.equal(battle.battleRank(25).name,'Miço','first rival sink gives the second rank');
+  assert.equal(battle.battleRank(1499).name,'Halat Çeken');assert.equal(battle.battleRank(1500).name,'Tayfa');
+  assert.equal(Math.round(battle.battleRank(1000).pct),33);
+  assert.equal(battle.battleRank(400_000).name,'Öfke Efendisi');
+  for(let i=1;i<battle.BATTLE_RANKS.length;i++)assert.ok(battle.BATTLE_RANKS[i].sp>battle.BATTLE_RANKS[i-1].sp,'thresholds increase');
+  assert.equal(battle.rankIcon(29),battle.RANK_ICONS-1,'legend ranks reuse the last badge until their art arrives');
   const top=battle.battleRank(10_000_000);assert.equal(top.next,null);assert.equal(top.pct,100);
 });
 test('a destroyed tower slot stays a ruin for one hour',()=>{
