@@ -1070,13 +1070,20 @@ function renderNick(){
 // Gemi altındaki ad: [FİLO TAG] nick, altında rütbe
 // Kuşatma Kahramanı unvanı (bir hafta): ad altın çerçeveli bir levhada, altında unvan yazısı
 let heroTitle=loadTitle();setInterval(()=>{heroTitle=loadTitle();},60000);
+// Kaptan adı: kalın, altın degradeli ve koyu kahve kontürlü yazı ([TAG] ad). Oyuncu ve diğer kaptanlar aynı stili kullanır.
+function drawCaptainName(x:number,y:number,tag:string,nick:string,size=17){
+  ctx.save();ctx.font=`900 ${size}px Inter, "Arial Black", sans-serif`;ctx.textBaseline='middle';ctx.textAlign='left';ctx.lineJoin='round';
+  const text=tag?`${tag} ${nick}`:nick,w=ctx.measureText(text).width,x0=x-w/2;
+  const g=ctx.createLinearGradient(0,y-size*.55,0,y+size*.55);g.addColorStop(0,'#fff6c2');g.addColorStop(.45,'#ffd34d');g.addColorStop(1,'#d98a16');
+  ctx.shadowColor='#000c';ctx.shadowBlur=5;ctx.shadowOffsetY=1.5;ctx.lineWidth=Math.max(3,size*.26);ctx.strokeStyle='#2b1606';ctx.strokeText(text,x0,y);
+  ctx.shadowColor='transparent';ctx.fillStyle=g;ctx.fillText(text,x0,y);
+  ctx.restore();return w;}
 function drawPlayerLabel(){
-  const p=worldToScreen(player),y=p.y+58,tag=guild?`[${guild.tag}]`:'',nick=profile.nick;
-  ctx.save();ctx.font='700 14px Inter';ctx.textBaseline='middle';const tw=tag?ctx.measureText(tag).width+3:0,nw=ctx.measureText(nick).width,x0=p.x-(tw+nw)/2;
-  if(heroTitle){const w=tw+nw+22,h=22;ctx.beginPath();ctx.roundRect(p.x-w/2,y-h/2,w,h,11);const g=ctx.createLinearGradient(0,y-h/2,0,y+h/2);g.addColorStop(0,'#5a3c0ccc');g.addColorStop(1,'#2a1a04cc');ctx.fillStyle=g;ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle='#ffd27a';ctx.stroke();
-    ctx.font='800 10px Cinzel, serif';ctx.textAlign='center';ctx.fillStyle='#ffd27a';ctx.shadowColor='#000';ctx.shadowBlur=4;ctx.fillText(`★ ${heroTitle.name.toLocaleUpperCase('tr')} ★`,p.x,y+19);ctx.font='700 14px Inter';}
-  ctx.shadowColor='#000';ctx.shadowBlur=4;if(tag){ctx.fillStyle='#ffd24a';ctx.textAlign='left';ctx.fillText(tag,x0,y);}ctx.fillStyle=heroTitle?'#ffe9b0':'#f4f1ea';ctx.textAlign='left';ctx.fillText(nick,x0+tw,y);
-  ctx.restore();
+  const p=worldToScreen(player),y=p.y+60,tag=guild?`[${guild.tag}]`:'',nick=profile.nick;
+  ctx.save();ctx.font='900 17px Inter';const w=ctx.measureText(tag?`${tag} ${nick}`:nick).width;
+  if(heroTitle){const bw=w+24,h=24;ctx.beginPath();ctx.roundRect(p.x-bw/2,y-h/2,bw,h,12);const g=ctx.createLinearGradient(0,y-h/2,0,y+h/2);g.addColorStop(0,'#5a3c0ccc');g.addColorStop(1,'#2a1a04cc');ctx.fillStyle=g;ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle='#ffd27a';ctx.stroke();
+    ctx.font='800 10px Cinzel, serif';ctx.textAlign='center';ctx.fillStyle='#ffd27a';ctx.shadowColor='#000';ctx.shadowBlur=4;ctx.fillText(`★ ${heroTitle.name.toLocaleUpperCase('tr')} ★`,p.x,y+20);}
+  ctx.restore();drawCaptainName(p.x,y,tag,nick);
 }
 // ---------------------------------------------------------------- Filo: hazine, bağış ve kule dikme
 function openGuild(){renderGuild();ui('guildOverlay').classList.add('open');}
@@ -1878,7 +1885,7 @@ function captainHit(t:Enemy,s:Shot,from:Enemy|null){const dmg=Math.round(s.damag
 function drawCaptain(e:Enemy,s:Vec){const c=e.captain!,im=eliteIsoImage(ELITE_ISO[c.elite]);if(!im.complete||!im.naturalWidth)return;
   const f=e.face??{east:true,north:false},idx=f.north?(f.east?0:3):(f.east?1:2),h=im.naturalHeight,D=158;
   drawHullWater(e,100);ctx.save();ctx.translate(s.x,s.y);if((e.frozen??0)>0)ctx.filter='saturate(.4) brightness(1.3) hue-rotate(160deg)';ctx.drawImage(im,idx*h,0,h,h,-D/2,-D*.7,D,D);ctx.restore();
-  const top=-122;drawHealthBar(s.x,s.y+top,80,e.hp/e.maxHp,siege?'#4fd18a':'#f0584a');ctx.fillStyle=siege?'#9fe8dc':'#ffd98a';ctx.font='800 11px Inter';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=4;ctx.fillText(e.name,s.x,s.y+top-8);ctx.shadowBlur=0;}
+  const top=-122;drawHealthBar(s.x,s.y+top,80,e.hp/e.maxHp,siege?'#4fd18a':'#f0584a');drawCaptainName(s.x,s.y+top-11,'',e.name,14);}
 // Capture once at death, then fade the same pose without new particles or assets.
 function spawnWreck(o:Enemy|Monster){
   if(!onScreen(o,320))return;
