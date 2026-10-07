@@ -3,6 +3,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
 import ts from 'typescript';
+import {loadTs} from './load.mjs';
 
 function moduleAt(path){
   const context=vm.createContext({exports:{}});
@@ -10,7 +11,7 @@ function moduleAt(path){
   return context.exports;
 }
 const geometry=moduleAt('../src/towerGeometry.ts');
-const {TOWER_TYPES}=moduleAt('../src/guild.ts');
+const {TOWER_TYPES}=await loadTs('guild.ts');
 const source=ts.createSourceFile('main.ts',readFileSync(new URL('../src/main.ts',import.meta.url),'utf8'),ts.ScriptTarget.Latest,true);
 const update=source.statements.find(s=>ts.isFunctionDeclaration(s)&&s.name?.text==='updateOwnTowers');
 const updateCode=ts.transpile(update.getText(source),{target:ts.ScriptTarget.ES2022});

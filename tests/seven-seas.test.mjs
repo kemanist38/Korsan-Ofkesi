@@ -4,9 +4,9 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 
-const campaign=readFileSync(new URL('../src/campaign.ts',import.meta.url),'utf8');
-const code=ts.transpile(campaign,{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022});
-const world=await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+import {loadTs} from './load.mjs';
+const world=await loadTs('campaign.ts');
+const pve=await loadTs('pve-balance.ts');
 const {MAPS,MAP_KEYS,WORLD_WIDTH,WORLD_HEIGHT,FLEET,islandLayout,coordLabel,neighbor}=world;
 
 test('6000 × 4000 world retains all coordinate extremes and chart wrapping',()=>{
@@ -42,20 +42,20 @@ test('actual edge detection uses width for east/west and height for north/south'
     c.player={x,y};assert.equal(vm.runInContext('edgeDir()',c),dir);
   }
 });
-test('NPC and monster rewards scale with hitpoints and give only XP and gold',()=>{
-  const {NPCS,MONSTERS,XP_PER_HP,GOLD_PER_HP}=world;
-  for(const d of [...Object.values(NPCS),...Object.values(MONSTERS)]){
-    assert.equal(d.xp,Math.round(d.hp*XP_PER_HP(d.tier)));assert.equal(d.gold,Math.round(d.hp*GOLD_PER_HP));
-    assert.ok(!('wood' in d)&&!('pearls' in d),`${d.id} gives only XP and gold`);}
-  const heavy=NPCS['n3-1-heavy'],monster=MONSTERS['m3-2'];assert.ok(monster.hp>heavy.hp*2&&monster.hp<heavy.hp*2.5);
-  // 1. deniz NPC canları: küçük 3.750, orta 9.000 (Seafight ölçeğinin 1,5 katı; seviye uzun sürsün)
-  assert.equal(NPCS['n1-1-light'].hp,3750);assert.equal(NPCS['n1-1-heavy'].hp,9000);
+test('NPC HP and XP come from the PvE tables, grow with the sea and give only XP and gold',()=>{
+  const {NPCS,MONSTERS,npcSize}=world,{PVE_HP,PVE_XP}=pve;
+  for(const d of Object.values(NPCS)){const size=['small','medium','large'].indexOf(npcSize(d.id));
+    assert.equal(d.hp,PVE_HP[d.tier][size]);assert.equal(d.xp,PVE_XP[d.tier][size]);assert.ok(d.gold>0);}
+  for(const d of [...Object.values(NPCS),...Object.values(MONSTERS)])assert.ok(!('wood' in d)&&!('pearls' in d),`${d.id} gives only XP and gold`);
+  for(let t=2;t<=8;t++)for(let s=0;s<4;s++){assert.ok(PVE_HP[t][s]>PVE_HP[t-1][s]);assert.ok(PVE_XP[t][s]>PVE_XP[t-1][s]);}
+  // 1. deniz NPC canları: küçük 8.000, orta 18.000, büyük 35.000
+  assert.equal(NPCS['n1-1-light'].hp,8000);assert.equal(NPCS['n1-1-heavy'].hp,18000);assert.equal(NPCS['n1-2-heavy'].hp,35000);
 });
-test('every map has its own boss, summoned by 200 of the map\'s strongest NPC',()=>{
+test('every map has its own boss, summoned by 200 of the sea\'s largest NPC',()=>{
   const {bossFor,BOSS_KILLS,MAP_KEYS:keys,MAPS:maps,NPCS}=world;assert.equal(BOSS_KILLS,200);
   const names=new Set();
-  keys.forEach((key,i)=>{const b=bossFor(key),heavy=NPCS[maps[key].npcs[1]];
-    assert.equal(b.trigger,heavy.id);assert.equal(b.hp,heavy.hp*30);assert.equal(b.gold,0);
+  keys.forEach((key,i)=>{const b=bossFor(key),heavy=NPCS[`n${maps[key].tier}-2-heavy`];
+    assert.equal(b.trigger,heavy.id);assert.equal(b.hp,heavy.hp*10);assert.equal(b.xp,heavy.xp*20);assert.equal(b.gold,0);
     assert.equal(b.pearls,50*maps[key].tier);assert.ok(b.xp>0);assert.equal(b.portrait,i);names.add(b.name);
     assert.equal(b.sprite,`/assets/boss-t${maps[key].tier}-v${maps[key].tier>=5?2:1}.webp`);});
   // Her denizin iki haritası aynı bossu paylaşır; denizler arasında isimler benzersizdir.
@@ -65,12 +65,12 @@ test('each map offers its own four quests whose rewards grow with the map level'
   const {QUESTS,MAP_KEYS:keys,MAPS:maps,NPCS}=world;
   for(const key of keys){const qs=QUESTS.filter(q=>q.map===key);assert.equal(qs.length,4);
     const light=qs.find(q=>q.id.endsWith('-light'));assert.deepEqual(light.ids,[maps[key].npcs[0]]);
-    assert.equal(light.gold,Math.round(light.required*NPCS[maps[key].npcs[0]].gold*1.5));assert.ok(!('wood' in light));}
+    assert.equal(light.required,20);assert.equal(light.gold,Math.round(light.required*NPCS[maps[key].npcs[0]].gold*world.QUEST_BONUS));assert.ok(!('wood' in light));}
   const g=k=>QUESTS.find(q=>q.id===`q${k}-heavy`);
   for(let t=2;t<=8;t++){assert.ok(g(`${t}/1`).gold>g(`${t-1}/1`).gold);assert.ok(g(`${t}/1`).xp>g(`${t-1}/1`).xp);assert.ok(g(`${t}/1`).pearls>g(`${t-1}/1`).pearls);}
 });
 test('levels 1–8 need only XP; each level costs more than the last and level 8 is the cap',()=>{
-  assert.deepEqual(world.LEVEL_XP,[0,7500,33000,120000,390000,1200000,3600000,10500000]);
+  assert.deepEqual(world.LEVEL_XP,[0,74000,242000,753000,2054000,4363000,6161000,10542000]);
   for(let l=2;l<world.MAX_LEVEL;l++)assert.ok(world.xpNeed(l)>world.xpNeed(l-1));
   assert.equal(world.xpNeed(world.MAX_LEVEL),Infinity);
 });
