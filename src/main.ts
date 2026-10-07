@@ -326,7 +326,9 @@ ui('repair').onclick=toggleRepair;
 // Küçük ekranlar (telefon, tablet): arayüz en az 1180 × 640'lık sanal bir alana göre dizilip orantılı küçültülür.
 // Böylece telefonda da masaüstündeki yerleşim korunur; ölçek --ui değişkeniyle CSS'e verilir (bkz. .hud, .chat).
 let uiScale=1;
-function fitHud(){uiScale=Math.max(.5,Math.min(1,innerWidth/1180,innerHeight/640));document.documentElement.style.setProperty('--ui',String(uiScale));}
+// Dokunmatik ekranlarda (telefon) sanal alan 880 × 480: yazılar ve düğmeler parmakla okunup basılabilecek boyda kalır.
+const TOUCH=matchMedia('(pointer:coarse)').matches;
+function fitHud(){const [vw,vh]=TOUCH?[880,480]:[1180,640];uiScale=Math.max(.5,Math.min(1,innerWidth/vw,innerHeight/vh));document.documentElement.style.setProperty('--ui',String(uiScale));document.documentElement.classList.toggle('touch',TOUCH);}
 fitHud();
 // Günün etkinliği: üst ortada, gece yarısına kalan süreyle
 const dayEventEl=document.createElement('div');dayEventEl.className='day-event';document.querySelector('.hud')!.append(dayEventEl);
@@ -1164,7 +1166,7 @@ function refreshBindHints(){document.querySelectorAll<HTMLElement>('[data-bind]'
 function renderSettings(){
   const groups=[...new Set(ACTIONS.map(a=>a.group))];
   ui('settingsPanel').innerHTML=`<section class="settings-block"><h3>SES</h3><div class="sound-row"><button id="soundToggle" class="${settings.sound?'on':''}">${settings.sound?'SES AÇIK':'SES KAPALI'}</button><label>Ses düzeyi<input id="soundVolume" type="range" min="0" max="100" value="${Math.round(settings.volume*100)}" ${settings.sound?'':'disabled'}/></label></div></section>
-  <section class="settings-block"><h3>KLAVYE KISAYOLLARI <button id="resetBinds">VARSAYILANA DÖN</button></h3><p>Değiştirmek istediğin eyleme tıkla, sonra yeni tuşa bas. ESC iptal eder. Ok tuşları her zaman hareket için de çalışır.</p>${groups.map(g=>`<h4>${g}</h4><div class="bind-grid">${ACTIONS.filter(a=>a.group===g).map(a=>`<button class="bind ${rebinding===a.id?'listening':''}" data-rebind="${a.id}"><span>${a.label}</span><kbd>${rebinding===a.id?'TUŞA BAS…':keyLabel(settings.binds[a.id])}</kbd></button>`).join('')}</div>`).join('')}</section>`;
+  <section class="settings-block keybinds-block"><h3>KLAVYE KISAYOLLARI <button id="resetBinds">VARSAYILANA DÖN</button></h3><p>Değiştirmek istediğin eyleme tıkla, sonra yeni tuşa bas. ESC iptal eder. Ok tuşları her zaman hareket için de çalışır.</p>${groups.map(g=>`<h4>${g}</h4><div class="bind-grid">${ACTIONS.filter(a=>a.group===g).map(a=>`<button class="bind ${rebinding===a.id?'listening':''}" data-rebind="${a.id}"><span>${a.label}</span><kbd>${rebinding===a.id?'TUŞA BAS…':keyLabel(settings.binds[a.id])}</kbd></button>`).join('')}</div>`).join('')}</section>`;
   ui('soundToggle').onclick=()=>{settings.sound=!settings.sound;setAudio(settings.sound,settings.volume);saveSettings(settings);renderSettings();};
   (ui('soundVolume') as HTMLInputElement).oninput=e=>{settings.volume=Number((e.target as HTMLInputElement).value)/100;setAudio(settings.sound,settings.volume);saveSettings(settings);};
   ui('resetBinds').onclick=()=>{settings.binds={...DEFAULT_BINDS};saveSettings(settings);renderQuickSlots();refreshBindHints();renderSettings();toast('Kısayollar varsayılana döndü');};
