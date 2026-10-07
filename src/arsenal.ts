@@ -22,25 +22,26 @@ export const BALL_DAMAGE=20;
 export const CHAIN_FACTOR=1.25;
 // Özel gülleler: damage, demir gülleye (20) göre çarpandır.
 export const SPECIAL_AMMO={
-  fire:{name:'Ateş Güllesi',damage:2.5,reload:1.1,rangeFactor:1,burnSeconds:12,burnDps:250,blastRadius:0,blastFactor:0,towerFactor:1,leech:0,icon:'/assets/ammo-fire-v2.webp',description:'NPC ve canavarlara %40 fazla hasar; hedef 12 saniye yanar.'},
+  fire:{name:'Ateş Güllesi',damage:2.5,reload:1.1,rangeFactor:1,burnSeconds:0,burnDps:250,blastRadius:0,blastFactor:0,towerFactor:1,leech:0,icon:'/assets/ammo-fire-v2.webp',description:'NPC ve canavarlara %40 fazla hasar.'},
+  explosive:{name:'Patlayıcı Gülle',damage:2.5,reload:1.1,rangeFactor:1,burnSeconds:0,burnDps:0,blastRadius:0,blastFactor:0,towerFactor:1,leech:0,icon:'/assets/ammo-explosive-v2.webp',description:'Oyunculara %40 fazla hasar.'},
   breaker:{name:'Kule Kırıcı',damage:2.25,reload:1.15,rangeFactor:1,burnSeconds:0,burnDps:0,blastRadius:0,blastFactor:0,towerFactor:2.6,leech:0,icon:'/assets/ammo-breaker-v2.webp',description:'Kulelere ve ada tahkimatına 2,6 kat hasar.'},
-  leech:{name:'Can Emici',damage:3,reload:1.1,rangeFactor:1,burnSeconds:0,burnDps:0,blastRadius:0,blastFactor:0,towerFactor:1,leech:.3,icon:'/assets/ammo-leech-v2.webp',description:'İsabetlerin %20\'si can çalar: NPC\'den hasarın %30\'u, oyuncudan %15\'i (en çok canının %2\'si).'}
+  leech:{name:'Can Emici',damage:3,reload:1.1,rangeFactor:1,burnSeconds:0,burnDps:0,blastRadius:0,blastFactor:0,towerFactor:1,leech:.3,icon:'/assets/ammo-leech-v2.webp',description:'Yalnız oyunculara karşı: isabetlerin %20\'si hasarın %15\'i kadar can çalar (en çok canının %2\'si).'}
 } as const;
 export type SpecialAmmo=keyof typeof SPECIAL_AMMO;
 
 // Ateş güllesi yanması (Seafight Pyreball: 50 hasar + 12 sn boyunca 3 sn'de bir 10 = gülle başına %80 ek hasar)
 export const FIRE_DOT_SHARE=.8;
 // Her tüketilen elit gülle 0,10 EP verir; gülle fiyatı ilerleme hızını belirlemez.
-export const ELITE_POINTS_PER_BALL={fire:.1,breaker:.1,leech:.1} as const;
+export const ELITE_POINTS_PER_BALL={fire:.1,explosive:.1,breaker:.1,leech:.1} as const;
 // Gülle kuralları. Zincir yalnız oyuncuları (kaptanları) yavaşlatır, NPC ve canavarlara etki etmez.
 export const CHAIN_SLOW={seconds:3,factor:.6};
-// Ateş güllesi NPC ve canavarlara daha fazla işler (oyunculara ve kulelere normal)
-export const FIRE_NPC_FACTOR=1.4;
-// Can emici şansa bağlıdır; oyuncuya karşı daha az çalar ve tek seferde en çok kendi canının %2'si kadar onarır.
-// Ortalama: oyuncuya verilen hasarın ~%3'ü geri gelir, karşılıklı savaşta batırmayı engellemez.
-export const LEECH={chance:.2,share:.3,playerShare:.15,capPct:.02};
+// Ateş güllesi NPC ve canavarlara, patlayıcı gülle oyunculara (kaptanlara) daha fazla işler; yakma etkisi yoktur.
+export const FIRE_NPC_FACTOR=1.4,EXPLOSIVE_PLAYER_FACTOR=1.4;
+// Can emici yalnız oyuncudan oyuncuya çalar (NPC, canavar ve kuleden çalmaz); şansa bağlıdır ve tek seferde en çok
+// kendi canının %2'si kadar onarır. Ortalama: verilen hasarın ~%3'ü geri gelir, karşılıklı savaşta batırmayı engellemez.
+export const LEECH={chance:.2,share:.15,capPct:.02};
 export function leechHeal(hit:number,vsPlayer:boolean,ownMaxHp:number,roll=Math.random()){
-  if(roll>=LEECH.chance)return 0;return Math.round(Math.min(hit*(vsPlayer?LEECH.playerShare:LEECH.share),ownMaxHp*LEECH.capPct));}
+  if(!vsPlayer||roll>=LEECH.chance)return 0;return Math.round(Math.min(hit*LEECH.share,ownMaxHp*LEECH.capPct));}
 // Tamir: saniyede bir kez, sabit miktar (hasar sayıları gibi görünür). Geliştirme/tayfa/elit bonusları en çok %70 artırır.
 export const REPAIR_PER_SEC=1500,REPAIR_BONUS_CAP=1.7;
 export const repairAmount=(mult:number)=>Math.round(REPAIR_PER_SEC*Math.min(REPAIR_BONUS_CAP,Math.max(1,mult)));
@@ -57,7 +58,7 @@ export const MINE={armSeconds:1,triggerRadius:46,blastRadius:95,baseDamage:4000,
 // Her top her salvoda 1 gülle harcar. Elit fiyatları 300, zincir fiyatı 100 gülle içindir.
 export type Price={amount:number;currency:'gold'|'pearls';per?:number};
 export const priceOf=(p:Price,qty:number)=>Math.ceil(qty*p.amount/(p.per??1));
-export const AMMO_PRICES={chain:{amount:10,currency:'gold',per:100},fire:{amount:2,currency:'pearls',per:300},breaker:{amount:3,currency:'pearls',per:300},leech:{amount:5,currency:'pearls',per:300}} as const satisfies Record<string,Price>;
+export const AMMO_PRICES={chain:{amount:10,currency:'gold',per:100},fire:{amount:2,currency:'pearls',per:300},breaker:{amount:3,currency:'pearls',per:300},explosive:{amount:4,currency:'pearls',per:300},leech:{amount:5,currency:'pearls',per:300}} as const satisfies Record<string,Price>;
 export const SUPPLY_PRICES={powder:{amount:3,currency:'gold'},shield:{amount:3,currency:'gold'},speed:{amount:2,currency:'pearls'},mine:{amount:5,currency:'pearls'}} as const satisfies Record<string,Price>;
 export type SupplyId=keyof typeof SUPPLY_PRICES;
 
