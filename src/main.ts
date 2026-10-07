@@ -184,7 +184,7 @@ const crew=loadCrew();
 if(ELITE_TEST_MODE){const M=5_000_000;
   for(const k of ['fire','grape','explosive','breaker','leech','powder','shield','speed','mine'] as const)arsenal[k]=Math.max(arsenal[k],M);saveArsenal(arsenal);
   state.chainAmmo=Math.max(state.chainAmmo,M);state.gold=Math.max(state.gold,M);state.pearls=Math.max(state.pearls,M);
-  state.fame=Math.max(state.fame,100_000_000);state.battlePoints=Math.max(state.battlePoints,100_000);state.elitePoints=Math.max(state.elitePoints,200_000_000);
+  state.fame=Math.max(state.fame,100_000_000);state.battlePoints=Math.max(state.battlePoints,BATTLE_RANKS[BATTLE_RANKS.length-1].sp);state.elitePoints=Math.max(state.elitePoints,200_000_000);
   for(const id of Object.keys(TALENTS) as TalentId[])crew.talents[id]=TALENTS[id].max;
   for(const id of Object.keys(OFFICERS) as OfficerId[])crew.officers[id]=OFFICER_MAX_RANK;
   crew.active=(Object.keys(OFFICERS) as OfficerId[]).filter(id=>crew.active.includes(id)).concat((Object.keys(OFFICERS) as OfficerId[]).filter(id=>!crew.active.includes(id))).slice(0,officerSlots(state.level));saveCrew(crew);}
