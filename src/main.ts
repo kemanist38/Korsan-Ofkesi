@@ -1111,8 +1111,17 @@ function drawCaptainName(x:number,y:number,tag:string,nick:string,size=17,rank=-
 // Güverte işareti: adın altında ortalı; kademesi batırılan rakip sayısına göre (sayı yazılmaz)
 let rivalSinks=ELITE_TEST_MODE?Math.max(loadRivalSinks(),12_500):loadRivalSinks();
 const insigniaImg=new Image();insigniaImg.src=INSIGNIA_SHEET;
+// Telefonda 512 px'lik işaret tek adımda ~100 px'e inince kırık görünüyordu: her kademe için yarıya yarıya küçültülmüş kopyalar
+// bir kez hazırlanır, çizimde ekrandaki gerçek piksel boyuna en yakın (ondan büyük) kopya seçilir.
+const insigniaMips:HTMLCanvasElement[][]=[];
+function insigniaLevels(t:number){let lv=insigniaMips[t];if(lv)return lv;lv=[];let src:CanvasImageSource=insigniaImg,sx=0,sy=t*INSIGNIA_H,w=INSIGNIA_W,h=INSIGNIA_H;
+  while(w>=64){const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d')!;g.imageSmoothingQuality='high';g.drawImage(src,sx,sy,w*(src===insigniaImg?1:2),h*(src===insigniaImg?1:2),0,0,w,h);
+    lv.push(c);src=c;sx=0;sy=0;w=Math.round(w/2);h=Math.round(h/2);}
+  return insigniaMips[t]=lv;}
 function drawInsignia(x:number,y:number,count:number,w=140){if(!insigniaImg.complete||!insigniaImg.naturalWidth)return;
-  const t=insigniaTier(count),h=w*INSIGNIA_H/INSIGNIA_W;ctx.drawImage(insigniaImg,0,t*INSIGNIA_H,INSIGNIA_W,INSIGNIA_H,x-w/2,y,w,h);}
+  const t=insigniaTier(count),h=w*INSIGNIA_H/INSIGNIA_W,m=ctx.getTransform(),px=w*Math.hypot(m.a,m.b),lv=insigniaLevels(t);
+  let pick=lv[0];for(const c of lv)if(c.width>=px)pick=c;
+  ctx.save();ctx.imageSmoothingQuality='high';ctx.drawImage(pick,x-w/2,y,w,h);ctx.restore();}
 function drawPlayerLabel(){
   const p=worldToScreen(player),y=p.y+60,tag=guild?`[${guild.tag}]`:'',nick=profile.nick;
   ctx.save();ctx.font='900 17px Inter';const w=ctx.measureText(tag?`${tag} ${nick}`:nick).width;
