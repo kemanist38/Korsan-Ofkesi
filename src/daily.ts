@@ -1,6 +1,6 @@
 // Günlük giriş ödülü: 7 günlük takvim (7. gün rastgele bir sıradan donanım parçası da verir). Her takvim günü bir kez toplanır; art arda gelindikçe sonraki güne geçilir,
 // bir gün kaçırılırsa takvim 1. güne döner, 7. günden sonra yeniden başlar. Altın ödülü kaptan seviyesiyle büyür.
-export type DailyReward={gold?:number;pearls?:number;chain?:number;fire?:number;explosive?:number;powder?:number;shield?:number;equip?:string};
+export type DailyReward={gold?:number;pearls?:number;chain?:number;fire?:number;breaker?:number;powder?:number;shield?:number;equip?:string};
 export type DailyState={last:string|null;streak:number};
 const STORAGE='yedi-deniz-daily-v1';
 export const dayKey=(d:Date)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -20,5 +20,5 @@ export function claimDaily(s:DailyState,now=new Date()):DailyState{
 }
 export function dailyReward(day:number,level:number):DailyReward{
   const gold=Math.round(1500*Math.pow(1.6,level-1));
-  return[{gold},{chain:500},{pearls:10},{fire:300,gold},{powder:50,shield:50},{pearls:25,explosive:200},{pearls:50,gold:gold*3,equip:'common'}][day-1];
+  return[{gold},{chain:500},{pearls:10},{fire:300,gold},{powder:50,shield:50},{pearls:25,breaker:200},{pearls:50,gold:gold*3,equip:'common'}][day-1];
 }
