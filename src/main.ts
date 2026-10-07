@@ -18,6 +18,7 @@ import {EQUIPMENT,EQUIP_SLOTS,RARITY_NAMES,equipById,equipStatText,equipTotals,e
 import {PEARL_PACKS,packTotal,priceText,VIP_PACKS,VIP_XP_BONUS,loadVipUntil,saveVipUntil,vipActive,vipDaysLeft,extendVip,VIP_DAY_MS} from './pearlShop';
 import {BOARDS,rankRows,rankPage,RANK_PAGE_SIZE,type BoardId,type RankPlayer,type RankFleet,type RankRow} from './leaderboard';
 import {redeem,loadRedeemed,saveRedeemed,rewardText} from './coupons';
+import {loadLog,saveLog,addLog,daySummary,LOG_KINDS,type LogKind,type LogEntry} from './logbook';
 import {BALL_DAMAGE,CHAIN_FACTOR,FIRE_DOT_SHARE,ELITE_POINTS_PER_BALL,ELITE_MAX_LEVEL,eliteLevelEp,eliteLevelFromEp,ABILITIES,SPECIAL_AMMO,MINE,SPEED_BOOST,CONSUMABLES,AMMO_PRICES,SUPPLY_PRICES,loadArsenal,saveArsenal,type AbilityId,type SpecialAmmo,type ConsumableId,type SupplyId,type Price,priceOf} from './arsenal';
 import {loadFleetOwners,saveFleetOwners,loadRuins,markRuin,ruinLeft,ruinLabel,clearRuins} from './conquest';
 import {RIVAL_SP,battleRank,loadRivalLog,claimRivalSp,dayKey} from './battle';
@@ -90,18 +91,17 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     <section class="hud">
       <div class="corner-buttons"><button class="round-button" id="openShop" aria-label="Market"><img src="/assets/icon-market-v2.webp" alt="" draggable="false"/></button><button class="round-button" id="openMenu" aria-label="Menü"><img src="/assets/icon-menu-v2.webp" alt="" draggable="false"/></button></div>
       <nav class="shop-tabs" id="shopTabs"><button id="openEliteShips" data-shop="eliteShipOverlay"><img class="nav-img" id="shipNavIcon" alt="" draggable="false"/><span>TERSANE</span></button><button id="openEquipShop" data-shop="equipShopOverlay"><i class="nav-img equip-nav"></i><span>DONANIM</span></button><button id="openCannonShop" data-shop="cannonShopOverlay"><img class="nav-img" src="/assets/cannon-cast-v1.webp" alt="" draggable="false"/><span>TOPLAR</span></button><button id="openShip" data-shop="shipOverlay"><img class="nav-img" src="/assets/icon-inventory-v3.webp" alt="" draggable="false"/><span>ENVANTER</span></button><button id="openMarket" data-shop="marketOverlay"><img class="nav-img" src="/assets/ammo-fire-v2.webp" alt="" draggable="false"/><span>GÜLLELER</span></button><button id="openLoadoutTab" data-shop="supplyOverlay"><img class="nav-img" src="/assets/icon-chest-v2.webp" alt="" draggable="false"/><span>MALZEMELER</span></button><button id="openPearlShop" data-shop="pearlShopOverlay"><img class="nav-img" src="/assets/icon-pearl-v1.webp" alt="" draggable="false"/><span>MAĞAZA</span></button><button class="shop-close" id="closeShopTabs" aria-label="Marketi kapat">×</button></nav>
-      <div class="captain-overlay menu-overlay" id="menuOverlay"><section class="captain-profile menu-window"><header><img class="menu-logo" src="/assets/logo-pirate-rage-v1.webp" alt="Pirate Rage: Korsan Öfkesi" draggable="false"/><div><span class="eyebrow">Kaptan köşkü</span><h2>MENÜ</h2></div><button id="closeMenu" aria-label="Menüyü kapat">×</button></header><div class="menu-grid"><button id="openCaptain"><img src="/assets/icon-hat-v2.webp" alt="" draggable="false"/><span>KAPTAN PROFİLİ</span></button><button id="openGuild"><img src="/assets/icon-fleet-v1.webp" alt="" draggable="false"/><span>FİLO</span></button><button id="openDevelopment"><img src="/assets/icon-anvil-v2.webp" alt="" draggable="false"/><span>GELİŞTİRME</span></button><button id="openCrew"><img src="/assets/crew-helmsman-v1.webp" alt="" draggable="false"/><span>TAYFA</span></button><button id="openDaily"><img src="/assets/icon-chest-v2.webp" alt="" draggable="false"/><span>GÜNLÜK ÖDÜL</span></button><button id="openMenuQuests"><img src="/assets/icon-scroll-v2.webp" alt="" draggable="false"/><span>GÖREVLER</span></button><button id="openMenuWorld"><img id="menuWorldIcon" alt="" draggable="false"/><span>DÜNYA HARİTASI</span></button><button id="openRanks"><img src="/assets/icon-flag-v1.webp" alt="" draggable="false"/><span>SIRALAMALAR</span></button><button id="openCoupon"><img src="/assets/icon-pearl-v1.webp" alt="" draggable="false"/><span>KUPON KODU</span></button><button id="openSettings"><img src="/assets/icon-gear-v2.webp" alt="" draggable="false"/><span>AYARLAR</span></button></div></section></div>
+      <div class="captain-overlay menu-overlay" id="menuOverlay"><section class="captain-profile menu-window"><header><img class="menu-logo" src="/assets/logo-pirate-rage-v1.webp" alt="Pirate Rage: Korsan Öfkesi" draggable="false"/><div><span class="eyebrow">Kaptan köşkü</span><h2>MENÜ</h2></div><button id="closeMenu" aria-label="Menüyü kapat">×</button></header><div class="menu-grid"><button id="openCaptain"><img src="/assets/icon-hat-v2.webp" alt="" draggable="false"/><span>KAPTAN PROFİLİ</span></button><button id="openGuild"><img src="/assets/icon-fleet-v1.webp" alt="" draggable="false"/><span>FİLO</span></button><button id="openDevelopment"><img src="/assets/icon-anvil-v2.webp" alt="" draggable="false"/><span>GELİŞTİRME</span></button><button id="openCrew"><img src="/assets/crew-helmsman-v1.webp" alt="" draggable="false"/><span>TAYFA</span></button><button id="openDaily"><img src="/assets/icon-chest-v2.webp" alt="" draggable="false"/><span>GÜNLÜK ÖDÜL</span></button><button id="openMenuQuests"><img src="/assets/icon-scroll-v2.webp" alt="" draggable="false"/><span>GÖREVLER</span></button><button id="openMenuWorld"><img id="menuWorldIcon" alt="" draggable="false"/><span>DÜNYA HARİTASI</span></button><button id="openLog"><img src="/assets/icon-treasure-map-v3.webp" alt="" draggable="false"/><span>SEYİR DEFTERİ</span></button><button id="openRanks"><img src="/assets/icon-flag-v1.webp" alt="" draggable="false"/><span>SIRALAMALAR</span></button><button id="openCoupon"><img src="/assets/icon-pearl-v1.webp" alt="" draggable="false"/><span>KUPON KODU</span></button><button id="openSettings"><img src="/assets/icon-gear-v2.webp" alt="" draggable="false"/><span>AYARLAR</span></button></div></section></div>
       <div class="resources"><div class="resource compact"><i class="sprite icon-gold"></i><span>ALTIN</span><b id="gold">000</b></div><div class="resource compact pearl" id="pearlResource" title="İnci satın al"><i class="sprite icon-pearl"></i><span>İNCİ</span><b id="pearls">000</b><em class="pearl-plus">+</em></div></div>
       <div class="panel quest" hidden><span class="eyebrow">Aktif görev</span><h3 id="questTitle">Görev seçilmedi</h3><p id="questDescription">Kaptan, yapmak istediğin görevi görev defterinden seçebilirsin.</p><div class="progress" id="quest">Hazır olduğunda bir görev başlat</div><button class="quest-open" id="openQuests">GÖREVLERİ AÇ</button></div>
       <section class="combat-targets" id="combatTargets" aria-live="polite"></section>
       <div class="hud-dock"><div class="dock-status"><div class="status-pair"><div class="status-line hp-line"><span>CP</span><i><em id="hpHudBar"></em></i><b id="hpHudText">100 / 100</b></div></div><div class="dock-center"><button class="recenter" id="recenterShip" aria-label="Gemiyi haritada ortala">✥</button></div><div class="status-pair"><div class="status-line battle-line"><span>SP</span><i><em id="battleBar"></em></i><b id="battleText">0 / 100</b></div></div></div></div><div class="slot-bar" id="ammoBar" data-bar="ammo"><div class="bar-grip" title="Tutup sürükle · çift tık: eski yerine"><button class="bar-toggle" aria-label="Gülle yuvalarını aç/kapat" title="Aç/kapat"><i></i></button></div><div class="bar-slots" id="ammoSlots"></div></div><div class="slot-bar" id="itemBar" data-bar="item"><div class="bar-grip" title="Tutup sürükle · çift tık: eski yerine"><button class="bar-toggle" aria-label="Malzeme yuvalarını aç/kapat" title="Aç/kapat"><i></i></button></div><div class="bar-slots" id="itemSlots"></div></div><div class="ammo-picker" id="ammoPicker"></div><div class="top-status" id="topStatus"><div class="status-line xp-line"><span>TP</span><i><em id="xpHudBar"></em></i><b id="xpHudText">0 / 100</b></div><b class="top-level" id="level" title="Kaptan seviyesi">1</b><div class="status-line elite-line"><span>EP</span><i><em id="eliteBar"></em></i><b id="eliteText">0 / 100</b></div></div>
       <div class="combat-controls" id="combatControls"><button class="combat-action attack" id="attack" title="Saldır"><b><img src="/assets/icon-attack-v2.webp" alt="" draggable="false"/></b><span id="attackLabel">SALDIR</span><small id="reloadText">HAZIR</small></button><button class="combat-action repair" id="repair" title="Tamir et"><b><img src="/assets/icon-repair-v2.webp" alt="" draggable="false"/></b><span>TAMİR</span><small data-bind="repair"></small></button><button class="combat-action speed ability" id="ability-speed" title="Hız İksiri"><b><img src="/assets/icon-speed-potion-v2.webp" alt="" draggable="false"/></b><span>HIZ</span><small data-bind="speed"></small></button><button class="combat-action mine ability" id="ability-mine" title="Deniz Mayını"><b><img src="/assets/icon-mine-v2.webp" alt="" draggable="false"/></b><span>MAYIN</span><small data-bind="mine"></small></button><button class="combat-action rage" id="rageButton" title="Korsan Öfkesi — bar dolunca bas: 2 salvo %25 hasar, %15 hız"><b><img src="/assets/icon-app-192.png" alt="" draggable="false"/></b><span>KORSAN ÖFKESİ</span><small id="rageTime">%0</small></button></div>
       <div class="map-cluster"><div class="map-badge" id="mapBadge"><strong id="mapName"></strong><small id="mapSubtitle"></small><b class="map-coord" id="mapCoord" title="Konum koordinatı">1/1 - 00AA</b></div><canvas id="minimap" width="188" height="133"></canvas><button class="world-map-button" id="openWorldMap" aria-label="Dünya haritalarını görüntüle"><img id="worldMapIcon" alt="" draggable="false"/><span>DÜNYA</span></button><button class="quest-bust" id="openQuestTop" aria-label="Görevler"><img src="/assets/quest-captain-v2.webp" alt="" draggable="false"/><span>GÖREVLER</span><small id="questBadge"></small></button><div class="panel zoom-controls"><button id="zoomOut" aria-label="Uzaklaştır">−</button><span id="zoomValue">70%</span><button id="zoomIn" aria-label="Yakınlaştır">+</button></div></div>
-      <div class="reward-toast" id="rewardToast"></div>
       <div class="sink-notices" id="sinkNotices" role="status" aria-live="polite"></div>
       <div class="toast" id="toast"></div>
       <div class="portal-prompt" id="portalPrompt"></div><div class="quest-overlay daily-overlay" id="dailyOverlay"><section class="daily-window"><header><div><span class="eyebrow">Her gün gel, ödül büyüsün</span><h2>GÜNLÜK ÖDÜL</h2></div><button id="closeDaily" aria-label="Kapat">×</button></header><div class="daily-grid" id="dailyGrid"></div><p class="daily-note" id="dailyNote"></p></section></div><button class="dig-prompt" id="digPrompt"><img src="/assets/icon-treasure-map-v3.webp" alt="" draggable="false"/><span>HAZİNEYİ KAZ</span><i><em id="digBar"></em></i></button><div class="event-panel" id="eventPanel"></div><div class="quest-overlay world-overlay" id="worldMapOverlay"><section class="world-scroll" aria-label="Dünya haritası"><button class="scroll-close" id="closeWorldMap" aria-label="Dünya haritasını kapat">×</button><div class="world-chart" id="worldChart"></div><div id="worldInfo" hidden></div></section></div><div class="quest-overlay" id="questOverlay"><section class="quest-log"><header><div><span class="eyebrow">Kaptanın görev defteri</span><h2>DENİZ GÖREVLERİ</h2></div><button id="closeQuests" aria-label="Görevleri kapat">×</button></header><p class="quest-intro">1 aktif görev · Tekrar süresi: ${QUEST_COOLDOWN_MS/3_600_000} saat</p><div class="quest-list" id="questList"></div></section></div>
-      <div class="captain-overlay" id="captainOverlay"><section class="captain-profile"><header><div><span class="eyebrow">Oyuncu profili</span><h2 id="captainName">KAPTAN</h2></div><button id="closeCaptain" aria-label="Kaptan profilini kapat">×</button></header><div class="captain-tab" id="captainTab-profile"><div class="captain-identity"><div class="captain-portrait"><img src="/assets/icon-hat-v2.webp" alt="" draggable="false"/><b id="captainLevel">1</b></div><div><span>AMİRAL GEMİSİ</span><strong>Yedi Deniz</strong><small>Gölgeler Denizi Kaptanı</small></div></div><div class="captain-nick" id="captainNick"></div><div class="captain-stat-grid"><article><span>TECRÜBE PUANI</span><b id="xpText">0 / 100</b><i class="xp"><em id="xpBar"></em></i></article><article><span>CAN PUANI</span><b id="hpText">100 / 100</b><i class="hp"><em id="hpBar" style="width:100%"></em></i></article><article><span>ELİT PUAN</span><b id="profileElite">0 / 100</b><i class="elite"><em id="profileEliteBar"></em></i></article><article><span>SAVAŞ PUANI</span><b id="profileBattle">0 / 500</b><i class="battle"><em id="profileBattleBar"></em></i></article></div><div class="bonus-summary" id="bonusSummary"></div><section class="captain-medals"><header><span class="eyebrow">Madalyalar ve kalıcı bonuslar</span><p class="ach-summary" id="achSummary"></p></header><div class="ach-grid" id="achGrid"></div></section></div></section></div><div class="captain-overlay" id="guildOverlay"><section class="captain-profile crew-window guild-window"><header><div><span class="eyebrow">Filo hazinesi ve ada kuleleri</span><h2>FİLO</h2></div><button id="closeGuild" aria-label="Filo penceresini kapat">×</button></header><div id="guildPanel"></div></section></div><div class="captain-overlay" id="crewOverlay"><section class="captain-profile crew-window"><header><div><span class="eyebrow">Geminin subayları</span><h2>TAYFA</h2></div><button id="closeCrew" aria-label="Tayfayı kapat">×</button></header><div id="crewPanel"></div></section></div><div class="quest-overlay" id="rankOverlay"><section class="quest-log rank-log"><header><div><span class="eyebrow">Denizlerin en iyileri</span><h2>SIRALAMALAR</h2></div><button id="closeRanks" aria-label="Sıralamaları kapat">×</button></header><div id="rankPanel"></div></section></div><div class="quest-overlay" id="couponOverlay"><section class="quest-log coupon-log"><header><div><span class="eyebrow">Etkinlik ödülleri</span><h2>KUPON KODU</h2></div><button id="closeCoupon" aria-label="Kupon penceresini kapat">×</button></header><p class="quest-intro">Etkinliklerde ve duyurularda paylaşılan kodu gir, ödülün hemen hesabına eklensin. Her kod bir kez kullanılır.</p><div class="coupon-form"><input id="couponInput" maxlength="32" placeholder="KUPON KODU" autocomplete="off" spellcheck="false"/><button id="couponRedeem">KULLAN</button></div><p class="coupon-result" id="couponResult"></p></section></div><div class="quest-overlay" id="settingsOverlay"><section class="quest-log settings-log"><header><div><span class="eyebrow">Oyun tercihleri</span><h2>AYARLAR</h2></div><button id="closeSettings" aria-label="Ayarları kapat">×</button></header><div id="settingsPanel"></div></section></div>
+      <div class="captain-overlay" id="captainOverlay"><section class="captain-profile"><header><div><span class="eyebrow">Oyuncu profili</span><h2 id="captainName">KAPTAN</h2></div><button id="closeCaptain" aria-label="Kaptan profilini kapat">×</button></header><div class="captain-tab" id="captainTab-profile"><div class="captain-identity"><div class="captain-portrait"><img src="/assets/icon-hat-v2.webp" alt="" draggable="false"/><b id="captainLevel">1</b></div><div><span>AMİRAL GEMİSİ</span><strong>Yedi Deniz</strong><small>Gölgeler Denizi Kaptanı</small></div></div><div class="captain-nick" id="captainNick"></div><div class="captain-stat-grid"><article><span>TECRÜBE PUANI</span><b id="xpText">0 / 100</b><i class="xp"><em id="xpBar"></em></i></article><article><span>CAN PUANI</span><b id="hpText">100 / 100</b><i class="hp"><em id="hpBar" style="width:100%"></em></i></article><article><span>ELİT PUAN</span><b id="profileElite">0 / 100</b><i class="elite"><em id="profileEliteBar"></em></i></article><article><span>SAVAŞ PUANI</span><b id="profileBattle">0 / 500</b><i class="battle"><em id="profileBattleBar"></em></i></article></div><div class="bonus-summary" id="bonusSummary"></div><section class="captain-medals"><header><span class="eyebrow">Madalyalar ve kalıcı bonuslar</span><p class="ach-summary" id="achSummary"></p></header><div class="ach-grid" id="achGrid"></div></section></div></section></div><div class="captain-overlay" id="guildOverlay"><section class="captain-profile crew-window guild-window"><header><div><span class="eyebrow">Filo hazinesi ve ada kuleleri</span><h2>FİLO</h2></div><button id="closeGuild" aria-label="Filo penceresini kapat">×</button></header><div id="guildPanel"></div></section></div><div class="captain-overlay" id="crewOverlay"><section class="captain-profile crew-window"><header><div><span class="eyebrow">Geminin subayları</span><h2>TAYFA</h2></div><button id="closeCrew" aria-label="Tayfayı kapat">×</button></header><div id="crewPanel"></div></section></div><div class="quest-overlay" id="logOverlay"><section class="quest-log log-window"><header><div><span class="eyebrow">Kaptanın günlüğü</span><h2>SEYİR DEFTERİ</h2></div><button id="closeLog" aria-label="Seyir defterini kapat">×</button></header><div id="logPanel"></div></section></div><div class="quest-overlay" id="rankOverlay"><section class="quest-log rank-log"><header><div><span class="eyebrow">Denizlerin en iyileri</span><h2>SIRALAMALAR</h2></div><button id="closeRanks" aria-label="Sıralamaları kapat">×</button></header><div id="rankPanel"></div></section></div><div class="quest-overlay" id="couponOverlay"><section class="quest-log coupon-log"><header><div><span class="eyebrow">Etkinlik ödülleri</span><h2>KUPON KODU</h2></div><button id="closeCoupon" aria-label="Kupon penceresini kapat">×</button></header><p class="quest-intro">Etkinliklerde ve duyurularda paylaşılan kodu gir, ödülün hemen hesabına eklensin. Her kod bir kez kullanılır.</p><div class="coupon-form"><input id="couponInput" maxlength="32" placeholder="KUPON KODU" autocomplete="off" spellcheck="false"/><button id="couponRedeem">KULLAN</button></div><p class="coupon-result" id="couponResult"></p></section></div><div class="quest-overlay" id="settingsOverlay"><section class="quest-log settings-log"><header><div><span class="eyebrow">Oyun tercihleri</span><h2>AYARLAR</h2></div><button id="closeSettings" aria-label="Ayarları kapat">×</button></header><div id="settingsPanel"></div></section></div>
       <div class="ship-overlay" id="eliteShipOverlay"><section class="ship-menu elite-ship-window"><header><div><span class="eyebrow">Filo tersanesi</span><h2>TERSANE</h2></div></header><div class="elite-ship-layout"><div class="elite-ship-grid" id="eliteShipGrid"></div><aside class="elite-ship-detail" id="eliteShipDetail"></aside></div></section></div><div class="ship-overlay" id="shipOverlay"><section class="ship-menu inv-window"><header><div class="inv-top"><img src="/assets/cannon-cast-v1.webp" alt="" draggable="false"/><span id="shipSummary"></span></div><h2>ENVANTER</h2></header><div class="inv-modes"><button data-inv-mode="cannon">TOPLAR</button><button data-inv-mode="equip">DONANIM</button></div><div class="inv-body"><aside class="inv-captain"><img src="/assets/captain-bust-v1.webp" alt="" draggable="false"/></aside><section class="inv-panel"><header><span>Depo</span><button class="inv-arrow to-depot" id="invToDepot" title="Seçili topu depoya al">⬅</button></header><div class="inv-grid" id="invDepot" data-side="depot"></div></section><section class="inv-panel"><header><button class="inv-arrow to-ship" id="invToShip" title="Seçili topu gemiye al">➡</button><span>Gemi</span></header><div class="inv-grid" id="invShip" data-side="ship"></div></section><aside class="inv-info"><header>Bilgi</header><div id="cannonRows"></div></aside></div></section></div><div class="market-overlay" id="equipShopOverlay"><section class="market-menu"><header><div><span class="eyebrow">Gemi ustası</span><h2>DONANIM</h2></div></header><div class="market-list" id="equipShopList"></div></section></div><div class="market-overlay" id="cannonShopOverlay"><section class="market-menu cannon-shop"><header><div><span class="eyebrow">Topçu dökümhanesi</span><h2>TOPLAR</h2></div></header><div class="market-list" id="cannonShopList"></div></section></div>
       <div class="development-overlay" id="developmentOverlay"><section class="development-menu"><header><div><span class="eyebrow">Kaptanın gelişim planı</span><h2>GELİŞTİRME</h2></div><button id="closeDevelopment" aria-label="Geliştirmeyi kapat">×</button></header><div id="talentPanel"><div class="dev-tree" id="upgradeList"></div><div class="upgrade-confirm" id="upgradeConfirm"></div></div></section></div>
       <div class="market-overlay" id="marketOverlay"><section class="market-menu"><header><div><span class="eyebrow">Tüccar loncası</span><h2>GÜLLELER</h2></div></header><div class="market-list" id="marketList"></div></section></div><div class="market-overlay" id="supplyOverlay"><section class="market-menu"><header><div><span class="eyebrow">Sarf malzemeleri</span><h2>MALZEMELER</h2></div></header><div class="market-list" id="supplyList"></div></section></div><div class="market-overlay" id="pearlShopOverlay"><section class="market-menu pearl-shop"><header><div><span class="eyebrow">Kaptanın hazinesi</span><h2>İNCİ HAZİNESİ</h2><p>İnciyle elit gülleler, malzemeler ve elit gemiler alınır. Büyük paketlerde bonus inci artar.</p></div></header><div class="vip-block"><div class="vip-head"><b class="vip-crown">VİP</b><div><h3>VİP ÜYELİK</h3><p>Hareket halindeyken tamir · %10 fazla tecrübe puanı</p></div><span class="vip-status" id="vipStatus"></span></div><div class="vip-packs" id="vipPacks"></div></div><h3 class="pearl-title">İNCİ PAKETLERİ</h3><div class="pearl-packs" id="pearlPacks"></div><p class="pearl-note" id="pearlNote"></p></section></div><div class="buy-confirm" id="buyConfirm"></div><div class="loadout-overlay" id="loadoutOverlay"><section class="loadout-menu"><header><div><span class="eyebrow">Sarf malzemeleri</span><h2 id="loadoutTitle">MALZEMELER</h2></div><button id="closeLoadout">×</button></header><p id="loadoutHint">Sarf malzemeleri alt sıraya yerleşir. Sürükleyip bırak ya da önce eşyaya, sonra yuvaya dokun. Kara Barut ve Kalkan yuvaya dokununca açılır/kapanır.</p><div class="loadout-items" id="loadoutItems"></div><div class="loadout-slots" id="loadoutSlots"></div></section></div>
@@ -406,6 +406,7 @@ ui('openCaptain').onclick=openCaptainProfile;
 ui('closeCaptain').onclick=closeCaptainProfile;
 ui('openGuild').onclick=openGuild;ui('closeGuild').onclick=closeGuild;ui('guildOverlay').addEventListener('pointerdown',e=>{if(e.target===ui('guildOverlay'))closeGuild();});
 ui('openCrew').onclick=openCrew;ui('closeCrew').onclick=closeCrew;ui('crewOverlay').addEventListener('pointerdown',e=>{if(e.target===ui('crewOverlay'))closeCrew();});
+ui('openLog').onclick=openLogbook;ui('closeLog').onclick=closeLogbook;ui('logOverlay').addEventListener('pointerdown',e=>{if(e.target===ui('logOverlay'))closeLogbook();});
 ui('openRanks').onclick=openRanks;ui('closeRanks').onclick=closeRanks;ui('rankOverlay').addEventListener('pointerdown',e=>{if(e.target===ui('rankOverlay'))closeRanks();});
 ui('openCoupon').onclick=openCoupon;ui('closeCoupon').onclick=closeCoupon;ui('couponOverlay').addEventListener('pointerdown',e=>{if(e.target===ui('couponOverlay'))closeCoupon();});
 ui('couponRedeem').onclick=redeemCoupon;ui('couponInput').addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Enter')redeemCoupon();});
@@ -456,10 +457,10 @@ function renderPearlShop(){
   ui('pearlPacks').querySelectorAll<HTMLElement>('[data-pack]').forEach(el=>el.querySelector('button')!.onclick=()=>buyPearlPack(el.dataset.pack!));}
 function buyVip(id:string){const v=VIP_PACKS.find(x=>x.id===id);if(!v)return;
   if(!ELITE_TEST_MODE){toast('Ödeme sistemi yakında açılacak');return;}
-  vipUntil=extendVip(vipUntil,v.months);saveVipUntil(vipUntil);playCoins();rewardNotice(`VİP ${v.months} AY   ${vipDaysLeft(vipUntil)} GÜN AKTİF`);renderPearlShop();}
+  vipUntil=extendVip(vipUntil,v.months);saveVipUntil(vipUntil);playCoins();rewardNotice(`VİP ${v.months} ay satın alındı · ${vipDaysLeft(vipUntil)} gün aktif`,'shop');renderPearlShop();}
 function buyPearlPack(id:string){const p=PEARL_PACKS.find(x=>x.id===id);if(!p)return;
   if(!ELITE_TEST_MODE){toast('Ödeme sistemi yakında açılacak');return;}
-  state.pearls+=packTotal(p);saveAccount();updateUI();playCoins();rewardNotice(`+${fmt(packTotal(p))} İNCİ   ${p.name.toLocaleUpperCase('tr')}`);}
+  state.pearls+=packTotal(p);saveAccount();updateUI();playCoins();rewardNotice(`${p.name} satın alındı · +${fmt(packTotal(p))} inci`,'shop');}
 ui('pearlResource').onclick=()=>showShop('pearlShopOverlay');
 ui('pearlShopOverlay').addEventListener('pointerdown',e=>{if(e.target===ui('pearlShopOverlay'))closePearlShop();});ui('closeShopTabs').onclick=closeShops;
 function openMenu(){closeShops();closePearlShop();ui('menuOverlay').classList.add('open');}
@@ -512,7 +513,7 @@ const activeBoss=()=>enemies.find(e=>e.boss);
 function spawnBoss(){
   if(activeBoss())return;const b=bossFor(currentMap);if(!b.sprite)return;const p=randomSeaPoint(700);
   const e=makeShip(b as unknown as NpcDef,p.x,p.y,Math.random()*6);e.boss=b;e.hitRadius=64;e.speed=b.speed;e.color='#2f5a4a';enemies.push(e);
-  toast(`${b.name} ${mapDef().name} sularında belirdi!`);rewardNotice(`BOSS   ${b.name.toLocaleUpperCase('tr')} BELİRDİ`);playBossHorn();playBossMusic(mapDef().tier);
+  toast(`${b.name} ${mapDef().name} sularında belirdi!`);rewardNotice(`Boss ${b.name} belirdi`,'battle');playBossHorn();playBossMusic(mapDef().tier);
 }
 function countBossKill(e:Enemy){
   if(siege)return;
@@ -529,7 +530,7 @@ function bossFire(e:Enemy){
 function defeatBoss(e:Enemy){
   const b=e.boss!;stopBossMusic();gainRage(rage,RAGE_PER_BOSS);state.fame+=xpGain(b.xp);bumpAch('boss');state.pearls+=b.pearls;bossOf(currentMap).pending=false;saveBosses();saveAccount();
   for(let n=0;n<3;n++)setTimeout(()=>{burst(e.x+(Math.random()-.5)*80,e.y+(Math.random()-.5)*50,true);playExplosion();},n*260);
-  rewardNotice(`${b.name.toLocaleUpperCase('tr')} BATIRILDI   +${b.xp.toLocaleString('tr-TR')} TP   +${fmt(b.pearls)} İnci`);toast(`${b.name} denizin dibine gönderildi!`);
+  rewardNotice(`${b.name} batırıldı · +${fmt(b.xp)} TP · +${fmt(b.pearls)} inci kazanıldı`,'battle',{xp:b.xp,sink:true});
 }
 function populateMap(){
   stopBossMusic();abilityQueue.length=0;
@@ -550,7 +551,7 @@ function enterMap(key:MapKey,at:Vec){
   currentMap=key;fleetSafe=null;fleetFields.clear();try{localStorage.setItem(WORLD_STORAGE,key);}catch{}populateMap();
   player.x=at.x;player.y=at.y;player.speed=0;destination=null;selected=null;state.attacking=false;ui('attack').classList.remove('active');
   camera.x=player.x;camera.y=player.y;jumpPrompt=null;mapFade=1;updateJumpPrompt();playMapJump();
-  rewardNotice(`${mapDef().key}  ${mapDef().name.toLocaleUpperCase('tr')}   ${mapDef().safe?'SAVAŞA KAPALI':'SEVİYE '+mapDef().tier}`);
+  rewardNotice(`${mapDef().key} ${mapDef().name} · ${mapDef().safe?'savaşa kapalı':'seviye '+mapDef().tier}`,'none');
 }
 function inCombat(){return enemies.some(e=>e.aggro&&!e.tower&&dist(e,player)<520)||monsters.some(m=>m.aggro&&dist(m,player)<520);}
 // Harita kenarına yanaşınca komşu denize atlama
@@ -693,7 +694,7 @@ function fireAtTarget(){
 }
 function gainElitePoints(ep:number){
   ep*=epMult();if(ep<=0)return;const before=eliteLevelFromEp(state.elitePoints);state.elitePoints=Math.round((state.elitePoints+ep)*1000)/1000;const after=eliteLevelFromEp(state.elitePoints);saveAccount();
-  if(after>before&&elitePurchased){const ship=ELITE_SHIPS.find(x=>x.level===after);rewardNotice(`ELİT ${after} AÇILDI${ship?`   ${ship.name.toLocaleUpperCase('tr')}`:''}`);toast('Yeni elit gemi TERSANE\'de açıldı');}
+  if(after>before&&elitePurchased){const ship=ELITE_SHIPS.find(x=>x.level===after);rewardNotice(`Elit ${after} açıldı${ship?` · ${ship.name} tersanede`:''}`);}
 }
 // Elit puan çubuğu: mevcut elit seviyesinden bir sonrakine ilerleme
 function eliteProgress(){const lvl=eliteLevelFromEp(state.elitePoints),lo=eliteLevelEp(lvl),hi=lvl>=ELITE_MAX_LEVEL?lo:eliteLevelEp(lvl+1);
@@ -754,15 +755,15 @@ const DMG_GOLD='#ffd23a',DMG_RED='#ff4a3a',DMG_BLUE='#5fb8ff';
 function damageText(x:number,y:number,value:number,color=DMG_GOLD){particles.push({x,y,vx:0,vy:-24,life:1,maxLife:1,kind:'damage',color,text:`-${Math.round(value).toLocaleString('tr-TR')}`});}
 let toastTimer=0;
 function toast(msg:string){ui('toast').textContent=msg;ui('toast').classList.add('show');toastTimer=2.2;}
-let rewardTimer=0;
-const rewardQueue:string[]=[];
-function showReward(msg:string){ui('rewardToast').textContent=msg;ui('rewardToast').classList.remove('show');void ui('rewardToast').offsetWidth;ui('rewardToast').classList.add('show');rewardTimer=2.6;}
-function rewardNotice(msg:string){if(rewardTimer>0){rewardQueue.push(msg);return;}showReward(msg);}
+// Üstte küçük bildirim satırları (en çok 3, 4 sn) ve seyir defteri kaydı. kind 'none' yalnız gösterir, deftere yazmaz.
+const logbook=loadLog();
+function rewardNotice(msg:string,kind:LogKind|'none'='gain',data:Partial<LogEntry>={}){
+  const text=msg.replace(/\s{3,}/g,' · '),feed=ui('sinkNotices'),line=document.createElement('div');
+  line.textContent=text;feed.appendChild(line);while(feed.children.length>3)feed.firstElementChild!.remove();setTimeout(()=>line.remove(),4000);
+  if(kind!=='none'){addLog(logbook,{t:Date.now(),kind,text,...data});saveLog(logbook);if(ui('logOverlay').classList.contains('open'))renderLogbook();}
+}
 function sinkNotice(name:string,sp:number){
-  const feed=ui('sinkNotices'),line=document.createElement('div');
-  line.textContent=sp>0?`${name} batırıldı ve ${sp} SP kazanıldı`:`${name} batırıldı — günlük SP sınırına ulaşıldı`;
-  feed.appendChild(line);while(feed.children.length>3)feed.firstElementChild!.remove();
-  setTimeout(()=>line.remove(),4000);
+  rewardNotice(sp>0?`${name} batırıldı · +${fmt(sp)} SP kazanıldı`:`${name} batırıldı · günlük SP sınırına ulaşıldı`,'battle',{sp,sink:true});
 }
 function saveQuestState(){localStorage.setItem(QUEST_STORAGE,JSON.stringify({rulesVersion:2,active:state.activeQuest,progress:questProgress,cooldowns:questCooldownUntil}));}
 function saveAccount(){localStorage.setItem(ACCOUNT_STORAGE,JSON.stringify({pearls:state.pearls,gold:state.gold,fame:state.fame,level:state.level,maxHp:state.maxHp,hp:state.hp,chainAmmo:state.chainAmmo,elitePoints:state.elitePoints,eliteEconomyVersion:ELITE_ECONOMY_VERSION,battlePoints:state.battlePoints,cannonType:state.cannonType,cannonInventory,mountedCannons,equipOwned,equipped,quickSlots,upgrades,eliteShip:activeEliteShip,activeShip,elitePurchased,currentMap}));try{localStorage.setItem(WORLD_STORAGE,currentMap);}catch{}}
@@ -878,7 +879,7 @@ function equipStarterShip(){
 function purchaseEliteOne(){
   if(elitePurchased)return;
   if(state.pearls<ELITE_ONE_PRICE){toast(`Elit 1 için ${fmt(ELITE_ONE_PRICE)} İnci gerekli`);return;}
-  activeSpecialDesign=null;saveSpecialDesign(null);state.pearls-=ELITE_ONE_PRICE;elitePurchased=true;activeEliteShip='phantom';activeShip='phantom';previewShip='phantom';saveAccount();renderEliteShips();updateUI();rewardNotice('ELİT 1 AÇILDI   HAYALET KADIRGA');toast('Hayalet Kadırga satın alındı');
+  activeSpecialDesign=null;saveSpecialDesign(null);state.pearls-=ELITE_ONE_PRICE;elitePurchased=true;activeEliteShip='phantom';activeShip='phantom';previewShip='phantom';saveAccount();renderEliteShips();updateUI();rewardNotice('Elit 1 açıldı · Hayalet Kadırga','shop');toast('Hayalet Kadırga satın alındı');
 }
 // Tersane iki sekmeli: ELİT GEMİLER (başlangıç + 15 elit) ve ÖZEL GEMİLER (yalnızca görünüm tasarımları). Kartlarda kısa yazı.
 let shipyardTab:'elite'|'special'='elite';
@@ -944,7 +945,7 @@ function buyUpgrade(){
   if(state.pearls<cost){toast('Bu geliştirme için yeterli İncin yok');return;}
   state.pearls-=cost;upgrades[kind]++;
   if(kind==='hull'){state.maxHp=baseMaxHp();state.hp=Math.min(effectiveMaxHp(),state.hp+HP_PER_HULL);}
-  pendingUpgrade=null;saveAccount();renderUpgrades();updateUI();rewardNotice(`${UPGRADES[kind].name}   SEVİYE ${upgrades[kind]}`);
+  pendingUpgrade=null;saveAccount();renderUpgrades();updateUI();rewardNotice(`${UPGRADES[kind].name} geliştirildi · seviye ${upgrades[kind]}`,'shop');
 }
 // Ortak satın alma satırı: adet kutusu + anlık toplam; SATIN AL onay penceresi açar, onaylanınca alınır.
 type BuyRow={id:string;name:string;art:string;desc:string;note?:string;unit:Price;give:(n:number)=>void;after:()=>void};
@@ -970,7 +971,7 @@ function closeBuy(){pendingBuy=null;ui('buyConfirm').classList.remove('open');}
 function confirmBuy(){
   if(!pendingBuy)return;const {row,qty}=pendingBuy,cur=row.unit.currency,cost=priceOf(row.unit,qty);
   if(wallet(cur)<cost){toast(`Yeterli ${CURRENCY_NAME[cur]} yok`);closeBuy();return;}
-  if(cur==='gold')state.gold-=cost;else state.pearls-=cost;row.give(qty);saveArsenal(arsenal);saveAccount();closeBuy();playCoins();renderQuickSlots();updateUI();row.after();rewardNotice(`+${fmt(qty)} ${row.name}   −${fmt(cost)} ${cur==='gold'?'Altın':'İnci'}`);
+  if(cur==='gold')state.gold-=cost;else state.pearls-=cost;row.give(qty);saveArsenal(arsenal);saveAccount();closeBuy();playCoins();renderQuickSlots();updateUI();row.after();rewardNotice(`${fmt(qty)} ${row.name} satın alındı · −${fmt(cost)} ${cur==='gold'?'altın':'inci'}`,'shop');
 }
 function openMarket(){renderMarket();ui('marketOverlay').classList.add('open');}
 function closeMarket(){ui('marketOverlay').classList.remove('open');}
@@ -1065,7 +1066,7 @@ function renderNick(){
     <div class="nick-form"><input id="nickInput" maxlength="${NICK_MAX}" placeholder="Yeni kaptan adı" ${wait>0?'disabled':''}/><button id="nickSave" ${wait>0?'disabled':''}>${wait>0?`${h} SAAT SONRA`:cost?`DEĞİŞTİR · ${fmt(cost)} İNCİ`:'ADI KAYDET'}</button></div>`;
   const btn=document.getElementById('nickSave') as HTMLButtonElement|null;if(!btn||wait>0)return;
   btn.onclick=()=>{const n=(ui('nickInput') as HTMLInputElement).value.trim(),err=nickError(n);if(err){toast(err);return;}if(n===profile.nick){toast('Bu zaten senin adın');return;}
-    if(cost&&state.pearls<cost){toast(`Ad değiştirmek için ${fmt(cost)} inci gerekli`);return;}state.pearls-=cost;profile.nick=n;profile.changedAt=Date.now();profile.named=true;saveProfile(profile);saveAccount();updateUI();renderNick();rewardNotice(`KAPTAN ADI: ${n}${cost?`   −${fmt(cost)} İNCİ`:''}`);};
+    if(cost&&state.pearls<cost){toast(`Ad değiştirmek için ${fmt(cost)} inci gerekli`);return;}state.pearls-=cost;profile.nick=n;profile.changedAt=Date.now();profile.named=true;saveProfile(profile);saveAccount();updateUI();renderNick();rewardNotice(`Kaptan adı: ${n}${cost?` · −${fmt(cost)} inci`:''}`,'other');};
 }
 // Gemi altındaki ad: [FİLO TAG] nick, altında rütbe
 // Kuşatma Kahramanı unvanı (bir hafta): ad altın çerçeveli bir levhada, altında unvan yazısı
@@ -1093,7 +1094,7 @@ function renderGuild(){
   const panel=ui('guildPanel');
   if(!guild){panel.innerHTML=`<div class="guild-create"><p>Henüz bir filon yok. Filo kurduğunda <b>filo başkanı</b> sen olursun. Filo üyeleri hazineye <b>inci bağışlar</b>. Başkan da bu hazineyle filo adalarındaki boş kaidelere kule diker.</p><div class="guild-create-row"><label>Kısaltma (tag)<input id="guildTag" maxlength="${GUILD_TAG_MAX}" placeholder="Ör. TC★"/></label><label>Filo adı<input id="guildName" maxlength="${GUILD_NAME_MAX}" placeholder="Ör. Türk Korsanları"/></label></div><small class="guild-hint">Kısaltma gemi adının önünde görünür: <b>[TC★]${escapeHtml(profile.nick)}</b></small><button id="guildCreate">FİLO KUR</button></div>`;
     const tagInput=ui('guildTag') as HTMLInputElement;tagInput.oninput=()=>{tagInput.value=tagInput.value.toLocaleUpperCase('tr').replace(/\*/g,'★');};
-    ui('guildCreate').onclick=()=>{const name=(ui('guildName') as HTMLInputElement).value.trim(),tag=tagInput.value.trim(),te=tagError(tag);if(te){toast(te);return;}if(name.length<3){toast('Filo adı en az 3 harf olmalı');return;}const g:Guild={name,tag,role:'leader',treasury:0,donated:0,created:Date.now(),towers:{}};guild=g;for(const k of ownedFleetIslands())islandSlots(g,k);saveGuild(g);setupFleetIsland();rewardNotice(`[${tag}] ${name.toLocaleUpperCase('tr')} FİLOSU KURULDU`);renderGuild();};return;}
+    ui('guildCreate').onclick=()=>{const name=(ui('guildName') as HTMLInputElement).value.trim(),tag=tagInput.value.trim(),te=tagError(tag);if(te){toast(te);return;}if(name.length<3){toast('Filo adı en az 3 harf olmalı');return;}const g:Guild={name,tag,role:'leader',treasury:0,donated:0,created:Date.now(),towers:{}};guild=g;for(const k of ownedFleetIslands())islandSlots(g,k);saveGuild(g);setupFleetIsland();rewardNotice(`[${tag}] ${name} filosu kuruldu`,'other');renderGuild();};return;}
   const g=guild,islands=ownedFleetIslands(),map=mapDef(),here=hasFleetIsland()?map.fleet.name:'',allowed=canBuild(g.role);
   // Kule resmi: tek tip filo kulesi
   const art=(_slot:number,_type:TowerType,ghost=false)=>`<i class="tower-art ${ghost?'ghost':''}"></i>`;
@@ -1106,7 +1107,7 @@ function renderGuild(){
     <div class="guild-members"><span class="eyebrow">Filo üyeleri ve yetkiler</span><div class="member-row"><b>[${escapeHtml(g.tag)}]${escapeHtml(profile.nick)}</b><em class="role ${g.role}">${ROLE_NAMES[g.role]}</em><small>Bağış: ${fmt(g.donated)} İnci</small></div><p>Kule dikme yetkisi yalnızca <b>Filo Başkanı</b> ve <b>Başkan Yardımcısı</b>ndadır. Başkan, üyelerden birini yardımcı atar. Diğer üyeler hazineye inci bağışlar.</p>${testRole}</div>
     <div class="guild-donate"><span>İnci bağışla <small>(elindeki: ${fmt(state.pearls)})</small></span>${[10,50,100].map(n=>`<button data-donate="${n}" ${state.pearls<n?'disabled':''}>+${n}</button>`).join('')}<input id="donateAmount" type="number" min="1" max="${state.pearls}" placeholder="Miktar"/><button id="donateCustom">BAĞIŞLA</button></div>
     ${testClaim}<div class="guild-islands">${islandHtml}</div>`;
-  const donate=(n:number)=>{n=Math.floor(n);if(!(n>0)){toast('Geçerli bir miktar gir');return;}if(state.pearls<n){toast('Yeterli incin yok');return;}state.pearls-=n;g.treasury+=n;g.donated+=n;saveGuild(g);saveAccount();updateUI();playCoins();rewardNotice(`FİLO HAZİNESİNE +${fmt(n)} İNCİ BAĞIŞLANDI`);renderGuild();};
+  const donate=(n:number)=>{n=Math.floor(n);if(!(n>0)){toast('Geçerli bir miktar gir');return;}if(state.pearls<n){toast('Yeterli incin yok');return;}state.pearls-=n;g.treasury+=n;g.donated+=n;saveGuild(g);saveAccount();updateUI();playCoins();rewardNotice(`Filo hazinesine ${fmt(n)} inci bağışlandı`,'other');renderGuild();};
   // Restore the selected foundation after type changes, donations and construction.
   panel.querySelectorAll<HTMLElement>('.guild-island').forEach((article,index)=>{
     article.querySelectorAll<HTMLElement>('.tower-slot').forEach((slot,i)=>{
@@ -1120,9 +1121,9 @@ function renderGuild(){
     const [k,i]=b.dataset.build!.split(':') as [MapKey,string],m=MAPS[k],type=buildType,cost=towerTypeCost(m.tier,type),slots=islandSlots(g,k);
     if(slots[+i]){toast('Bu kaidede zaten bir kule var');renderGuild();return;}
     const ruin=ruinLeft(towerRuins,k,+i);if(ruin){toast(`Bu kaidedeki kule yıkıldı; ${ruinLabel(ruin)} sonra yeniden dikilebilir`);renderGuild();return;}
-    if(g.treasury<cost){toast(`Filo hazinesinde ${fmt(cost)} inci gerekli`);return;}g.treasury-=cost;const hp=fleetTower(m.tier).hp;slots[+i]={hp,maxHp:hp,type};saveGuild(g);if(k===currentMap)setupFleetIsland();playCoins();rewardNotice(`${m.fleet.name.toLocaleUpperCase('tr')}   ${+i+1}. KAİDEYE ${TOWER_TYPES[type].name.toLocaleUpperCase('tr')} DİKİLDİ   −${fmt(cost)} İNCİ`);renderGuild();});
+    if(g.treasury<cost){toast(`Filo hazinesinde ${fmt(cost)} inci gerekli`);return;}g.treasury-=cost;const hp=fleetTower(m.tier).hp;slots[+i]={hp,maxHp:hp,type};saveGuild(g);if(k===currentMap)setupFleetIsland();playCoins();rewardNotice(`${m.fleet.name}: ${+i+1}. kaideye ${TOWER_TYPES[type].name} dikildi · −${fmt(cost)} inci`,'shop');renderGuild();});
   const role=document.getElementById('guildRole') as HTMLSelectElement|null;if(role)role.onchange=()=>{g.role=role.value as GuildRole;saveGuild(g);renderGuild();toast(`Test: rolün ${ROLE_NAMES[g.role]}`);};
-  const claim=document.getElementById('guildClaim');if(claim)claim.onclick=()=>{fleetOwners[currentMap]='player';saveFleetOwners(fleetOwners);clearRuins(towerRuins,currentMap);g.towers[currentMap]=Array(TOWER_SLOTS).fill(null);saveGuild(g);enemies.splice(0,enemies.length,...enemies.filter(e=>!e.tower));setupFleetIsland();rewardNotice(`TEST · ${map.fleet.name.toLocaleUpperCase('tr')} FİLONA KATILDI`);renderGuild();};
+  const claim=document.getElementById('guildClaim');if(claim)claim.onclick=()=>{fleetOwners[currentMap]='player';saveFleetOwners(fleetOwners);clearRuins(towerRuins,currentMap);g.towers[currentMap]=Array(TOWER_SLOTS).fill(null);saveGuild(g);enemies.splice(0,enemies.length,...enemies.filter(e=>!e.tower));setupFleetIsland();rewardNotice(`Test · ${map.fleet.name} filona katıldı`,'other');renderGuild();};
 }
 function openCrew(){renderCrew();ui('crewOverlay').classList.add('open');}
 function closeCrew(){ui('crewOverlay').classList.remove('open');}
@@ -1130,9 +1131,21 @@ function renderCrew(){
   const slots=officerSlots(state.level);
   ui('crewPanel').innerHTML=`<p class="talent-points">Görevdeki subaylar: <b>${crew.active.length} / ${slots}</b> <small>Yuvalar 3. ve 6. seviyede açılır. Yalnızca görevdeki subaylar bonus verir.</small></p><div class="officer-grid">${(Object.keys(OFFICERS) as OfficerId[]).map(id=>{const o=OFFICERS[id],rank=crew.officers[id]||0,active=crew.active.includes(id),cost=officerCost(rank),maxed=rank>=OFFICER_MAX_RANK;
     return`<article class="officer ${active?'active':''} ${rank?'hired':''}"><img src="${o.icon}" alt=""/><div><span>${o.title}</span><h4>${o.name}</h4><small>${o.per} / rütbe</small><i>${'★'.repeat(rank)}${'☆'.repeat(OFFICER_MAX_RANK-rank)}</i></div><footer>${rank?`<button data-officer-toggle="${id}">${active?'GÖREVDEN AL':'GÖREVE AL'}</button>`:''}<button data-officer-rank="${id}" ${maxed?'disabled':''}>${maxed?'AZAMİ RÜTBE':rank?`RÜTBE ↑ ${fmt(cost)} ALTIN`:`İŞE AL · ${fmt(cost)} ALTIN`}</button></footer></article>`;}).join('')}</div>`;
-  document.querySelectorAll<HTMLButtonElement>('[data-officer-rank]').forEach(b=>b.onclick=()=>{const id=b.dataset.officerRank as OfficerId,rank=crew.officers[id]||0,cost=officerCost(rank);if(rank>=OFFICER_MAX_RANK)return;if(state.gold<cost){toast('Yeterli altının yok');return;}state.gold-=cost;crew.officers[id]=rank+1;if(!rank&&crew.active.length<officerSlots(state.level))crew.active.push(id);saveAccount();refreshBonus();renderCrew();updateUI();rewardNotice(`${OFFICERS[id].name}   ${rank?`${rank+1}. RÜTBE`:'TAYFAYA KATILDI'}`);});
+  document.querySelectorAll<HTMLButtonElement>('[data-officer-rank]').forEach(b=>b.onclick=()=>{const id=b.dataset.officerRank as OfficerId,rank=crew.officers[id]||0,cost=officerCost(rank);if(rank>=OFFICER_MAX_RANK)return;if(state.gold<cost){toast('Yeterli altının yok');return;}state.gold-=cost;crew.officers[id]=rank+1;if(!rank&&crew.active.length<officerSlots(state.level))crew.active.push(id);saveAccount();refreshBonus();renderCrew();updateUI();rewardNotice(`${OFFICERS[id].name} ${rank?`${rank+1}. rütbeye yükseldi`:'tayfaya katıldı'}`,'shop');});
   document.querySelectorAll<HTMLButtonElement>('[data-officer-toggle]').forEach(b=>b.onclick=()=>{const id=b.dataset.officerToggle as OfficerId,i=crew.active.indexOf(id);if(i>=0)crew.active.splice(i,1);else{if(crew.active.length>=officerSlots(state.level)){toast('Boş subay yuvası yok');return;}crew.active.push(id);}refreshBonus();renderCrew();});
 }
+// ---------------------------------------------------------------- Seyir defteri
+// Yeniden eskiye; gün değişince tarih başlığı. Üstte bugünün özeti (batırma, TP, altın, SP).
+let logFilter:LogKind|'all'='all';
+function renderLogbook(){const sum=daySummary(logbook),rows=logbook.filter(e=>logFilter==='all'||e.kind===logFilter).slice().reverse();
+  const day=(t:number)=>new Date(t).toLocaleDateString('tr-TR',{day:'numeric',month:'long',weekday:'long'}),time=(t:number)=>new Date(t).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
+  let last='',list='';for(const e of rows){const d=day(e.t);if(d!==last){list+=`<h4 class="log-day">${d}</h4>`;last=d;}list+=`<div class="log-row ${e.kind}"><time>${time(e.t)}</time><span>${escapeHtml(e.text)}</span></div>`;}
+  ui('logPanel').innerHTML=`<div class="log-summary"><span>BUGÜN</span><b>${fmt(sum.sinks)} batırma</b><b>+${fmt(sum.xp)} TP</b><b>+${fmt(sum.gold)} altın</b><b>+${fmt(sum.sp)} SP</b></div>
+    <div class="rank-tabs log-tabs">${LOG_KINDS.map(k=>`<button data-log-kind="${k.id}" class="${k.id===logFilter?'active':''}">${k.name}</button>`).join('')}</div>
+    <div class="log-list">${list||'<p class="rank-empty">Henüz kayıt yok. Batırdığın gemiler, kazançların ve alışverişlerin burada görünür.</p>'}</div>`;
+  ui('logPanel').querySelectorAll<HTMLButtonElement>('[data-log-kind]').forEach(b=>b.onclick=()=>{logFilter=b.dataset.logKind as typeof logFilter;renderLogbook();});}
+function openLogbook(){renderLogbook();ui('logOverlay').classList.add('open');}
+function closeLogbook(){ui('logOverlay').classList.remove('open');}
 // ---------------------------------------------------------------- Sıralamalar
 // Sunucu gelene kadar tablo bu tarayıcıdaki kaptandan (test modunda test kaptanları da) kurulur.
 let rankBoard:BoardId='xp',rankPageNo=0;
@@ -1166,7 +1179,7 @@ function closeCoupon(){ui('couponOverlay').classList.remove('open');}
 async function redeemCoupon(){const input=ui('couponInput') as HTMLInputElement,out=ui('couponResult'),r=await redeem(input.value,redeemedCoupons,dayKey());
   if(!r.ok){out.textContent=r.error;out.className='coupon-result bad';return;}
   const w=r.coupon.reward;state.pearls+=w.pearls??0;state.gold+=w.gold??0;state.fame+=w.xp??0;state.elitePoints+=w.ep??0;if(w.vipDays){vipUntil=Math.max(vipUntil,Date.now())+w.vipDays*VIP_DAY_MS;saveVipUntil(vipUntil);}
-  saveRedeemed(redeemedCoupons);saveAccount();updateUI();playCoins();input.value='';out.textContent=`Kupon kullanıldı: ${rewardText(w)}`;out.className='coupon-result ok';rewardNotice(`KUPON   ${rewardText(w).toLocaleUpperCase('tr')}`);}
+  saveRedeemed(redeemedCoupons);saveAccount();updateUI();playCoins();input.value='';out.textContent=`Kupon kullanıldı: ${rewardText(w)}`;out.className='coupon-result ok';rewardNotice(`Kupon kullanıldı · ${rewardText(w)}`);}
 function openSettings(){rebinding=null;renderSettings();ui('settingsOverlay').classList.add('open');}
 function closeSettings(){rebinding=null;ui('settingsOverlay').classList.remove('open');}
 function refreshBindHints(){document.querySelectorAll<HTMLElement>('[data-bind]').forEach(el=>{el.textContent=keyLabel(settings.binds[el.dataset.bind as ActionId]);});}
@@ -1211,7 +1224,7 @@ function recordQuestProgress(kind:QuestDef['kind'],id:string){
   questProgress[quest.id]=(questProgress[quest.id]??0)+1;saveQuestState();
   if(questProgress[quest.id]<quest.required)return;
   state.gold+=goldGainAch(quest.gold);state.fame+=xpGain(quest.xp);state.pearls+=quest.pearls;bumpAch('quest');
-  rewardNotice(`GÖREV TAMAMLANDI   +${quest.gold.toLocaleString('tr-TR')} Altın   +${fmt(quest.pearls)} İnci   +${quest.xp.toLocaleString('tr-TR')} TP`);
+  rewardNotice(`Görev tamamlandı: ${quest.title} · +${fmt(quest.gold)} altın · +${fmt(quest.pearls)} inci · +${fmt(quest.xp)} TP`,'gain',{xp:quest.xp,gold:quest.gold});
   toast(`${quest.title} tamamlandı`);questProgress[quest.id]=0;questCooldownUntil[quest.id]=Date.now()+QUEST_COOLDOWN_MS;state.activeQuest=null;saveQuestState();saveAccount();
 }
 function updateUI(){
@@ -1364,8 +1377,8 @@ function update(dt:number){
     if(p.vz!==undefined){p.z=(p.z??0)+p.vz*dt;p.vz-=340*dt;if(p.z<=0){p.z=0;p.vz=undefined;p.vx*=.25;p.vy*=.25;p.vr=(p.vr??0)*.1;if(p.kind==='splinter')particles.push({x:p.x,y:p.y,vx:0,vy:0,life:.4,maxLife:.4,kind:'foam',size:20,variant:0});}}
     if(p.life<=0)particles.splice(i,1);}
   for(let i=wrecks.length-1;i>=0;i--){wrecks[i].t+=dt;if(wrecks[i].t>=WRECK_TIME)wrecks.splice(i,1);}
-  let need=xpNeed(state.level);while(state.fame>=need){state.fame-=need;state.level++;setAch('level',state.level);state.maxHp=baseMaxHp();state.hp=effectiveMaxHp();saveAccount();playLevelUp();rewardNotice(`SEVİYE ${state.level}   +${HP_PER_LEVEL.toLocaleString('tr-TR')} Azami Gövde   +1 Yetenek Puanı   ${state.level}/1 AÇILDI`);toast(`Seviye ${state.level}! Yeni denizler açıldı`);need=xpNeed(state.level);}
-  if(toastTimer>0){toastTimer-=dt;if(toastTimer<=0)ui('toast').classList.remove('show');}if(rewardTimer>0){rewardTimer-=dt;if(rewardTimer<=0){ui('rewardToast').classList.remove('show');const next=rewardQueue.shift();if(next)setTimeout(()=>showReward(next),220);}} uiClock-=dt;if(uiClock<=0){uiClock=.1;updateUI();};
+  let need=xpNeed(state.level);while(state.fame>=need){state.fame-=need;state.level++;setAch('level',state.level);state.maxHp=baseMaxHp();state.hp=effectiveMaxHp();saveAccount();playLevelUp();rewardNotice(`Seviye ${state.level} oldun · +${HP_PER_LEVEL.toLocaleString('tr-TR')} azami gövde · +1 yetenek puanı · ${state.level}/1 açıldı`);toast(`Seviye ${state.level}! Yeni denizler açıldı`);need=xpNeed(state.level);}
+  if(toastTimer>0){toastTimer-=dt;if(toastTimer<=0)ui('toast').classList.remove('show');}uiClock-=dt;if(uiClock<=0){uiClock=.1;updateUI();};
 }
 
 // ---------------------------------------------------------------- Büyük Kuşatma (src/siege.ts)
@@ -1388,7 +1401,7 @@ function lagoonPoint(near:Vec):Vec{let best:Vec=near,bd=Infinity;const g=fleetGr
 function spawnCommander(){if(!siege||enemies.some(e=>e.commander))return;const st=siegeStats(SIEGE_PARTICIPANTS),f=SIEGE_MAP.fleet,p=lagoonPoint({x:f.x,y:f.y+210*FLEET_SCALE});
   const boss=SIEGE_COMMANDER;
   const e=makeShip(boss as unknown as NpcDef,p.x,p.y,0);Object.assign(e,{boss,commander:true,siege:true,hitRadius:64,speed:0,hp:siege.commanderHp??st.commanderHp,maxHp:st.commanderHp,damage:st.commanderDamage,reload:2.2,name:boss.name,aggro:true,combatTimer:999,cooldown:2,wander:14});
-  enemies.push(e);siege.commanderHp=e.hp;saveSiege(siege);playBossHorn();playBossMusic(8);rewardNotice('3. AŞAMA   KARA KALE KOMUTANI SANCAK GEMİSİYLE ÇIKTI');}
+  enemies.push(e);siege.commanderHp=e.hp;saveSiege(siege);playBossHorn();playBossMusic(8);rewardNotice('3. aşama · Kara Kale komutanı sancak gemisiyle çıktı','battle');}
 // Kuleler ve komutan en yakın saldırgana (oyuncu ya da müttefik kaptan) ateş eder
 function siegeAttackers(from:Vec,range:number){const out:Vec[]=[];if(state.invulnerable<=0&&dist(from,player)<range)out.push(player);
   for(const a of enemies)if(isAlly(a)&&dist(a,from)<range)out.push(a);return out.sort((a,b)=>dist(a,from)-dist(b,from));}
@@ -1405,7 +1418,7 @@ function updateCommander(e:Enemy,dt:number){if((e.frozen??0)>0){e.frozen=Math.ma
     for(let k=0;k<16;k++){const a=k/16*Math.PI*2;siegeShot(e.x,e.y,a,260,e.damage*.6,player,{noHome:true,life:2});}}
   // Canı yarıya inince iki muhafız gemisi çağırır (bir kez)
   if(enraged&&!e.escortsCalled){e.escortsCalled=true;for(const k of [-1,1]){const p=lagoonPoint({x:e.x+k*160,y:e.y});const ship=makeShip(SIEGE_GUARD,p.x,p.y,0);Object.assign(ship,{aggro:true,combatTimer:999,summoned:true,siege:true});enemies.push(ship);}
-    rewardNotice('KOMUTAN MUHAFIZLARINI ÇAĞIRDI');}}
+    rewardNotice('Komutan muhafızlarını çağırdı','none');}}
 // Müttefik kaptanlar: o aşamanın hedeflerine saldırır; 1. aşamada kale çemberinin dışından dolaşır, sonra lagüne girer
 function spawnSiegeAllies(){if(!siege)return;const TEST_CAPTAINS:[string,EliteShipId][]=[['ADM_AHMET','magma'],['ADM_YASİN','tempest'],['ADM_DOGAN','glacial']],sp=SIEGE_MAP.spawn;
   TEST_CAPTAINS.forEach(([name,elite],i)=>{const x=sp.x+(i-1)*260,y=sp.y+60;
@@ -1433,7 +1446,7 @@ function siegeTowerDown(e:Enemy){if(!siege||e.towerIndex===undefined)return;cons
   const after=siegePhase(siege);
   if(WALL_TOWERS.includes(i)){const g=gateOf(i),left=gateLeft(siege,g);toast(left?`${g==='west'?'Batı':'Doğu'} kapısında ${left} sur topu kaldı`:`${g==='west'?'BATI':'DOĞU'} KAPISI DÜŞTÜ`);if(!left)rewardNotice(`${g==='west'?'BATI':'DOĞU'} KAPISI DÜŞTÜ`);}
   else toast(`İç kule yıkıldı · ${INNER_TOWERS.filter(k=>!siege!.destroyed.includes(k)).length} kule kaldı`);
-  if(before===1&&after===2){fleetFields.clear();rewardNotice('2. AŞAMA   KAPILAR AÇILDI · LAGÜNE GİR, İÇ KULELERİ YIK');}
+  if(before===1&&after===2){fleetFields.clear();rewardNotice('2. aşama · kapılar açıldı, lagüne gir ve iç kuleleri yık','battle');}
   if(after===3)spawnCommander();renderSiegeHud();}
 // Katkı ödülü: ödenmemiş hasar kadar (ayrılınca ya da kuşatma bitince)
 function payContribution(){if(!siege)return null;const dmg=siege.contrib[profile.nick]??0,unpaid=dmg-siege.paid;if(unpaid<=0)return null;
@@ -1485,11 +1498,11 @@ function enterSiege(){if(siege)return;if(!canEnterSiege()){toast('Büyük Kuşat
   if(s.result){toast(s.result==='won'?'Kara Kale bu akşam düştü; gelecek Cuma yeniden kurulur':'Bu akşamki kuşatma sona erdi');return;}
   siegeOrigin={map:currentMap,x:player.x,y:player.y};siege=s;saveSiege(s);fleetSafe=null;fleetFields.clear();populateMap();
   const sp=SIEGE_MAP.spawn;player.x=sp.x;player.y=sp.y;player.speed=0;destination=null;routeTarget=null;selected=null;state.attacking=false;ui('attack').classList.remove('active');camera.x=player.x;camera.y=player.y;freeLook=null;
-  mapFade=1;playMapJump();eventPanelHtml='';rewardNotice('BÜYÜK KUŞATMA   KARA KALE');toast('Batı ve doğu kapılarını koruyan sur toplarını yık');}
+  mapFade=1;playMapJump();eventPanelHtml='';rewardNotice('Büyük Kuşatma · Kara Kale','battle');toast('Batı ve doğu kapılarını koruyan sur toplarını yık');}
 function leaveSiege(){if(!siege)return;const r=siege.result?null:payContribution();document.querySelector('.siege-result')?.remove();stopBossMusic();
   const o=siegeOrigin;siege=null;siegeOrigin=null;fleetSafe=null;fleetFields.clear();populateMap();
   if(o){player.x=o.x;player.y=o.y;}player.speed=0;destination=null;routeTarget=null;selected=null;state.attacking=false;camera.x=player.x;camera.y=player.y;freeLook=null;
-  mapFade=1;playMapJump();eventPanelHtml='';renderSiegeHud();renderDayEvent(true);if(r)rewardNotice(`KUŞATMA KATKISI   +${r.xp.toLocaleString('tr-TR')} TP   +${r.gold.toLocaleString('tr-TR')} Altın   +${fmt(r.pearls)} İnci`);}
+  mapFade=1;playMapJump();eventPanelHtml='';renderSiegeHud();renderDayEvent(true);if(r)rewardNotice(`Kuşatma katkısı · +${fmt(r.xp)} TP · +${fmt(r.gold)} altın · +${fmt(r.pearls)} inci kazanıldı`,'battle',{xp:r.xp,gold:r.gold});}
 function sinkEnemy(e:Enemy){
   const j=enemies.indexOf(e);if(j<0)return;
   if(!e.tower)spawnWreck(e);
@@ -1503,20 +1516,20 @@ function sinkEnemy(e:Enemy){
   // NPC tecrübe puanı ve altın verir; savaş puanı (SP) yalnızca rakip oyuncu batırınca gelir (src/battle.ts).
   const eliteLoot=eliteLootMult();
   const goldGain=goldGainAch(e.rewardGold*(1+bonus.bounty)*eliteLoot),fame=xpGain(e.rewardFame);state.gold+=goldGain;state.fame+=fame;saveAccount();bumpAch('npc');if(e.role==='heavy')bumpAch('heavy');
-  rewardNotice(`+${fmt(goldGain)} Altın   +${fmt(fame)} TP`);toast(`${e.name} batırıldı`);if(e.def)recordQuestProgress('npc',e.def.id);countBossKill(e);if(!e.summoned)setTimeout(spawnEnemy,1800);
+  rewardNotice(`${e.name} batırıldı · +${fmt(goldGain)} altın · +${fmt(fame)} TP kazanıldı`,'battle',{xp:fame,gold:goldGain,sink:true});if(e.def)recordQuestProgress('npc',e.def.id);countBossKill(e);if(!e.summoned)setTimeout(spawnEnemy,1800);
 }
 // Savaş puanı kazancı; rütbe atlanırsa duyurulur
 const spText=()=>{const r=battleRank(state.battlePoints);return r.next?`${fmt(state.battlePoints)} / ${fmt(r.next.sp)}`:fmt(state.battlePoints);};
 const rivalLog=loadRivalLog();
 function gainSp(n:number){const before=battleRank(state.battlePoints).index;state.battlePoints+=n;
-  const r=battleRank(state.battlePoints);if(r.index>before){playLevelUp();rewardNotice(`YENİ SAVAŞ RÜTBESİ: ${r.name.toLocaleUpperCase('tr')}`);}return n;}
+  const r=battleRank(state.battlePoints);if(r.index>before){playLevelUp();rewardNotice(`Yeni savaş rütbesi: ${r.name}`,'battle');}return n;}
 function defeatMonster(m:Monster){
   spawnWreck(m);
   playExplosion();const d=m.def;
   const eliteLoot=eliteLootMult();
   const goldGain=goldGainAch(d.gold*(1+bonus.bounty)*eliteLoot),fame=xpGain(d.xp);state.gold+=goldGain;state.fame+=fame;saveAccount();bumpAch('monster');
-  rewardNotice(`+${fmt(goldGain)} Altın   +${fmt(fame)} TP`);recordQuestProgress('monster',d.id);
-  const p=randomSeaPoint(900);m.hp=m.maxHp;m.aggro=false;m.burnTimer=0;m.x=p.x;m.y=p.y;m.homeX=m.x;m.homeY=m.y;m.combatTimer=0;selected=null;state.attacking=false;toast(`${m.name} yenildi`);
+  rewardNotice(`${m.name} yenildi · +${fmt(goldGain)} altın · +${fmt(fame)} TP kazanıldı`,'battle',{xp:fame,gold:goldGain,sink:true});recordQuestProgress('monster',d.id);
+  const p=randomSeaPoint(900);m.hp=m.maxHp;m.aggro=false;m.burnTimer=0;m.x=p.x;m.y=p.y;m.homeX=m.x;m.homeY=m.y;m.combatTimer=0;selected=null;state.attacking=false;
 }
 // Kule menzili hiçbir zaman oyuncunun top menzilinin altında kalmaz: kuleye ateş edebilen gemiyi kule de vurur
 // (uzun top + geliştirme + donanım kuleyi menzil dışından vuramaz). Saldırı altındaki kule yetenek menzilini (+150) de kapsar.
@@ -1536,7 +1549,7 @@ function destroyTower(e:Enemy){
   toast(left?`${f.name}: ${left} kule kaldı`:`${f.name} düştü!`);
   if(left>0)return;
   fleetOwners[currentMap]='player';saveFleetOwners(fleetOwners);clearRuins(towerRuins,currentMap);if(guild){guild.towers[currentMap]=Array(TOWER_SLOTS).fill(null);saveGuild(guild);}const r=fleetReward(mapDef().tier);state.gold+=r.gold;state.fame+=r.xp;saveAccount();
-  setupFleetIsland();rewardNotice(`${f.name.toLocaleUpperCase('tr')} FİLONA KATILDI   +${fmt(r.gold)} Altın   +${fmt(r.xp)} TP`);
+  setupFleetIsland();rewardNotice(`${f.name} filona katıldı · +${fmt(r.gold)} altın · +${fmt(r.xp)} TP kazanıldı`,'battle',{xp:r.xp,gold:r.gold});
 }
 // Filonun diktiği kuleler: tek tip filo kulesi, menzildeki en yakın düşmana top atar.
 function updateOwnTowers(dt:number){
@@ -1660,8 +1673,8 @@ function setAch(stat:AchStat,v:number){if(v>ach.stats[stat]){ach.stats[stat]=v;c
 let achSaveAt=0;
 function checkAchievements(){
   const fresh=unlockReached(ach);
-  for(const d of fresh){state.pearls+=d.pearls;rewardNotice(`BAŞARIM · ${d.name.toLocaleUpperCase('tr')}   +${fmt(d.pearls)} İnci`);toast(`Başarım açıldı: ${d.name}`);}
-  if(fresh.length){const hadCollection=achBonusCache.damage>0;achBonusCache=achievementBonus(ach);if(!hadCollection&&achBonusCache.damage>0)rewardNotice('ANA MADALYA KOLEKSİYONU TAMAMLANDI · +%5 hasar · +%5 can');saveAccount();playLevelUp();saveAchievements(ach);return;}
+  for(const d of fresh){state.pearls+=d.pearls;rewardNotice(`Başarım açıldı: ${d.name} · +${fmt(d.pearls)} inci`);}
+  if(fresh.length){const hadCollection=achBonusCache.damage>0;achBonusCache=achievementBonus(ach);if(!hadCollection&&achBonusCache.damage>0)rewardNotice('Ana madalya koleksiyonu tamamlandı · +%5 hasar · +%5 can');saveAccount();playLevelUp();saveAchievements(ach);return;}
   const now=performance.now();if(now-achSaveAt>2000){achSaveAt=now;saveAchievements(ach);}
 }
 function renderAchievements(){
@@ -1688,7 +1701,7 @@ function claimToday(){
   for(const k of ['fire','explosive','powder','shield'] as const)if(r[k])arsenal[k]+=r[k]!;
   let eq='';if(r.equip){const pool=EQUIPMENT.filter(e=>e.rarity===0),e=pool[Math.floor(Math.random()*pool.length)];equipOwned[e.id]=(equipOwned[e.id]??0)+1;eq=e.name;}
   saveArsenal(arsenal);saveAccount();renderQuickSlots();updateUI();playCoins();renderDaily();
-  rewardNotice(`GÜNLÜK ÖDÜL · ${st.day}. GÜN   ${dailyText(r).map(t=>t==='Sıradan Donanım'?eq:t).join('   ')}`);
+  rewardNotice(`Günlük ödül · ${st.day}. gün · ${dailyText(r).map(t=>t==='Sıradan Donanım'?eq:t).join(' · ')}`);
 }
 // Oyun açılınca, bugünün ödülü alınmadıysa takvim kendiliğinden açılır
 setTimeout(()=>{if(dailyStatus(daily).canClaim)openDaily();},1600);
@@ -1696,7 +1709,7 @@ setTimeout(()=>{if(dailyStatus(daily).canClaim)openDaily();},1600);
 const treasure=loadTreasure();let dig:{t:number;x:number;y:number}|null=null;
 function rollTreasurePart(){
   if(Math.random()>=PART_CHANCE)return;treasure.parts++;
-  if(treasure.parts>=TREASURE_PARTS&&!treasure.active){treasure.parts-=TREASURE_PARTS;treasure.active=pickTreasureSpot();rewardNotice(`HAZİNE HARİTASI TAMAMLANDI   ${treasure.active.map} · ${treasure.active.label}`);toast(`Hazine ${MAPS[treasure.active.map].name} denizinde, ${treasure.active.label} koordinatında!`);}
+  if(treasure.parts>=TREASURE_PARTS&&!treasure.active){treasure.parts-=TREASURE_PARTS;treasure.active=pickTreasureSpot();rewardNotice(`Hazine haritası tamamlandı · ${treasure.active.map} · ${treasure.active.label}`);toast(`Hazine ${MAPS[treasure.active.map].name} denizinde, ${treasure.active.label} koordinatında!`);}
   else toast(`Hazine haritası parçası bulundu (${Math.min(treasure.parts,TREASURE_PARTS)}/${TREASURE_PARTS})`);
   saveTreasure(treasure);
 }
@@ -1719,7 +1732,7 @@ function updateTreasure(dt:number){
   const spot=treasure.active!,m=MAPS[spot.map],r=treasureReward(m.tier,NPCS[m.npcs[0]].gold);dig=null;treasure.active=null;treasure.found++;saveTreasure(treasure);bumpAch('treasure');
   state.gold+=r.gold;state.pearls+=r.pearls;if(r.equip)equipOwned[r.equip]=(equipOwned[r.equip]??0)+1;saveAccount();playCoins();playLevelUp();
   for(let n=0;n<3;n++)burst(spot.x+(Math.random()-.5)*30,spot.y+(Math.random()-.5)*20,false);
-  rewardNotice(`HAZİNE BULUNDU   +${r.gold.toLocaleString('tr-TR')} Altın   +${fmt(r.pearls)} İnci${r.equip?`   +${equipById(r.equip)!.name}`:''}`);toast('Hazine sandığı çıkarıldı!');
+  rewardNotice(`Hazine bulundu · +${fmt(r.gold)} altın · +${fmt(r.pearls)} inci${r.equip?` · +${equipById(r.equip)!.name}`:''}`,'gain',{gold:r.gold});
 }
 function drawTreasureMark(){
   const a=treasure.active;if(!a||a.map!==currentMap||dist(player,a)>380)return;const s=worldToScreen(a),t=performance.now()/1000;
@@ -1728,7 +1741,7 @@ function drawTreasureMark(){
 }
 function updateLootChests(dt:number){
   for(let i=lootChests.length-1;i>=0;i--){const c=lootChests[i];c.life-=dt;
-    if(dist(c,player)<CHEST_PICKUP_RADIUS){lootChests.splice(i,1);playCoins();recordQuestProgress('chest',currentMap);rollTreasurePart();bumpAch('chest');c.gold=Math.round(c.gold*bonus.chestGold*goldMult());state.gold+=c.gold;state.chainAmmo+=c.chain;state.pearls+=c.pearls;saveAccount();renderQuickSlots();burst(c.x,c.y);rewardNotice(chestRewardText(c));toast(c.kind==='gilded'?'Yaldızlı sandık toplandı!':'Ganimet sandığı toplandı');if(destination&&Math.hypot(destination.x-c.x,destination.y-c.y)<2)destination=null;continue;}
+    if(dist(c,player)<CHEST_PICKUP_RADIUS){lootChests.splice(i,1);playCoins();recordQuestProgress('chest',currentMap);rollTreasurePart();bumpAch('chest');c.gold=Math.round(c.gold*bonus.chestGold*goldMult());state.gold+=c.gold;state.chainAmmo+=c.chain;state.pearls+=c.pearls;saveAccount();renderQuickSlots();burst(c.x,c.y);rewardNotice(`${c.kind==='gilded'?'Yaldızlı sandık':'Ganimet sandığı'} toplandı · ${chestRewardText(c)}`,'gain',{gold:c.gold});if(destination&&Math.hypot(destination.x-c.x,destination.y-c.y)<2)destination=null;continue;}
     if(c.life<=0)lootChests.splice(i,1);}
   driftClock-=dt;
   if(driftClock<=0){driftClock=DRIFT_RESPAWN_SECONDS;if(lootChests.filter(c=>c.source==='drift').length<4){const p=randomSeaPoint(260);lootChests.push(createChest('drift',p.x,p.y,bonus.gilded,1+.5*(mapDef().tier-1)));}}

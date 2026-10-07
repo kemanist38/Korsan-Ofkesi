@@ -30,7 +30,7 @@ body.shop-open .shop-overlay{background:#07060999;padding-bottom:12px}
 .shop-window button:focus-visible,.captain-profile button:focus-visible,.quest-log button:focus-visible,.slot-bar button:focus-visible,.buy-details summary:focus-visible{outline:2px solid #ffbd71;outline-offset:2px}
 .captain-overlay .menu-window{width:min(520px,calc(100 * 1vw / var(--ui,1) - 24px))}
 .menu-window>header .menu-logo{width:54px;filter:drop-shadow(0 3px 6px #0008)}
-.menu-window .menu-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.menu-window .menu-grid{grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
 .menu-window .menu-grid button{min-height:90px;padding:10px 4px;border:1px solid #69443c;border-radius:6px;background:linear-gradient(145deg,#302126,#171519);color:#dfc4ad;box-shadow:inset 0 1px #d8ad7030}
 .menu-window .menu-grid button:hover{border-color:#d58a53;background:linear-gradient(#4c2625,#25181b)}
 .menu-window .menu-grid button img{width:40px;height:40px;object-fit:contain;filter:drop-shadow(0 3px 4px #0009)}
@@ -175,3 +175,20 @@ html.touch .keybinds-block{display:none}
 .combat-target .target-info i b{position:absolute;inset:0;display:grid;place-items:center;font:700 7.5px Inter,sans-serif;color:#fff;text-shadow:0 1px 1px #000;white-space:nowrap}
 /* Mini harita küçük: çerçeve, dünya/görev düğmeleri ve yakınlaştırma birlikte %72 ölçekte */
 .map-cluster{transform:scale(.72);transform-origin:0 0}
+/* Üst bildirim satırları: küçük, yarı saydam, birkaç saniyede kaybolur */
+.sink-notices{top:clamp(92px,calc(11 * 1vw / var(--ui,1)),118px);font:600 12px/1.35 Inter,sans-serif;color:#ffe6b8}
+.sink-notices>div{padding:3px 12px;border:1px solid #c98a4a44;border-radius:4px;background:#160e0cc4;animation:notice-in .18s ease-out}
+@keyframes notice-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+html.touch .sink-notices{top:96px}
+/* Seyir defteri */
+.log-window{width:min(760px,calc(94 * 1vw / var(--ui,1)));height:calc(86 * 1vh / var(--ui,1));max-height:none;display:flex;flex-direction:column;overflow:hidden}
+.log-window #logPanel{flex:1;min-height:0;display:flex;flex-direction:column}
+.log-summary{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px;padding:8px 12px;border:1px solid #69443c;border-radius:6px;background:#1a1416}
+.log-summary span{font:700 9px Cinzel;letter-spacing:.14em;color:#b98a5c;margin-right:4px}
+.log-summary b{padding:3px 9px;border-radius:999px;background:#2b1d1a;color:#ffd99a;font:700 11px Inter}
+.log-tabs{margin-top:10px}
+.log-list{flex:1;min-height:0;overflow-y:auto;margin-top:8px;padding-right:4px}
+.log-day{margin:10px 0 4px;font:700 10px Cinzel;letter-spacing:.1em;color:#b98a5c;text-transform:uppercase}
+.log-row{display:grid;grid-template-columns:44px 1fr;gap:10px;padding:5px 10px;border-left:3px solid #6a4a3a;border-radius:3px;background:#1a1416aa;margin-bottom:2px;font:500 12px/1.35 Inter,sans-serif;color:#eadbc6}
+.log-row time{color:#8f7a6a;font-variant-numeric:tabular-nums}
+.log-row.battle{border-left-color:#e2483a}.log-row.gain{border-left-color:#e3b35c}.log-row.shop{border-left-color:#5fb8a8}.log-row.other{border-left-color:#7a6a8a}
