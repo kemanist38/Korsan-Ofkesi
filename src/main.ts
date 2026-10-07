@@ -1637,7 +1637,7 @@ function updateArsenal(dt:number){
   for(const e of [...enemies])if(e.burnTimer&&e.burnTimer>0){e.burnTimer-=dt;e.hp-=(e.burnDps||burnDps)*dt;if(e.burnTimer<=0)e.burnDps=0;if(e.hp<=0)sinkEnemy(e);}
   for(const m of monsters)if(m.burnTimer&&m.burnTimer>0){m.burnTimer-=dt;m.hp-=(m.burnDps||burnDps)*dt;if(m.burnTimer<=0)m.burnDps=0;if(m.hp<=0)defeatMonster(m);}
   for(const id of ['speed','mine'] as AbilityId[]){const t=abilityTimers[id],button=document.getElementById(`ability-${id}`);if(!button)continue;
-    const cd=Math.min(1,t.cooldown/(ABILITIES[id].cooldown*bonus.cooldown)),label=t.active>0&&id!=='mine'?`${Math.ceil(t.active)} SN`:t.cooldown>0?`${Math.ceil(t.cooldown)}`:id==='mine'?`${fmt(arsenal.mine)} · ${ABILITIES.mine.key}`:`${fmt(arsenal.speed)} · ${ABILITIES.speed.key}`;
+    const cd=Math.min(1,t.cooldown/(ABILITIES[id].cooldown*bonus.cooldown)),label=t.active>0&&id!=='mine'?`${Math.ceil(t.active)} SN`:t.cooldown>0?`${Math.ceil(t.cooldown)}`:'';// hazırken rozet boş kalır (miktar ve kısayol yazılmaz); yalnızca etkin süre ve bekleme sayılır
     button.style.setProperty('--cd',cd.toFixed(3));button.classList.toggle('active',t.active>0&&id!=='mine');const small=button.querySelector('small');if(small&&small.textContent!==label)small.textContent=label;}
 }
 // ---------------------------------------------------------------- Başarımlar
