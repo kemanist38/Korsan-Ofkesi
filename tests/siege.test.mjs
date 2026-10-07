@@ -3,10 +3,9 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import ts from 'typescript';
 
-const url=src=>`data:text/javascript;base64,${Buffer.from(ts.transpile(src,{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022})).toString('base64')}`;
-const campaign=url(readFileSync(new URL('../src/campaign.ts',import.meta.url),'utf8'));
+import {loadTs} from './load.mjs';
 const store={};globalThis.localStorage={getItem:k=>store[k]??null,setItem:(k,v)=>{store[k]=v;}};
-const S=await import(url(readFileSync(new URL('../src/siege.ts',import.meta.url),'utf8').replace("from './campaign'",`from '${campaign}'`)));
+const S=await loadTs('siege.ts');
 
 test('siege is open only on Friday 20:00-22:00',()=>{
   assert.equal(S.siegeWindow(new Date(2026,9,2,19,59)).open,false);
