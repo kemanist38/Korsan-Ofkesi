@@ -205,3 +205,5 @@ html.touch .sink-notices{top:96px}
 .rank-medal b{font:700 10px/1.2 Inter,sans-serif;color:#f1e3cf}.rank-medal small{font:600 9px Inter,sans-serif;color:#a88a6a}
 .rank-medal.earned{opacity:1;filter:none;border-color:#c98a4a55}
 .rank-medal.next{opacity:.8;filter:grayscale(.3);border:1px dashed #e3a35c}
+.settings-check{display:flex;align-items:center;gap:10px;cursor:pointer;color:#e6d6c2;font:500 13px Inter,sans-serif}
+.settings-check input{width:18px;height:18px;accent-color:#e3a35c;cursor:pointer}
