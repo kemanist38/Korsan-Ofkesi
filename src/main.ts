@@ -1996,7 +1996,7 @@ function drawPlayerMarker(){
 
 // Gemi ölçeği: gemiler, adları, rozetleri, can çubukları ve halkaları kendi noktaları etrafında birlikte küçültülür
 // (kalabalık savaşta 30–40 gemi rahat görünsün diye). Kuleler, adalar ve efektler etkilenmez.
-const SHIP_DRAW_SCALE:number=.55;
+const SHIP_DRAW_SCALE:number=.72;
 function atShipScale(o:Vec|null,fn:()=>void){if(!o||SHIP_DRAW_SCALE===1){fn();return;}const s=worldToScreen(o);ctx.save();ctx.translate(s.x,s.y);ctx.scale(SHIP_DRAW_SCALE,SHIP_DRAW_SCALE);ctx.translate(-s.x,-s.y);fn();ctx.restore();}
 function draw(){
   const w=innerWidth,h=innerHeight,map=mapDef(),th=theme();if(!seaTilePattern(ctx)){const sea=ctx.createLinearGradient(0,0,0,h);sea.addColorStop(0,th.sea[0]);sea.addColorStop(1,th.sea[1]);ctx.fillStyle=sea;ctx.fillRect(0,0,w,h);}
