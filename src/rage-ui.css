@@ -148,3 +148,17 @@ body.shop-open .shop-overlay{background:#07060999;padding-bottom:12px}
 .shop-window .shipyard-tabs button:hover{border-color:#d58a53}
 .shop-window .shipyard-tabs button.active{border-color:#e3a35c;background:linear-gradient(#7a2f22,#3a1a17);color:#ffe2b0}
 .shop-window .ship-effect{text-align:center}
+/* ------------------------------------------------------------ Dokunmatik (telefon) düzeni
+   html.touch: sanal alan 880 × 480 (src/main.ts fitHud). Üst sırada TP/EP çubuğu ve köşe düğmeleri; altın/inci köşe
+   düğmelerinin altında; günün etkinliği TP/EP çubuğunun altında; savaş hedefleri sol tarafta mini haritanın altında. */
+html.touch .resources{top:58px!important;right:12px!important}
+html.touch .day-event{top:56px;max-width:390px;padding:4px 10px;gap:6px}
+html.touch .day-event span{display:none}
+html.touch .reward-toast{top:96px!important}
+html.touch .combat-targets{left:14px!important;right:auto!important;top:238px!important;width:210px}
+html.touch .event-panel{top:100px!important}
+/* Açık pencerelerin kapatma düğmesini örtmesinler: pencere açıkken köşe düğmeleri ve sohbet pencerenin altında kalır */
+html.touch .corner-buttons,html.touch .chat{z-index:29}
+html.touch body:has(.hud .open) .chat{visibility:hidden}
+/* Telefonda klavye yok: kısayol ayarları ve tuş harfleri gizlenir */
+html.touch .keybinds-block{display:none}
