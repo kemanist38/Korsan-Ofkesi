@@ -18,7 +18,7 @@ import {EQUIPMENT,EQUIP_SLOTS,RARITY_NAMES,equipById,equipStatText,equipTotals,e
 import {PEARL_PACKS,packTotal,priceText,VIP_PACKS,VIP_XP_BONUS,loadVipUntil,saveVipUntil,vipActive,vipDaysLeft,extendVip,VIP_DAY_MS} from './pearlShop';
 import {BOARDS,rankRows,rankPage,RANK_PAGE_SIZE,type BoardId,type RankPlayer,type RankFleet,type RankRow} from './leaderboard';
 import {redeem,loadRedeemed,saveRedeemed,rewardText} from './coupons';
-import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,PLAQUE_Y,PLAQUE_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
+import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
 import {loadLog,saveLog,addLog,daySummary,LOG_KINDS,type LogKind,type LogEntry} from './logbook';
 import {BALL_DAMAGE,CHAIN_FACTOR,FIRE_DOT_SHARE,ELITE_POINTS_PER_BALL,ELITE_MAX_LEVEL,eliteLevelEp,eliteLevelFromEp,ABILITIES,SPECIAL_AMMO,MINE,SPEED_BOOST,CONSUMABLES,AMMO_PRICES,SUPPLY_PRICES,loadArsenal,saveArsenal,type AbilityId,type SpecialAmmo,type ConsumableId,type SupplyId,type Price,priceOf} from './arsenal';
 import {loadFleetOwners,saveFleetOwners,loadRuins,markRuin,ruinLeft,ruinLabel,clearRuins} from './conquest';
@@ -1085,21 +1085,17 @@ function drawCaptainName(x:number,y:number,tag:string,nick:string,size=17,rank=-
   ctx.shadowColor='#000c';ctx.shadowBlur=5;ctx.shadowOffsetY=1.5;ctx.lineWidth=Math.max(3,size*.26);ctx.strokeStyle='#2b1606';ctx.strokeText(text,x0,y);
   ctx.shadowColor='transparent';ctx.fillStyle=g;ctx.fillText(text,x0,y);
   ctx.restore();return w;}
-// Güverte işareti: adın altında ortalı; plakaya batırılan rakip sayısı yazılır
+// Güverte işareti: adın altında ortalı; kademesi batırılan rakip sayısına göre (sayı yazılmaz)
 let rivalSinks=ELITE_TEST_MODE?Math.max(loadRivalSinks(),12_500):loadRivalSinks();
 const insigniaImg=new Image();insigniaImg.src=INSIGNIA_SHEET;
-function drawInsignia(x:number,y:number,count:number,w=210){if(!insigniaImg.complete||!insigniaImg.naturalWidth)return;
-  const t=insigniaTier(count),h=w*INSIGNIA_H/INSIGNIA_W,py=y+h*PLAQUE_Y[t],ph=h*PLAQUE_H[t];
-  ctx.save();ctx.drawImage(insigniaImg,0,t*INSIGNIA_H,INSIGNIA_W,INSIGNIA_H,x-w/2,y,w,h);
-  const text=fmt(count);let fs=Math.round(ph*.92);ctx.font=`900 ${fs}px Inter, sans-serif`;while(ctx.measureText(text).width>ph*2.6&&fs>7){fs--;ctx.font=`900 ${fs}px Inter, sans-serif`;}
-  ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineJoin='round';ctx.lineWidth=3;ctx.strokeStyle='#120606';ctx.strokeText(text,x,py+1);
-  const g=ctx.createLinearGradient(0,py-fs/2,0,py+fs/2);g.addColorStop(0,'#ffffff');g.addColorStop(1,'#cfd8e6');ctx.fillStyle=g;ctx.fillText(text,x,py+1);ctx.restore();}
+function drawInsignia(x:number,y:number,count:number,w=140){if(!insigniaImg.complete||!insigniaImg.naturalWidth)return;
+  const t=insigniaTier(count),h=w*INSIGNIA_H/INSIGNIA_W;ctx.drawImage(insigniaImg,0,t*INSIGNIA_H,INSIGNIA_W,INSIGNIA_H,x-w/2,y,w,h);}
 function drawPlayerLabel(){
   const p=worldToScreen(player),y=p.y+60,tag=guild?`[${guild.tag}]`:'',nick=profile.nick;
   ctx.save();ctx.font='900 17px Inter';const w=ctx.measureText(tag?`${tag} ${nick}`:nick).width;
   if(heroTitle){const bw=w+24,h=24;ctx.beginPath();ctx.roundRect(p.x-bw/2,y-h/2,bw,h,12);const g=ctx.createLinearGradient(0,y-h/2,0,y+h/2);g.addColorStop(0,'#5a3c0ccc');g.addColorStop(1,'#2a1a04cc');ctx.fillStyle=g;ctx.fill();ctx.lineWidth=1.5;ctx.strokeStyle='#ffd27a';ctx.stroke();
     ctx.font='800 10px Cinzel, serif';ctx.textAlign='center';ctx.fillStyle='#ffd27a';ctx.shadowColor='#000';ctx.shadowBlur=4;ctx.fillText(`★ ${heroTitle.name.toLocaleUpperCase('tr')} ★`,p.x,y+20);}
-  ctx.restore();drawCaptainName(p.x,y,tag,nick,17,battleRank(state.battlePoints).index);drawInsignia(p.x,y+(heroTitle?24:11),rivalSinks);
+  ctx.restore();drawCaptainName(p.x,y,tag,nick,17,battleRank(state.battlePoints).index);drawInsignia(p.x,y+(heroTitle?22:9),rivalSinks);
 }
 // ---------------------------------------------------------------- Filo: hazine, bağış ve kule dikme
 function openGuild(){renderGuild();ui('guildOverlay').classList.add('open');}
@@ -1921,7 +1917,7 @@ function captainHit(t:Enemy,s:Shot,from:Enemy|null){const dmg=Math.round(s.damag
 function drawCaptain(e:Enemy,s:Vec){const c=e.captain!,im=eliteIsoImage(ELITE_ISO[c.elite]);if(!im.complete||!im.naturalWidth)return;
   const f=e.face??{east:true,north:false},idx=f.north?(f.east?0:3):(f.east?1:2),h=im.naturalHeight,D=158;
   drawHullWater(e,100);ctx.save();ctx.translate(s.x,s.y);if((e.frozen??0)>0)ctx.filter='saturate(.4) brightness(1.3) hue-rotate(160deg)';ctx.drawImage(im,idx*h,0,h,h,-D/2,-D*.7,D,D);ctx.restore();
-  const top=-122;drawHealthBar(s.x,s.y+top,80,e.hp/e.maxHp,siege?'#4fd18a':'#f0584a');{const sp=TEST_RANKERS.find(r=>r.nick===e.name)?.sp??0;drawCaptainName(s.x,s.y+top-11,'',e.name,14,battleRank(sp).index);drawInsignia(s.x,s.y+34,Math.round(sp/25),170);}}
+  const top=-122;drawHealthBar(s.x,s.y+top,80,e.hp/e.maxHp,siege?'#4fd18a':'#f0584a');{const sp=TEST_RANKERS.find(r=>r.nick===e.name)?.sp??0;drawCaptainName(s.x,s.y+top-11,'',e.name,14,battleRank(sp).index);drawInsignia(s.x,s.y+34,Math.round(sp/25),115);}}
 // Capture once at death, then fade the same pose without new particles or assets.
 function spawnWreck(o:Enemy|Monster){
   if(!onScreen(o,320))return;
