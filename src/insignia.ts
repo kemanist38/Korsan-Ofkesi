@@ -1,4 +1,4 @@
-// Güverte işareti: kaptan adının altında süslü işaret. 5 kademe; batırılan rakip oyuncu sayısı arttıkça zenginleşir.
+// Güverte işareti: kaptan adının altında süslü işaret. 5 kademe; batırılan rakip oyuncu sayısı arttıkça zenginleşir. Ortada logodaki kafatası (taçlı, alevli) durur.
 // Görsel public/assets/deck-insignia-v1.webp: 5 satır × 512 × 176.
 export const INSIGNIA_SHEET='/assets/deck-insignia-v1.webp',INSIGNIA_W=512,INSIGNIA_H=176;
 export const INSIGNIA_TIERS=[0,100,500,2_000,10_000];
