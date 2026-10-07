@@ -155,10 +155,23 @@ html.touch .resources{top:58px!important;right:12px!important}
 html.touch .day-event{top:56px;max-width:390px;padding:4px 10px;gap:6px}
 html.touch .day-event span{display:none}
 html.touch .reward-toast{top:96px!important}
-html.touch .combat-targets{left:14px!important;right:auto!important;top:238px!important;width:210px}
+html.touch .combat-targets{left:14px!important;right:auto!important;top:186px!important}
 html.touch .event-panel{top:100px!important}
 /* Açık pencerelerin kapatma düğmesini örtmesinler: pencere açıkken köşe düğmeleri ve sohbet pencerenin altında kalır */
 html.touch .corner-buttons,html.touch .chat{z-index:29}
 html.touch body:has(.hud .open) .chat{visibility:hidden}
 /* Telefonda klavye yok: kısayol ayarları ve tuş harfleri gizlenir */
 html.touch .keybinds-block{display:none}
+/* Hedef kartları (Seafight usulü): küçük simge, ad ve sayılı can çubuğu; az yer kaplar */
+.combat-targets,.combat-targets[style]{width:168px;gap:3px}
+.combat-target{grid-template-columns:24px 1fr;gap:5px;min-height:0;padding:3px 5px 3px 3px;border:1px solid #6a4a3a99;border-radius:5px;background:linear-gradient(90deg,#3a2420e6,#1a1416e6)}
+.combat-target.selected{border-color:#e3a35c;box-shadow:0 0 8px #e3a35c44}
+.combat-target.fighting{border-left:3px solid #e2483a}
+.combat-target .target-portrait{width:24px;height:24px;border-radius:3px}
+.combat-target .target-info{display:flex;flex-direction:column;justify-content:center;min-width:0}
+.combat-target .target-info strong{font:700 10px/1.2 Inter,sans-serif;margin:0 0 2px;color:#f1e3cf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.combat-target .target-info i{position:relative;display:block;height:11px;border-radius:2px;background:#0b0809;overflow:hidden}
+.combat-target .target-info i em{display:block;height:100%;background:linear-gradient(#c2453a,#7e221b)}
+.combat-target .target-info i b{position:absolute;inset:0;display:grid;place-items:center;font:700 7.5px Inter,sans-serif;color:#fff;text-shadow:0 1px 1px #000;white-space:nowrap}
+/* Mini harita küçük: çerçeve, dünya/görev düğmeleri ve yakınlaştırma birlikte %72 ölçekte */
+.map-cluster{transform:scale(.72);transform-origin:0 0}
