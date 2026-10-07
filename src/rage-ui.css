@@ -192,3 +192,7 @@ html.touch .sink-notices{top:96px}
 .log-row{display:grid;grid-template-columns:44px 1fr;gap:10px;padding:5px 10px;border-left:3px solid #6a4a3a;border-radius:3px;background:#1a1416aa;margin-bottom:2px;font:500 12px/1.35 Inter,sans-serif;color:#eadbc6}
 .log-row time{color:#8f7a6a;font-variant-numeric:tabular-nums}
 .log-row.battle{border-left-color:#e2483a}.log-row.gain{border-left-color:#e3b35c}.log-row.shop{border-left-color:#5fb8a8}.log-row.other{border-left-color:#7a6a8a}
+/* Savaş rütbesi rozeti (HTML içinde) */
+.rank-badge{display:inline-block;width:1.7em;height:1.7em;margin:0 .25em;vertical-align:middle;background-repeat:no-repeat;filter:drop-shadow(0 1px 1px #000a)}
+.rank-badge{flex:none}
+#profileBattle{display:flex;align-items:center;justify-content:flex-start;gap:4px}#profileBattle .rank-badge{width:26px;height:26px;margin:0 2px 0 0}
