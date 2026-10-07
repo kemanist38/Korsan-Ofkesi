@@ -3,8 +3,8 @@
 import {LEVEL_XP} from './campaign';
 
 export type RankPlayer={nick:string;tag:string|null;fleet:string|null;level:number;xp:number;ep:number;sp:number;npc:number;monster:number;boss:number;treasure:number;me?:boolean};
-export type RankFleet={tag:string;name:string;members:RankPlayer[];islands:number;me?:boolean};
-export type BoardId='xp'|'ep'|'sp'|'boss'|'monster'|'npc'|'treasure'|'fleetXp'|'fleetSp'|'fleetEp'|'fleetIslands';
+export type RankFleet={tag:string;name:string;members:RankPlayer[];me?:boolean};
+export type BoardId='xp'|'ep'|'sp'|'boss'|'monster'|'npc'|'treasure'|'fleetXp'|'fleetSp';
 export type Board={id:BoardId;name:string;unit:string;fleet:boolean;desc:string};
 export const BOARDS:Board[]=[
   {id:'xp',name:'Oyuncu Tecrübe',unit:'TP',fleet:false,desc:'Toplam kazanılan tecrübe puanı'},
@@ -16,14 +16,12 @@ export const BOARDS:Board[]=[
   {id:'treasure',name:'Define Avcıları',unit:'define',fleet:false,desc:'Kazılan hazine'},
   {id:'fleetXp',name:'Filo Tecrübe',unit:'TP',fleet:true,desc:'Filo üyelerinin toplam tecrübe puanı'},
   {id:'fleetSp',name:'Filo Savaş Puanı',unit:'SP',fleet:true,desc:'Filo üyelerinin toplam savaş puanı'},
-  {id:'fleetEp',name:'Filo Elit Puanı',unit:'EP',fleet:true,desc:'Filo üyelerinin toplam elit puanı'},
-  {id:'fleetIslands',name:'Filo Adaları',unit:'ada',fleet:true,desc:'Filonun elindeki filo adası sayısı'},
 ];
 // Seviye atlarken TP sıfırlandığı için sıralama toplam TP'yi kullanır: geçilen seviyelerin eşikleri + mevcut TP
 export const totalXp=(level:number,xp:number)=>LEVEL_XP.slice(1,Math.max(1,level)).reduce((t,v)=>t+v,0)+Math.max(0,xp);
 const playerScore=(p:RankPlayer,id:BoardId)=>id==='xp'?totalXp(p.level,p.xp):id==='ep'?p.ep:id==='sp'?p.sp:id==='boss'?p.boss:id==='monster'?p.monster:id==='npc'?p.npc:id==='treasure'?p.treasure:0;
 const sum=(f:RankFleet,id:BoardId)=>f.members.reduce((t,m)=>t+playerScore(m,id),0);
-export function fleetScore(f:RankFleet,id:BoardId){return id==='fleetXp'?sum(f,'xp'):id==='fleetSp'?sum(f,'sp'):id==='fleetEp'?sum(f,'ep'):id==='fleetIslands'?f.islands:0;}
+export function fleetScore(f:RankFleet,id:BoardId){return id==='fleetXp'?sum(f,'xp'):id==='fleetSp'?sum(f,'sp'):0;}
 export type RankRow={rank:number;name:string;tag:string|null;sub:string;score:number;me:boolean};
 // Büyükten küçüğe; eşit puanda aynı sıra numarası verilir (1, 2, 2, 4)
 export function rankRows(id:BoardId,players:RankPlayer[],fleets:RankFleet[]):RankRow[]{
@@ -33,3 +31,7 @@ export function rankRows(id:BoardId,players:RankPlayer[],fleets:RankFleet[]):Ran
   rows.sort((a,b)=>b.score-a.score||a.name.localeCompare(b.name,'tr'));
   let rank=0;return rows.map((r,i)=>{if(i===0||rows[i-1].score!==r.score)rank=i+1;return{...r,rank};});
 }
+// Sayfalama: her sayfada 100 sıra. page 0'dan başlar; aralık dışı sayfa son geçerli sayfaya çekilir.
+export const RANK_PAGE_SIZE=100;
+export function rankPage<T>(rows:T[],page:number,size=RANK_PAGE_SIZE){const pages=Math.max(1,Math.ceil(rows.length/size)),p=Math.max(0,Math.min(pages-1,Math.floor(page)));
+  return{rows:rows.slice(p*size,(p+1)*size),page:p,pages};}

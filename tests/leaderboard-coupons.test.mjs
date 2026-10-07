@@ -23,10 +23,18 @@ test('player boards sort high to low and share ranks on ties',()=>{
 });
 test('fleet boards sum their members',()=>{
   const a=p('A',{sp:100,xp:5,ep:7}),b=p('B',{sp:20,xp:6,ep:1});
-  const rows=L.rankRows('fleetSp',[],[{tag:'X',name:'X',members:[a,b],islands:2},{tag:'Y',name:'Y',members:[p('C',{sp:500})],islands:0}]);
+  const rows=L.rankRows('fleetSp',[],[{tag:'X',name:'X',members:[a,b]},{tag:'Y',name:'Y',members:[p('C',{sp:500})]}]);
   assert.deepEqual(rows.map(r=>[r.name,r.score]),[['Y',500],['X',120]]);
-  assert.equal(L.rankRows('fleetXp',[],[{tag:'X',name:'X',members:[a,b],islands:0}])[0].score,11);
-  assert.equal(L.rankRows('fleetIslands',[],[{tag:'X',name:'X',members:[a],islands:2}])[0].score,2);
+  assert.equal(L.rankRows('fleetXp',[],[{tag:'X',name:'X',members:[a,b]}])[0].score,11);
+  assert.deepEqual(L.BOARDS.filter(b=>b.fleet).map(b=>b.id),['fleetXp','fleetSp'],'fleet boards: XP and battle points only');
+});
+test('rankings show 100 rows per page',()=>{
+  const rows=[...Array(250).keys()];
+  assert.equal(L.RANK_PAGE_SIZE,100);
+  assert.deepEqual(L.rankPage(rows,0).rows.length,100);assert.equal(L.rankPage(rows,0).pages,3);
+  assert.deepEqual(L.rankPage(rows,2).rows,rows.slice(200));
+  assert.equal(L.rankPage(rows,9).page,2,'past the end shows the last page');
+  assert.deepEqual(L.rankPage([],0),{rows:[],page:0,pages:1});
 });
 test('coupon codes are checked by hash, once, and until their last day',async()=>{
   const h=await C.hashCode('PIRATERAGE');assert.ok(C.COUPONS.some(c=>c.hash===h),'beta welcome code is listed');
