@@ -142,3 +142,9 @@ body.shop-open .shop-overlay{background:#07060999;padding-bottom:12px}
 .coupon-result{min-height:18px;margin:12px 0 0;font-size:12px;font-weight:700}
 .coupon-result.ok{color:#8fe08a}.coupon-result.bad{color:#ff8a72}
 @media (max-width:640px){.rank-tabs>span{width:100%}}
+/* Tersane sekmeleri: Elit gemiler / Özel gemiler */
+.shop-window .shipyard-tabs{grid-column:1/-1;display:flex;gap:6px;padding-bottom:6px;border-bottom:1px solid #744538}
+.shop-window .shipyard-tabs button{padding:8px 16px;border:1px solid #69443c;border-radius:5px;background:linear-gradient(145deg,#302126,#171519);color:#dfc4ad;font:700 11px Cinzel;letter-spacing:.1em;cursor:pointer}
+.shop-window .shipyard-tabs button:hover{border-color:#d58a53}
+.shop-window .shipyard-tabs button.active{border-color:#e3a35c;background:linear-gradient(#7a2f22,#3a1a17);color:#ffe2b0}
+.shop-window .ship-effect{text-align:center}

@@ -11,7 +11,8 @@ export function cumulativeEliteBonus(level:number):EliteBonus{
   for(const key of Object.keys(total) as (keyof EliteBonus)[])total[key]/=100;
   return total;
 }
-export function eliteBonusText(b:Partial<EliteBonus>,percent=false){
-  const labels:Record<keyof EliteBonus,string>={damage:'hasar',hp:'can',reload:'dolum hızı',speed:'hız',defense:'hasar azaltma',repair:'tamir'};
-  return(Object.keys(labels) as (keyof EliteBonus)[]).filter(k=>b[k]).map(k=>`+%${Math.round(b[k]!*(percent?1:100))} ${labels[k]}`).join(' · ');
+// short: tersane kartları için kısa etiketler ("%2 hasar", "%3 önleme")
+export function eliteBonusText(b:Partial<EliteBonus>,percent=false,short=false){
+  const labels:Record<keyof EliteBonus,string>=short?{damage:'hasar',hp:'can',reload:'dolum',speed:'hız',defense:'önleme',repair:'tamir'}:{damage:'hasar',hp:'can',reload:'dolum hızı',speed:'hız',defense:'hasar azaltma',repair:'tamir'};
+  return(Object.keys(labels) as (keyof EliteBonus)[]).filter(k=>b[k]).map(k=>`${short?'':'+'}%${Math.round(b[k]!*(percent?1:100))} ${labels[k]}`).join(short?', ':' · ');
 }
