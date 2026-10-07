@@ -1952,9 +1952,27 @@ function drawTargetMarker(t:Target){
   ctx.rotate(now*.6);ctx.strokeStyle='#f5d03a';ctx.lineWidth=3.2;ctx.lineCap='round';ctx.setLineDash([.1,9]);ctx.beginPath();ctx.arc(0,0,R*.8,0,Math.PI*2);ctx.stroke();
   ctx.restore();
 }
+// Halka geminin gövdesine ortalanır: o an çizilen kare (seçili gemi ve yönü) bir kez taranır, gövdenin (görselin alt
+// kısmındaki opak bölge) ortası bulunur ve önbelleğe alınır. Böylece her gemide ve her yönde halka teknenin tam altında durur.
+const hullCenters=new Map<string,Vec>();
+function hullCenter(im:HTMLImageElement,sx:number,sy:number,sw:number,sh:number,dx:number,dy:number,dw:number,dh:number):Vec{
+  const key=`${im.src}|${sx}|${sy}`;let c=hullCenters.get(key);if(c)return{x:dx+c.x*dw,y:dy+c.y*dh};
+  const N=96,cv=document.createElement('canvas');cv.width=cv.height=N;const g=cv.getContext('2d',{willReadFrequently:true})!;g.drawImage(im,sx,sy,sw,sh,0,0,N,N);
+  let a:Uint8ClampedArray;try{a=g.getImageData(0,0,N,N).data;}catch{return{x:dx+dw/2,y:dy+dh*.62};}
+  let top=N,bot=-1;for(let y=0;y<N;y++)for(let x=0;x<N;x++)if(a[(y*N+x)*4+3]>110){if(y<top)top=y;if(y>bot)bot=y;}
+  if(bot<0){c={x:.5,y:.62};}else{// gövde: opak alanın alt %40'ı (direk ve yelkenler hariç)
+    const from=bot-(bot-top)*.4;let sx2=0,sy2=0,n=0;for(let y=Math.floor(from);y<=bot;y++)for(let x=0;x<N;x++)if(a[(y*N+x)*4+3]>110){sx2+=x;sy2+=y;n++;}
+    c={x:(sx2/n+.5)/N,y:(sy2/n+.5)/N};}
+  hullCenters.set(key,c);return{x:dx+c.x*dw,y:dy+c.y*dh};}
+// Şu an çizilen oyuncu gemisi karesi (drawPlayerShip ile aynı kaynak ve hedef dikdörtgeni)
+function playerShipFrame():[HTMLImageElement,number,number,number,number,number,number,number,number]|null{
+  if(activeSpecialDesign||eliteEnabled()){const im=eliteIsoImage(activeSpecialDesign?PIRATE_RAGE_DESIGN.sprite:ELITE_ISO[eliteShip().id]);
+    if(im.complete&&im.naturalWidth){const c=im.naturalHeight,D=158;return[im,isoIndex()*c,0,c,c,-D/2,-D*.7,D,D];}}
+  if(directionalShipImage.complete&&directionalShipImage.naturalWidth){const f=shipDirectionFrame(isoFaceAngle(isoFace));return[directionalShipImage,(f%4)*256,Math.floor(f/4)*256,256,256,-80,-86,160,160];}
+  return null;}
 function drawPlayerMarker(){
-  const s=worldToScreen(player);
-  drawMysticPlayerMarker(ctx,s.x,s.y+10,performance.now()/1000);
+  const s=worldToScreen(player),f=playerShipFrame(),o=f?hullCenter(...f):{x:0,y:10};
+  drawMysticPlayerMarker(ctx,s.x+o.x,s.y+o.y,performance.now()/1000);
 }
 
 function draw(){
