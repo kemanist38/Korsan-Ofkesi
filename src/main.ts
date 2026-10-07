@@ -20,7 +20,7 @@ import {BOARDS,rankRows,rankPage,RANK_PAGE_SIZE,type BoardId,type RankPlayer,typ
 import {redeem,loadRedeemed,saveRedeemed,rewardText} from './coupons';
 import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
 import {loadLog,saveLog,addLog,daySummary,LOG_KINDS,type LogKind,type LogEntry} from './logbook';
-import {BALL_DAMAGE,CHAIN_FACTOR,FIRE_DOT_SHARE,ELITE_POINTS_PER_BALL,ELITE_MAX_LEVEL,eliteLevelEp,eliteLevelFromEp,ABILITIES,SPECIAL_AMMO,MINE,SPEED_BOOST,CONSUMABLES,AMMO_PRICES,SUPPLY_PRICES,loadArsenal,saveArsenal,type AbilityId,type SpecialAmmo,type ConsumableId,type SupplyId,type Price,priceOf} from './arsenal';
+import {BALL_DAMAGE,CHAIN_FACTOR,CHAIN_SLOW,FIRE_NPC_FACTOR,leechHeal,repairAmount,FIRE_DOT_SHARE,ELITE_POINTS_PER_BALL,ELITE_MAX_LEVEL,eliteLevelEp,eliteLevelFromEp,ABILITIES,SPECIAL_AMMO,MINE,SPEED_BOOST,CONSUMABLES,AMMO_PRICES,SUPPLY_PRICES,loadArsenal,saveArsenal,type AbilityId,type SpecialAmmo,type ConsumableId,type SupplyId,type Price,priceOf} from './arsenal';
 import {loadFleetOwners,saveFleetOwners,loadRuins,markRuin,ruinLeft,ruinLabel,clearRuins} from './conquest';
 import {RIVAL_SP,battleRank,loadRivalLog,claimRivalSp,dayKey,RANK_SHEET,RANK_COLS,RANK_ICONS,rankIcon,BATTLE_RANKS} from './battle';
 import {setupChat} from './chat';
@@ -75,12 +75,12 @@ const UPGRADES:Record<UpgradeKind,{name:string;description:string;effect:string;
   range:{name:'Uzun Namlular',description:'Tüm top türlerinin etkili menzilini artırır.',effect:'+18 menzil',pearls:9},
   reload:{name:'Tecrübeli Topçular',description:'Topların yeniden dolma süresini azaltır.',effect:'-%4 dolum',pearls:12},
   speed:{name:'Yeni Yelken Takımı',description:'Geminin ulaşabileceği azami hızı artırır.',effect:'+5 hız',pearls:9},
-  repair:{name:'Usta Marangozlar',description:'Açık denizde yapılan tamirin hızını artırır.',effect:'+%0,8/sn',pearls:7}
+  repair:{name:'Usta Marangozlar',description:'Açık denizde yapılan tamirin hızını artırır.',effect:'+%4 tamir',pearls:7}
 };
 const QUICK_ITEMS:Record<QuickItemId,{name:string;icon:string;category:'ammo'|'consumable';description:string}>={
-  iron:{name:'Demir Gülle',icon:'iron',category:'ammo',description:'Standart ve sınırsız top güllesi.'},chain:{name:'Zincir Güllesi',icon:'chain',category:'ammo',description:'Hedefi 3 saniye yavaşlatır.'},
-  fire:{name:'Ateş Güllesi',icon:'damage',category:'ammo',description:'Hedefi 4 saniye yakar.'},grape:{name:'Saçma',icon:'iron',category:'ammo',description:'Kısa menzil, çok yüksek hasar.'},
-  explosive:{name:'Patlayıcı Gülle',icon:'damage',category:'ammo',description:'Alan hasarı: çevredeki düşmanlara %50.'},breaker:{name:'Kule Kırıcı',icon:'iron',category:'ammo',description:'Kulelere 2,6 kat hasar.'},leech:{name:'Can Emici',icon:'damage',category:'ammo',description:'Hasarın %25\'i kadar onarır.'},
+  iron:{name:'Demir Gülle',icon:'iron',category:'ammo',description:'Standart ve sınırsız top güllesi.'},chain:{name:'Zincir Güllesi',icon:'chain',category:'ammo',description:'Oyuncuları 3 saniye %40 yavaşlatır; NPC\'ye etki etmez.'},
+  fire:{name:'Ateş Güllesi',icon:'damage',category:'ammo',description:'NPC ve canavarlara %40 fazla hasar.'},
+  breaker:{name:'Kule Kırıcı',icon:'iron',category:'ammo',description:'Kulelere 2,6 kat hasar.'},leech:{name:'Can Emici',icon:'damage',category:'ammo',description:'İsabetlerin %20\'si can çalar.'},
   repairkit:{name:'Tamir Sandığı',icon:'repairkit',category:'consumable',description:'Açık deniz tamirini başlatır.'},speed:{name:'Hız İksiri',icon:'speed',category:'consumable',description:'İçince 7 sn boyunca hız %55 artar; her kullanımda 1 adet harcar.'},
   powder:{name:'Kara Barut',icon:'damage',category:'consumable',description:CONSUMABLES.powder.description},shield:{name:'Kalkan',icon:'hull',category:'consumable',description:CONSUMABLES.shield.description},mine:{name:'Deniz Mayını',icon:'hull',category:'consumable',description:'Kıçtan mayın bırakır.'}
 };
@@ -169,12 +169,12 @@ let activeSpecialDesign=loadSpecialDesign();
 let previewShip:ShipSelection|SpecialDesignId=activeSpecialDesign??activeShip;
 // Özel tasarım yalnızca görünümü değiştirir; seçili geminin gücü ve donanımı korunur.
 const quickSlots:Array<QuickItemId|null>=Array(12).fill(null);
-{const stored=(storedAccount?.quickSlots??['iron','chain','fire','grape','speed','powder','shield','mine']).filter((id):id is QuickItemId=>!!id&&id!=='repairkit'&&id in QUICK_ITEMS);
+{const stored=(storedAccount?.quickSlots??['iron','chain','fire','breaker','speed','powder','shield','mine']).filter((id):id is QuickItemId=>!!id&&id!=='repairkit'&&id in QUICK_ITEMS);
   const place=(id:QuickItemId)=>{if(quickSlots.includes(id))return;const row=QUICK_ITEMS[id].category==='ammo'?0:AMMO_ROW;for(let i=row;i<row+AMMO_ROW;i++)if(!quickSlots[i]){quickSlots[i]=id;return;}};
-  stored.forEach(place);(['iron','chain','fire','grape','speed','powder','shield','mine'] as QuickItemId[]).forEach(id=>{if(!storedAccount?.quickSlots)place(id);});}
+  stored.forEach(place);(['iron','chain','fire','breaker','speed','powder','shield','mine'] as QuickItemId[]).forEach(id=>{if(!storedAccount?.quickSlots)place(id);});}
 const arsenal=loadArsenal();
 // Eski kayıtlarda gülle stoğu salvo sayısıydı; artık her top 1 gülle harcar. Stoklar bir kez 50 topluk salvoya göre çevrilir.
-if(!arsenal.ballsV1){for(const k of ['fire','grape','explosive','breaker','leech'] as const)arsenal[k]*=50;state.chainAmmo*=50;arsenal.ballsV1=true;saveArsenal(arsenal);}
+if(!arsenal.ballsV1){for(const k of ['fire','breaker','leech'] as const)arsenal[k]*=50;state.chainAmmo*=50;arsenal.ballsV1=true;saveArsenal(arsenal);}
 // Kara Barut eski kayıtlarda da sarf sırasına bir kez yerleşir
 if(!quickSlots.includes('powder')){const free=quickSlots.findIndex((v,k)=>k>=AMMO_ROW&&!v);if(free>=0)quickSlots[free]='powder';}
 // Açık/kapalı sarf malzemeleri
@@ -183,7 +183,7 @@ const crew=loadCrew();
 // Test aşaması (ELITE_TEST_MODE): her açılışta bol stok ve tam gelişmiş gemi. Değerler yalnızca alt sınırdır;
 // harcadıkça azalır, sayfa yenilenince yeniden dolar.
 if(ELITE_TEST_MODE){const M=5_000_000;
-  for(const k of ['fire','grape','explosive','breaker','leech','powder','shield','speed','mine'] as const)arsenal[k]=Math.max(arsenal[k],M);saveArsenal(arsenal);
+  for(const k of ['fire','breaker','leech','powder','shield','speed','mine'] as const)arsenal[k]=Math.max(arsenal[k],M);saveArsenal(arsenal);
   state.chainAmmo=Math.max(state.chainAmmo,M);state.gold=Math.max(state.gold,M);state.pearls=Math.max(state.pearls,M);
   state.fame=Math.max(state.fame,100_000_000);state.battlePoints=Math.max(state.battlePoints,BATTLE_RANKS[BATTLE_RANKS.length-1].sp);state.elitePoints=Math.max(state.elitePoints,200_000_000);
   for(const id of Object.keys(TALENTS) as TalentId[])crew.talents[id]=TALENTS[id].max;
@@ -192,9 +192,9 @@ if(ELITE_TEST_MODE){const M=5_000_000;
 let bonus=computeBonus(crew);
 // Test aşamasında gemi her zaman yuvası kadar ağır topla dolu; top satın almak gerekmez
 function fillTestCannons(){if(!ELITE_TEST_MODE)return;for(const k of Object.keys(mountedCannons) as CannonKind[]){cannonInventory[k]+=k==='heavy'?Math.max(0,mountedCannons[k]-cannonCapacity()):mountedCannons[k];mountedCannons[k]=0;}mountedCannons.heavy=cannonCapacity();cannonInventory.heavy=Math.max(cannonInventory.heavy,5000);state.cannonType='heavy';state.cannon=mountedCannonCount();}
-if(!arsenal.seeded){for(const item of ['fire','grape','shield','mine'] as QuickItemId[]){const row=QUICK_ITEMS[item].category==='ammo'?0:AMMO_ROW;if(quickSlots.includes(item))continue;for(let i=row;i<row+AMMO_ROW;i++)if(!quickSlots[i]){quickSlots[i]=item;break;}}arsenal.seeded=true;saveArsenal(arsenal);}
+if(!arsenal.seeded){for(const item of ['fire','breaker','shield','mine'] as QuickItemId[]){const row=QUICK_ITEMS[item].category==='ammo'?0:AMMO_ROW;if(quickSlots.includes(item))continue;for(let i=row;i<row+AMMO_ROW;i++)if(!quickSlots[i]){quickSlots[i]=item;break;}}arsenal.seeded=true;saveArsenal(arsenal);}
 // Yeni gülleler (patlayıcı, kule kırıcı, can emici) bir kez hızlı yuvalara yerleşir; yer yoksa MALZEMELER'den eklenir
-if(!arsenal.seededV2){for(const item of ['explosive','breaker','leech'] as QuickItemId[]){if(quickSlots.includes(item))continue;const free=quickSlots.findIndex((v,k)=>k<AMMO_ROW&&!v);if(free>=0)quickSlots[free]=item;}arsenal.seededV2=true;saveArsenal(arsenal);}
+if(!arsenal.seededV2){for(const item of ['breaker','leech'] as QuickItemId[]){if(quickSlots.includes(item))continue;const free=quickSlots.findIndex((v,k)=>k<AMMO_ROW&&!v);if(free>=0)quickSlots[free]=item;}arsenal.seededV2=true;saveArsenal(arsenal);}
 const questProgress:Record<string,number>={...storedQuests?.progress};
 const questCooldownUntil:Record<string,number>={...storedQuests?.cooldowns};
 if(state.activeQuest!==null&&(questCooldownUntil[state.activeQuest]??0)>Date.now())state.activeQuest=null;
@@ -738,13 +738,10 @@ function burst(_x:number,_y:number,_large=false){}
 // Oyuncuya uzaklığa göre ses seviyesi (0..1)
 function earGain(p:Vec){return Math.max(0,Math.min(1,1.15-dist(p,player)/900));}
 function splashAt(x:number,y:number,_size=110){const eg=earGain({x,y});if(eg>.05)playSplash(eg*.8);}
-// Özel güllelerin isabet etkisi: patlayıcı çevreye alan hasarı, can emici oyuncuyu onarır
+// Özel güllelerin isabet etkisi: can emici şansa bağlı olarak oyuncuyu onarır (src/arsenal.ts LEECH)
 function ammoImpact(s:Shot,target:Target,hit:number){
   if(s.owner!=='player')return;
-  if(s.ammo==='explosive'){const def=SPECIAL_AMMO.explosive,R=def.blastRadius;burst(target.x,target.y,true);playExplosion(false);
-    const victims=([...enemies,...monsters] as Target[]).filter(o=>o!==target&&!isAlly(o)&&dist(o,target)<R);
-    for(const o of victims){const dmg=Math.round(hit*def.blastFactor);o.hp-=dmg;o.aggro=true;siegeHit(o,dmg,profile.nick);if(o.kind==='ship')o.lastHitBy='player';damageText(o.x,o.y,dmg);if(o.hp<=0){if(o.kind==='ship')sinkEnemy(o);else defeatMonster(o);}}}
-  if(s.ammo==='leech'){const heal=hit*SPECIAL_AMMO.leech.leech;playHeal();state.hp=Math.min(effectiveMaxHp(),state.hp+heal);
+  if(s.ammo==='leech'){const heal=leechHeal(hit,target.kind==='ship'&&!!target.captain,effectiveMaxHp());if(heal<=0)return;playHeal();state.hp=Math.min(effectiveMaxHp(),state.hp+heal);healText(player.x,player.y,heal);
     for(let n=0;n<4;n++){const a=Math.atan2(player.y-target.y,player.x-target.x)+(Math.random()-.5)*.8,sp=dist(player,target)/.7;particles.push({x:target.x,y:target.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:.7,maxLife:.7,kind:'soul',z:18,size:26});}}
 }
 // Namlu alevi ve top dumanı
@@ -753,6 +750,8 @@ const WRECK_TIME=1.1;
 const MAX_WRECKS=24;
 // Hasar yazısı: verdiğin hasar barut açıkken sarı, kapalıyken kırmızı; aldığın hasar kalkan açıkken mavi, kapalıyken kırmızı
 const DMG_GOLD='#ffd23a',DMG_RED='#ff4a3a',DMG_BLUE='#5fb8ff';
+let playerSlow=0,repairClock=0;
+function healText(x:number,y:number,value:number){particles.push({x,y:y-14,vx:0,vy:-22,life:1.1,maxLife:1.1,kind:'damage',color:'#5ee07a',text:`+${Math.round(value).toLocaleString('tr-TR')}`});}
 function damageText(x:number,y:number,value:number,color=DMG_GOLD){particles.push({x,y,vx:0,vy:-24,life:1,maxLife:1,kind:'damage',color,text:`-${Math.round(value).toLocaleString('tr-TR')}`});}
 let toastTimer=0;
 function toast(msg:string){ui('toast').textContent=msg;ui('toast').classList.add('show');toastTimer=2.2;}
@@ -768,8 +767,8 @@ function sinkNotice(name:string,sp:number){
 }
 function saveQuestState(){localStorage.setItem(QUEST_STORAGE,JSON.stringify({rulesVersion:2,active:state.activeQuest,progress:questProgress,cooldowns:questCooldownUntil}));}
 function saveAccount(){localStorage.setItem(ACCOUNT_STORAGE,JSON.stringify({pearls:state.pearls,gold:state.gold,fame:state.fame,level:state.level,maxHp:state.maxHp,hp:state.hp,chainAmmo:state.chainAmmo,elitePoints:state.elitePoints,eliteEconomyVersion:ELITE_ECONOMY_VERSION,battlePoints:state.battlePoints,cannonType:state.cannonType,cannonInventory,mountedCannons,equipOwned,equipped,quickSlots,upgrades,eliteShip:activeEliteShip,activeShip,elitePurchased,currentMap}));try{localStorage.setItem(WORLD_STORAGE,currentMap);}catch{}}
-function effectiveRange(){return(CANNONS[state.cannonType].range+upgrades.range*18+bonus.range+equipBonus().range+(elitePassive('jade')?20:0))*(state.ammo==='grape'?SPECIAL_AMMO.grape.rangeFactor:1);}
-function effectiveSpeed(){return(128+upgrades.speed*5)*bonus.speed*(1+equipBonus().speed+eliteBonus().speed)*(abilityActive('speed')?SPEED_BOOST:1)*(elitePassive('tempest')?1.05:1)*(elitePassive('sand')?1.1:1)*(rageActive(rage)?RAGE_SPEED:1);}
+function effectiveRange(){return(CANNONS[state.cannonType].range+upgrades.range*18+bonus.range+equipBonus().range+(elitePassive('jade')?20:0));}
+function effectiveSpeed(){return(128+upgrades.speed*5)*bonus.speed*(1+equipBonus().speed+eliteBonus().speed)*(abilityActive('speed')?SPEED_BOOST:1)*(elitePassive('tempest')?1.05:1)*(elitePassive('sand')?1.1:1)*(rageActive(rage)?RAGE_SPEED:1)*(playerSlow>0?CHAIN_SLOW.factor:1);}
 function cannonCapacity(){return earnedEliteLevel()>0?ELITE_CANNON_CAPACITY:BASE_CANNONS;}
 function mountedCannonCount(){return (Object.keys(mountedCannons) as CannonKind[]).reduce((sum,kind)=>sum+mountedCannons[kind],0);}
 function cannonAsset(kind:CannonKind){
@@ -1313,7 +1312,12 @@ function update(dt:number){
   player.cooldown=Math.max(0,player.cooldown-dt);updateRage(dt);state.invulnerable=Math.max(0,state.invulnerable-dt);collisionNotice=Math.max(0,collisionNotice-dt);{const f=cinematic.focus??freeLook??player;const cf=f===player?Math.min(1,dt*12):Math.min(1,dt*3);camera.x+=(f.x-camera.x)*cf;camera.y+=(f.y-camera.y)*cf;}camera.zoom+=(camera.targetZoom-camera.zoom)*Math.min(1,dt*7);
   for(let i=salvoQueue.length-1;i>=0;i--){salvoQueue[i].delay-=dt;if(salvoQueue[i].delay<=0){releaseSalvo(salvoQueue[i]);salvoQueue.splice(i,1);}}
   if(state.repairing&&!isVip()&&player.speed>4&&repairMoveHint<=0){toast('Hareket halindeyken tamir için VİP gerekir — dur, tamir devam etsin');repairMoveHint=6;}repairMoveHint=Math.max(0,repairMoveHint-dt);
-  if(state.repairing&&(isVip()||player.speed<=4)){state.hp=Math.min(effectiveMaxHp(),state.hp+effectiveMaxHp()*(.035+upgrades.repair*.008)*bonus.repair*(1+eliteBonus().repair)*(elitePassive('coral')&&playerHitClock>5?2:1)*dt);if(state.hp>=effectiveMaxHp()){state.repairing=false;saveAccount();ui('repair').classList.remove('active');toast('Gövde tamamen onarıldı');}}
+  playerSlow=Math.max(0,playerSlow-dt);
+  // Tamir saniyede bir kez sabit miktar ekler ve yeşil "+N" yazısıyla gösterir
+  if(state.repairing&&(isVip()||player.speed<=4)){repairClock+=dt;while(repairClock>=1&&state.repairing){repairClock-=1;
+    const amt=repairAmount((1+upgrades.repair*.04)*bonus.repair*(1+eliteBonus().repair))*(elitePassive('coral')&&playerHitClock>5?2:1),before=state.hp;
+    state.hp=Math.min(effectiveMaxHp(),state.hp+amt);if(state.hp>before)healText(player.x,player.y,state.hp-before);
+    if(state.hp>=effectiveMaxHp()){state.repairing=false;saveAccount();ui('repair').classList.remove('active');rewardNotice('Gövde tamamen onarıldı','none');}}}else repairClock=0;
   monsters.forEach(m=>{if((m.frozen??0)>0){m.frozen=Math.max(0,m.frozen!-dt);m.cooldown=Math.max(m.cooldown,.5);return;}m.phase+=dt;m.cooldown-=dt;m.slowTimer=Math.max(0,m.slowTimer-dt);if(m.aggro){m.combatTimer-=dt;if(m.combatTimer<=0||Math.hypot(m.x-m.homeX,m.y-m.homeY)>720)m.aggro=false;}if(m.aggro&&dist(m,player)<430&&m.cooldown<=0)monsterFire(m);});
   // Saldırı: kaptan hareket etse de hedef menzildeyken ateş sürer; hedef menzilden çıkınca saldırı durur
   // ve menzile tekrar girildiğinde SALDIR'a yeniden basmak gerekir.
@@ -1361,13 +1365,13 @@ function update(dt:number){
     if(s.owner==='player'){
       for(let j=enemies.length-1;j>=0&&s.life>0;j--){
         const e=enemies[j];if(isAlly(e))continue;
-        if(dist(s,e)<(e.hitRadius??25)){const hit=eliteOnHit(e,s.damage*(s.ammo==='breaker'&&e.tower?SPECIAL_AMMO.breaker.towerFactor:1));s.hit=true;if(s.slow)e.slowTimer=Math.max(e.slowTimer,s.slow);if(s.splash)towerSplash(s,e);e.aggro=true;e.lastHitBy='player';e.combatTimer=12;if(s.ammo==='chain')e.slowTimer=3;if(s.ammo==='fire'){e.burnTimer=SPECIAL_AMMO.fire.burnSeconds;e.burnDps=Math.max(e.burnDps??0,hit*FIRE_DOT_SHARE*bonus.burn/SPECIAL_AMMO.fire.burnSeconds);}e.hp-=hit;siegeHit(e,hit,profile.nick);damageText(e.x,e.y,hit,s.powder?DMG_GOLD:DMG_RED);burst(e.x,e.y);playHit();ammoImpact(s,e,hit);s.life=0;
+        if(dist(s,e)<(e.hitRadius??25)){const hit=eliteOnHit(e,s.damage*(s.ammo==='breaker'&&e.tower?SPECIAL_AMMO.breaker.towerFactor:1)*(s.ammo==='fire'&&!e.tower&&!e.captain?FIRE_NPC_FACTOR:1));s.hit=true;if(s.slow)e.slowTimer=Math.max(e.slowTimer,s.slow);if(s.splash)towerSplash(s,e);e.aggro=true;e.lastHitBy='player';e.combatTimer=12;if(s.ammo==='chain'&&e.captain)e.slowTimer=CHAIN_SLOW.seconds;if(s.ammo==='fire'){e.burnTimer=SPECIAL_AMMO.fire.burnSeconds;e.burnDps=Math.max(e.burnDps??0,hit*FIRE_DOT_SHARE*bonus.burn/SPECIAL_AMMO.fire.burnSeconds);}e.hp-=hit;siegeHit(e,hit,profile.nick);damageText(e.x,e.y,hit,s.powder?DMG_GOLD:DMG_RED);burst(e.x,e.y);playHit();ammoImpact(s,e,hit);s.life=0;
           if(e.hp<=0)sinkEnemy(e);
         }
       }
       for(let j=monsters.length-1;j>=0&&s.life>0;j--){
         const m=monsters[j];
-        if(dist(s,m)<m.radius){const hit=eliteOnHit(m,s.damage);s.hit=true;if(s.slow)m.slowTimer=Math.max(m.slowTimer,s.slow);if(s.splash)towerSplash(s,m);m.aggro=true;m.combatTimer=12;if(s.ammo==='chain')m.slowTimer=3;if(s.ammo==='fire'){m.burnTimer=SPECIAL_AMMO.fire.burnSeconds;m.burnDps=Math.max(m.burnDps??0,hit*FIRE_DOT_SHARE*bonus.burn/SPECIAL_AMMO.fire.burnSeconds);}m.hp-=hit;damageText(m.x,m.y,hit,s.powder?DMG_GOLD:DMG_RED);burst(m.x,m.y);playHit();ammoImpact(s,m,hit);s.life=0;
+        if(dist(s,m)<m.radius){const hit=eliteOnHit(m,s.damage*(s.ammo==='fire'?FIRE_NPC_FACTOR:1));s.hit=true;if(s.slow)m.slowTimer=Math.max(m.slowTimer,s.slow);if(s.splash)towerSplash(s,m);m.aggro=true;m.combatTimer=12;if(s.ammo==='fire'){m.burnTimer=SPECIAL_AMMO.fire.burnSeconds;m.burnDps=Math.max(m.burnDps??0,hit*FIRE_DOT_SHARE*bonus.burn/SPECIAL_AMMO.fire.burnSeconds);}m.hp-=hit;damageText(m.x,m.y,hit,s.powder?DMG_GOLD:DMG_RED);burst(m.x,m.y);playHit();ammoImpact(s,m,hit);s.life=0;
           if(m.hp<=0)defeatMonster(m);
         }
       }
@@ -1380,6 +1384,8 @@ function update(dt:number){
       state.repairing=false;playerHitClock=0;
       const shieldF=useConsumable('shield'),taken=s.damage*bonus.taken*shieldF*eliteTakenMult();
       state.hp-=taken;damageText(player.x,player.y,Math.round(taken),shieldF<1?DMG_BLUE:DMG_RED);playHit(true);burst(player.x,player.y);
+      if(s.captain&&s.ammo==='chain')playerSlow=CHAIN_SLOW.seconds;
+      if(s.captain&&s.ammo==='leech'&&enemies.includes(s.captain)){const c=s.captain,h=leechHeal(taken,true,c.maxHp);if(h>0){c.hp=Math.min(c.maxHp,c.hp+h);spawnSoul(player,c);}}
       }
       if(state.hp<=0){
         respawn();
@@ -1459,7 +1465,7 @@ function updateSiegeCaptain(e:Enemy,dt:number){const c=e.captain!,f=SIEGE_MAP.fl
   e.face??={east:true,north:true};if(way){const st=isoAdvance(e.iso??null,e.x,e.y,way.x,way.y,e.speed*(e.slowTimer>0?.55:1)*1.4,dt,e.face);e.iso=st.m;
     if(st.done)e.iso=null;else{e.x=clamp(e.x+st.mx,40,WORLD_WIDTH-40);e.y=clamp(e.y+st.my,40,WORLD_HEIGHT-40);const back=fleetCollision(e);if(back){e.x=back.x;e.y=back.y;}}}
   for(const o of [player,...enemies.filter(x=>x.captain&&x!==e)] as Vec[]){const dx=e.x-o.x,dy=e.y-o.y,dd=Math.hypot(dx,dy)||1;if(dd<150){const k=(150-dd)*Math.min(1,dt*3);e.x+=dx/dd*k;e.y+=dy/dd*k*.6;}}
-  c.ammoClock-=dt;if(c.ammoClock<=0){c.ammoClock=5+Math.random()*4;const all:AmmoKind[]=['iron','chain','fire','grape','explosive','breaker','leech'];c.ammo=all[Math.floor(Math.random()*all.length)];}
+  c.ammoClock-=dt;if(c.ammoClock<=0){c.ammoClock=5+Math.random()*4;const all:AmmoKind[]=['iron','chain','fire','breaker','leech'];c.ammo=all[Math.floor(Math.random()*all.length)];}
   if(!foe)return;const d=dist(e,foe);e.cooldown-=dt;if(d<SIEGE_FIRE_RANGE&&e.cooldown<=0){captainFire(e,foe);e.cooldown=e.reload;}}
 function siegeTowerDown(e:Enemy){if(!siege||e.towerIndex===undefined)return;const before=siegePhase(siege),i=e.towerIndex;if(!siege.destroyed.includes(i))siege.destroyed.push(i);saveSiege(siege);
   const after=siegePhase(siege);
@@ -1705,7 +1711,7 @@ function renderAchievements(){
 setAch('level',state.level);
 // ---------------------------------------------------------------- Günlük giriş ödülü
 let daily=loadDaily();
-function dailyText(r:DailyReward){return[r.gold&&`${r.gold.toLocaleString('tr-TR')} Altın`,r.pearls&&`${fmt(r.pearls)} İnci`,r.chain&&`${fmt(r.chain)} Zincir Güllesi`,r.fire&&`${fmt(r.fire)} Ateş Güllesi`,r.explosive&&`${fmt(r.explosive)} Patlayıcı Gülle`,r.powder&&`${fmt(r.powder)} Kara Barut`,r.shield&&`${fmt(r.shield)} Kalkan`,r.equip&&'Sıradan Donanım'].filter(Boolean) as string[];}
+function dailyText(r:DailyReward){return[r.gold&&`${r.gold.toLocaleString('tr-TR')} Altın`,r.pearls&&`${fmt(r.pearls)} İnci`,r.chain&&`${fmt(r.chain)} Zincir Güllesi`,r.fire&&`${fmt(r.fire)} Ateş Güllesi`,r.breaker&&`${fmt(r.breaker)} Kule Kırıcı`,r.powder&&`${fmt(r.powder)} Kara Barut`,r.shield&&`${fmt(r.shield)} Kalkan`,r.equip&&'Sıradan Donanım'].filter(Boolean) as string[];}
 function openDaily(){renderDaily();ui('dailyOverlay').classList.add('open');}
 function closeDaily(){ui('dailyOverlay').classList.remove('open');}
 function renderDaily(){
@@ -1718,7 +1724,7 @@ function renderDaily(){
 function claimToday(){
   const st=dailyStatus(daily);if(!st.canClaim)return;const r=dailyReward(st.day,state.level);daily=claimDaily(daily);saveDaily(daily);setAch('daily',daily.streak);
   if(r.gold)state.gold+=r.gold;if(r.pearls)state.pearls+=r.pearls;if(r.chain)state.chainAmmo+=r.chain;
-  for(const k of ['fire','explosive','powder','shield'] as const)if(r[k])arsenal[k]+=r[k]!;
+  for(const k of ['fire','breaker','powder','shield'] as const)if(r[k])arsenal[k]+=r[k]!;
   let eq='';if(r.equip){const pool=EQUIPMENT.filter(e=>e.rarity===0),e=pool[Math.floor(Math.random()*pool.length)];equipOwned[e.id]=(equipOwned[e.id]??0)+1;eq=e.name;}
   saveArsenal(arsenal);saveAccount();renderQuickSlots();updateUI();playCoins();renderDaily();
   rewardNotice(`Günlük ödül · ${st.day}. gün · ${dailyText(r).map(t=>t==='Sıradan Donanım'?eq:t).join(' · ')}`);
@@ -1859,7 +1865,7 @@ function drawShotShadow(s:Shot){const p=worldToScreen(s),h=shotHeight(s),k=1-Mat
 // Gülleler: kullanıcının mühimmat ikonlarıyla aynı tarzdaki uçuş görselleri (shotArt.ts); iz görselin içindedir.
 function drawShotBall(s:Shot){const p=worldToScreen(s),y=p.y-shotHeight(s),spin=(s.age??0)*16,a=Math.atan2(s.vy,s.vx);
   if(s.visual==='spit'){drawVfx(ctx,'spit',p.x,y,34,{rot:spin*.2});return;}
-  const look=s.owner==='enemy'&&!s.captain?(s.ammo==='fire'?'fire':'iron'):s.ammo==='chain'||s.ammo==='grape'||s.ammo==='fire'||s.ammo==='explosive'||s.ammo==='breaker'||s.ammo==='leech'?s.ammo:'iron';
+  const look=s.owner==='enemy'&&!s.captain?(s.ammo==='fire'?'fire':'iron'):s.ammo==='chain'||s.ammo==='fire'||s.ammo==='breaker'||s.ammo==='leech'?s.ammo:'iron';
   drawShotSprite(ctx,look,p.x,y,a);}
 function drawParticle(p:Particle){if(!onScreen(p,260))return;const s=worldToScreen(p),a=Math.max(0,Math.min(1,p.life/p.maxLife)),y=s.y-(p.z??0),size=p.size;
   switch(p.kind){
@@ -1903,7 +1909,7 @@ function updateCaptain(e:Enemy,dt:number){const c=e.captain!;e.slowTimer=Math.ma
   // üst üste binmesin: diğer kaptanlardan ve oyuncudan en az 170 birim uzak durur
   for(const o of [player,...enemies.filter(x=>x.captain&&x!==e)] as Vec[]){const dx=e.x-o.x,dy=e.y-o.y,dd=Math.hypot(dx,dy)||1;if(dd<170){const k=(170-dd)*Math.min(1,dt*3);e.x+=dx/dd*k;e.y+=dy/dd*k*.6;}}
   // gülle değiştirme
-  c.ammoClock-=dt;if(c.ammoClock<=0){c.ammoClock=5+Math.random()*4;const all:AmmoKind[]=['iron','chain','fire','grape','explosive','breaker','leech'];c.ammo=all[Math.floor(Math.random()*all.length)];}
+  c.ammoClock-=dt;if(c.ammoClock<=0){c.ammoClock=5+Math.random()*4;const all:AmmoKind[]=['iron','chain','fire','breaker','leech'];c.ammo=all[Math.floor(Math.random()*all.length)];}
   e.cooldown-=dt;if(d<470&&e.cooldown<=0)captainFire(e,foe);}
 function captainFire(e:Enemy,foe:Vec){const c=e.captain!,a=Math.atan2(foe.y-e.y,foe.x-e.x),fe=captainFoeOf(e);
   playEnemyCannon(dist(e,player),(e.x-player.x)/600);muzzleFlash(e.x+Math.cos(a)*30,e.y+Math.sin(a)*30-10,a,44);
@@ -1912,8 +1918,8 @@ function captainFire(e:Enemy,foe:Vec){const c=e.captain!,a=Math.atan2(foe.y-e.y,
   e.cooldown=e.reload*(.9+Math.random()*.3);}
 // kaptan güllesi başka bir kaptana isabet etti
 function captainHit(t:Enemy,s:Shot,from:Enemy|null){const dmg=Math.round(s.damage);t.hp-=dmg;t.lastHitBy='captain';if(from)siegeHit(t,dmg,from.name);damageText(t.x,t.y,dmg,DMG_RED);burst(t.x,t.y);
-  if(s.ammo==='chain')t.slowTimer=3;if(s.ammo==='fire'){t.burnTimer=6;t.burnDps=Math.max(t.burnDps??0,dmg*.08);}
-  if(s.ammo==='explosive')splashAt(t.x,t.y,120);if(s.ammo==='leech'&&from){from.hp=Math.min(from.maxHp,from.hp+dmg*.25);spawnSoul(t,from);}
+  if(s.ammo==='chain')t.slowTimer=CHAIN_SLOW.seconds;if(s.ammo==='fire'){t.burnTimer=6;t.burnDps=Math.max(t.burnDps??0,dmg*.08);}
+  if(s.ammo==='leech'&&from){const h=leechHeal(dmg,true,from.maxHp);if(h>0){from.hp=Math.min(from.maxHp,from.hp+h);spawnSoul(t,from);}}
   if(from&&t.captain&&!t.captain.foe)t.captain.foe=from;if(t.hp<=0)sinkEnemy(t);}
 function drawCaptain(e:Enemy,s:Vec){const c=e.captain!,im=eliteIsoImage(ELITE_ISO[c.elite]);if(!im.complete||!im.naturalWidth)return;
   const f=e.face??{east:true,north:false},idx=f.north?(f.east?0:3):(f.east?1:2),h=im.naturalHeight,D=158;

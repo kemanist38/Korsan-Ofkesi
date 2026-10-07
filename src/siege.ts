@@ -48,7 +48,7 @@ export function contribReward(damage:number,participants=4){const share=Math.max
 // Zafer sandığı: kale düşerse, kalenin en az %2'si kadar hasar veren herkes alır
 export const CHEST_SHARE=.02;
 export const earnsChest=(damage:number,participants=4)=>damage>=siegeTotalHp(participants)*CHEST_SHARE;
-export const CHEST_AMMO=['explosive','breaker','leech','fire','grape'] as const;
+export const CHEST_AMMO=['breaker','leech','fire'] as const;
 export function victoryChest(rand=Math.random,equipIds:string[]=[]){
   const a=Math.floor(rand()*CHEST_AMMO.length),b=(a+1+Math.floor(rand()*(CHEST_AMMO.length-1)))%CHEST_AMMO.length;
   const equip=equipIds.length&&rand()<.15?equipIds[Math.floor(rand()*equipIds.length)]:null;
