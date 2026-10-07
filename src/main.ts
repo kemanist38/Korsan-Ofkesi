@@ -16,7 +16,7 @@ import {loadDaily,saveDaily,dailyStatus,claimDaily,dailyReward,type DailyReward}
 import {TREASURE_PARTS,PART_CHANCE,DIG_RADIUS,DIG_SECONDS,TREASURE_ICON,loadTreasure,saveTreasure,treasureReward} from './treasure';
 import {EQUIPMENT,EQUIP_SLOTS,RARITY_NAMES,equipById,equipStatText,equipTotals,equipIconStyle,type EquipSlot} from './equipment';
 import {PEARL_PACKS,packTotal,priceText,VIP_PACKS,VIP_XP_BONUS,loadVipUntil,saveVipUntil,vipActive,vipDaysLeft,extendVip,VIP_DAY_MS} from './pearlShop';
-import {BOARDS,rankRows,type BoardId,type RankPlayer,type RankFleet} from './leaderboard';
+import {BOARDS,rankRows,rankPage,RANK_PAGE_SIZE,type BoardId,type RankPlayer,type RankFleet,type RankRow} from './leaderboard';
 import {redeem,loadRedeemed,saveRedeemed,rewardText} from './coupons';
 import {BALL_DAMAGE,CHAIN_FACTOR,FIRE_DOT_SHARE,ELITE_POINTS_PER_BALL,ELITE_MAX_LEVEL,eliteLevelEp,eliteLevelFromEp,ABILITIES,SPECIAL_AMMO,MINE,SPEED_BOOST,CONSUMABLES,AMMO_PRICES,SUPPLY_PRICES,loadArsenal,saveArsenal,type AbilityId,type SpecialAmmo,type ConsumableId,type SupplyId,type Price,priceOf} from './arsenal';
 import {loadFleetOwners,saveFleetOwners,loadRuins,markRuin,ruinLeft,ruinLabel,clearRuins} from './conquest';
@@ -1122,7 +1122,7 @@ function renderCrew(){
 }
 // ---------------------------------------------------------------- Sıralamalar
 // Sunucu gelene kadar tablo bu tarayıcıdaki kaptandan (test modunda test kaptanları da) kurulur.
-let rankBoard:BoardId='xp';
+let rankBoard:BoardId='xp',rankPageNo=0;
 const TEST_RANKERS:RankPlayer[]=[
   {nick:'ADM_AHMET',tag:'TC★',fleet:'Türk Korsanları',level:8,xp:4_200_000,ep:3_100_000,sp:61_000,npc:8_400,monster:410,boss:14,treasure:31},
   {nick:'ADM_YASİN',tag:'TC★',fleet:'Türk Korsanları',level:7,xp:2_900_000,ep:1_450_000,sp:23_500,npc:5_100,monster:260,boss:7,treasure:18},
@@ -1130,16 +1130,21 @@ const TEST_RANKERS:RankPlayer[]=[
 ];
 function rankData(){const me:RankPlayer={nick:profile.nick,tag:guild?.tag??null,fleet:guild?.name??null,level:state.level,xp:state.fame,ep:state.elitePoints,sp:state.battlePoints,npc:ach.stats.npc,monster:ach.stats.monster,boss:ach.stats.boss,treasure:ach.stats.treasure,me:true};
   const players=[me,...(ELITE_TEST_MODE?TEST_RANKERS:[])],fleets:RankFleet[]=[];
-  for(const p of players){if(!p.tag||!p.fleet)continue;let f=fleets.find(x=>x.tag===p.tag);if(!f){f={tag:p.tag,name:p.fleet,members:[],islands:0};fleets.push(f);}f.members.push(p);if(p.me){f.me=true;f.islands=Object.values(fleetOwners).filter(o=>o==='player').length;}}
-  if(ELITE_TEST_MODE){for(const f of fleets)if(!f.me)f.islands=f.tag==='TC★'?3:1;}
+  for(const p of players){if(!p.tag||!p.fleet)continue;let f=fleets.find(x=>x.tag===p.tag);if(!f){f={tag:p.tag,name:p.fleet,members:[]};fleets.push(f);}f.members.push(p);if(p.me)f.me=true;}
   return{players,fleets};}
-function renderRanks(){const {players,fleets}=rankData(),board=BOARDS.find(b=>b.id===rankBoard)!,rows=rankRows(rankBoard,players,fleets);
+// Her sayfada 100 sıra; liste pencere içinde kayar, altta sayfa düğmeleri ve "Sıram" kısayolu
+function renderRanks(){const {players,fleets}=rankData(),board=BOARDS.find(b=>b.id===rankBoard)!,all=rankRows(rankBoard,players,fleets),pg=rankPage(all,rankPageNo);rankPageNo=pg.page;
   const tabs=(fleet:boolean)=>BOARDS.filter(b=>b.fleet===fleet).map(b=>`<button data-board="${b.id}" class="${b.id===rankBoard?'active':''}">${b.name}</button>`).join('');
+  const mine=all.findIndex(r=>r.me),from=pg.page*RANK_PAGE_SIZE;
+  const row=(r:RankRow)=>`<div class="rank-row ${r.me?'me':''} ${r.rank<=3?'top'+r.rank:''}"><b>${r.rank}</b><span><span>${r.tag?`<em class="guild-tag">[${escapeHtml(r.tag)}]</em>`:''}${escapeHtml(r.name)}${r.me?' <i>(sen)</i>':''}</span><small>${escapeHtml(r.sub)}</small></span><strong>${fmt(r.score)} <small>${board.unit}</small></strong></div>`;
   ui('rankPanel').innerHTML=`<div class="rank-tabs"><span>OYUNCU</span>${tabs(false)}</div><div class="rank-tabs"><span>FİLO</span>${tabs(true)}</div>
     <p class="quest-intro">${board.desc}. ${ELITE_TEST_MODE?'Test modu: örnek kaptanlar listede. ':''}Sunucu açılınca bütün oyuncular burada sıralanacak.</p>
-    <div class="rank-table">${rows.length?rows.map(r=>`<div class="rank-row ${r.me?'me':''} ${r.rank<=3?'top'+r.rank:''}"><b>${r.rank}</b><span><span>${r.tag?`<em class="guild-tag">[${escapeHtml(r.tag)}]</em>`:''}${escapeHtml(r.name)}${r.me?' <i>(sen)</i>':''}</span><small>${escapeHtml(r.sub)}</small></span><strong>${fmt(r.score)} <small>${board.unit}</small></strong></div>`).join(''):`<p class="rank-empty">${board.fleet?'Henüz sıralamada filo yok. Bir filo kur ya da bir filoya katıl.':'Henüz sıralamada kimse yok.'}</p>`}</div>`;
-  ui('rankPanel').querySelectorAll<HTMLButtonElement>('[data-board]').forEach(b=>b.onclick=()=>{rankBoard=b.dataset.board as BoardId;renderRanks();});}
-function openRanks(){renderRanks();ui('rankOverlay').classList.add('open');}
+    <div class="rank-table" id="rankTable">${pg.rows.length?pg.rows.map(row).join(''):`<p class="rank-empty">${board.fleet?'Henüz sıralamada filo yok. Bir filo kur ya da bir filoya katıl.':'Henüz sıralamada kimse yok.'}</p>`}</div>
+    <div class="rank-pager"><button data-page="${pg.page-1}" ${pg.page<=0?'disabled':''}>‹ ÖNCEKİ</button><span>Sayfa ${pg.page+1} / ${pg.pages}${all.length?` · ${fmt(from+1)}–${fmt(from+pg.rows.length)}. sıra`:''}</span>${mine>=0?`<button data-page="${Math.floor(mine/RANK_PAGE_SIZE)}" class="rank-mine">SIRAM: ${fmt(all[mine].rank)}</button>`:''}<button data-page="${pg.page+1}" ${pg.page>=pg.pages-1?'disabled':''}>SONRAKİ ›</button></div>`;
+  ui('rankPanel').querySelectorAll<HTMLButtonElement>('[data-board]').forEach(b=>b.onclick=()=>{rankBoard=b.dataset.board as BoardId;rankPageNo=0;renderRanks();});
+  ui('rankPanel').querySelectorAll<HTMLButtonElement>('[data-page]').forEach(b=>b.onclick=()=>{rankPageNo=Number(b.dataset.page);renderRanks();
+    const me=ui('rankTable').querySelector<HTMLElement>('.rank-row.me');if(b.classList.contains('rank-mine')&&me)me.scrollIntoView({block:'center'});else ui('rankTable').scrollTop=0;});}
+function openRanks(){rankPageNo=0;renderRanks();ui('rankOverlay').classList.add('open');}
 function closeRanks(){ui('rankOverlay').classList.remove('open');}
 // ---------------------------------------------------------------- Kupon kodu
 const redeemedCoupons=loadRedeemed();
