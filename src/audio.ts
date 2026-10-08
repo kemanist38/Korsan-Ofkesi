@@ -105,7 +105,6 @@ export function playEnemyCannon(distance:number,pan=0){
 export function playHit(_heavy=false){}
 export function playExplosion(_big=true){}
 export function playCoins(){}
-export function playWind(){}
 export function playShield(){}
 export function playSplash(_gain=1){}
 export function playLevelUp(){
@@ -145,3 +144,7 @@ function startAmbient(c:AudioContext){
     const src=c.createBufferSource();src.buffer=buf;src.loop=true;const g=c.createGain();g.gain.setValueAtTime(0,c.currentTime);g.gain.linearRampToValueAtTime(.35,c.currentTime+2);
     src.connect(g);g.connect(master);src.start();}).catch(()=>{});
 }
+// Hız iksiri: önce içme sesi, hemen ardından yıldız tozu hızlanma sesi
+export function playSpeed(){const c=audio();if(!c||throttle('speed',300))return;sample('speed',{gain:.7,jitter:0});sample('speed-boost',{gain:.75,jitter:0,delay:.45});}
+// Korsan Öfkesi: kalın kükreme ve ateş
+export function playRage(){const c=audio();if(!c)return;sample('rage',{gain:1,jitter:0});}

@@ -8,7 +8,7 @@ import './storageMigration';
 import './style.css';
 import './rage-ui.css';
 import {ACTIONS,loadSettings,saveSettings,keyLabel,normalizeKey,DEFAULT_BINDS,type ActionId} from './settings';
-import {playBossMusic,stopBossMusic,playBossHorn,setAudio,unlockAudio,playCannon,playEnemyCannon,playHit,playExplosion,playCoins,playWind,playShield,playSplash,playLevelUp,playMapJump,playSink,playHeal,playClick} from './audio';
+import {playBossMusic,stopBossMusic,playBossHorn,setAudio,unlockAudio,playCannon,playEnemyCannon,playHit,playExplosion,playCoins,playSpeed,playRage,playShield,playSplash,playLevelUp,playMapJump,playSink,playHeal,playClick} from './audio';
 import {drawSeaSparkle,drawNpcShip,drawMonsterSheet,drawChestSprite,drawIslandSprite,drawFleetBase,drawBastion,drawBuiltTower,drawMineSprite,seaTilePattern,islandSheetUrl,shipLabelOffset,portraitStyle,preload,fleetBaseUrl,fleetTowerUrl,setTowerTheme,TOWER_LABEL_OFFSET,FLEET_ART,drawFleetOccluder} from './sprites';
 import {MAPS,GRID,THEMES,NPCS,MONSTERS,QUESTS,QUEST_COOLDOWN_MS,FLEET,FLEET_SCALE,WORLD_WIDTH,WORLD_HEIGHT,MAX_LEVEL,xpNeed,neighbor,bossFor,BOSS_KILLS,BOSS_ATLAS,BOSS_ATLAS_COLS,MAP_KEYS,type BossDef,type MapDef,tierOf,fleetTower,fleetReward,PORTRAIT_COUNT,PORTRAIT_COLS,PORTRAIT_ATLAS,GRID_COLS,GRID_ROWS,CELL_W,CELL_H,colName,rowName,gridCell,coordLabel,type MapKey,type WorldIsland,type NpcDef,type MonsterDef,type Dir,type QuestDef} from './campaign';
 import {ACHIEVEMENTS,loadAchievements,saveAchievements,unlockReached,achievementBonus,bonusText,badgeStyle,type AchStat} from './achievements';
@@ -1648,7 +1648,7 @@ function later(t:number,fn:()=>void){abilityQueue.push({t,fn});}
 function activateRage(){
   if(rageActive(rage)){toast(`Korsan Öfkesi açık · ${rage.salvos} güçlü salvo kaldı`);return;}
   if(!startRage(rage)){toast(`Öfke barı dolmadı (%${Math.floor(rage.meter)}) — rakip oyuncu ve boss batırdıkça dolar`);return;}
-  spawnText(player,'KORSAN ÖFKESİ!','#ff7a2a');spawnRage(player,rage.time);screenTint(.35,'200,40,10');playExplosion();playWind();
+  spawnText(player,'KORSAN ÖFKESİ!','#ff7a2a');spawnRage(player,rage.time);screenTint(.35,'200,40,10');playRage();
   for(let n=0;n<30;n++){const a=Math.random()*Math.PI*2,sp=60+Math.random()*90;particles.push({x:player.x,y:player.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp*.5,life:.6+Math.random()*.4,maxLife:1,kind:'ember',z:10+Math.random()*30,size:10+Math.random()*14,color:n%2?'#ff6a1a':'#ffd27a'});}
 }
 function updateRage(dt:number){
@@ -1674,7 +1674,7 @@ function activateAbility(id:'speed'){
   if(t.active>0){toast(`${a.name} zaten etkin`);return;}
   if(arsenal.speed<=0){toast(`${a.name} kalmadı — marketten alabilirsin`);return;}
   arsenal.speed--;saveArsenal(arsenal);renderQuickSlots();
-  t.active=a.duration;t.cooldown=a.cooldown*bonus.cooldown;toast(`${a.name} içildi · kalan ${arsenal.speed.toLocaleString('tr-TR')}`);playWind();
+  t.active=a.duration;t.cooldown=a.cooldown*bonus.cooldown;toast(`${a.name} içildi · kalan ${arsenal.speed.toLocaleString('tr-TR')}`);playSpeed();
   // içildiği an gemiyi saran kısa parıltı patlaması
   if(id==='speed')for(let n=0;n<26;n++){const ang=Math.random()*Math.PI*2,sp=40+Math.random()*70;particles.push({x:player.x,y:player.y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp*.5,life:.5+Math.random()*.4,maxLife:.9,kind:'glint',z:10+Math.random()*40,size:8+Math.random()*12,color:n%3?'#5ff3ff':'#ffffff',rot:Math.random()*3});}
 }
