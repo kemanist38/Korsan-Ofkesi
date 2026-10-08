@@ -22,10 +22,21 @@ test('shipyard special-design toggle changes appearance without changing the equ
   const elements=new Map(),ui=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',hidden:false,parentElement:{scrollTop:0},querySelectorAll:q=>q==='[data-select-ship]'?[select]:[]});return elements.get(id);};
   const ctx=vm.createContext({ui,ELITE_TEST_MODE:true,ELITE_MAX_LEVEL:15,ELITE_SHIPS:[],ELITE_REWARDS:[],PIRATE_RAGE_DESIGN:api.PIRATE_RAGE_DESIGN,elitePurchased:true,
     eliteLevelFromEp:()=>15,earnedEliteLevel:()=>15,eliteBonus:()=>({}),eliteBonusText:()=>'',
-    shipyardTab:'special',activeShip:'phantom',activeSpecialDesign:null,previewShip:'pirate-rage',state:{hp:87000,cannon:125,pearls:30},saveSpecialDesign:api.saveSpecialDesign,toast:()=>{}});
+    shipyardTab:'special',designOwned:true,activeShip:'phantom',activeSpecialDesign:null,previewShip:'pirate-rage',state:{hp:87000,cannon:125,pearls:30},saveSpecialDesign:api.saveSpecialDesign,toast:()=>{}});
   vm.runInContext(ts.transpile(render.getText(file)),ctx);vm.runInContext('renderEliteShips()',ctx);
   assert.match(ui('eliteShipGrid').innerHTML,/ÖZEL GEMİLER/);assert.match(ui('eliteShipGrid').innerHTML,/Pirate Rage/);
   select.onclick();assert.equal(ctx.activeSpecialDesign,'pirate-rage');assert.equal(api.loadSpecialDesign(),'pirate-rage');
   assert.equal(ctx.activeShip,'phantom');assert.deepEqual(ctx.state,{hp:87000,cannon:125,pearls:30});
   select.onclick();assert.equal(ctx.activeSpecialDesign,null);assert.equal(api.loadSpecialDesign(),null);
+});
+test('Pirate Rage is locked until the opening festival is completed',()=>{
+  const file=ts.createSourceFile('main.ts',readFileSync(new URL('../src/main.ts',import.meta.url),'utf8'),ts.ScriptTarget.Latest,true);
+  const render=file.statements.find(s=>ts.isFunctionDeclaration(s)&&s.name?.text==='renderEliteShips');
+  const select={dataset:{selectShip:'pirate-rage'},onclick:null},toasts=[];
+  const elements=new Map(),ui=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',hidden:false,parentElement:{scrollTop:0},querySelectorAll:q=>q==='[data-select-ship]'?[select]:[]});return elements.get(id);};
+  const ctx=vm.createContext({ui,ELITE_TEST_MODE:false,ELITE_MAX_LEVEL:15,ELITE_SHIPS:[],ELITE_REWARDS:[],PIRATE_RAGE_DESIGN:api.PIRATE_RAGE_DESIGN,elitePurchased:true,
+    eliteLevelFromEp:()=>1,eliteBonusText:()=>'',shipyardTab:'special',designOwned:false,activeShip:'starter',activeSpecialDesign:null,previewShip:'pirate-rage',state:{},saveSpecialDesign:api.saveSpecialDesign,toast:t=>toasts.push(t)});
+  vm.runInContext(ts.transpile(render.getText(file)),ctx);vm.runInContext('renderEliteShips()',ctx);
+  assert.match(ui('eliteShipGrid').innerHTML,/Açılış Festivali ödülü/);
+  select.onclick();assert.equal(ctx.activeSpecialDesign,null);assert.equal(toasts.length,1);
 });
