@@ -1010,7 +1010,7 @@ function openMarket(){renderMarket();ui('marketOverlay').classList.add('open');}
 function closeMarket(){ui('marketOverlay').classList.remove('open');}
 function renderMarket(){
   renderBuyRows('marketList',(Object.keys(AMMO_PRICES) as (keyof typeof AMMO_PRICES)[]).map(id=>({id,name:QUICK_ITEMS[id].name,art:`<div class="ammo-icon">${itemAsset(id)}<b>${quickCount(id)}</b></div>`,
-    desc:id==='chain'?`${QUICK_ITEMS.chain.description} · Her gülle ${ELITE_POINTS_PER_BALL.chain.toLocaleString('tr-TR')} EP`:`${SPECIAL_AMMO[id].description} · Her gülle ${ELITE_POINTS_PER_BALL[id].toLocaleString('tr-TR')} EP`,unit:AMMO_PRICES[id],give:(n:number)=>{if(id==='chain')state.chainAmmo+=n;else arsenal[id]+=n;},after:renderMarket})));
+    desc:id==='chain'?`${QUICK_ITEMS.chain.description} · Her gülle ${ELITE_POINTS_PER_BALL.chain.toLocaleString('tr-TR',{maximumFractionDigits:4})} EP`:`${SPECIAL_AMMO[id].description} · Her gülle ${ELITE_POINTS_PER_BALL[id].toLocaleString('tr-TR',{maximumFractionDigits:4})} EP`,unit:AMMO_PRICES[id],give:(n:number)=>{if(id==='chain')state.chainAmmo+=n;else arsenal[id]+=n;},after:renderMarket})));
 }
 function openSupply(){renderSupply();ui('supplyOverlay').classList.add('open');}
 function closeSupply(){ui('supplyOverlay').classList.remove('open');}
