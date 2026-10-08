@@ -1314,9 +1314,12 @@ const isoFace={east:false,north:false};let isoMove:IsoMove|null=null;
 const isoShip=()=>true;
 const isoIndex=()=>isoFace.north?(isoFace.east?0:3):(isoFace.east?1:2);
 function update(dt:number){
-    const turn=(held('left','arrowleft')?-1:0)+(held('right','arrowright')?1:0);
-    const thrust=(held('forward','arrowup')?1:0)-(held('back','arrowdown')?1:0);
-    if(thrust||turn)routeTarget=null;
+    // W-A-S-D (ve oklar) gemiyi yürütmez: gemi yerinde kalırken harita kayar, oyuncu tıklayacağı yeri önceden görür. V gemiye geri ortalar.
+    {const px=(held('right','arrowright')?1:0)-(held('left','arrowleft')?1:0),py=(held('back','arrowdown')?1:0)-(held('forward','arrowup')?1:0);
+      if(px||py){const base=freeLook??camera,n=Math.hypot(px,py),v=520*dt/camera.zoom;lookAt(base.x+px/n*v,base.y+py/n*v);}
+      // tıklayıp rota verince kamera yavaşça gemiye döner
+      else if(freeLook&&!cinematic.focus&&(routeTarget||destination)){const k=Math.min(1,dt*2.5);freeLook.x+=(player.x-freeLook.x)*k;freeLook.y+=(player.y-freeLook.y)*k;if(dist(freeLook,player)<12)freeLook=null;}}
+    const turn=0,thrust=0;
     if(routeTarget){if(dist(player,routeTarget)<14)routeTarget=null;else destination=routeVia(routeTarget);}
     if(destination&&!thrust&&!turn&&isoShip()){
       // Seafight usulü: 8 yön, dikey hız yarı, anlık kalkış/duruş; açı yalnızca iz ve efektler için tutulur
