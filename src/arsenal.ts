@@ -32,7 +32,7 @@ export type SpecialAmmo=keyof typeof SPECIAL_AMMO;
 // Ateş güllesi yanması (Seafight Pyreball: 50 hasar + 12 sn boyunca 3 sn'de bir 10 = gülle başına %80 ek hasar)
 export const FIRE_DOT_SHARE=.8;
 // Her tüketilen elit gülle 0,10 EP verir; gülle fiyatı ilerleme hızını belirlemez.
-export const ELITE_POINTS_PER_BALL={fire:.1,explosive:.1,breaker:.1,leech:.1} as const;
+export const ELITE_POINTS_PER_BALL={chain:.1,fire:.1,explosive:.1,breaker:.1,leech:.1} as const;
 // Gülle kuralları. Zincir yalnız oyuncuları (kaptanları) yavaşlatır, NPC ve canavarlara etki etmez.
 export const CHAIN_SLOW={seconds:3,factor:.6};
 // Ateş güllesi NPC ve canavarlara, patlayıcı gülle oyunculara (kaptanlara) daha fazla işler; yakma etkisi yoktur.
@@ -54,12 +54,12 @@ export const eliteLevelFromEp=(ep:number)=>{let l=1;while(l<ELITE_MAX_LEVEL&&ep>
 export const MINE={armSeconds:1,triggerRadius:46,blastRadius:95,baseDamage:4000,damagePerLevel:400,maxActive:5,icon:'/assets/icon-mine-v2.webp'};
 
 // Dükkân birim fiyatları (altın). Oyuncu istediği adedi yazar; toplam = adet × birim fiyat.
-// Temel gülle (zincir) altınla, güçlü gülleler inciyle alınır; inci fiyatı sırasıyla artar.
-// Her top her salvoda 1 gülle harcar. Elit fiyatları 300, zincir fiyatı 100 gülle içindir.
+// Demir gülle sınırsız ve bedava; diğer bütün gülleler (zincir dahil) inciyle alınır ve EP verir; inci fiyatı sırasıyla artar.
+// Her top her salvoda 1 gülle harcar. Fiyatlar 300 gülle içindir.
 // Denge: alev güllesiyle 1 inci ≈ 3,75 EP; en büyük inci paketiyle Elit 15 (3,6 milyon EP) ≈ 9.700 ₺ eder.
 export type Price={amount:number;currency:'gold'|'pearls';per?:number};
 export const priceOf=(p:Price,qty:number)=>Math.ceil(qty*p.amount/(p.per??1));
-export const AMMO_PRICES={chain:{amount:10,currency:'gold',per:100},fire:{amount:8,currency:'pearls',per:300},breaker:{amount:10,currency:'pearls',per:300},explosive:{amount:12,currency:'pearls',per:300},leech:{amount:15,currency:'pearls',per:300}} as const satisfies Record<string,Price>;
+export const AMMO_PRICES={chain:{amount:6,currency:'pearls',per:300},fire:{amount:8,currency:'pearls',per:300},breaker:{amount:10,currency:'pearls',per:300},explosive:{amount:12,currency:'pearls',per:300},leech:{amount:15,currency:'pearls',per:300}} as const satisfies Record<string,Price>;
 export const SUPPLY_PRICES={powder:{amount:3,currency:'gold'},shield:{amount:3,currency:'gold'},speed:{amount:2,currency:'pearls'},mine:{amount:5,currency:'pearls'}} as const satisfies Record<string,Price>;
 export type SupplyId=keyof typeof SUPPLY_PRICES;
 

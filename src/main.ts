@@ -722,7 +722,7 @@ function fireAtTarget(){
   const fx=Math.sin(player.angle),fy=-Math.cos(player.angle),tx=selected.x-player.x,ty=selected.y-player.y;
   const powderF=useConsumable('powder'),side=fx*ty-fy*tx>0?-1:1,damage=state.cannon*BALL_DAMAGE*(1+upgrades.damage*.11)*cannon.damage*bonus.damage*mix*(1+equipBonus().damage+achBonus().damage+eliteBonus().damage)*powderF*rageSalvo(rage);
   salvoQueue.push({delay:0,target:selected,side,slot:0,damage,ammo:state.ammo,powder:powderF>1});
-  if(state.ammo==='chain'){state.chainAmmo-=loaded;saveAccount();}
+  if(state.ammo==='chain'){state.chainAmmo-=loaded;saveAccount();gainElitePoints(loaded*ELITE_POINTS_PER_BALL.chain);bumpAch('eliteBalls',loaded);}
   else if(isSpecial(state.ammo)){arsenal[state.ammo]-=loaded;saveArsenal(arsenal);renderQuickSlots();gainElitePoints(loaded*ELITE_POINTS_PER_BALL[state.ammo]);bumpAch('eliteBalls',loaded);}
   player.cooldown=(1-equipBonus().reload)*cannon.reload*Math.max(.6,1-upgrades.reload*.04)*bonus.reload/(1+eliteBonus().reload)*(state.ammo==='chain'?1.18:1)*(isSpecial(state.ammo)?SPECIAL_AMMO[state.ammo].reload:1);
 }
@@ -1010,7 +1010,7 @@ function openMarket(){renderMarket();ui('marketOverlay').classList.add('open');}
 function closeMarket(){ui('marketOverlay').classList.remove('open');}
 function renderMarket(){
   renderBuyRows('marketList',(Object.keys(AMMO_PRICES) as (keyof typeof AMMO_PRICES)[]).map(id=>({id,name:QUICK_ITEMS[id].name,art:`<div class="ammo-icon">${itemAsset(id)}<b>${quickCount(id)}</b></div>`,
-    desc:id==='chain'?QUICK_ITEMS.chain.description:`${SPECIAL_AMMO[id].description} · Her gülle ${ELITE_POINTS_PER_BALL[id].toLocaleString('tr-TR')} EP`,unit:AMMO_PRICES[id],give:(n:number)=>{if(id==='chain')state.chainAmmo+=n;else arsenal[id]+=n;},after:renderMarket})));
+    desc:id==='chain'?`${QUICK_ITEMS.chain.description} · Her gülle ${ELITE_POINTS_PER_BALL.chain.toLocaleString('tr-TR')} EP`:`${SPECIAL_AMMO[id].description} · Her gülle ${ELITE_POINTS_PER_BALL[id].toLocaleString('tr-TR')} EP`,unit:AMMO_PRICES[id],give:(n:number)=>{if(id==='chain')state.chainAmmo+=n;else arsenal[id]+=n;},after:renderMarket})));
 }
 function openSupply(){renderSupply();ui('supplyOverlay').classList.add('open');}
 function closeSupply(){ui('supplyOverlay').classList.remove('open');}
