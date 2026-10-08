@@ -1,8 +1,8 @@
 // Kaptan & Muço: usta-çırak sistemi. Usta (en az Seviye 5) çıraklık isteklerini kabul eder, istemediği muçoyu çıkarabilir.
-// Muço yeni oyuncudur: ustasından en az MIN_GAP seviye aşağıda olmalı. Ustası olmadan Seviye 8'e ulaşan bir daha muço olamaz;
-// muço Seviye 8'e ulaşınca mezun olur. Birlikte aynı denizdeyken muço daha çok TP kazanır, ustaya da öğretmen payı düşer.
+// Muço yeni oyuncudur: en fazla Seviye 5 ve ustasından en az MIN_GAP seviye aşağıda olmalı. Seviye 5 oyuncu ya muço ya usta olabilir;
+// ustası olmadan Seviye 6'ya geçen bir daha muço olamaz. Muço Seviye 8'e ulaşınca mezun olur. Birlikte aynı denizdeyken muço daha çok TP kazanır, ustaya da öğretmen payı düşer.
 // Gerçek oyuncu eşleşmesi sunucu gelince çalışır; şimdilik ilişki ve istekler bu cihazda saklanır.
-export const MENTOR_MIN_LEVEL=5,APPRENTICE_MAX_LEVEL=7,GRADUATE_LEVEL=8,MIN_GAP=2,MAX_APPRENTICES=3;
+export const MENTOR_MIN_LEVEL=5,APPRENTICE_MAX_LEVEL=5,GRADUATE_LEVEL=8,MIN_GAP=2,MAX_APPRENTICES=3;
 export const TOGETHER_XP_BONUS=.5,MENTOR_SHARE=.1;
 export type Mate={nick:string;level:number};
 export type Apprentice=Mate&{rewarded:number[]};
@@ -21,8 +21,7 @@ export const canMentor=(level:number)=>level>=MENTOR_MIN_LEVEL;
 // Muço olabilir mi? (ustası yoksa, kilitlenmemişse ve seviyesi uygunsa)
 export function apprenticeBlock(m:Mentorship,level:number):string|null{
   if(m.graduated)return 'Mezun oldun; artık muço olamazsın';
-  if(m.lockedOut||level>=GRADUATE_LEVEL)return `Seviye ${GRADUATE_LEVEL}'e ustasız ulaştın; artık muço olamazsın`;
-  if(level>APPRENTICE_MAX_LEVEL)return `Muçolar en fazla Seviye ${APPRENTICE_MAX_LEVEL} olabilir`;
+  if(m.lockedOut||level>APPRENTICE_MAX_LEVEL)return `Seviye ${APPRENTICE_MAX_LEVEL}'i ustasız geçtin; artık muço olamazsın`;
   return null;
 }
 // Usta, bu isteği kabul edebilir mi? Engel varsa sebebini döner.
@@ -43,11 +42,11 @@ export function acceptRequest(m:Mentorship,mentorLevel:number,nick:string):strin
 }
 export const rejectRequest=(m:Mentorship,nick:string)=>{m.requests=m.requests.filter(r=>r.nick!==nick);};
 export const removeApprentice=(m:Mentorship,nick:string)=>{m.apprentices=m.apprentices.filter(a=>a.nick!==nick);};
-// Muço kendi seviyesi değişince: ustasızsa ve 8'e ulaştıysa kilitlenir; ustası varsa 8'de mezun olur.
+// Muço kendi seviyesi değişince: ustasızsa ve 5'i geçtiyse kilitlenir; ustası varsa 8'de mezun olur.
 // Dönen ödüller muçoya verilir.
 export function onOwnLevel(m:Mentorship,level:number){
   const out:{level:number;gold:number;pearls:number}[]=[];
-  if(!m.mentor){if(level>=GRADUATE_LEVEL)m.lockedOut=true;return out;}
+  if(!m.mentor){if(level>APPRENTICE_MAX_LEVEL)m.lockedOut=true;return out;}
   for(const s of MILESTONES)if(level>=s.level)out.push({level:s.level,...s.apprentice});
   if(level>=GRADUATE_LEVEL){m.mentor=null;m.graduated=true;}
   return out;
