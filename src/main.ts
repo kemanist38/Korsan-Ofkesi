@@ -1674,7 +1674,8 @@ function activateAbility(id:'speed'){
   if(t.active>0){toast(`${a.name} zaten etkin`);return;}
   if(arsenal.speed<=0){toast(`${a.name} kalmadı — marketten alabilirsin`);return;}
   arsenal.speed--;saveArsenal(arsenal);renderQuickSlots();
-  t.active=a.duration;t.cooldown=a.cooldown*bonus.cooldown;toast(`${a.name} içildi · kalan ${arsenal.speed.toLocaleString('tr-TR')}`);playSpeed();
+  t.active=a.duration;t.cooldown=a.cooldown;// hız iksiri bekleme süresi sabit 30 sn (kaptan bonusları kısaltmaz)
+  toast(`${a.name} içildi · kalan ${arsenal.speed.toLocaleString('tr-TR')}`);playSpeed();
   // içildiği an gemiyi saran kısa parıltı patlaması
   if(id==='speed')for(let n=0;n<26;n++){const ang=Math.random()*Math.PI*2,sp=40+Math.random()*70;particles.push({x:player.x,y:player.y,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp*.5,life:.5+Math.random()*.4,maxLife:.9,kind:'glint',z:10+Math.random()*40,size:8+Math.random()*12,color:n%3?'#5ff3ff':'#ffffff',rot:Math.random()*3});}
 }
@@ -1705,7 +1706,7 @@ function updateArsenal(dt:number){
   for(const e of [...enemies])if(e.burnTimer&&e.burnTimer>0){e.burnTimer-=dt;e.hp-=(e.burnDps||burnDps)*dt;if(e.burnTimer<=0)e.burnDps=0;if(e.hp<=0)sinkEnemy(e);}
   for(const m of monsters)if(m.burnTimer&&m.burnTimer>0){m.burnTimer-=dt;m.hp-=(m.burnDps||burnDps)*dt;if(m.burnTimer<=0)m.burnDps=0;if(m.hp<=0)defeatMonster(m);}
   for(const id of ['speed','mine'] as AbilityId[]){const t=abilityTimers[id],button=document.getElementById(`ability-${id}`);if(!button)continue;
-    const cd=Math.min(1,t.cooldown/(ABILITIES[id].cooldown*bonus.cooldown)),label=t.active>0&&id!=='mine'?`${Math.ceil(t.active)} SN`:t.cooldown>0?`${Math.ceil(t.cooldown)}`:'';// hazırken rozet boş kalır (miktar ve kısayol yazılmaz); yalnızca etkin süre ve bekleme sayılır
+    const cd=Math.min(1,t.cooldown/(ABILITIES[id].cooldown*(id==='speed'?1:bonus.cooldown))),label=t.active>0&&id!=='mine'?`${Math.ceil(t.active)} SN`:t.cooldown>0?`${Math.ceil(t.cooldown)}`:'';// hazırken rozet boş kalır (miktar ve kısayol yazılmaz); yalnızca etkin süre ve bekleme sayılır
     button.style.setProperty('--cd',cd.toFixed(3));button.classList.toggle('active',t.active>0&&id!=='mine');const small=button.querySelector('small');if(small&&small.textContent!==label)small.textContent=label;}
 }
 // ---------------------------------------------------------------- Başarımlar
