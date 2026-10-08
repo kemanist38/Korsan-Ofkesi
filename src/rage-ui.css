@@ -218,3 +218,12 @@ html.touch .sink-notices{top:96px}
 .mate-btns button{padding:4px 10px;border:1px solid #c69b4e88;border-radius:5px;background:#10262c;color:#eacb90;font:700 10px Inter,sans-serif;cursor:pointer}
 .mate-btns button:disabled{opacity:.4;cursor:not-allowed}
 .mate-empty{font:500 12px Inter,sans-serif;color:#7d918c}
+
+/* Açılış Festivali */
+.festival-box{margin-bottom:12px}
+.festival-box h3{margin:0 0 8px;font:700 15px Cinzel,serif;letter-spacing:.12em;color:#ffb35c;text-shadow:0 0 10px #ff6a1a66}
+.festival-box h3.festival-sub{margin-top:14px;color:var(--rage-gold,#f3d496);text-shadow:none}
+.festival-day{border-color:#ff8a3d66}
+.festival-day.grand img{width:100%;max-height:70px;object-fit:contain;margin:4px 0}
+.festival-day.missed{opacity:.45}
+.festival-day em{display:block;margin-top:4px;font:700 10px Inter,sans-serif;font-style:normal;color:#e06a4a}

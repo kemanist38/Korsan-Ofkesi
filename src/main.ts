@@ -2,7 +2,8 @@ import {ELITE_ENTRY_PRICE,CANNON_COSTS,UPGRADE_PRICE_MULTIPLIER,ELITE_ECONOMY_VE
 import {migrateQuestRules,type SavedQuests} from './quest-migration';
 import {ELITE_CANNON_CAPACITY,ELITE_REWARDS,cumulativeEliteBonus,eliteBonusText} from './elite-progression';
 import {drawMysticPlayerMarker} from './player-marker';
-import {PIRATE_RAGE_DESIGN,loadSpecialDesign,saveSpecialDesign,type SpecialDesignId} from './special-designs';
+import {PIRATE_RAGE_DESIGN,loadSpecialDesign,saveSpecialDesign,loadDesignOwned,saveDesignOwned,type SpecialDesignId} from './special-designs';
+import {loadFestival,saveFestival,festivalStatus,claimFestival,FESTIVAL_REWARDS,FESTIVAL_DAYS,type FestivalReward} from './festival';
 import {drawFlare,drawShotSprite,drawPuff,drawGlint} from './shotArt';
 import './storageMigration';
 import './style.css';
@@ -169,7 +170,8 @@ let elitePurchased=storedAccount?.elitePurchased===true;
 let activeEliteShip:EliteShipId=storedAccount?.eliteShip&&ELITE_SHIPS.some(s=>s.id===storedAccount!.eliteShip)?storedAccount.eliteShip:'phantom';
 // Test modunda elit satın alınmış sayılmaz; seçilen elit gemi yine de yeniden yüklemede korunur
 let activeShip:ShipSelection=(elitePurchased||ELITE_TEST_MODE)&&storedAccount?.activeShip&&ELITE_SHIPS.some(s=>s.id===storedAccount!.activeShip)?storedAccount.activeShip:'starter';
-let activeSpecialDesign=loadSpecialDesign();
+let designOwned=ELITE_TEST_MODE||loadDesignOwned();
+let activeSpecialDesign=designOwned?loadSpecialDesign():null;
 let previewShip:ShipSelection|SpecialDesignId=activeSpecialDesign??activeShip;
 // Özel tasarım yalnızca görünümü değiştirir; seçili geminin gücü ve donanımı korunur.
 const quickSlots:Array<QuickItemId|null>=Array(12).fill(null);
@@ -915,7 +917,7 @@ function renderEliteShips(){
   const unlocked=ELITE_TEST_MODE?ELITE_MAX_LEVEL:elitePurchased?eliteLevelFromEp(state.elitePoints):0;
   const card=(id:string,name:string,art:string,requirement:string,effect:string,active:boolean,locked=false,label='SEÇ')=>
     `<article class="elite-card ${active?'active':''} ${previewShip===id?'previewed':''} ${locked?'locked':''}"><button class="ship-preview-button" data-preview="${id}" aria-label="${name} önizle" aria-pressed="${previewShip===id}">${art}<strong>${name}</strong></button><p class="ship-requirement">${requirement}</p><p class="ship-effect">${effect}</p><button class="ship-select" data-select-ship="${id}" ${locked||active&&id!=='pirate-rage'?'disabled':''}>${active?(id==='pirate-rage'?'ÇIKAR':'SEÇİLİ'):label}</button></article>`;
-  const special=card('pirate-rage','Pirate Rage',`<img class="elite-art" src="${PIRATE_RAGE_DESIGN.card}" alt="" draggable="false"/>`,'Özel tasarım','Sadece görünüm',!!activeSpecialDesign);
+  const special=card('pirate-rage','Pirate Rage',`<img class="elite-art" src="${PIRATE_RAGE_DESIGN.card}" alt="" draggable="false"/>`,designOwned?'Özel tasarım':'Açılış Festivali ödülü',designOwned?'Sadece görünüm':'7 festival gününün hepsinde giriş yapana verilir',!!activeSpecialDesign,!designOwned);
   const starter=card('starter','Yedi Deniz','<span class="starter-ship-art" role="img" aria-label="Başlangıç gemisi"></span>','0 EP','Başlangıç gemisi',activeShip==='starter'&&!activeSpecialDesign);
   const cards=ELITE_SHIPS.map(ship=>{
     const purchase=ship.level===1&&!elitePurchased&&!ELITE_TEST_MODE;
@@ -935,7 +937,7 @@ function renderEliteShips(){
   });
   grid.querySelectorAll<HTMLButtonElement>('[data-select-ship]').forEach(button=>button.onclick=()=>{
     const id=button.dataset.selectShip!;
-    if(id==='pirate-rage'){activeSpecialDesign=activeSpecialDesign?null:'pirate-rage';saveSpecialDesign(activeSpecialDesign);previewShip='pirate-rage';renderEliteShips();toast(activeSpecialDesign?'Pirate Rage tasarımı seçildi':'Geminin kendi görünümü seçildi');return;}
+    if(id==='pirate-rage'){if(!designOwned){toast('Pirate Rage, Açılış Festivali\'nin son ödülü');return;}activeSpecialDesign=activeSpecialDesign?null:'pirate-rage';saveSpecialDesign(activeSpecialDesign);previewShip='pirate-rage';renderEliteShips();toast(activeSpecialDesign?'Pirate Rage tasarımı seçildi':'Geminin kendi görünümü seçildi');return;}
     if(id==='starter'){previewShip='starter';equipStarterShip();return;}
     const ship=ELITE_SHIPS.find(s=>s.id===id);if(!ship)return;
     if(ship.level===1&&!elitePurchased&&!ELITE_TEST_MODE){purchaseEliteOne();return;}
@@ -1756,6 +1758,7 @@ function dailyText(r:DailyReward){return[r.gold&&`${r.gold.toLocaleString('tr-TR
 function openDaily(){renderDaily();ui('dailyOverlay').classList.add('open');}
 function closeDaily(){ui('dailyOverlay').classList.remove('open');}
 function renderDaily(){
+  renderFestival();
   const st=dailyStatus(daily);
   ui('dailyGrid').innerHTML=[1,2,3,4,5,6,7].map(d=>{const r=dailyReward(d,state.level),done=d<st.day||(d===st.day&&!st.canClaim),today=d===st.day&&st.canClaim;
     return`<article class="daily-day ${done?'done':''} ${today?'today':''} ${d===7?'grand':''}"><b>${d}. GÜN</b><ul>${dailyText(r).map(t=>`<li>${t}</li>`).join('')}</ul>${today?'<button id="claimDaily">TOPLA</button>':done?'<span class="tick">✓ ALINDI</span>':'<span class="lock">SIRADA</span>'}</article>`;}).join('');
@@ -1770,8 +1773,31 @@ function claimToday(){
   saveArsenal(arsenal);saveAccount();renderQuickSlots();updateUI();playCoins();renderDaily();
   rewardNotice(`Günlük ödül · ${st.day}. gün · ${dailyText(r).map(t=>t==='Sıradan Donanım'?eq:t).join(' · ')}`);
 }
-// Oyun açılınca, bugünün ödülü alınmadıysa takvim kendiliğinden açılır
-setTimeout(()=>{if(dailyStatus(daily).canClaim)openDaily();},1600);
+// ---- Açılış Festivali: ilk 7 gün, her gün giriş yapana özel ödül; 7/7 olana Pirate Rage tasarımı
+let festival=loadFestival(ELITE_TEST_MODE);
+function festivalText(r:FestivalReward){return[r.gold&&`${r.gold.toLocaleString('tr-TR')} Altın`,r.pearls&&`${fmt(r.pearls)} İnci`,r.chain&&`${fmt(r.chain)} Zincir Güllesi`,r.fire&&`${fmt(r.fire)} Alev Güllesi`,r.explosive&&`${fmt(r.explosive)} Patlayıcı Gülle`,r.speed&&`${fmt(r.speed)} Hız İksiri`,r.design&&'PIRATE RAGE özel gemi tasarımı'].filter(Boolean) as string[];}
+function renderFestival(){
+  let box=document.getElementById('festivalBox');
+  const st=festival?festivalStatus(festival):null;
+  if(!festival||!st||st.day<1||st.day>FESTIVAL_DAYS){box?.remove();return;}
+  if(!box){box=document.createElement('div');box.id='festivalBox';box.className='festival-box';ui('dailyGrid').before(box);}
+  const days=FESTIVAL_REWARDS.map((r,i)=>{const d=i+1,done=festival!.claimed.includes(d),today=d===st.day&&st.canClaim,missed=st.missed.includes(d),grand=d===FESTIVAL_DAYS;
+    return`<article class="daily-day festival-day ${done?'done':''} ${today?'today':''} ${missed?'missed':''} ${grand?'grand':''}"><b>${d}. GÜN</b>${grand?`<img src="${PIRATE_RAGE_DESIGN.card}" alt="" draggable="false"/>`:''}<ul>${festivalText(r).map(t=>`<li>${t}</li>`).join('')}</ul>${today?'<button id="claimFestival">AL</button>':missed?'<em>KAÇIRILDI</em>':''}</article>`;}).join('');
+  const note=st.grandLost?'Bir festival günü kaçırıldı: son ödül (Pirate Rage) artık kazanılamaz, diğer günlerin ödüllerini almaya devam edebilirsin.':`Festivalin ${st.day}. günü · ${festival.claimed.length}/${FESTIVAL_DAYS} gün. 7 günün hepsine gelen Pirate Rage özel gemisini kazanır; bu ödüller bir daha verilmez.`;
+  box.innerHTML=`<h3>AÇILIŞ FESTİVALİ</h3><div class="daily-grid">${days}</div><p class="daily-note">${note}</p><h3 class="festival-sub">GÜNLÜK ÖDÜL</h3>`;
+  const b=document.getElementById('claimFestival');if(b)b.onclick=claimFestivalToday;
+}
+function claimFestivalToday(){
+  if(!festival)return;const r=claimFestival(festival);if(!r)return;saveFestival(festival);
+  if(r.gold)state.gold+=r.gold;if(r.pearls)state.pearls+=r.pearls;if(r.chain)state.chainAmmo+=r.chain;
+  for(const k of ['fire','explosive','speed'] as const)if(r[k])arsenal[k]+=r[k]!;
+  if(r.design){designOwned=true;saveDesignOwned();}
+  saveArsenal(arsenal);saveAccount();renderQuickSlots();updateUI();playCoins();renderDaily();
+  rewardNotice(`Açılış Festivali · ${festival.claimed.length}. ödül · ${festivalText(r).join(' · ')}`);
+  if(r.design)toast('PIRATE RAGE özel gemisi senin! Tersane → Özel Gemiler');
+}
+// Oyun açılınca, bugünün günlük ya da festival ödülü alınmadıysa takvim kendiliğinden açılır
+setTimeout(()=>{if(dailyStatus(daily).canClaim||(festival&&festivalStatus(festival).canClaim))openDaily();},1600);
 // ---------------------------------------------------------------- Hazine avı
 const treasure=loadTreasure();let dig:{t:number;x:number;y:number}|null=null;
 function rollTreasurePart(){

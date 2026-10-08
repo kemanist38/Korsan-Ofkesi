@@ -9,3 +9,7 @@ export function loadSpecialDesign():SpecialDesignId|null{
 export function saveSpecialDesign(id:SpecialDesignId|null){
   try{if(id)localStorage.setItem(STORAGE,id);else localStorage.removeItem(STORAGE);}catch{}
 }
+// Pirate Rage tasarımı Açılış Festivali'nin son ödülüdür; kazanılmadan seçilemez.
+const OWNED='pirate-rage-special-owned-v1';
+export function loadDesignOwned(){try{return localStorage.getItem(OWNED)==='1';}catch{return false;}}
+export function saveDesignOwned(){try{localStorage.setItem(OWNED,'1');}catch{}}
