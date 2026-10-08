@@ -2,12 +2,12 @@
 // Ödeme altyapısı henüz yok: test modunda paket ödeme alınmadan verilir, değilse "yakında" uyarısı gösterilir.
 export type PearlPack={id:string;name:string;pearls:number;bonus:number;price:number;tag?:string};
 export const PEARL_PACKS:PearlPack[]=[
-  {id:'pouch',name:'İnci Kesesi',pearls:2500,bonus:0,price:49.99},
-  {id:'chest',name:'İnci Sandığı',pearls:6000,bonus:500,price:119.99},
-  {id:'crate',name:'İnci Kasası',pearls:12000,bonus:2000,price:249.99,tag:'POPÜLER'},
-  {id:'hold',name:'Gemi Ambarı',pearls:24000,bonus:6000,price:499.99},
-  {id:'vault',name:'Kaptan Hazinesi',pearls:48000,bonus:17000,price:999.99,tag:'EN ÇOK İNCİ'},
-  {id:'fleet',name:'Amiral Hazinesi',pearls:96000,bonus:44000,price:1999.99},
+  {id:'pouch',name:'İnci Kesesi',pearls:3500,bonus:0,price:49.99},
+  {id:'chest',name:'İnci Sandığı',pearls:8500,bonus:700,price:119.99},
+  {id:'crate',name:'İnci Kasası',pearls:17000,bonus:3000,price:249.99,tag:'POPÜLER'},
+  {id:'hold',name:'Gemi Ambarı',pearls:34000,bonus:8500,price:499.99},
+  {id:'vault',name:'Kaptan Hazinesi',pearls:68000,bonus:24000,price:999.99,tag:'EN ÇOK İNCİ'},
+  {id:'fleet',name:'Amiral Hazinesi',pearls:136000,bonus:60000,price:1999.99},
 ];
 export const packTotal=(p:PearlPack)=>p.pearls+p.bonus;
 export const pearlsPerLira=(p:PearlPack)=>packTotal(p)/p.price;
