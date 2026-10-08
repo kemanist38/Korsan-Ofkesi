@@ -56,9 +56,10 @@ export const MINE={armSeconds:1,triggerRadius:46,blastRadius:95,baseDamage:4000,
 // Dükkân birim fiyatları (altın). Oyuncu istediği adedi yazar; toplam = adet × birim fiyat.
 // Temel gülle (zincir) altınla, güçlü gülleler inciyle alınır; inci fiyatı sırasıyla artar.
 // Her top her salvoda 1 gülle harcar. Elit fiyatları 300, zincir fiyatı 100 gülle içindir.
+// Denge: alev güllesiyle 1 inci ≈ 3,75 EP; en büyük inci paketiyle Elit 15 (3,6 milyon EP) ≈ 9.700 ₺ eder.
 export type Price={amount:number;currency:'gold'|'pearls';per?:number};
 export const priceOf=(p:Price,qty:number)=>Math.ceil(qty*p.amount/(p.per??1));
-export const AMMO_PRICES={chain:{amount:10,currency:'gold',per:100},fire:{amount:2,currency:'pearls',per:300},breaker:{amount:3,currency:'pearls',per:300},explosive:{amount:4,currency:'pearls',per:300},leech:{amount:5,currency:'pearls',per:300}} as const satisfies Record<string,Price>;
+export const AMMO_PRICES={chain:{amount:10,currency:'gold',per:100},fire:{amount:8,currency:'pearls',per:300},breaker:{amount:10,currency:'pearls',per:300},explosive:{amount:12,currency:'pearls',per:300},leech:{amount:15,currency:'pearls',per:300}} as const satisfies Record<string,Price>;
 export const SUPPLY_PRICES={powder:{amount:3,currency:'gold'},shield:{amount:3,currency:'gold'},speed:{amount:2,currency:'pearls'},mine:{amount:5,currency:'pearls'}} as const satisfies Record<string,Price>;
 export type SupplyId=keyof typeof SUPPLY_PRICES;
 
