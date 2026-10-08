@@ -18,6 +18,7 @@ import {EQUIPMENT,EQUIP_SLOTS,RARITY_NAMES,equipById,equipStatText,equipTotals,e
 import {PEARL_PACKS,packTotal,priceText,VIP_PACKS,VIP_XP_BONUS,loadVipUntil,saveVipUntil,vipActive,vipDaysLeft,extendVip,VIP_DAY_MS} from './pearlShop';
 import {BOARDS,rankRows,rankPage,RANK_PAGE_SIZE,type BoardId,type RankPlayer,type RankFleet,type RankRow} from './leaderboard';
 import {redeem,loadRedeemed,saveRedeemed,rewardText} from './coupons';
+import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,MENTOR_MIN_LEVEL,GRADUATE_LEVEL,MIN_GAP,MAX_APPRENTICES,TOGETHER_XP_BONUS,MENTOR_SHARE,MILESTONES} from './mentorship';
 import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
 import {loadLog,saveLog,addLog,daySummary,LOG_KINDS,type LogKind,type LogEntry} from './logbook';
 import {BALL_DAMAGE,CHAIN_FACTOR,CHAIN_SLOW,FIRE_NPC_FACTOR,EXPLOSIVE_PLAYER_FACTOR,leechHeal,repairAmount,ELITE_POINTS_PER_BALL,ELITE_MAX_LEVEL,eliteLevelEp,eliteLevelFromEp,ABILITIES,SPECIAL_AMMO,MINE,SPEED_BOOST,CONSUMABLES,AMMO_PRICES,SUPPLY_PRICES,loadArsenal,saveArsenal,type AbilityId,type SpecialAmmo,type ConsumableId,type SupplyId,type Price,priceOf} from './arsenal';
@@ -154,7 +155,10 @@ const ach=loadAchievements();let achBonusCache=achievementBonus(ach);
 const achBonus=()=>achBonusCache;
 // VİP: %10 fazla tecrübe; hareket halinde tamir
 let vipUntil=loadVipUntil();const isVip=()=>vipActive(vipUntil);
-const xpGain=(n:number)=>Math.round(n*(1+achBonus().xp)*xpMult()*(isVip()?1+VIP_XP_BONUS:1)),goldGainAch=(n:number)=>Math.round(n*(1+achBonus().gold)*goldMult());
+// Kaptan & Muço: ustası aynı denizdeyken muço daha çok TP kazanır. Diğer oyuncular sunucu gelince görünür; o zamana dek yakında usta yok.
+let mentorship=loadMentorship();
+const mentorNearby=()=>false;
+const xpGain=(n:number)=>Math.round(n*(1+achBonus().xp)*xpMult()*(isVip()?1+VIP_XP_BONUS:1)*(mentorship.mentor&&mentorNearby()?1+TOGETHER_XP_BONUS:1)),goldGainAch=(n:number)=>Math.round(n*(1+achBonus().gold)*goldMult());
 const state = { pearls:storedAccount?.pearls??30, gold:storedAccount?.gold??40, fame:storedAccount?.fame??0, level:ELITE_TEST_MODE?MAX_LEVEL:Math.min(MAX_LEVEL,storedAccount?.level??1), hp:storedAccount?.hp??Infinity, maxHp:storedAccount?.maxHp??100, elitePoints:storedAccount?.elitePoints??0,battlePoints:storedAccount?.battlePoints??0,cannon:18, cannonType:storedAccount?.cannonType&&CANNONS[storedAccount.cannonType]?storedAccount.cannonType:'cast' as CannonKind, activeQuest:storedActive as string|null, ammo:'iron' as AmmoKind, chainAmmo:storedAccount?.chainAmmo??2000, attacking:false, repairing:false, invulnerable:0 };
 // Eski ölçekli kayıtlar (100 canlı, 18 toplu gemi) bir kez Seafight ölçeğine taşınır: can formülden hesaplanır,
 // gemiye en az 50 döküm top yerleştirilir.
@@ -1236,12 +1240,32 @@ function refreshBindHints(){document.querySelectorAll<HTMLElement>('[data-bind]'
 function renderSettings(){
   const groups=[...new Set(ACTIONS.map(a=>a.group))];
   ui('settingsPanel').innerHTML=`<section class="settings-block"><h3>SES</h3><div class="sound-row"><button id="soundToggle" class="${settings.sound?'on':''}">${settings.sound?'SES AÇIK':'SES KAPALI'}</button><label>Ses düzeyi<input id="soundVolume" type="range" min="0" max="100" value="${Math.round(settings.volume*100)}" ${settings.sound?'':'disabled'}/></label></div></section><section class="settings-block"><h3>GÖRÜNÜM</h3><label class="settings-check"><input type="checkbox" id="hideOthersInsignia" ${settings.hideOthersInsignia?'checked':''}/><span>Diğer oyuncuların güverte işaretlerini ve rütbe rozetlerini gizle</span></label></section>
+  ${mentorshipHtml()}
   <section class="settings-block keybinds-block"><h3>KLAVYE KISAYOLLARI <button id="resetBinds">VARSAYILANA DÖN</button></h3><p>Değiştirmek istediğin eyleme tıkla, sonra yeni tuşa bas. ESC iptal eder. Ok tuşları her zaman hareket için de çalışır.</p>${groups.map(g=>`<h4>${g}</h4><div class="bind-grid">${ACTIONS.filter(a=>a.group===g).map(a=>`<button class="bind ${rebinding===a.id?'listening':''}" data-rebind="${a.id}"><span>${a.label}</span><kbd>${rebinding===a.id?'TUŞA BAS…':keyLabel(settings.binds[a.id])}</kbd></button>`).join('')}</div>`).join('')}</section>`;
   ui('soundToggle').onclick=()=>{settings.sound=!settings.sound;setAudio(settings.sound,settings.volume);saveSettings(settings);renderSettings();};
   (ui('soundVolume') as HTMLInputElement).oninput=e=>{settings.volume=Number((e.target as HTMLInputElement).value)/100;setAudio(settings.sound,settings.volume);saveSettings(settings);};
   (ui('hideOthersInsignia') as HTMLInputElement).onchange=e=>{settings.hideOthersInsignia=(e.target as HTMLInputElement).checked;saveSettings(settings);};
+  bindMentorship();
   ui('resetBinds').onclick=()=>{settings.binds={...DEFAULT_BINDS};saveSettings(settings);renderQuickSlots();refreshBindHints();renderSettings();toast('Kısayollar varsayılana döndü');};
   document.querySelectorAll<HTMLButtonElement>('[data-rebind]').forEach(b=>b.onclick=()=>{rebinding=b.dataset.rebind as ActionId;renderSettings();});
+}
+// ---- Kaptan & Muço (ayarlar)
+// Test modunda örnek istekler (sunucu gelene kadar arayüzü denemek için)
+if(ELITE_TEST_MODE&&!mentorship.requests.length&&!mentorship.apprentices.length){mentorship.requests=[{nick:'Acemi_Deniz',level:2},{nick:'TayfaAli',level:4},{nick:'MiçoKaan',level:7}];saveMentorship(mentorship);}
+function mentorshipHtml(){
+  const m=mentorship,lv=state.level,esc=escapeHtml;
+  const role=m.mentor?`Muço · Ustan: <b>${esc(m.mentor.nick)}</b> (Sv. ${m.mentor.level})`:canMentor(lv)?`Usta Kaptan · ${m.apprentices.length}/${MAX_APPRENTICES} muço${m.graduates?` · ${m.graduates} mezun`:''}`:apprenticeBlock(m,lv)??'Muço olabilirsin: bir usta kaptana istek gönder';
+  const reqs=canMentor(lv)&&!m.mentor?(m.requests.length?m.requests.map(r=>{const block=pairBlock(m,lv,r);return`<div class="mate-row"><span><b>${esc(r.nick)}</b> · Sv. ${r.level}</span>${block?`<em title="${esc(block)}">${esc(block)}</em>`:''}<span class="mate-btns"><button data-mate-accept="${esc(r.nick)}" ${block?'disabled':''}>KABUL</button><button data-mate-reject="${esc(r.nick)}">REDDET</button></span></div>`;}).join(''):'<p class="mate-empty">Bekleyen çıraklık isteği yok.</p>'):'';
+  const apps=m.apprentices.length?m.apprentices.map(a=>`<div class="mate-row"><span><b>${esc(a.nick)}</b> · Sv. ${a.level}</span><span class="mate-btns"><button data-mate-remove="${esc(a.nick)}">ÇIKAR</button></span></div>`).join(''):'';
+  const next=MILESTONES.map(s=>`Sv. ${s.level}: muçoya ${s.apprentice.gold.toLocaleString('tr-TR')} altın + ${s.apprentice.pearls} inci, ustaya ${s.mentor.gold.toLocaleString('tr-TR')} altın + ${s.mentor.pearls} inci`).join(' · ');
+  return `<section class="settings-block mentor-block"><h3>KAPTAN &amp; MUÇO</h3><p class="mate-role">${role}</p>
+  <p class="mate-rules">Usta olmak için en az Seviye ${MENTOR_MIN_LEVEL}. Muço ustasından en az ${MIN_GAP} seviye aşağıda olmalı; ustasız Seviye ${GRADUATE_LEVEL}'e ulaşan bir daha muço olamaz, muço Seviye ${GRADUATE_LEVEL}'de mezun olur. Aynı denizdeyken muço +%${Math.round(TOGETHER_XP_BONUS*100)} TP kazanır, ustaya kazancın %${Math.round(MENTOR_SHARE*100)}'u kadar öğretmen payı düşer.</p>
+  ${reqs?`<h4>Çıraklık istekleri</h4>${reqs}`:''}${apps?`<h4>Muçoların</h4>${apps}`:''}<p class="mate-rules">${next}</p></section>`;
+}
+function bindMentorship(){
+  document.querySelectorAll<HTMLButtonElement>('[data-mate-accept]').forEach(b=>b.onclick=()=>{const n=b.dataset.mateAccept!,err=acceptRequest(mentorship,state.level,n);if(err){toast(err);return;}saveMentorship(mentorship);toast(`${n} artık muçon`);renderSettings();});
+  document.querySelectorAll<HTMLButtonElement>('[data-mate-reject]').forEach(b=>b.onclick=()=>{rejectRequest(mentorship,b.dataset.mateReject!);saveMentorship(mentorship);renderSettings();});
+  document.querySelectorAll<HTMLButtonElement>('[data-mate-remove]').forEach(b=>b.onclick=()=>{const n=b.dataset.mateRemove!;if(!confirm(`${n} muçoluktan çıkarılsın mı?`))return;removeApprentice(mentorship,n);saveMentorship(mentorship);toast(`${n} muçoluktan çıkarıldı`);renderSettings();});
 }
 function closeCaptainProfile(){ui('captainOverlay').classList.remove('open');}
 const tierQuests=()=>QUESTS.filter(q=>q.map===currentMap);
@@ -1437,7 +1461,7 @@ function update(dt:number){
     if(p.vz!==undefined){p.z=(p.z??0)+p.vz*dt;p.vz-=340*dt;if(p.z<=0){p.z=0;p.vz=undefined;p.vx*=.25;p.vy*=.25;p.vr=(p.vr??0)*.1;if(p.kind==='splinter')particles.push({x:p.x,y:p.y,vx:0,vy:0,life:.4,maxLife:.4,kind:'foam',size:20,variant:0});}}
     if(p.life<=0)particles.splice(i,1);}
   for(let i=wrecks.length-1;i>=0;i--){wrecks[i].t+=dt;if(wrecks[i].t>=WRECK_TIME)wrecks.splice(i,1);}
-  let need=xpNeed(state.level);while(state.fame>=need){state.fame-=need;state.level++;setAch('level',state.level);state.maxHp=baseMaxHp();state.hp=effectiveMaxHp();saveAccount();playLevelUp();rewardNotice(`Seviye ${state.level} oldun · +${HP_PER_LEVEL.toLocaleString('tr-TR')} azami gövde · +1 yetenek puanı · ${state.level}/1 açıldı`);toast(`Seviye ${state.level}! Yeni denizler açıldı`);need=xpNeed(state.level);}
+  let need=xpNeed(state.level);while(state.fame>=need){state.fame-=need;state.level++;setAch('level',state.level);{const rw=onOwnLevel(mentorship,state.level);for(const r of rw){state.gold+=r.gold;state.pearls+=r.pearls;rewardNotice(r.level>=GRADUATE_LEVEL?`Muçoluktan mezun oldun · +${r.gold.toLocaleString('tr-TR')} altın · +${r.pearls} inci`:`Muço ödülü (Seviye ${r.level}) · +${r.gold.toLocaleString('tr-TR')} altın · +${r.pearls} inci`,'gain');}saveMentorship(mentorship);}state.maxHp=baseMaxHp();state.hp=effectiveMaxHp();saveAccount();playLevelUp();rewardNotice(`Seviye ${state.level} oldun · +${HP_PER_LEVEL.toLocaleString('tr-TR')} azami gövde · +1 yetenek puanı · ${state.level}/1 açıldı`);toast(`Seviye ${state.level}! Yeni denizler açıldı`);need=xpNeed(state.level);}
   if(toastTimer>0){toastTimer-=dt;if(toastTimer<=0)ui('toast').classList.remove('show');}uiClock-=dt;if(uiClock<=0){uiClock=.1;updateUI();};
 }
 

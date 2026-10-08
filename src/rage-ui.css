@@ -207,3 +207,14 @@ html.touch .sink-notices{top:96px}
 .rank-medal.next{opacity:.8;filter:grayscale(.3);border:1px dashed #e3a35c}
 .settings-check{display:flex;align-items:center;gap:10px;cursor:pointer;color:#e6d6c2;font:500 13px Inter,sans-serif}
 .settings-check input{width:18px;height:18px;accent-color:#e3a35c;cursor:pointer}
+
+/* Kaptan & Muço */
+.mentor-block .mate-role{color:#f3d496;font:600 13px Inter,sans-serif;margin-bottom:6px}
+.mentor-block .mate-rules{font:500 11px Inter,sans-serif;color:#8ea6a0;margin-top:6px}
+.mate-row{display:flex;align-items:center;gap:10px;padding:6px 8px;border:1px solid #d0a95b22;border-radius:6px;margin-top:5px;font:500 12px Inter,sans-serif;color:#e6d6c2}
+.mate-row em{flex:1;font-style:normal;font-size:10px;color:#d98a6a;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mate-row>span:first-child{min-width:130px}
+.mate-btns{margin-left:auto;display:flex;gap:6px}
+.mate-btns button{padding:4px 10px;border:1px solid #c69b4e88;border-radius:5px;background:#10262c;color:#eacb90;font:700 10px Inter,sans-serif;cursor:pointer}
+.mate-btns button:disabled{opacity:.4;cursor:not-allowed}
+.mate-empty{font:500 12px Inter,sans-serif;color:#7d918c}
