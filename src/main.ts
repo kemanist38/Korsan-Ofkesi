@@ -18,7 +18,7 @@ import {EQUIPMENT,EQUIP_SLOTS,RARITY_NAMES,equipById,equipStatText,equipTotals,e
 import {PEARL_PACKS,packTotal,priceText,VIP_PACKS,VIP_XP_BONUS,loadVipUntil,saveVipUntil,vipActive,vipDaysLeft,extendVip,VIP_DAY_MS} from './pearlShop';
 import {BOARDS,rankRows,rankPage,RANK_PAGE_SIZE,type BoardId,type RankPlayer,type RankFleet,type RankRow} from './leaderboard';
 import {redeem,loadRedeemed,saveRedeemed,rewardText} from './coupons';
-import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,MENTOR_MIN_LEVEL,GRADUATE_LEVEL,MIN_GAP,MAX_APPRENTICES,TOGETHER_XP_BONUS,MENTOR_SHARE,MILESTONES} from './mentorship';
+import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,MENTOR_MIN_LEVEL,APPRENTICE_MAX_LEVEL,GRADUATE_LEVEL,MIN_GAP,MAX_APPRENTICES,TOGETHER_XP_BONUS,MENTOR_SHARE,MILESTONES} from './mentorship';
 import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
 import {loadLog,saveLog,addLog,daySummary,LOG_KINDS,type LogKind,type LogEntry} from './logbook';
 import {BALL_DAMAGE,CHAIN_FACTOR,CHAIN_SLOW,FIRE_NPC_FACTOR,EXPLOSIVE_PLAYER_FACTOR,leechHeal,repairAmount,ELITE_POINTS_PER_BALL,ELITE_MAX_LEVEL,eliteLevelEp,eliteLevelFromEp,ABILITIES,SPECIAL_AMMO,MINE,SPEED_BOOST,CONSUMABLES,AMMO_PRICES,SUPPLY_PRICES,loadArsenal,saveArsenal,type AbilityId,type SpecialAmmo,type ConsumableId,type SupplyId,type Price,priceOf} from './arsenal';
@@ -1251,7 +1251,7 @@ function renderSettings(){
 }
 // ---- Kaptan & Muço (ayarlar)
 // Test modunda örnek istekler (sunucu gelene kadar arayüzü denemek için)
-if(ELITE_TEST_MODE&&!mentorship.requests.length&&!mentorship.apprentices.length){mentorship.requests=[{nick:'Acemi_Deniz',level:2},{nick:'TayfaAli',level:4},{nick:'MiçoKaan',level:7}];saveMentorship(mentorship);}
+if(ELITE_TEST_MODE&&!mentorship.requests.length&&!mentorship.apprentices.length){mentorship.requests=[{nick:'Acemi_Deniz',level:2},{nick:'TayfaAli',level:4},{nick:'MiçoKaan',level:5}];saveMentorship(mentorship);}
 function mentorshipHtml(){
   const m=mentorship,lv=state.level,esc=escapeHtml;
   const role=m.mentor?`Muço · Ustan: <b>${esc(m.mentor.nick)}</b> (Sv. ${m.mentor.level})`:canMentor(lv)?`Usta Kaptan · ${m.apprentices.length}/${MAX_APPRENTICES} muço${m.graduates?` · ${m.graduates} mezun`:''}`:apprenticeBlock(m,lv)??'Muço olabilirsin: bir usta kaptana istek gönder';
@@ -1259,7 +1259,7 @@ function mentorshipHtml(){
   const apps=m.apprentices.length?m.apprentices.map(a=>`<div class="mate-row"><span><b>${esc(a.nick)}</b> · Sv. ${a.level}</span><span class="mate-btns"><button data-mate-remove="${esc(a.nick)}">ÇIKAR</button></span></div>`).join(''):'';
   const next=MILESTONES.map(s=>`Sv. ${s.level}: muçoya ${s.apprentice.gold.toLocaleString('tr-TR')} altın + ${s.apprentice.pearls} inci, ustaya ${s.mentor.gold.toLocaleString('tr-TR')} altın + ${s.mentor.pearls} inci`).join(' · ');
   return `<section class="settings-block mentor-block"><h3>KAPTAN &amp; MUÇO</h3><p class="mate-role">${role}</p>
-  <p class="mate-rules">Usta olmak için en az Seviye ${MENTOR_MIN_LEVEL}. Muço ustasından en az ${MIN_GAP} seviye aşağıda olmalı; ustasız Seviye ${GRADUATE_LEVEL}'e ulaşan bir daha muço olamaz, muço Seviye ${GRADUATE_LEVEL}'de mezun olur. Aynı denizdeyken muço +%${Math.round(TOGETHER_XP_BONUS*100)} TP kazanır, ustaya kazancın %${Math.round(MENTOR_SHARE*100)}'u kadar öğretmen payı düşer.</p>
+  <p class="mate-rules">Usta olmak için en az Seviye ${MENTOR_MIN_LEVEL}. Muço en fazla Seviye ${APPRENTICE_MAX_LEVEL} olabilir ve ustasından en az ${MIN_GAP} seviye aşağıda olmalı; Seviye ${APPRENTICE_MAX_LEVEL} oyuncu ya muço ya usta olur. Ustasız Seviye ${APPRENTICE_MAX_LEVEL}'i geçen bir daha muço olamaz; muço Seviye ${GRADUATE_LEVEL}'de mezun olur. Aynı denizdeyken muço +%${Math.round(TOGETHER_XP_BONUS*100)} TP kazanır, ustaya kazancın %${Math.round(MENTOR_SHARE*100)}'u kadar öğretmen payı düşer.</p>
   ${reqs?`<h4>Çıraklık istekleri</h4>${reqs}`:''}${apps?`<h4>Muçoların</h4>${apps}`:''}<p class="mate-rules">${next}</p></section>`;
 }
 function bindMentorship(){

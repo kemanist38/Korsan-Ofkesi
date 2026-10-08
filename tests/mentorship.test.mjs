@@ -4,8 +4,8 @@ test('usta en az seviye 5, aralarında en az 2 seviye fark',()=>{const m=M.empty
   assert.ok(M.pairBlock(m,4,{nick:'a',level:1}));
   assert.equal(M.pairBlock(m,5,{nick:'a',level:3}),null);
   assert.ok(M.pairBlock(m,5,{nick:'a',level:4}));
-  assert.ok(M.pairBlock(m,12,{nick:'a',level:8}));});
-test('ustasız seviye 8 kilitlenir, ustalı 8 mezun olur',()=>{const a=M.emptyMentorship();M.onOwnLevel(a,8);assert.ok(a.lockedOut);assert.ok(M.apprenticeBlock(a,3));
+  assert.ok(M.pairBlock(m,12,{nick:'a',level:6}));assert.equal(M.pairBlock(m,8,{nick:'a',level:5}),null);});
+test('ustasız seviye 6 kilitlenir, ustalı 8 mezun olur',()=>{const a=M.emptyMentorship();M.onOwnLevel(a,5);assert.equal(a.lockedOut,false);M.onOwnLevel(a,6);assert.ok(a.lockedOut);assert.ok(M.apprenticeBlock(a,3));
   const b=M.emptyMentorship();b.mentor={nick:'u',level:10};const r=M.onOwnLevel(b,8);assert.ok(b.graduated);assert.equal(b.mentor,null);assert.equal(r.length,2);});
 test('kabul, çıkarma ve usta ödülleri',()=>{const m=M.emptyMentorship();m.requests=[{nick:'c',level:3}];assert.equal(M.acceptRequest(m,9,'c'),null);assert.equal(m.apprentices.length,1);
   assert.equal(M.onApprenticeLevel(m,'c',5).length,1);assert.equal(M.onApprenticeLevel(m,'c',5).length,0);assert.equal(M.onApprenticeLevel(m,'c',8).length,1);assert.equal(m.apprentices.length,0);assert.equal(m.graduates,1);
