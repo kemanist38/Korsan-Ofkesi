@@ -68,7 +68,8 @@ const CANNON_SHAPE:Record<CannonSound,{sub:[number,number];tail:number;crack:num
 };
 export function playCannon(cannon:CannonSound,ammo:AmmoSound,{gain=1,pan=0}={}){
   const c=audio();if(!c||throttle(`cannon-${cannon}-${ammo}`,70))return;
-  if(sample(`cannon-${cannon}`,{gain:.95*gain,pan})){if(ammo!=='iron')sample(`ammo-${ammo}`,{gain:.8*gain,pan,delay:.015});return;}
+  // Bütün top türleri aynı atış kaydını çalar; özel güllelerde gülle sesi üstüne eklenir
+  if(sample('cannon',{gain:.95*gain,pan})){if(ammo!=='iron')sample(`ammo-${ammo}`,{gain:.7*gain,pan,delay:.015});return;}
   const s=CANNON_SHAPE[cannon],o=out(c,s.gain*gain,pan);
   // Barut patlaması: kısa namlu çatlağı, yoğun basınç gövdesi ve uzaktaki deniz yankısı.
   noise(c,o,{dur:.035,type:'highpass',f0:s.crack*1.35,f1:s.crack*.7,q:.8,peak:.9,attack:.001});
@@ -92,7 +93,7 @@ export function playEnemyCannon(distance:number,pan=0){
   const c=audio();if(!c||throttle('enemy-cannon',90))return;
   const g=Math.max(.07,Math.min(.5,1-distance/950));
   // uzaktaki top: daha kısık, tizleri yutulmuş ve hafif pes
-  if(sample(Math.random()<.5?'cannon-cast':'cannon-long',{gain:g*1.3,pan,rate:.93,lowpass:Math.max(700,4200-distance*3.4)}))return;
+  if(sample('cannon',{gain:g*1.3,pan,rate:.93,lowpass:Math.max(700,4200-distance*3.4)}))return;
   const o=out(c,g,pan);
   noise(c,o,{dur:.035,type:'highpass',f0:2900,f1:1500,peak:.55,attack:.001});
   noise(c,o,{start:.01,dur:.62,type:'bandpass',f0:1050,f1:105,q:.7,peak:.82,attack:.002});
