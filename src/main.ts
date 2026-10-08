@@ -19,6 +19,7 @@ import {EQUIPMENT,EQUIP_SLOTS,RARITY_NAMES,equipById,equipStatText,equipTotals,e
 import {PEARL_PACKS,packTotal,priceText,VIP_PACKS,VIP_XP_BONUS,loadVipUntil,saveVipUntil,vipActive,vipDaysLeft,extendVip,VIP_DAY_MS} from './pearlShop';
 import {BOARDS,rankRows,rankPage,RANK_PAGE_SIZE,type BoardId,type RankPlayer,type RankFleet,type RankRow} from './leaderboard';
 import {redeem,loadRedeemed,saveRedeemed,rewardText} from './coupons';
+import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
 import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,MENTOR_MIN_LEVEL,APPRENTICE_MAX_LEVEL,GRADUATE_LEVEL,MIN_GAP,MAX_APPRENTICES,TOGETHER_XP_BONUS,MENTOR_SHARE,MILESTONES} from './mentorship';
 import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
 import {loadLog,saveLog,addLog,daySummary,LOG_KINDS,type LogKind,type LogEntry} from './logbook';
@@ -51,7 +52,7 @@ type SalvoRound = { powder?:boolean; delay:number; target:Target; side:number; s
 type EnemyRole='light'|'heavy';
 // Test kaptanı: elit gemili, oyuncu gibi savaşan yapay rakip (yalnız test modunda 1/1'de)
 type Captain={elite:EliteShipId;ammo:AmmoKind;ammoClock:number;foe:Enemy|null;orbit:Vec|null;orbitClock:number};
-type Enemy = Vec & { kind:'ship'; captain?:Captain; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number; lastHitBy?:'player'|'captain'; siege?:boolean; commander?:boolean;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
+type Enemy = Vec & { kind:'ship'; captain?:Captain; pvp?:PvpBudget; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number; lastHitBy?:'player'|'captain'; siege?:boolean; commander?:boolean;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
 type ParticleKind='flare'|'ember'|'glint'|'wisp'|'foam'|'smoke'|'spark'|'damage'|'flash'|'splinter'|'bubble'|'plank'|'firePuff'|'target'|'poison'|'soul'|'shock';
 // z: su üstünden yükseklik (ekranda yukarı kayar); vz ile savrulan parçalar suya düşer
 type Particle = Vec & { vx:number; vy:number; life:number; maxLife:number; kind:ParticleKind; text?:string; color?:string; z?:number; vz?:number; rot?:number; vr?:number; size?:number; variant?:number };
@@ -246,6 +247,8 @@ const earnedEliteLevel=()=>ELITE_TEST_MODE?15:elitePurchased?eliteLevelFromEp(st
 const eliteBonus=()=>cumulativeEliteBonus(earnedEliteLevel());
 // Elit ilerlemesi tasarımdan bağımsızdır; kaptan ve gövde seviyesi +2.500 can verir.
 const baseMaxHp=()=>BASE_HP+(state.level-1)*HP_PER_LEVEL+upgrades.hull*HP_PER_HULL;
+// Oyuncu–oyuncu savaşında bu geminin hasar bütçesi (en az 30 sn'de batırılabilir)
+const playerPvp:PvpBudget={pool:Infinity,t:0};
 const effectiveMaxHp=()=>Math.round(state.maxHp*(1+equipBonus().hp+achBonus().hp+eliteBonus().hp));
 if(!Number.isFinite(state.hp)||state.hp>effectiveMaxHp())state.hp=effectiveMaxHp();
 let driftClock=0;
@@ -1427,7 +1430,7 @@ function update(dt:number){
     if(s.owner==='player'){
       for(let j=enemies.length-1;j>=0&&s.life>0;j--){
         const e=enemies[j];if(isAlly(e))continue;
-        if(dist(s,e)<(e.hitRadius??25)){const hit=(s.damage*(s.ammo==='breaker'&&e.tower?SPECIAL_AMMO.breaker.towerFactor:1)*(s.ammo==='fire'&&!e.tower&&!e.captain?FIRE_NPC_FACTOR:1)*(s.ammo==='explosive'&&e.captain?EXPLOSIVE_PLAYER_FACTOR:1));s.hit=true;if(s.slow)e.slowTimer=Math.max(e.slowTimer,s.slow);if(s.splash)towerSplash(s,e);e.aggro=true;e.lastHitBy='player';e.combatTimer=12;if(s.ammo==='chain'&&e.captain)e.slowTimer=CHAIN_SLOW.seconds;e.hp-=hit;siegeHit(e,hit,profile.nick);damageText(e.x,e.y,hit,s.powder?DMG_GOLD:DMG_RED);burst(e.x,e.y);playHit();ammoImpact(s,e,hit);s.life=0;
+        if(dist(s,e)<(e.hitRadius??25)){const rawHit=(s.damage*(s.ammo==='breaker'&&e.tower?SPECIAL_AMMO.breaker.towerFactor:1)*(s.ammo==='fire'&&!e.tower&&!e.captain?FIRE_NPC_FACTOR:1)*(s.ammo==='explosive'&&e.captain?EXPLOSIVE_PLAYER_FACTOR:1));const hit=e.captain?pvpClamp(e.pvp??=newPvpBudget(e.maxHp,performance.now()/1000),e.maxHp,rawHit,performance.now()/1000):rawHit;s.hit=true;if(s.slow)e.slowTimer=Math.max(e.slowTimer,s.slow);if(s.splash)towerSplash(s,e);e.aggro=true;e.lastHitBy='player';e.combatTimer=12;if(s.ammo==='chain'&&e.captain)e.slowTimer=CHAIN_SLOW.seconds;e.hp-=hit;siegeHit(e,hit,profile.nick);damageText(e.x,e.y,hit,s.powder?DMG_GOLD:DMG_RED);burst(e.x,e.y);playHit();ammoImpact(s,e,hit);s.life=0;
           if(e.hp<=0)sinkEnemy(e);
         }
       }
@@ -1443,7 +1446,7 @@ function update(dt:number){
       // Hayalet Kadırga pasifi %10 ihtimalle gülleyi savuşturur
       {
       state.repairing=false;playerHitClock=0;
-      const shieldF=useConsumable('shield'),taken=s.damage*bonus.taken*shieldF*eliteTakenMult();
+      const shieldF=useConsumable('shield'),rawTaken=s.damage*bonus.taken*shieldF*eliteTakenMult(),taken=s.captain?pvpClamp(playerPvp,effectiveMaxHp(),rawTaken,performance.now()/1000):rawTaken;
       state.hp-=taken;damageText(player.x,player.y,Math.round(taken),shieldF<1?DMG_BLUE:DMG_RED);playHit(true);burst(player.x,player.y);
       if(s.captain&&s.ammo==='chain')playerSlow=CHAIN_SLOW.seconds;
       if(s.captain&&s.ammo==='leech'&&enemies.includes(s.captain)){const c=s.captain,h=leechHeal(taken,true,c.maxHp);if(h>0){c.hp=Math.min(c.maxHp,c.hp+h);spawnSoul(player,c);}}
