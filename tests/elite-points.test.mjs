@@ -16,5 +16,6 @@ test('elite levels rise with elite points and cap at 15',()=>{
 test('every bought ammo is pearl-priced and earns elite points; pricier balls cost more pearls',()=>{
   const order=['chain','fire','breaker','explosive','leech'];
   for(const k of order){assert.equal(A.AMMO_PRICES[k].currency,'pearls');assert.ok(A.ELITE_POINTS_PER_BALL[k]>0);}
-  for(let i=1;i<order.length;i++)assert.ok(A.AMMO_PRICES[order[i]].amount>A.AMMO_PRICES[order[i-1]].amount);
+  for(let i=1;i<order.length;i++){assert.ok(A.AMMO_PRICES[order[i]].amount>A.AMMO_PRICES[order[i-1]].amount);assert.ok(A.ELITE_POINTS_PER_BALL[order[i]]>A.ELITE_POINTS_PER_BALL[order[i-1]],'pricier ball gives more EP');}
+  for(const k of order){const p=A.AMMO_PRICES[k];assert.ok(Math.abs(A.ELITE_POINTS_PER_BALL[k]*p.per/p.amount-A.EP_PER_PEARL)<.01,'same EP per pearl');}
 });
