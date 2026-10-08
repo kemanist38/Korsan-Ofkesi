@@ -17,7 +17,7 @@ function audio(){
     ctx=new AC();const comp=ctx.createDynamicsCompressor();comp.threshold.value=-8;comp.ratio.value=3;comp.attack.value=.003;comp.release.value=.25;
     master=ctx.createGain();master.gain.value=volume;master.connect(comp);comp.connect(ctx.destination);
     noiseBuffer=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate);const d=noiseBuffer.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
-    loadSamples(ctx);
+    loadSamples(ctx);startAmbient(ctx);
   }
   if(ctx.state==='suspended')void ctx.resume();
   return ctx;
@@ -101,31 +101,13 @@ export function playEnemyCannon(distance:number,pan=0){
   tone(c,o,{start:.012,dur:.2,f0:76,f1:31,peak:.16,attack:.002});
   noise(c,o,{start:.16,dur:.72,type:'lowpass',f0:330,f1:58,peak:.13,attack:.04});
 }
-export function playHit(heavy=false){
-  const c=audio();if(!c||throttle('hit',55))return;if(sample('hit',{gain:heavy?.9:.6,rate:heavy?.86:1}))return;const o=out(c,heavy?.7:.45);
-  noise(c,o,{dur:.18,type:'bandpass',f0:900,f1:300,q:1.4,peak:.8});tone(c,o,{dur:.16,f0:160,f1:60,peak:.5});
-}
-export function playExplosion(big=true){
-  const c=audio();if(!c||throttle('explosion',120))return;if(sample(big?'explosion':'blast',{gain:big?1:.85}))return;const o=out(c,big?1:.7);
-  tone(c,o,{dur:1.2,f0:80,f1:22,peak:1});noise(c,o,{dur:1.6,f0:1500,f1:60,peak:1});
-  for(let i=0;i<6;i++)noise(c,o,{start:.1+Math.random()*.6,dur:.12,type:'bandpass',f0:600+Math.random()*900,f1:200,q:2,peak:.3});
-}
-export function playCoins(){
-  const c=audio();if(!c||throttle('coins',120))return;if(sample('coins',{gain:.55}))return;const o=out(c,.35);
-  [1760,2217,2637,3136].forEach((f,i)=>tone(c,o,{start:i*.06,dur:.35,type:'triangle',f0:f,f1:f*.98,peak:.5}));
-}
-export function playWind(){
-  const c=audio();if(!c)return;if(sample('wind',{gain:.7}))return;const o=out(c,.45);
-  noise(c,o,{dur:1.1,type:'bandpass',f0:300,f1:1800,q:1.5,peak:.8,attack:.25});
-}
-export function playShield(){
-  const c=audio();if(!c)return;if(sample('shield',{gain:.65}))return;const o=out(c,.4);
-  [410,1085,1730,2390].forEach((f,i)=>tone(c,o,{dur:1.2-i*.2,type:'sine',f0:f,f1:f*.995,peak:.5/(i+1)}));
-}
-export function playSplash(gain=1){
-  const c=audio();if(!c||throttle('splash',150))return;if(sample('splash',{gain:.6*gain}))return;const o=out(c,.35*gain);
-  noise(c,o,{dur:.5,type:'lowpass',f0:1800,f1:200,peak:.7});tone(c,o,{dur:.2,f0:300,f1:90,peak:.3});
-}
+// İsabet, patlama, altın, rüzgâr, kalkan ve suya düşme sesleri kullanılmıyor (oyun bu anlarda sessiz kalır).
+export function playHit(_heavy=false){}
+export function playExplosion(_big=true){}
+export function playCoins(){}
+export function playWind(){}
+export function playShield(){}
+export function playSplash(_gain=1){}
 export function playLevelUp(){
   const c=audio();if(!c)return;if(sample('levelup',{gain:.7,jitter:0}))return;const o=out(c,.4);
   [523,659,784,1047].forEach((f,i)=>tone(c,o,{start:i*.12,dur:.6,type:'triangle',f0:f,f1:f,peak:.6}));
@@ -157,3 +139,9 @@ export function stopBossMusic(keepWanted=false){
   gain.gain.cancelScheduledValues(t);gain.gain.setValueAtTime(gain.gain.value,t);gain.gain.linearRampToValueAtTime(0,t+1.8);src.stop(t+2);
 }
 export function playBossHorn(){audio();sample('boss-horn',{gain:1.1,jitter:0});}
+// Deniz ortam sesi: 30 sn'lik kayıt kısık sesle sürekli döner; ses kapatılınca ana ses düğümüyle birlikte susar.
+function startAmbient(c:AudioContext){
+  fetch('/assets/music/sea-ambient.mp3').then(r=>r.arrayBuffer()).then(b=>c.decodeAudioData(b)).then(buf=>{if(!master)return;
+    const src=c.createBufferSource();src.buffer=buf;src.loop=true;const g=c.createGain();g.gain.setValueAtTime(0,c.currentTime);g.gain.linearRampToValueAtTime(.35,c.currentTime+2);
+    src.connect(g);g.connect(master);src.start();}).catch(()=>{});
+}
