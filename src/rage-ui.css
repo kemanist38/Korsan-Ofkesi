@@ -313,3 +313,4 @@ body.touch-ui .slot-bar,body.touch-ui #ammoPicker{display:none!important}
 .day-event{top:92px!important}
 #combatControls #recenterShip.recenter-btn{position:absolute;left:auto;top:auto;right:186px;bottom:122px;transform:none;width:58px;height:58px;padding:0;border:0;border-radius:50%;background:url(/assets/ui-orb-teal-v1.webp) center/100% 100% no-repeat;box-shadow:0 6px 14px #000a}
 .combat-controls .combat-action.recenter-btn>b{background:none!important;border:0!important;box-shadow:none!important}
+#combatControls #recenterShip.recenter-btn{display:none}#combatControls #recenterShip.recenter-btn.show{display:grid;animation:rcIn .2s ease-out}@keyframes rcIn{from{opacity:0;transform:scale(.7)}}
