@@ -8,12 +8,13 @@ export type Mate={nick:string;level:number};
 export type Apprentice=Mate&{rewarded:number[]};
 // Ödüller kendiliğinden verilmez: hak edilince "pending"e düşer, oyuncu Kaptan & Muço penceresinden talep eder.
 export type MentorReward={key:string;label:string;gold:number;pearls:number};
-export type Mentorship={mentor:Mate|null;apprentices:Apprentice[];requests:Mate[];lockedOut:boolean;graduated:boolean;graduates:number;pending:MentorReward[];claimed:string[]};
-// Seviye ödülleri: muço bu seviyeye ulaşınca ikisi birden ödül alır (8 = mezuniyet)
-export const MILESTONES:{level:number;apprentice:{gold:number;pearls:number};mentor:{gold:number;pearls:number}}[]=[
-  {level:5,apprentice:{gold:250_000,pearls:200},mentor:{gold:150_000,pearls:300}},
-  {level:GRADUATE_LEVEL,apprentice:{gold:600_000,pearls:500},mentor:{gold:400_000,pearls:800}},
-];
+export type Mentorship={mentor:Mate|null;apprentices:Apprentice[];requests:Mate[];lockedOut:boolean;graduated:boolean;graduates:number;pending:MentorReward[];claimed:string[];startLevel?:number};
+// Seviye ödülleri (1-8): her seviye için bir sandık. Muço ustasıyla ulaştığı her seviyede, usta da muçosu her seviyeye ulaştığında sandık kazanır.
+// Seviye 1 sandığı çıraklık başlayınca açılır; 8 mezuniyet sandığıdır.
+const AG=[50_000,75_000,100_000,150_000,250_000,300_000,400_000,600_000],AP=[20,40,60,100,200,250,350,500];
+const MG=[30_000,50_000,70_000,100_000,150_000,200_000,300_000,400_000],MP=[30,60,90,150,300,400,550,800];
+export const MILESTONES:{level:number;apprentice:{gold:number;pearls:number};mentor:{gold:number;pearls:number}}[]=
+  AG.map((_,i)=>({level:i+1,apprentice:{gold:AG[i],pearls:AP[i]},mentor:{gold:MG[i],pearls:MP[i]}}));
 const KEY='yedi-deniz-mentorship-v1';
 export const emptyMentorship=():Mentorship=>({mentor:null,apprentices:[],requests:[],lockedOut:false,graduated:false,graduates:0,pending:[],claimed:[]});
 export function loadMentorship():Mentorship{try{const v=JSON.parse(localStorage.getItem(KEY)||'null');if(v&&typeof v==='object'){const e={...emptyMentorship(),...v};if(!Array.isArray(e.pending))e.pending=[];if(!Array.isArray(e.claimed))e.claimed=[];return e;}}catch{}return emptyMentorship();}
@@ -39,11 +40,13 @@ export function pairBlock(m:Mentorship,mentorLevel:number,req:Mate):string|null{
 export function acceptRequest(m:Mentorship,mentorLevel:number,nick:string):string|null{
   const req=m.requests.find(r=>r.nick===nick);if(!req)return 'İstek bulunamadı';
   const block=pairBlock(m,mentorLevel,req);if(block)return block;
-  m.requests=m.requests.filter(r=>r.nick!==nick);m.apprentices.push({...req,rewarded:MILESTONES.filter(s=>req.level>=s.level).map(s=>s.level)});
+  m.requests=m.requests.filter(r=>r.nick!==nick);m.apprentices.push({...req,rewarded:MILESTONES.filter(s=>s.level<req.level).map(s=>s.level)});onApprenticeLevel(m,req.nick,req.level);
   return null;
 }
 export const rejectRequest=(m:Mentorship,nick:string)=>{m.requests=m.requests.filter(r=>r.nick!==nick);};
 export const removeApprentice=(m:Mentorship,nick:string)=>{m.apprentices=m.apprentices.filter(a=>a.nick!==nick);};
+// Muço bir ustaya bağlanınca: bulunduğu seviyenin sandığı hemen açılır, sonrakiler seviye atladıkça
+export function joinMentor(m:Mentorship,mentor:Mate,level:number){if(level>APPRENTICE_MAX_LEVEL||m.lockedOut||m.graduated)return false;m.mentor=mentor;m.startLevel=level;onOwnLevel(m,level);return true;}
 const known=(m:Mentorship,key:string)=>m.claimed.includes(key)||m.pending.some(r=>r.key===key);
 export const apprenticeKey=(level:number)=>`app-${level}`;
 export const mentorKey=(nick:string,level:number)=>`men-${nick}-${level}`;
@@ -52,14 +55,14 @@ export const mentorKey=(nick:string,level:number)=>`men-${nick}-${level}`;
 export function onOwnLevel(m:Mentorship,level:number){
   const out:{level:number;gold:number;pearls:number}[]=[];
   if(!m.mentor){if(level>APPRENTICE_MAX_LEVEL)m.lockedOut=true;return out;}
-  for(const s of MILESTONES){const key=apprenticeKey(s.level);if(level>=s.level&&!known(m,key)){out.push({level:s.level,...s.apprentice});m.pending.push({key,label:s.level>=GRADUATE_LEVEL?'Mezuniyet ödülü':`Muço ödülü · Seviye ${s.level}`,...s.apprentice});}}
+  const from=m.startLevel??1;for(const s of MILESTONES){const key=apprenticeKey(s.level);if(level>=s.level&&s.level>=from&&!known(m,key)){out.push({level:s.level,...s.apprentice});m.pending.push({key,label:s.level>=GRADUATE_LEVEL?'Mezuniyet sandığı':`Muço sandığı · Seviye ${s.level}`,...s.apprentice});}}
   if(level>=GRADUATE_LEVEL){m.mentor=null;m.graduated=true;}
   return out;
 }
 // Usta tarafı: muçonun seviyesi güncellenince yeni geçilen kilometre taşlarının usta ödüllerini döner; mezun olanı listeden çıkarır.
 export function onApprenticeLevel(m:Mentorship,nick:string,level:number){
   const a=m.apprentices.find(x=>x.nick===nick),out:{level:number;gold:number;pearls:number}[]=[];if(!a)return out;
-  a.level=level;for(const s of MILESTONES)if(level>=s.level&&!a.rewarded.includes(s.level)){a.rewarded.push(s.level);out.push({level:s.level,...s.mentor});m.pending.push({key:mentorKey(nick,s.level),label:`${nick} · ${s.level>=GRADUATE_LEVEL?'mezun oldu':`Seviye ${s.level}`}`,...s.mentor});}
+  a.level=level;for(const s of MILESTONES)if(level>=s.level&&!a.rewarded.includes(s.level)){a.rewarded.push(s.level);out.push({level:s.level,...s.mentor});m.pending.push({key:mentorKey(nick,s.level),label:`Usta sandığı · ${nick} · ${s.level>=GRADUATE_LEVEL?'mezuniyet':`Seviye ${s.level}`}`,...s.mentor});}
   if(level>=GRADUATE_LEVEL){removeApprentice(m,nick);m.graduates++;}
   return out;
 }
