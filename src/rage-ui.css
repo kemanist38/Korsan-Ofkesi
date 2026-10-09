@@ -227,3 +227,8 @@ html.touch .sink-notices{top:96px}
 .festival-day.grand img{width:100%;max-height:70px;object-fit:contain;margin:4px 0}
 .festival-day.missed{opacity:.45}
 .festival-day em{display:block;margin-top:4px;font:700 10px Inter,sans-serif;font-style:normal;color:#e06a4a}
+
+.mate-reward small{display:block;margin-top:2px;color:#e9c46a;font-weight:600}
+.mate-reward i{font-style:normal;font-size:11px;color:#a89a8c}
+.mate-reward.done{opacity:.6}.mate-reward.done i{color:#7fd18b;font-weight:700}
+#mentorPanel h4 small{font-weight:500;color:#c7b8a5;font-size:11px}

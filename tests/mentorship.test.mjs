@@ -11,3 +11,7 @@ test('kabul, çıkarma ve usta ödülleri',()=>{const m=M.emptyMentorship();m.re
   assert.equal(M.onApprenticeLevel(m,'c',5).length,1);assert.equal(M.onApprenticeLevel(m,'c',5).length,0);assert.equal(M.onApprenticeLevel(m,'c',8).length,1);assert.equal(m.apprentices.length,0);assert.equal(m.graduates,1);
   m.apprentices=[{nick:'d',level:2,rewarded:[]}];M.removeApprentice(m,'d');assert.equal(m.apprentices.length,0);});
 test('birlikteyken TP',()=>{assert.equal(M.apprenticeXp(100,true),150);assert.equal(M.apprenticeXp(100,false),100);});
+test('ödüller talep edilene kadar bekler, bir kez alınır',()=>{const m=M.emptyMentorship();m.mentor={nick:'u',level:10};
+  assert.equal(M.onOwnLevel(m,5).length,1);assert.equal(M.onOwnLevel(m,6).length,0);assert.equal(m.pending.length,1);
+  const r=M.claimReward(m,M.apprenticeKey(5));assert.equal(r.gold,M.MILESTONES[0].apprentice.gold);assert.equal(M.claimReward(m,M.apprenticeKey(5)),null);
+  assert.ok(m.claimed.includes('app-5'));assert.equal(M.onOwnLevel(m,5).length,0);});
