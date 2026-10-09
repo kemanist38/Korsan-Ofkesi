@@ -1123,10 +1123,10 @@ function drawRankBadge(c:CanvasRenderingContext2D,rank:number,x:number,y:number,
 function drawCaptainName(x:number,y:number,tag:string,nick:string,size=17,rank=-1){
   ctx.save();ctx.font=`900 ${size}px Inter, "Arial Black", sans-serif`;ctx.textBaseline='middle';ctx.textAlign='left';ctx.lineJoin='round';
   const text=tag?`${tag} ${nick}`:nick,w=ctx.measureText(text).width,bs=rank>=0?Math.round(size*2.6):0,x0=x-(w+(bs?bs+3:0))/2;
-  if(bs)drawRankBadge(ctx,rank,x0+w+3,y,bs);
+  if(bs)drawRankBadge(ctx,rank,x0,y,bs);const tx=x0+(bs?bs+3:0);
   const g=ctx.createLinearGradient(0,y-size*.55,0,y+size*.55);g.addColorStop(0,'#fff6c2');g.addColorStop(.45,'#ffd34d');g.addColorStop(1,'#d98a16');
-  ctx.shadowColor='#000c';ctx.shadowBlur=5;ctx.shadowOffsetY=1.5;ctx.lineWidth=Math.max(3,size*.26);ctx.strokeStyle='#2b1606';ctx.strokeText(text,x0,y);
-  ctx.shadowColor='transparent';ctx.fillStyle=g;ctx.fillText(text,x0,y);
+  ctx.shadowColor='#000c';ctx.shadowBlur=5;ctx.shadowOffsetY=1.5;ctx.lineWidth=Math.max(3,size*.26);ctx.strokeStyle='#2b1606';ctx.strokeText(text,tx,y);
+  ctx.shadowColor='transparent';ctx.fillStyle=g;ctx.fillText(text,tx,y);
   ctx.restore();return w;}
 // Güverte işareti: adın altında ortalı; kademesi batırılan rakip sayısına göre (sayı yazılmaz)
 let rivalSinks=ELITE_TEST_MODE?Math.max(loadRivalSinks(),12_500):loadRivalSinks();
