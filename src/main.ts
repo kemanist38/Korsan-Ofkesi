@@ -31,7 +31,7 @@ import {SIEGE_MS,WALL_TOWERS,INNER_TOWERS,gateOf,gateLeft,siegeWindow,newSiege,l
 import {dayEvent,spMult,xpMult,epMult,goldMult,sparkleMult,bossKillsNeeded,untilMidnight} from './events';
 import {TALENTS,OFFICERS,OFFICER_MAX_RANK,officerCost,officerSlots,talentPoints,loadCrew,saveCrew,spentPoints,computeBonus,type TalentId,type OfficerId} from './crew';
 import {FLEET_MASK} from './fleetMask';
-import {drawVfx,drawEffect} from './vfx';
+import {drawVfx} from './vfx';
 import {fleetTowerRegen} from './fleetBalance';
 import {towerContains,towerMuzzle} from './towerGeometry';
 import {loadGuild,saveGuild,islandSlots,towerTypeCost,tagError,canBuild,TOWER_TYPES,ROLE_NAMES,TOWER_SLOTS,type TowerType,type GuildRole,GUILD_NAME_MAX,GUILD_TAG_MAX,type Guild} from './guild';
@@ -1122,7 +1122,7 @@ function drawRankBadge(c:CanvasRenderingContext2D,rank:number,x:number,y:number,
   const i=rankIcon(rank),cell=rankSheet.naturalWidth/RANK_COLS;c.drawImage(rankSheet,(i%RANK_COLS)*cell,Math.floor(i/RANK_COLS)*cell,cell,cell,x,y-size/2,size,size);return true;}
 function drawCaptainName(x:number,y:number,tag:string,nick:string,size=17,rank=-1){
   ctx.save();ctx.font=`900 ${size}px Inter, "Arial Black", sans-serif`;ctx.textBaseline='middle';ctx.textAlign='left';ctx.lineJoin='round';
-  const text=tag?`${tag} ${nick}`:nick,w=ctx.measureText(text).width,bs=rank>=0?Math.round(size*1.55):0,x0=x-(w+(bs?bs+3:0))/2;
+  const text=tag?`${tag} ${nick}`:nick,w=ctx.measureText(text).width,bs=rank>=0?Math.round(size*2.6):0,x0=x-(w+(bs?bs+3:0))/2;
   if(bs)drawRankBadge(ctx,rank,x0+w+3,y,bs);
   const g=ctx.createLinearGradient(0,y-size*.55,0,y+size*.55);g.addColorStop(0,'#fff6c2');g.addColorStop(.45,'#ffd34d');g.addColorStop(1,'#d98a16');
   ctx.shadowColor='#000c';ctx.shadowBlur=5;ctx.shadowOffsetY=1.5;ctx.lineWidth=Math.max(3,size*.26);ctx.strokeStyle='#2b1606';ctx.strokeText(text,x0,y);
@@ -2108,7 +2108,7 @@ function draw(){
   if(selected&&targetExists(selected))drawTargetMarker(selected);
   enemies.filter(e=>onScreen(e,e.boss?420:300)).sort((a,b)=>a.y-b.y).forEach(e=>atShipScale(e.tower?null:e,()=>{const s=worldToScreen(e);if(e.captain){drawCaptain(e,s);return;}if(e.boss)drawBossAura(e,s);if(!e.tower)drawHullWater(e,hullLength(e));const raster=e.tower?drawBastion(ctx,e.towerIndex??0,s.x,s.y):e.def?drawNpcShip(ctx,e.def.sprite,e.def.span,s.x,s.y,npcFaceAngle(e),performance.now()):false;if(!raster)return;const top=raster?(e.tower?TOWER_LABEL_OFFSET:shipLabelOffset(e.def!.span)):-42;if(e.boss){drawBossFlag(s,top);drawBossPlate(e,s,top);return;}const bw=e.tower||e.role==='heavy'?72:56;drawHealthBar(s.x,s.y+top,bw,e.hp/e.maxHp,e.tower?'#f09a4f':e.role==='heavy'?'#f0584a':'#4fd0da');ctx.fillStyle='#e6dccb';ctx.font='700 15px Inter';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText(e.name,s.x,s.y+top-7);ctx.shadowBlur=0;}));
   atShipScale(player,()=>{drawPlayerMarker();drawHullWater(player,hullLength(player));drawPlayerShip();
-    if(state.repairing&&(isVip()||player.speed<=4)){const p=worldToScreen(player);drawEffect(ctx,'heal',(performance.now()%1800)/1800,p.x,p.y-42,155,.65);}});
+});
   drawFleetOccluders();atShipScale(player,drawPlayerLabel);
   particles.forEach(p=>{if(!UNDER.has(p.kind)&&p.kind!=='damage')drawParticle(p);});shots.forEach(drawShotBall);
   drawAbilityFx(ctx,worldToScreen,innerWidth,innerHeight);
