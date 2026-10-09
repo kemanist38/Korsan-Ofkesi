@@ -10,7 +10,7 @@ export const TALENTS:Record<TalentId,{name:string;max:number;per:string;icon:str
   firemaster:{name:'Ateş Ustası',max:3,per:'+%25 yanma hasarı',icon:'/assets/ammo-fire-v2.webp',apply:(b,r)=>{b.burn*=1+.25*r;}},
   sapper:{name:'Mayın Uzmanı',max:4,per:'+%15 mayın hasarı',icon:'/assets/icon-mine-v2.webp',apply:(b,r)=>{b.mine*=1+.15*r;}},
   tough:{name:'Sağlam Omurga',max:5,per:'-%3 alınan hasar',icon:'/assets/icon-shield-v3.webp',apply:(b,r)=>{b.taken*=1-.03*r;}},
-  windcaller:{name:'Fırtına Bilgesi',max:3,per:'-%10 yetenek bekleme',icon:'/assets/icon-speed-v2.webp',apply:(b,r)=>{b.cooldown*=1-.1*r;}},
+  windcaller:{name:'Fırtına Bilgesi',max:3,per:'-%10 mayın bekleme',icon:'/assets/icon-speed-v2.webp',apply:(b,r)=>{b.cooldown*=1-.1*r;}},
   plunder:{name:'Yağma Ustası',max:5,per:'+%10 sandık altını',icon:'/assets/icon-market-v2.webp',apply:(b,r)=>{b.chestGold*=1+.1*r;}},
   scavenger:{name:'Enkaz Avcısı',max:3,per:'+%8 yaldızlı sandık şansı',icon:'/assets/icon-chest-v2.webp',apply:(b,r)=>{b.gilded+=.08*r;}},
   bounty:{name:'Ödül Avcısı',max:5,per:'+%5 batırma altını',icon:'/assets/icon-attack-v2.webp',apply:(b,r)=>{b.bounty+=.05*r;}},
