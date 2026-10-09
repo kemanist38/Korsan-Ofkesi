@@ -9,7 +9,7 @@ export type EliteShip={
 // Elit gemiler: her gemi bir rol ve sürekli bir pasif taşır. Etkin yetenek bütün gemilerde ortaktır: Korsan Öfkesi (src/rage.ts).
 export const ELITE_SHIPS:EliteShip[]=[
 {id:'phantom',level:1,name:'Hayalet Kadırga',english:'The Phantom Galleon',asset:'/assets/elite-phantom-art-v22.webp',role:'Kaçış'},
-{id:'magma',level:2,name:'Volkanik Dreadnought',english:'Volcanic Dreadnought',asset:'/assets/elite-magma-art-v22.webp',role:'Alan hasarı'},
+{id:'magma',level:2,name:'Volkanik Zırhlı',english:'Volcanic Dreadnought',asset:'/assets/elite-magma-art-v22.webp',role:'Alan hasarı'},
 {id:'glacial',level:3,name:'Buzul Tiranı',english:'Glacial Tyrant',asset:'/assets/elite-glacial-art-v22.webp',role:'Kontrol'},
 {id:'kraken',level:4,name:"Kraken'in Gazabı",english:"Kraken's Embrace",asset:'/assets/elite-kraken-art-v22.webp',role:'Yakalama'},
 {id:'ironclad',level:5,name:'Veba Kadırgası',english:'Plague Galley',asset:'/assets/elite-ironclad-art-v22.webp',role:'Tank'},
