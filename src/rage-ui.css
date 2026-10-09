@@ -249,3 +249,34 @@ html.touch .sink-notices{top:96px}
 .mate-chest-info span{color:#e9c46a;font-weight:700}
 .mate-chest-info i{font-style:normal;font-size:11px;color:#a89a8c}.mate-chest-info i.got{color:#7fd18b;font-weight:700}
 .mate-chest-info button{padding:6px 12px;border:1px solid #c99a4f;border-radius:6px;background:linear-gradient(#7a4a1e,#4a2a10);color:#ffe09b;font:800 11px Inter;letter-spacing:.06em;cursor:pointer}
+/* Geliştirme ve gülle düzeni pencereleri de Pirate Rage kaplamasında */
+.development-overlay,.loadout-overlay{background:#07060999}
+.development-menu,.loadout-menu{border:1px solid var(--rage-edge);border-radius:9px;background:radial-gradient(ellipse at 0 0,#62251d26,transparent 65%),linear-gradient(135deg,#211a1e,#111216 80%);box-shadow:inset 0 0 0 3px #111013,inset 0 0 0 4px #b7835733,0 16px 45px #000c;color:#eee0d3;scrollbar-color:#77463a #151216}
+.development-menu header,.loadout-menu header{border-bottom:1px solid #9e513b66}
+.development-menu h2,.loadout-menu h2{color:var(--rage-gold)}
+.development-menu .eyebrow,.loadout-menu .eyebrow{color:#c98a5e}
+.development-menu header button,.loadout-menu header button{border-radius:5px;border-color:#805045;background:#281c20;color:#f0c5a6}
+.talent-points{color:#e9d6bd}.talent-points small{color:var(--rage-muted)}
+.talent-points button{border-color:#805045;background:#281c20;color:#f0c5a6}
+.talent-branch{border-color:#69443c;background:linear-gradient(145deg,#24191c,#141215)}
+.talent-branch header{border-bottom-color:#9e513b44}
+.talent{border-color:#69443c;background:linear-gradient(110deg,#261c20,#171519);color:#e9d6bd}
+.talent small{color:var(--rage-muted)}
+.talent.owned{border-color:#b8783f}
+.talent.maxed{border-color:#d58a53;background:linear-gradient(110deg,#3a2422,#1c1517)}
+.talent:not(:disabled):hover{border-color:#edc78c;background:linear-gradient(#4c2625,#25181b)}
+.loadout-menu>p,.loadout-items small,.loadout-slots button{color:var(--rage-muted)}
+.loadout-items button{border-color:#69443c!important;background:linear-gradient(110deg,#261c20,#171519)!important;color:#e9d6bd}
+.loadout-items button.selected{border-color:#edc78c!important}
+.loadout-slots button{border-color:#69443c99;background:#171519}
+.talent b em{color:#e9a86a}
+/* Eski camgöbeği kartların kalan kısmı: mürettebat, tuşlar, günlük, başarım, ses, etkinlik */
+.officer,.bind,.daily-day,.ach-card{border-color:#69443c;background:linear-gradient(110deg,#261c20,#171519);color:#e9d6bd}
+.officer.active{border-color:#d58a53;box-shadow:inset 0 0 18px #d58a5322}
+.daily-day.today{border-color:#f1c662;background:linear-gradient(#3a2614,#171519)}
+.ach-card.done{border-color:#f1c66288;background:linear-gradient(90deg,#3a2614,#171519)}
+.sound-row button.on{background:#4a2a1c;border-color:#d58a53;color:#ffe1af}
+.event-row img,.event-art{background-color:#1d1719}
+.day-event em{color:#e9a86a}
+.quest-log header button,.ship-menu header button,.market-menu header button,.captain-profile header button,.daily-window header button{border-radius:5px;border-color:#805045;background:#281c20;color:#f0c5a6}
+.world-map-button,.chat-toggle{background:radial-gradient(circle at 35% 30%,#4a2a22,#171214 72%)}
