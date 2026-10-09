@@ -545,7 +545,7 @@ body.shop-open .market-overlay,body.shop-open .ship-overlay,body.shop-open .load
 .top-status .status-line>i>em{border-radius:99px}
 .top-status .status-line span{position:absolute;left:5%;top:50%;transform:translateY(-50%);z-index:1;font:800 clamp(7px,calc(1.6 * 1vw / var(--ui,1)),10px) Inter;color:#f3e2b8;text-shadow:0 1px 2px #000}
 .top-status .status-line b{position:absolute;inset:0;left:0;line-height:normal;display:grid;place-items:center;font:800 clamp(8px,calc(1.8 * 1vw / var(--ui,1)),12px) Inter}
-.top-status .top-level{position:absolute;left:49.9%;top:49.2%;transform:translate(-50%,-50%);width:11%;background-image:url(/assets/level-badges-v1.webp)!important;background-size:800% 100%!important;background-repeat:no-repeat!important;background-color:transparent!important;color:transparent!important;text-shadow:none!important;height:auto;aspect-ratio:1;border:0;background:none;box-shadow:none;color:#ffe7a8;font:900 clamp(12px,calc(2.6 * 1vw / var(--ui,1)),20px) Cinzel;text-shadow:0 2px 3px #000,0 0 8px #000,0 0 2px #000}
+.top-status .top-level{position:absolute;left:49.9%;top:49.2%;transform:translate(-50%,-50%);width:8.2%;z-index:2;color:transparent!important;text-shadow:none!important;height:auto;aspect-ratio:1;border:0;background:none;box-shadow:none;color:#ffe7a8;font:900 clamp(12px,calc(2.6 * 1vw / var(--ui,1)),20px) Cinzel;text-shadow:0 2px 3px #000,0 0 8px #000,0 0 2px #000}
 .reward-toast{top:clamp(52px,calc(8 * 1vw / var(--ui,1)),90px)}
 /* alt bar: daha küçük, ahşap + koyu metal çerçeve, sürüklenebilir */
 :root{--dock-w:318px}
@@ -830,3 +830,7 @@ body{touch-action:manipulation;-webkit-tap-highlight-color:transparent;overscrol
 .menu-window>header>div{margin-right:auto}
 
 .ship-design-heading{grid-column:1/-1;margin:8px 0 2px;color:#e8c989;font:700 12px Cinzel;letter-spacing:1px}
+
+/* Seviye rütbe rozeti: halkanın üstüne taşan büyük rozet; konum JS'teki background-position'dan gelir */
+.top-status .top-level::after{content:'';position:absolute;inset:-12% -26% -40% -26%;background:url(/assets/level-badges-v1.webp) no-repeat;background-size:800% 100%;background-position:inherit;filter:drop-shadow(0 2px 4px #000c) brightness(1.12);pointer-events:none}
+.top-status .top-level{background-size:0 0!important}
