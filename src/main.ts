@@ -439,7 +439,18 @@ ui('openMarket').onclick=openMarket;
 
 ui('marketOverlay').addEventListener('pointerdown',e=>{if(e.target===ui('marketOverlay'))closeMarket();});
 ui('supplyOverlay').addEventListener('pointerdown',e=>{if(e.target===ui('supplyOverlay'))closeSupply();});
-canvas.addEventListener('wheel',e=>{e.preventDefault();setZoom(camera.targetZoom+(e.deltaY<0?.1:-.1));},{passive:false});
+// Fare tekerleği yakındaki rakipleri sırayla işaretler (yakından uzağa); yakınlaştırma klavye kısayollarında
+function cycleTarget(dir:number){
+  const reach=Math.max(900,effectiveRange()*1.6);
+  const list:Target[]=[...enemies,...monsters].filter(t=>targetExists(t)&&Math.hypot(t.x-player.x,t.y-player.y)<=reach)
+    .sort((a,b)=>Math.hypot(a.x-player.x,a.y-player.y)-Math.hypot(b.x-player.x,b.y-player.y));
+  if(!list.length)return;
+  const i=selected?list.indexOf(selected):-1;
+  const next=i<0?list[0]:list[(i+dir+list.length)%list.length];
+  if(next!==selected){selected=next;attackChase=false;updateUI();}
+}
+let wheelAt=0;
+canvas.addEventListener('wheel',e=>{e.preventDefault();const now=performance.now();if(now-wheelAt<120)return;wheelAt=now;cycleTarget(e.deltaY>0?1:-1);},{passive:false});
 ui('closeLoadout').onclick=closeLoadout;
 ui('loadoutOverlay').addEventListener('pointerdown',e=>{if(e.target===ui('loadoutOverlay'))closeLoadout();});
 // Sağ üst: market (sekmeli gemi/top/mühimmat pencereleri) ve menü (profil, filo, geliştirme, tayfa, ayarlar)
