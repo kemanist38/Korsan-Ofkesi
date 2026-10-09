@@ -759,7 +759,7 @@ body{touch-action:manipulation;-webkit-tap-highlight-color:transparent;overscrol
 /* Dikey tutulan telefonda yatay çevirme uyarısı */
 .rotate-hint{display:none}
 @media (orientation:portrait) and (pointer:coarse){
-  .rotate-hint{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;background:#04121acc;backdrop-filter:blur(3px);color:#f2d59b;font:700 18px Cinzel,serif;text-align:center}
+  .rotate-hint{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;background:#04121af0;color:#f2d59b;font:700 18px Cinzel,serif;text-align:center}
   .rotate-hint svg{width:72px;height:72px;animation:rotate-hint 2.2s ease-in-out infinite}
   .rotate-hint small{font:500 13px Inter,sans-serif;color:#b9cbc6}
 }
