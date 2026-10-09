@@ -21,7 +21,7 @@ function drawCell(ctx:CanvasRenderingContext2D,c:number,r:number,x:number,y:numb
 }
 
 // Eight registered frames per supplied effect. Shield deliberately has no VFX.
-const effectNames=['heal','rage'] as const;
+const effectNames=['rage'] as const;
 export type EffectName=typeof effectNames[number];
 const effects=Object.fromEntries(effectNames.map(name=>{const image=new Image();image.decoding='async';image.src=`/assets/vfx-${name}-v1.webp`;return[name,image];})) as Record<EffectName,HTMLImageElement>;
 export function drawEffect(ctx:CanvasRenderingContext2D,name:EffectName,progress:number,x:number,y:number,size:number,alpha=1,loop=false){
