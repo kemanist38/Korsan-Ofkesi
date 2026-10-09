@@ -84,7 +84,7 @@ const QUICK_ITEMS:Record<QuickItemId,{name:string;icon:string;category:'ammo'|'c
   iron:{name:'Demir Gülle',icon:'iron',category:'ammo',description:'Standart ve sınırsız top güllesi.'},chain:{name:'Zincir Güllesi',icon:'chain',category:'ammo',description:'Oyuncuları 3 saniye %40 yavaşlatır; NPC\'ye etki etmez.'},
   fire:{name:'Ateş Güllesi',icon:'damage',category:'ammo',description:'NPC ve canavarlara %40 fazla hasar.'},
   explosive:{name:'Patlayıcı Gülle',icon:'damage',category:'ammo',description:'Oyunculara %40 fazla hasar.'},breaker:{name:'Kule Kırıcı',icon:'iron',category:'ammo',description:'Kulelere 2,6 kat hasar.'},leech:{name:'Can Emici',icon:'damage',category:'ammo',description:'Yalnız oyunculardan şansla can çalar.'},
-  repairkit:{name:'Tamir Sandığı',icon:'repairkit',category:'consumable',description:'Açık deniz tamirini başlatır.'},speed:{name:'Hız İksiri',icon:'speed',category:'consumable',description:'İçince 7 sn boyunca hız %55 artar; her kullanımda 1 adet harcar.'},
+  repairkit:{name:'Tamir Sandığı',icon:'repairkit',category:'consumable',description:'Açık deniz tamirini başlatır.'},speed:{name:'Hız İksiri',icon:'speed',category:'consumable',description:'İçince 4 sn boyunca hız %55 artar; her kullanımda 1 adet harcar.'},
   powder:{name:'Kara Barut',icon:'damage',category:'consumable',description:CONSUMABLES.powder.description},shield:{name:'Kalkan',icon:'hull',category:'consumable',description:CONSUMABLES.shield.description},mine:{name:'Deniz Mayını',icon:'hull',category:'consumable',description:'Kıçtan mayın bırakır.'}
 };
 const AMMO_ROW=6;
