@@ -20,7 +20,7 @@ import {PEARL_PACKS,packTotal,priceText,VIP_PACKS,VIP_XP_BONUS,loadVipUntil,save
 import {BOARDS,rankRows,rankPage,RANK_PAGE_SIZE,type BoardId,type RankPlayer,type RankFleet,type RankRow} from './leaderboard';
 import {redeem,loadRedeemed,saveRedeemed,rewardText} from './coupons';
 import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
-import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,claimReward,apprenticeKey,mentorKey,MILESTONES,GRADUATE_LEVEL,MAX_APPRENTICES,TOGETHER_XP_BONUS} from './mentorship';
+import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,claimReward,GRADUATE_LEVEL,MAX_APPRENTICES,TOGETHER_XP_BONUS} from './mentorship';
 import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
 import {loadLog,saveLog,addLog,daySummary,LOG_KINDS,type LogKind,type LogEntry} from './logbook';
 import {BALL_DAMAGE,CHAIN_FACTOR,CHAIN_SLOW,FIRE_NPC_FACTOR,EXPLOSIVE_PLAYER_FACTOR,leechHeal,repairAmount,ELITE_POINTS_PER_BALL,ELITE_MAX_LEVEL,eliteLevelEp,eliteLevelFromEp,ABILITIES,SPECIAL_AMMO,MINE,SPEED_BOOST,CONSUMABLES,AMMO_PRICES,SUPPLY_PRICES,loadArsenal,saveArsenal,type AbilityId,type SpecialAmmo,type ConsumableId,type SupplyId,type Price,priceOf} from './arsenal';
@@ -1277,10 +1277,9 @@ function mentorshipHtml(){
   // Ödüller sandık olarak: kilitli / hazır (parlar) / alındı; sandığa tıklayınca içeriği ve TALEP ET görünür
   const chest=(key:string,lvl:number,g:{gold:number;pearls:number},title:string,locked:string)=>{const pend=m.pending.some(r=>r.key===key),done=m.claimed.includes(key);
     return`<button class="mate-chest ${done?'done':pend?'ready':'locked'}" data-chest="${esc(key)}" data-chest-title="${esc(title)}" data-chest-gold="${g.gold}" data-chest-pearls="${g.pearls}" data-chest-state="${done?'done':pend?'ready':'locked'}" data-chest-locked="${esc(locked)}" title="${esc(title)}"><img src="/assets/icon-chest-v2.webp" alt="" draggable="false"/><b>${lvl}</b>${done?'<i>✓</i>':''}</button>`;};
-  const appChests=MILESTONES.map(s=>chest(apprenticeKey(s.level),s.level,s.apprentice,s.level>=GRADUATE_LEVEL?`Mezuniyet sandığı · Seviye ${s.level}`:`Muço sandığı · Seviye ${s.level}`,m.mentor?`Ustanla Seviye ${s.level} olunca açılır`:s.level===1?'Bir ustaya çırak olunca açılır':`Ustanla Seviye ${s.level} olunca açılır`)).join('');
-  const mentorNicks=[...new Set([...m.apprentices.map(a=>a.nick),...[...m.pending.map(r=>r.key),...m.claimed].filter(k=>k.startsWith('men-')).map(k=>k.slice(4,k.lastIndexOf('-')))])];
-  const menChests=mentorNicks.length?mentorNicks.map(n=>`<p class="mate-chest-owner">${esc(n)}</p><div class="mate-chests">${MILESTONES.map(s=>chest(mentorKey(n,s.level),s.level,s.mentor,`Usta sandığı · ${n} · Seviye ${s.level}`,`${n} Seviye ${s.level} olunca açılır`)).join('')}</div>`).join(''):`<div class="mate-chests">${MILESTONES.map(s=>chest(`preview-${s.level}`,s.level,s.mentor,`Usta sandığı · Seviye ${s.level}`,`Muçon Seviye ${s.level} olunca açılır`)).join('')}</div>`;
-  const rewards=`<h4>Muço sandıkları</h4><div class="mate-chests">${appChests}</div><h4>Usta sandıkları <small>(her muço için)</small></h4>${menChests}<div class="mate-chest-info" id="mateChestInfo"><p class="mate-empty">İçinde ne olduğunu görmek için bir sandığa dokun.</p></div>`;
+  // Yalnız kazanılmış (talep edilmemiş) sandıklar listelenir; alınan sandık listeden düşer
+  const earned=m.pending.map(r=>{const lv=Number(r.key.slice(r.key.lastIndexOf('-')+1))||0;return chest(r.key,lv,r,r.label,'');}).join('');
+  const rewards=`<h4>Kazanılan sandıklar${m.claimed.length?` <small>(${m.claimed.length} sandık alındı)</small>`:''}</h4>${earned?`<div class="mate-chests">${earned}</div><div class="mate-chest-info" id="mateChestInfo"><p class="mate-empty">İçinde ne olduğunu görmek için bir sandığa dokun.</p></div>`:'<p class="mate-empty">Muço ya da muçon her seviye atladığında buraya bir ödül sandığı düşer.</p>'}`;
   return `<p class="mate-role">${role}</p>${canMentor(lv)&&!m.mentor?`<h4>Muçoların</h4>${apps}<h4>Çıraklık istekleri</h4>${reqs}`:''}${rewards}`;
 }
 function bindMentorship(){
