@@ -6,15 +6,17 @@ export const MENTOR_MIN_LEVEL=5,APPRENTICE_MAX_LEVEL=5,GRADUATE_LEVEL=8,MIN_GAP=
 export const TOGETHER_XP_BONUS=.5,MENTOR_SHARE=.1;
 export type Mate={nick:string;level:number};
 export type Apprentice=Mate&{rewarded:number[]};
-export type Mentorship={mentor:Mate|null;apprentices:Apprentice[];requests:Mate[];lockedOut:boolean;graduated:boolean;graduates:number};
+// Ödüller kendiliğinden verilmez: hak edilince "pending"e düşer, oyuncu Kaptan & Muço penceresinden talep eder.
+export type MentorReward={key:string;label:string;gold:number;pearls:number};
+export type Mentorship={mentor:Mate|null;apprentices:Apprentice[];requests:Mate[];lockedOut:boolean;graduated:boolean;graduates:number;pending:MentorReward[];claimed:string[]};
 // Seviye ödülleri: muço bu seviyeye ulaşınca ikisi birden ödül alır (8 = mezuniyet)
 export const MILESTONES:{level:number;apprentice:{gold:number;pearls:number};mentor:{gold:number;pearls:number}}[]=[
   {level:5,apprentice:{gold:250_000,pearls:200},mentor:{gold:150_000,pearls:300}},
   {level:GRADUATE_LEVEL,apprentice:{gold:600_000,pearls:500},mentor:{gold:400_000,pearls:800}},
 ];
 const KEY='yedi-deniz-mentorship-v1';
-export const emptyMentorship=():Mentorship=>({mentor:null,apprentices:[],requests:[],lockedOut:false,graduated:false,graduates:0});
-export function loadMentorship():Mentorship{try{const v=JSON.parse(localStorage.getItem(KEY)||'null');if(v&&typeof v==='object')return{...emptyMentorship(),...v};}catch{}return emptyMentorship();}
+export const emptyMentorship=():Mentorship=>({mentor:null,apprentices:[],requests:[],lockedOut:false,graduated:false,graduates:0,pending:[],claimed:[]});
+export function loadMentorship():Mentorship{try{const v=JSON.parse(localStorage.getItem(KEY)||'null');if(v&&typeof v==='object'){const e={...emptyMentorship(),...v};if(!Array.isArray(e.pending))e.pending=[];if(!Array.isArray(e.claimed))e.claimed=[];return e;}}catch{}return emptyMentorship();}
 export function saveMentorship(m:Mentorship){try{localStorage.setItem(KEY,JSON.stringify(m));}catch{}}
 
 export const canMentor=(level:number)=>level>=MENTOR_MIN_LEVEL;
@@ -42,21 +44,29 @@ export function acceptRequest(m:Mentorship,mentorLevel:number,nick:string):strin
 }
 export const rejectRequest=(m:Mentorship,nick:string)=>{m.requests=m.requests.filter(r=>r.nick!==nick);};
 export const removeApprentice=(m:Mentorship,nick:string)=>{m.apprentices=m.apprentices.filter(a=>a.nick!==nick);};
+const known=(m:Mentorship,key:string)=>m.claimed.includes(key)||m.pending.some(r=>r.key===key);
+export const apprenticeKey=(level:number)=>`app-${level}`;
+export const mentorKey=(nick:string,level:number)=>`men-${nick}-${level}`;
 // Muço kendi seviyesi değişince: ustasızsa ve 5'i geçtiyse kilitlenir; ustası varsa 8'de mezun olur.
-// Dönen ödüller muçoya verilir.
+// Yeni hak edilen ödüller talep listesine eklenir ve döner.
 export function onOwnLevel(m:Mentorship,level:number){
   const out:{level:number;gold:number;pearls:number}[]=[];
   if(!m.mentor){if(level>APPRENTICE_MAX_LEVEL)m.lockedOut=true;return out;}
-  for(const s of MILESTONES)if(level>=s.level)out.push({level:s.level,...s.apprentice});
+  for(const s of MILESTONES){const key=apprenticeKey(s.level);if(level>=s.level&&!known(m,key)){out.push({level:s.level,...s.apprentice});m.pending.push({key,label:s.level>=GRADUATE_LEVEL?'Mezuniyet ödülü':`Muço ödülü · Seviye ${s.level}`,...s.apprentice});}}
   if(level>=GRADUATE_LEVEL){m.mentor=null;m.graduated=true;}
   return out;
 }
 // Usta tarafı: muçonun seviyesi güncellenince yeni geçilen kilometre taşlarının usta ödüllerini döner; mezun olanı listeden çıkarır.
 export function onApprenticeLevel(m:Mentorship,nick:string,level:number){
   const a=m.apprentices.find(x=>x.nick===nick),out:{level:number;gold:number;pearls:number}[]=[];if(!a)return out;
-  a.level=level;for(const s of MILESTONES)if(level>=s.level&&!a.rewarded.includes(s.level)){a.rewarded.push(s.level);out.push({level:s.level,...s.mentor});}
+  a.level=level;for(const s of MILESTONES)if(level>=s.level&&!a.rewarded.includes(s.level)){a.rewarded.push(s.level);out.push({level:s.level,...s.mentor});m.pending.push({key:mentorKey(nick,s.level),label:`${nick} · ${s.level>=GRADUATE_LEVEL?'mezun oldu':`Seviye ${s.level}`}`,...s.mentor});}
   if(level>=GRADUATE_LEVEL){removeApprentice(m,nick);m.graduates++;}
   return out;
+}
+// Bekleyen ödülü talep et: ödülü döner ve "alındı" olarak işaretler
+export function claimReward(m:Mentorship,key:string):MentorReward|null{
+  const i=m.pending.findIndex(r=>r.key===key);if(i<0)return null;
+  const [r]=m.pending.splice(i,1);m.claimed.push(key);return r;
 }
 // Birlikte aynı denizdeyken muçonun TP'si artar
 export const apprenticeXp=(xp:number,mentorNearby:boolean)=>mentorNearby?Math.round(xp*(1+TOGETHER_XP_BONUS)):xp;
