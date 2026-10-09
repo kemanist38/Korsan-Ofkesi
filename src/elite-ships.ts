@@ -8,11 +8,11 @@ export type EliteShip={
 
 // Elit gemiler: her gemi bir rol ve sürekli bir pasif taşır. Etkin yetenek bütün gemilerde ortaktır: Korsan Öfkesi (src/rage.ts).
 export const ELITE_SHIPS:EliteShip[]=[
-{id:'phantom',level:1,name:'Hayalet Kadırga',english:'The Phantom Galleon',asset:'/assets/elite-phantom-art-v21.webp',role:'Kaçış'},
-{id:'magma',level:2,name:'Volkanik Dreadnought',english:'Volcanic Dreadnought',asset:'/assets/elite-magma-art-v21.webp',role:'Alan hasarı'},
-{id:'glacial',level:3,name:'Buzul Tiranı',english:'Glacial Tyrant',asset:'/assets/elite-glacial-art-v21.webp',role:'Kontrol'},
-{id:'kraken',level:4,name:"Kraken'in Gazabı",english:"Kraken's Embrace",asset:'/assets/elite-kraken-art-v21.webp',role:'Yakalama'},
-{id:'ironclad',level:5,name:'Veba Kadırgası',english:'Plague Galley',asset:'/assets/elite-ironclad-art-v21.webp',role:'Tank'},
+{id:'phantom',level:1,name:'Hayalet Kadırga',english:'The Phantom Galleon',asset:'/assets/elite-phantom-art-v22.webp',role:'Kaçış'},
+{id:'magma',level:2,name:'Volkanik Dreadnought',english:'Volcanic Dreadnought',asset:'/assets/elite-magma-art-v22.webp',role:'Alan hasarı'},
+{id:'glacial',level:3,name:'Buzul Tiranı',english:'Glacial Tyrant',asset:'/assets/elite-glacial-art-v22.webp',role:'Kontrol'},
+{id:'kraken',level:4,name:"Kraken'in Gazabı",english:"Kraken's Embrace",asset:'/assets/elite-kraken-art-v22.webp',role:'Yakalama'},
+{id:'ironclad',level:5,name:'Veba Kadırgası',english:'Plague Galley',asset:'/assets/elite-ironclad-art-v22.webp',role:'Tank'},
 {id:'crimson',level:6,name:'Kanlı Ay Korveti',english:'Crimson Moon Corsair',asset:'/assets/elite-crimson-art-v3.webp',role:'Can emme'},
 {id:'atlantean',level:7,name:'Kadim Atlantis Muhafızı',english:'Atlantean Sentry',asset:'/assets/elite-atlantean-art-v3.webp',role:'Koruma'},
 {id:'bone',level:8,name:'Kemik Biçici',english:'Bone Harvester',asset:'/assets/elite-bone-art-v3.webp',role:'İnfaz'},
@@ -27,4 +27,4 @@ export const ELITE_SHIPS:EliteShip[]=[
 export const eliteById=(id:string)=>ELITE_SHIPS.find(ship=>ship.id===id)??ELITE_SHIPS[0];
 // Seafight usulü 4 çapraz görünüş: her elit için yan yana 512 px kareler, sıra KD, GD, GB, KB.
 // Elitler merdiven hareketiyle (iso-move isoAdvance) gider.
-export const ELITE_ISO:Record<EliteShipId,string>={phantom:'/assets/elite-phantom-iso-v21.webp',magma:'/assets/elite-magma-iso-v21.webp',glacial:'/assets/elite-glacial-iso-v21.webp',kraken:'/assets/elite-kraken-iso-v21.webp',ironclad:'/assets/elite-ironclad-iso-v21.webp',crimson:'/assets/elite-crimson-iso-v1.webp',atlantean:'/assets/elite-atlantean-iso-v1.webp',bone:'/assets/elite-bone-iso-v1.webp',tempest:'/assets/elite-tempest-iso-v1.webp',sovereign:'/assets/elite-sovereign-iso-v1.webp',jade:'/assets/elite-jade-iso-v1.webp',ragnarok:'/assets/elite-ragnarok-iso-v1.webp',void:'/assets/elite-void-iso-v1.webp',coral:'/assets/elite-coral-iso-v1.webp',sand:'/assets/elite-sand-iso-v1.webp'};
+export const ELITE_ISO:Record<EliteShipId,string>={phantom:'/assets/elite-phantom-iso-v22.webp',magma:'/assets/elite-magma-iso-v22.webp',glacial:'/assets/elite-glacial-iso-v22.webp',kraken:'/assets/elite-kraken-iso-v22.webp',ironclad:'/assets/elite-ironclad-iso-v22.webp',crimson:'/assets/elite-crimson-iso-v1.webp',atlantean:'/assets/elite-atlantean-iso-v1.webp',bone:'/assets/elite-bone-iso-v1.webp',tempest:'/assets/elite-tempest-iso-v1.webp',sovereign:'/assets/elite-sovereign-iso-v1.webp',jade:'/assets/elite-jade-iso-v1.webp',ragnarok:'/assets/elite-ragnarok-iso-v1.webp',void:'/assets/elite-void-iso-v1.webp',coral:'/assets/elite-coral-iso-v1.webp',sand:'/assets/elite-sand-iso-v1.webp'};
