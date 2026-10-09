@@ -1376,7 +1376,7 @@ const isoFace={east:false,north:false};let isoMove:IsoMove|null=null;
 // Bütün gemiler (başlangıç gemisi dahil) Seafight usulü 4 çaprazda merdiven hareketiyle gider
 const isoShip=()=>true;
 const isoIndex=()=>isoFace.north?(isoFace.east?0:3):(isoFace.east?1:2);
-function update(dt:number){
+function update(dt:number){{const rc=document.getElementById('recenterShip');if(rc){const away=!!freeLook&&dist(freeLook,player)>60;if(rc.classList.contains('show')!==away)rc.classList.toggle('show',away);}}
     // W-A-S-D (ve oklar) gemiyi yürütmez: gemi yerinde kalırken harita kayar, oyuncu tıklayacağı yeri önceden görür. V gemiye geri ortalar.
     {const px=(held('right','arrowright')?1:0)-(held('left','arrowleft')?1:0),py=(held('back','arrowdown')?1:0)-(held('forward','arrowup')?1:0);
       if(px||py){const base=freeLook??camera,n=Math.hypot(px,py),v=520*dt/camera.zoom;lookAt(base.x+px/n*v,base.y+py/n*v);}
