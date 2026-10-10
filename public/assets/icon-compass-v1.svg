@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="b" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#ffe7a6"/><stop offset=".45" stop-color="#d49a3a"/><stop offset="1" stop-color="#6a3c12"/></radialGradient>
+<radialGradient id="f" cx="45%" cy="40%" r="65%"><stop offset="0" stop-color="#f8edd2"/><stop offset="1" stop-color="#c9b48a"/></radialGradient>
+</defs>
+<circle cx="64" cy="66" r="54" fill="#2a1608" opacity=".55"/>
+<circle cx="64" cy="62" r="54" fill="url(#b)" stroke="#3a1e08" stroke-width="3"/>
+<rect x="56" y="2" width="16" height="12" rx="4" fill="url(#b)" stroke="#3a1e08" stroke-width="2.5"/>
+<circle cx="64" cy="62" r="42" fill="url(#f)" stroke="#5a3410" stroke-width="3"/>
+<g stroke="#6a4a24" stroke-width="2"><path d="M64 24v8M64 92v8M26 62h8M94 62h8"/><path d="M37 35l5 5M86 84l5 5M91 35l-5 5M42 84l-5 5" stroke-width="1.5"/></g>
+<path d="M64 26 L73 62 L64 58 L55 62 Z" fill="#c0392b" stroke="#5a1a10" stroke-width="1.5"/>
+<path d="M64 98 L55 62 L64 66 L73 62 Z" fill="#2c3e50" stroke="#101820" stroke-width="1.5"/>
+<circle cx="64" cy="62" r="5" fill="#d49a3a" stroke="#3a1e08" stroke-width="2"/>
+<text x="64" y="23" font-family="Georgia,serif" font-size="11" font-weight="700" fill="#5a1a10" text-anchor="middle">K</text>
+</svg>
