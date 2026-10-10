@@ -30,7 +30,7 @@ export const tierOf=(key:MapKey)=>Number(key.split('/')[0]);
 // Seviye atlamak için gereken tecrübe (TP); seviye yalnızca TP ile atlanır, her seviyede sayaç sıfırlanır.
 // LEVEL_XP[n] = n → n+1. Offline model: ~140 active hours, 10h/day, 8h quests.
 // See tools/simulate-leveling.cjs for loadout/travel assumptions and sensitivity checks.
-export const LEVEL_XP=[0,74000,242000,753000,2054000,4363000,6161000,10542000];
+export const LEVEL_XP=[0,10000,42000,753000,2054000,4363000,6161000,10542000];
 export const xpNeed=(level:number)=>level>=MAX_LEVEL?Infinity:LEVEL_XP[level];
 
 type Theme={name:string;sea:[string,string];tint:string;look:IslandLook;fleet:FleetTheme;label:string};

@@ -45,8 +45,10 @@ export const REPAIR_PER_SEC=1500,REPAIR_BONUS_CAP=1.7;
 export const repairAmount=(mult:number)=>Math.round(REPAIR_PER_SEC*Math.min(REPAIR_BONUS_CAP,Math.max(1,mult)));
 // Elit sınıf (1–15) yalnızca elit puanla (EP) yükselir. Eşikler toplam EP'dir ve her basamak bir öncekinden pahalıdır.
 // Toplam EP eşikleri. Elit 15: 3,6 milyon EP; hedef bazlı tüketim modeli tools/simulate-economy.cjs içinde.
-export const ELITE_EP=[0,0,25000,65000,130000,230000,360000,530000,750000,1020000,1360000,1780000,2300000,2950000,3850000,5000000].map(n=>Math.round(n*ELITE_THRESHOLD_SCALE));
+export const ELITE_EP=[0,0,7000,30000,80000,200000,360000,530000,750000,1020000,1360000,1780000,2300000,2950000,3850000,5000000].map(n=>Math.round(n*ELITE_THRESHOLD_SCALE));
 export const ELITE_MAX_LEVEL=15;
+// Gülle dışında EP yalnızca görev ve bossdan gelir (NPC/canavar EP vermez): emek isteyen küçük bir ücretsiz kaynak
+export const questEp=(tier:number)=>20*tier,bossEp=(tier:number)=>500*tier;
 export const eliteLevelEp=(level:number)=>ELITE_EP[Math.max(1,Math.min(ELITE_MAX_LEVEL,level))];
 export const eliteLevelFromEp=(ep:number)=>{let l=1;while(l<ELITE_MAX_LEVEL&&ep>=eliteLevelEp(l+1))l++;return l;};
 export const MINE={armSeconds:1,triggerRadius:46,blastRadius:95,baseDamage:4000,damagePerLevel:400,maxActive:5,icon:'/assets/icon-mine-v2.webp'};
