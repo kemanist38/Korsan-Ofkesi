@@ -391,3 +391,6 @@ h3.pearl-title{color:#f3d496!important;border-color:#9e513b66!important}
 .day-event em{color:#ffb35c!important}
 #captainLevel{background:radial-gradient(circle at 40% 35%,#6a3a1c,#2a140a)!important}
 .officer footer button:disabled{background:#2a2022!important;border-color:#5a4440!important;color:#9a8a80!important}
+/* Soluk savaş butonu: saldırı sürerken SALDIR, gövde tamken TAMİR */
+.combat-controls .combat-action.active{box-shadow:none!important}
+.combat-controls .combat-action.dim{opacity:.45;filter:grayscale(.7) brightness(.85);transition:opacity .2s,filter .2s}
