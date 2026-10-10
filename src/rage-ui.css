@@ -366,3 +366,10 @@ body.touch-ui .slot-bar,body.touch-ui #ammoPicker{display:none!important}
 @keyframes luFade{0%,82%{opacity:1}100%{opacity:0}}
 .lu-card p.lu-gift{display:flex;align-items:center;gap:6px;margin-top:4px;color:#ffd36a;font-weight:700}
 .lu-card p.lu-gift img{width:24px;height:24px;object-fit:contain}
+/* Seviye görevi hazır: TP çubuğu altın renkte yanar */
+.status-line.xp-line.lq-ready em{background:linear-gradient(90deg,#c98a1c,#ffe08a,#c98a1c)!important;animation:lqGlow 1.4s ease-in-out infinite}
+.status-line.xp-line.lq-ready b{color:#ffe08a!important}
+@keyframes lqGlow{50%{filter:brightness(1.35)}}
+.quest-entry.level-quest{border-color:#e0b05a!important;background:linear-gradient(110deg,#3a2614,#171519)!important}
+.quest-entry.level-quest .quest-number{color:#ffd36a}
+.quest-entry.level-quest b{display:block;margin-top:4px;color:#ffd36a;font:700 11px Inter,sans-serif}
