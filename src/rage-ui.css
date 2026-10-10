@@ -394,3 +394,18 @@ h3.pearl-title{color:#f3d496!important;border-color:#9e513b66!important}
 /* Soluk savaş butonu: saldırı sürerken SALDIR, gövde tamken TAMİR */
 .combat-controls .combat-action.active{box-shadow:none!important}
 .combat-controls .combat-action.dim{opacity:.45;filter:grayscale(.7) brightness(.85);transition:opacity .2s,filter .2s}
+.sound-row{flex-wrap:wrap;gap:10px 16px}
+/* Batırılınca kısa yazı */
+.sunk-banner{position:fixed;left:50%;top:32%;z-index:120;transform:translate(-50%,-50%);padding:10px 22px;border:1px solid #b5463a;border-radius:8px;background:linear-gradient(#3a1410ee,#1a0a0aee);color:#f3d6c0;font:600 16px Inter,sans-serif;white-space:nowrap;pointer-events:none;opacity:0;box-shadow:0 8px 24px #000a}
+.sunk-banner b{color:#ff8a6a;font:700 17px Cinzel,serif}
+.sunk-banner.show{animation:sunkIn 3.5s ease forwards}
+@keyframes sunkIn{0%{opacity:0;transform:translate(-50%,-40%)}10%,80%{opacity:1;transform:translate(-50%,-50%)}100%{opacity:0;transform:translate(-50%,-50%)}}
+/* Sıralama: ilk 3 altın / gümüş / bronz */
+.rank-row.top1,.rank-row.top2,.rank-row.top3{border-width:1px;border-style:solid}
+.rank-row.top1{border-color:#e8c05a!important;background:linear-gradient(90deg,#4a3410,#1c1514 60%)!important;box-shadow:inset 3px 0 0 #ffd36a}
+.rank-row.top2{border-color:#c9ccd6!important;background:linear-gradient(90deg,#3a3c44,#1c1716 60%)!important;box-shadow:inset 3px 0 0 #e4e7ef}
+.rank-row.top3{border-color:#c7834a!important;background:linear-gradient(90deg,#43281a,#1c1514 60%)!important;box-shadow:inset 3px 0 0 #e09a5e}
+.rank-row.top1>b,.rank-row.top2>b,.rank-row.top3>b{display:grid;place-items:center;width:28px;height:28px;margin:auto;border-radius:50%;color:#2a1608!important;font:900 14px Cinzel,serif;box-shadow:0 0 0 2px #0006,0 2px 6px #000a}
+.rank-row.top1>b{background:radial-gradient(circle at 35% 30%,#fff3c0,#e8b43a 55%,#9a6a14)}
+.rank-row.top2>b{background:radial-gradient(circle at 35% 30%,#ffffff,#c4c8d2 55%,#7a7e88)}
+.rank-row.top3>b{background:radial-gradient(circle at 35% 30%,#ffd9b0,#c7834a 55%,#7a4420)}

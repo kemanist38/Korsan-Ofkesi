@@ -6,8 +6,9 @@ import {SFX_VARIANTS} from './sfxManifest';
 export type CannonSound='cast'|'long'|'rapid'|'heavy';
 export type AmmoSound='iron'|'chain'|'fire'|'grape'|'explosive'|'breaker'|'leech';
 
-let ctx:AudioContext|null=null,master:GainNode|null=null,noiseBuffer:AudioBuffer|null=null;
-let enabled=true,volume=.7;
+// master: efekt sesleri (ses düzeyi = efekt düzeyi); musicBus: müzik ve deniz ortam sesi (ayrı düzey)
+let ctx:AudioContext|null=null,master:GainNode|null=null,musicBus:GainNode|null=null,noiseBuffer:AudioBuffer|null=null;
+let enabled=true,volume=.7,musicVolume=.7;
 const lastPlayed=new Map<string,number>();
 
 function audio(){
@@ -16,13 +17,14 @@ function audio(){
     const AC=window.AudioContext||(window as unknown as {webkitAudioContext:typeof AudioContext}).webkitAudioContext;if(!AC)return null;
     ctx=new AC();const comp=ctx.createDynamicsCompressor();comp.threshold.value=-8;comp.ratio.value=3;comp.attack.value=.003;comp.release.value=.25;
     master=ctx.createGain();master.gain.value=volume;master.connect(comp);comp.connect(ctx.destination);
+    musicBus=ctx.createGain();musicBus.gain.value=musicVolume;musicBus.connect(comp);
     noiseBuffer=ctx.createBuffer(1,ctx.sampleRate*2,ctx.sampleRate);const d=noiseBuffer.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
     loadSamples(ctx);startAmbient(ctx);
   }
   if(ctx.state==='suspended')void ctx.resume();
   return ctx;
 }
-export function setAudio(on:boolean,vol:number){enabled=on;volume=vol;if(master&&ctx)master.gain.setTargetAtTime(on?vol:0,ctx.currentTime,.05);}
+export function setAudio(on:boolean,vol:number,musicVol=musicVolume){enabled=on;volume=vol;musicVolume=musicVol;if(master&&ctx)master.gain.setTargetAtTime(on?vol:0,ctx.currentTime,.05);if(musicBus&&ctx)musicBus.gain.setTargetAtTime(on?musicVol:0,ctx.currentTime,.05);}
 // Tarayıcılar sesi ilk kullanıcı etkileşiminden sonra açar.
 export function unlockAudio(){audio();}
 // ---- örnek (sample) çalar
@@ -104,7 +106,8 @@ export function playEnemyCannon(distance:number,pan=0){
 // İsabet, patlama, altın, rüzgâr, kalkan ve suya düşme sesleri kullanılmıyor (oyun bu anlarda sessiz kalır).
 export function playHit(_heavy=false){}
 export function playExplosion(_big=true){}
-export function playCoins(){}
+// İnci, sandık ve satın almada para sesi
+export function playCoins(){const c=audio();if(!c||throttle('coins',120))return;sample('coins',{gain:.55});}
 export function playShield(){}
 export function playSplash(_gain=1){}
 export function playLevelUp(){
@@ -131,7 +134,7 @@ export function playBossMusic(tier:number){
   musicWanted=tier;const c=audio();if(!c||!master)return;if(music?.tier===tier)return;stopBossMusic(true);musicWanted=tier;
   void musicBuffer(c,tier).then(buf=>{if(!buf||musicWanted!==tier||music?.tier===tier||!master)return;
     const src=c.createBufferSource();src.buffer=buf;src.loop=true;const g=c.createGain();g.gain.setValueAtTime(0,c.currentTime);g.gain.linearRampToValueAtTime(.42,c.currentTime+2.5);
-    src.connect(g);g.connect(master);src.start(c.currentTime+.05);music={src,gain:g,tier};});
+    src.connect(g);g.connect(musicBus??master);src.start(c.currentTime+.05);music={src,gain:g,tier};});
 }
 export function stopBossMusic(keepWanted=false){
   if(!keepWanted)musicWanted=null;if(!music||!ctx)return;const {src,gain}=music,t=ctx.currentTime;music=null;
@@ -142,7 +145,7 @@ export function playBossHorn(){audio();sample('boss-horn',{gain:1.1,jitter:0});}
 function startAmbient(c:AudioContext){
   fetch('/assets/music/sea-ambient.mp3').then(r=>r.arrayBuffer()).then(b=>c.decodeAudioData(b)).then(buf=>{if(!master)return;
     const src=c.createBufferSource();src.buffer=buf;src.loop=true;const g=c.createGain();g.gain.setValueAtTime(0,c.currentTime);g.gain.linearRampToValueAtTime(.35,c.currentTime+2);
-    src.connect(g);g.connect(master);src.start();}).catch(()=>{});
+    src.connect(g);g.connect(musicBus??master);src.start();}).catch(()=>{});
 }
 // Hız iksiri: önce içme sesi, hemen ardından yıldız tozu hızlanma sesi
 export function playSpeed(){const c=audio();if(!c||throttle('speed',300))return;sample('speed',{gain:.7,jitter:0});sample('speed-boost',{gain:.75,jitter:0,delay:.45});}

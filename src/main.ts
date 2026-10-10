@@ -288,7 +288,7 @@ let mapFade=0;
 // Retina ekranlarda çizim yoğunluğu 1,5× ile sınırlı: piksel yükü 2×'e göre %44 daha az, görüntü yine keskin
 function resize(){ const d=Math.min(devicePixelRatio,1.5); canvas.width=innerWidth*d; canvas.height=innerHeight*d; ctx.setTransform(d,0,0,d,0,0); }
 addEventListener('resize',resize); resize();
-const settings=loadSettings();setAudio(settings.sound,settings.volume);
+const settings=loadSettings();setAudio(settings.sound,settings.volume,settings.music);
 let rebinding:ActionId|null=null;
 const held=(action:ActionId,...extra:string[])=>keys.has(settings.binds[action])||extra.some(k=>keys.has(k));
 function closeAllOverlays(){ui('menuOverlay').classList.remove('open');closeMentorship();closePearlShop();closeWorldMap();closeQuestLog();closeEliteShips();closeShipMenu();closeMarket();closeCaptainProfile();closeDevelopment();closeCrew();closeGuild();closeSettings();closeLoadout();}
@@ -786,6 +786,17 @@ function enemyFire(e:Enemy){
 }
 function monsterFire(m:Monster){const a=Math.atan2(player.y-m.y,player.x-m.x);playSplash();for(const off of m.def.tier>=5?[-.12,0,.12]:[0])shots.push({x:m.x,y:m.y,vx:Math.cos(a+off)*210,vy:Math.sin(a+off)*210,life:2.4,owner:'enemy',damage:m.def.damage*(.85+Math.random()*.3),hit:false,ammo:'iron',visual:'spit'});m.cooldown=m.def.reload;}
 // Batınca bulunduğun denizde, düşmanlardan uzak rastgele bir noktada %10 gövdeyle yeniden doğ.
+// Batınca kısa yazı: kimin batırdığı (oyuncu gülleleri kaptanı taşır; diğerlerinde en yakın saldıran düşman)
+function killerNear(){let best='',bd=Infinity;
+  for(const e of enemies)if(e.aggro||e.tower){const d=dist(e,player);if(d<bd){bd=d;best=e.name;}}
+  for(const m of monsters)if(m.aggro){const d=dist(m,player);if(d<bd){bd=d;best=m.name;}}
+  return best||'düşman';}
+let sunkTimer=0;
+function showSunkBy(name:string){
+  let el=document.getElementById('sunkBanner');if(!el){el=document.createElement('div');el.id='sunkBanner';el.className='sunk-banner';document.body.append(el);}
+  el.innerHTML=`<b>${name}</b> tarafından batırıldın`;el.classList.remove('show');void el.offsetWidth;el.classList.add('show');
+  clearTimeout(sunkTimer);sunkTimer=window.setTimeout(()=>el!.classList.remove('show'),3500);
+}
 function respawn(){
   if(siege){siegeRespawn();return;}
   const deathMap=currentMap;
@@ -849,7 +860,7 @@ function cooldownText(until:number){const minutes=Math.max(1,Math.ceil((until-Da
 let pendingUpgrade:UpgradeKind|null=null;
 function upgradeCost(kind:UpgradeKind){return Math.round(UPGRADES[kind].pearls*UPGRADE_PRICE_MULTIPLIER*(1+upgrades[kind]*.55));}
 function upgradeIcon(kind:UpgradeKind){return `<i class="sprite icon-${kind}"></i>`;}
-function openShipMenu(){pendingUpgrade=null;renderShipMenu();ui('shipOverlay').classList.add('open');}
+function openShipMenu(){pendingUpgrade=null;invSelected=state.cannonType;renderShipMenu();ui('shipOverlay').classList.add('open');}
 function closeShipMenu(){pendingUpgrade=null;ui('shipOverlay').classList.remove('open');}
 // Envanter (Seafight tarzı): solda depo, sağda gemi ızgarası; küçük top simgeleri adetleriyle durur.
 // Simgeye dokunup adet yazılır, oklarla taşınır; ya da simge öteki tarafa sürüklenir (sağa: gemiye, sola: depoya).
@@ -1295,10 +1306,11 @@ function closeSettings(){rebinding=null;ui('settingsOverlay').classList.remove('
 function refreshBindHints(){document.querySelectorAll<HTMLElement>('[data-bind]').forEach(el=>{el.textContent=keyLabel(settings.binds[el.dataset.bind as ActionId]);});}
 function renderSettings(){
   const groups=[...new Set(ACTIONS.map(a=>a.group))];
-  ui('settingsPanel').innerHTML=`<section class="settings-block"><h3>SES</h3><div class="sound-row"><button id="soundToggle" class="${settings.sound?'on':''}">${settings.sound?'SES AÇIK':'SES KAPALI'}</button><label>Ses düzeyi<input id="soundVolume" type="range" min="0" max="100" value="${Math.round(settings.volume*100)}" ${settings.sound?'':'disabled'}/></label></div></section><section class="settings-block"><h3>GÖRÜNÜM</h3><label class="settings-check"><input type="checkbox" id="hideOthersInsignia" ${settings.hideOthersInsignia?'checked':''}/><span>Diğer oyuncuların güverte işaretlerini ve rütbe rozetlerini gizle</span></label></section>
+  ui('settingsPanel').innerHTML=`<section class="settings-block"><h3>SES</h3><div class="sound-row"><button id="soundToggle" class="${settings.sound?'on':''}">${settings.sound?'SES AÇIK':'SES KAPALI'}</button><label>Efekt sesi<input id="soundVolume" type="range" min="0" max="100" value="${Math.round(settings.volume*100)}" ${settings.sound?'':'disabled'}/></label><label>Müzik sesi<input id="musicVolume" type="range" min="0" max="100" value="${Math.round(settings.music*100)}" ${settings.sound?'':'disabled'}/></label></div></section><section class="settings-block"><h3>GÖRÜNÜM</h3><label class="settings-check"><input type="checkbox" id="hideOthersInsignia" ${settings.hideOthersInsignia?'checked':''}/><span>Diğer oyuncuların güverte işaretlerini ve rütbe rozetlerini gizle</span></label></section>
   <section class="settings-block keybinds-block"><h3>KLAVYE KISAYOLLARI <button id="resetBinds">VARSAYILANA DÖN</button></h3><p>Değiştirmek istediğin eyleme tıkla, sonra yeni tuşa bas. ESC iptal eder. Ok tuşları her zaman haritayı kaydırmak için de çalışır.</p>${groups.map(g=>`<h4>${g}</h4><div class="bind-grid">${ACTIONS.filter(a=>a.group===g).map(a=>`<button class="bind ${rebinding===a.id?'listening':''}" data-rebind="${a.id}"><span>${a.label}</span><kbd>${rebinding===a.id?'TUŞA BAS…':keyLabel(settings.binds[a.id])}</kbd></button>`).join('')}</div>`).join('')}</section>`;
-  ui('soundToggle').onclick=()=>{settings.sound=!settings.sound;setAudio(settings.sound,settings.volume);saveSettings(settings);renderSettings();};
-  (ui('soundVolume') as HTMLInputElement).oninput=e=>{settings.volume=Number((e.target as HTMLInputElement).value)/100;setAudio(settings.sound,settings.volume);saveSettings(settings);};
+  ui('soundToggle').onclick=()=>{settings.sound=!settings.sound;setAudio(settings.sound,settings.volume,settings.music);saveSettings(settings);renderSettings();};
+  (ui('soundVolume') as HTMLInputElement).oninput=e=>{settings.volume=Number((e.target as HTMLInputElement).value)/100;setAudio(settings.sound,settings.volume,settings.music);saveSettings(settings);};
+  (ui('musicVolume') as HTMLInputElement).oninput=e=>{settings.music=Number((e.target as HTMLInputElement).value)/100;setAudio(settings.sound,settings.volume,settings.music);saveSettings(settings);};
   (ui('hideOthersInsignia') as HTMLInputElement).onchange=e=>{settings.hideOthersInsignia=(e.target as HTMLInputElement).checked;saveSettings(settings);};
   ui('resetBinds').onclick=()=>{settings.binds={...DEFAULT_BINDS};saveSettings(settings);renderQuickSlots();refreshBindHints();renderSettings();toast('Kısayollar varsayılana döndü');};
   document.querySelectorAll<HTMLButtonElement>('[data-rebind]').forEach(b=>b.onclick=()=>{rebinding=b.dataset.rebind as ActionId;renderSettings();});
@@ -1533,7 +1545,8 @@ function update(dt:number){{const rc=document.getElementById('recenterShip');if(
       if(s.captain&&s.ammo==='leech'&&enemies.includes(s.captain)){const c=s.captain,h=leechHeal(taken,true,c.maxHp);if(h>0){c.hp=Math.min(c.maxHp,c.hp+h);spawnSoul(player,c);}}
       }
       if(state.hp<=0){
-        respawn();
+        const killer=s.captain?.name??killerNear();
+        respawn();showSunkBy(killer);
         // Respawn empties shots. Stop reading this volley, then finish UI/draw normally.
         break;
       }
@@ -1929,7 +1942,7 @@ function updateLootChests(dt:number){
 // Deniz pırıltıları (Seafight tarzı): denizde parlayan inciler; üzerinden geçince küçük ödül verir, yenisi rastgele yerde çıkar.
 function spawnSparkle(){const p=randomSeaPoint(200);sparkles.push({x:p.x,y:p.y,seed:Math.random(),born:performance.now()});}
 function updateSparkles(dt:number){
-  for(let i=sparkles.length-1;i>=0;i--){const g=sparkles[i];if(dist(g,player)>SPARKLE_PICKUP)continue;sparkles.splice(i,1);
+  for(let i=sparkles.length-1;i>=0;i--){const g=sparkles[i];if(dist(g,player)>SPARKLE_PICKUP)continue;sparkles.splice(i,1);playCoins();
     const loot=1,light=NPCS[mapDef().npcs[0]],gold=Math.max(1,Math.round(light.gold*(.1+Math.random()*.1)*loot*goldMult())),xp=Math.max(1,Math.round(light.xp*.15)),pearl=Math.random()<.2?1:0;
     state.gold+=gold;state.fame+=xp;state.pearls+=pearl;recordQuestProgress('sparkle',currentMap);saveAccount();playCoins();
     for(let n=0;n<8;n++){const a=Math.random()*Math.PI*2,sp=30+Math.random()*50;particles.push({x:g.x,y:g.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:.5,maxLife:.5,kind:'foam'});}
@@ -2237,4 +2250,4 @@ let last=performance.now();function loop(now:number){const dt=Math.min(.033,(now
   const hide=()=>{if(done)return;done=true;setTimeout(()=>{splash.classList.add('gone');setTimeout(()=>splash.remove(),700);},Math.max(0,2000-(performance.now()-shown)));};
   if(document.readyState==='complete')hide();else window.addEventListener('load',hide);setTimeout(hide,6000);}}
 // Yalnızca geliştirme sunucusunda: tarayıcı testleri için durum erişimi.
-if(import.meta.env.DEV)(window as any).__ky={isoFace,levelUp:showLevelUp,setLevel:(l:number,f:number)=>{state.level=l;state.fame=f;levelQuest=loadLevelQuest(l);levelQuestNoticed=false;},lqKill:(k:"npc"|"monster",id:string,t:number)=>levelQuestHit(k,id,t),range:()=>effectiveRange(),spawnBoss:()=>spawnBoss(),elite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;},rage:()=>{rage.meter=RAGE_MAX;activateRage();},get rageState(){return rage;},treasure,rollTreasurePart,manual:(on:boolean)=>{manualClock=on;},step:(dt:number)=>{update(dt);draw();},noFade:()=>{mapFade=0;},cinematic,makeShip,NPCS,MONSTERS,state,player,camera,enemies,monsters,respawn,enterMap,mapDef,fleetOwner,lootChests,sparkles,sinkEnemy,burst,splashAt,enterSiege,leaveSiege,get siege(){return siege;},shots,particles,wrecks,select:(t:Target)=>{selected=t;state.attacking=true;},ammo:(id:AmmoKind)=>{state.ammo=id;renderQuickSlots();},potion:()=>activateAbility('speed'),setElite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;fitCannonsToCapacity();},route:(v:Vec)=>{routeTarget=navigablePoint(v);destination=routeVia(routeTarget);},fleetNav,get routeTarget(){return routeTarget;},get selected(){return selected;},get destination(){return destination;}};
+if(import.meta.env.DEV)(window as any).__ky={isoFace,levelUp:showLevelUp,sunk:showSunkBy,setLevel:(l:number,f:number)=>{state.level=l;state.fame=f;levelQuest=loadLevelQuest(l);levelQuestNoticed=false;},lqKill:(k:"npc"|"monster",id:string,t:number)=>levelQuestHit(k,id,t),range:()=>effectiveRange(),spawnBoss:()=>spawnBoss(),elite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;},rage:()=>{rage.meter=RAGE_MAX;activateRage();},get rageState(){return rage;},treasure,rollTreasurePart,manual:(on:boolean)=>{manualClock=on;},step:(dt:number)=>{update(dt);draw();},noFade:()=>{mapFade=0;},cinematic,makeShip,NPCS,MONSTERS,state,player,camera,enemies,monsters,respawn,enterMap,mapDef,fleetOwner,lootChests,sparkles,sinkEnemy,burst,splashAt,enterSiege,leaveSiege,get siege(){return siege;},shots,particles,wrecks,select:(t:Target)=>{selected=t;state.attacking=true;},ammo:(id:AmmoKind)=>{state.ammo=id;renderQuickSlots();},potion:()=>activateAbility('speed'),setElite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;fitCannonsToCapacity();},route:(v:Vec)=>{routeTarget=navigablePoint(v);destination=routeVia(routeTarget);},fleetNav,get routeTarget(){return routeTarget;},get selected(){return selected;},get destination(){return destination;}};
