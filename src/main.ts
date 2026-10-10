@@ -1053,7 +1053,7 @@ function renderMarket(){
 function openSupply(){renderSupply();ui('supplyOverlay').classList.add('open');}
 function closeSupply(){ui('supplyOverlay').classList.remove('open');}
 function renderSupply(){
-  renderBuyRows('supplyList',(Object.keys(SUPPLY_PRICES) as SupplyId[]).map(id=>({id,name:QUICK_ITEMS[id].name,art:`<div class="ammo-icon">${itemAsset(id)}<b>${arsenal[id]}</b></div>`,
+  renderBuyRows('supplyList',(Object.keys(SUPPLY_PRICES) as SupplyId[]).map(id=>({id,name:QUICK_ITEMS[id].name,art:`<div class="ammo-icon">${itemAsset(id)}<b>${fmt(arsenal[id])}</b></div>`,
     desc:QUICK_ITEMS[id].description,unit:SUPPLY_PRICES[id],give:(n:number)=>{arsenal[id]+=n;},after:renderSupply})));
 }
 let loadoutTab:'ammo'|'consumable'='ammo';

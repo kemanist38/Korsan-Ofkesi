@@ -373,3 +373,21 @@ body.touch-ui .slot-bar,body.touch-ui #ammoPicker{display:none!important}
 .quest-entry.level-quest{border-color:#e0b05a!important;background:linear-gradient(110deg,#3a2614,#171519)!important}
 .quest-entry.level-quest .quest-number{color:#ffd36a}
 .quest-entry.level-quest b{display:block;margin-top:4px;color:#ffd36a;font:700 11px Inter,sans-serif}
+/* Kalan eski turkuaz renkler → bordo / altın tema */
+.ammo-icon,.shop-window .ammo-icon{background:radial-gradient(circle at 50% 38%,#3b2a24,#1a1214 75%)!important;border-color:#8a5a3c88!important}
+.ammo-icon.equip-shop-art,.ammo-icon.cannon-shop-art{background:radial-gradient(circle at 50% 38%,#3b2a24,#1a1214 75%)!important}
+.inv-panel>header,.inv-window .inv-info>header,.inv-info>header{background:linear-gradient(#3a2620,#1c1315)!important}
+.vip-pack,.pearl-pack{background:radial-gradient(circle at 50% 25%,#3e2a22,#171215 72%)!important;border-color:#8a5a3c88!important}
+.pearl-pack.tagged{border-color:#e3b85e!important}
+.pearl-pack strong{color:#ffe7b0!important;border-color:transparent!important}
+h3.pearl-title{color:#f3d496!important;border-color:#9e513b66!important}
+.captain-identity small,.captain-nick small{color:#c9a46a!important}
+.bonus-summary,.settings-block{background:linear-gradient(110deg,#261c20,#171519)!important;border-color:#69443c!important}
+.bonus-summary b{background:#3a2620!important;color:#f0d9a8!important}
+.dev-tree .talent b em{color:#f3c76a!important;border-color:#8a5a3c!important}
+.settings-block h3 button,.sound-row button,#resetBinds{background:#3a2620!important;border-color:#a8763f!important;color:#f3d496!important}
+.officer footer button[data-officer-toggle]{background:linear-gradient(#5a3a1c,#2e1c0c)!important;border-color:#c69b4e88!important;color:#f6deb0!important}
+.day-event{background:linear-gradient(90deg,#2a1d0acc,#2a1a16cc 40%,#2a1a16cc 60%,#2a1d0acc)!important}
+.day-event em{color:#ffb35c!important}
+#captainLevel{background:radial-gradient(circle at 40% 35%,#6a3a1c,#2a140a)!important}
+.officer footer button:disabled{background:#2a2022!important;border-color:#5a4440!important;color:#9a8a80!important}
