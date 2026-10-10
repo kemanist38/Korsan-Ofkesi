@@ -6,7 +6,7 @@ export type ArsenalStock={fire:number;grape:number;mine:number;powder:number;shi
 export const ABILITIES:Record<AbilityId,{name:string;key:string;duration:number;cooldown:number;description:string;icon:string}>={
   // Hız İksiri: sayaçlı sarf malzemesi; her içişte 1 adet harcanır, etkisi sürerken yeniden içilemez
   speed:{name:'Hız İksiri',key:'Z',duration:4,cooldown:30,description:'İçince 4 saniye boyunca azami hız %55 artar; tekrar içmek için 30 saniye beklenir. Her kullanımda 1 adet harcar.',icon:'/assets/icon-speed-potion-v2.webp'},
-  mine:{name:'Deniz Mayını',key:'C',duration:40,cooldown:4,description:'Kıç tarafına mayın bırakır; yaklaşan düşmanlara alan hasarı verir.',icon:'/assets/icon-mine-v2.webp'}
+  mine:{name:'Deniz Mayını',key:'C',duration:40,cooldown:30,description:'Kıç tarafına mayın bırakır; yaklaşan düşmanlara alan hasarı verir. Yeni mayın için 30 saniye beklenir.',icon:'/assets/icon-mine-v2.webp'}
 };
 export const SPEED_BOOST=1.55;
 // Sarf malzemeleri (açık/kapalı): Kara Barut her salvoda 1 adet harcar ve hasarı %10 artırır;
