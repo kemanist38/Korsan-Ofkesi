@@ -1387,6 +1387,8 @@ function updateDots(){try{
 }catch{}}
 function updateUI(){
   updateDots();
+  // Saldırı sürerken SALDIR, gövde tamken (tamir yokken) TAMİR soluk görünür
+  ui('attack').classList.toggle('dim',state.attacking);ui('repair').classList.toggle('dim',!state.repairing&&state.hp>=effectiveMaxHp());
   ui('pearls').textContent=state.pearls<1000?String(state.pearls).padStart(3,'0'):fmt(state.pearls);ui('gold').textContent=state.gold<1000?String(state.gold).padStart(3,'0'):fmt(state.gold);
   if(TOUCH&&document.getElementById('mobMain')){const c=ui('mobMain').querySelector('b');if(c)c.textContent=quickCount(state.ammo);}document.querySelectorAll<HTMLElement>('.slot-bar [data-quick-item],#mobTray [data-quick-item]').forEach(slot=>{const item=slot.dataset.quickItem as QuickItemId;const count=slot.querySelector('b');if(count)count.textContent=quickCount(item);slot.classList.toggle('active',item===state.ammo||((item==='powder'||item==='shield')&&consumableOn[item]));});
   ui('hpText').textContent=`${Math.ceil(state.hp).toLocaleString('tr-TR')} / ${effectiveMaxHp().toLocaleString('tr-TR')}`; (ui('hpBar') as HTMLElement).style.width=`${state.hp/effectiveMaxHp()*100}%`;
