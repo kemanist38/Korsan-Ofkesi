@@ -1,7 +1,7 @@
 import {ELITE_THRESHOLD_SCALE} from './economy';
 // Özel yetenekler ve yeni mühimmatlar. Hesap kaydına dokunmamak için ayrı anahtarda saklanır.
 export type AbilityId='speed'|'mine';
-export type ArsenalStock={fire:number;grape:number;mine:number;powder:number;shield:number;speed:number;explosive:number;breaker:number;leech:number;seeded:boolean;seededV2:boolean;ballsV1:boolean};
+export type ArsenalStock={fire:number;grape:number;mine:number;powder:number;shield:number;speed:number;compass:number;explosive:number;breaker:number;leech:number;seeded:boolean;seededV2:boolean;ballsV1:boolean};
 
 export const ABILITIES:Record<AbilityId,{name:string;key:string;duration:number;cooldown:number;description:string;icon:string}>={
   // Hız İksiri: sayaçlı sarf malzemesi; her içişte 1 adet harcanır, etkisi sürerken yeniden içilemez
@@ -9,6 +9,9 @@ export const ABILITIES:Record<AbilityId,{name:string;key:string;duration:number;
   mine:{name:'Deniz Mayını',key:'C',duration:40,cooldown:30,description:'Kıç tarafına mayın bırakır; yaklaşan düşmanlara alan hasarı verir. Yeni mayın için 30 saniye beklenir.',icon:'/assets/icon-mine-v2.webp'}
 };
 export const SPEED_BOOST=1.55;
+// Görüş: mini haritada gemi çevresinde herkes için aynı sabit mesafe (bonuslarla değişmez); dışı sislidir.
+// Pusula: 1 adet harcar, 8 sn boyunca haritadaki bütün gemi ve canavarları gösterir; 20 sn'de bir kullanılır.
+export const VISION_RADIUS=900,COMPASS={reveal:8,cooldown:20,icon:'/assets/icon-compass-v1.svg'};
 // Sarf malzemeleri (açık/kapalı): Kara Barut her salvoda 1 adet harcar ve hasarı %10 artırır;
 // Kalkan her alınan isabette 1 adet harcar ve gelen hasarı %10 düşürür.
 export const CONSUMABLES={
@@ -64,13 +67,13 @@ export const AMMO_PRICES={chain:{amount:6,currency:'pearls',per:300},fire:{amoun
 export const EP_PER_PEARL=3.75;
 const epPerBall=(p:Price)=>Math.round(p.amount/(p.per??1)*EP_PER_PEARL*10_000)/10_000;
 export const ELITE_POINTS_PER_BALL={chain:epPerBall(AMMO_PRICES.chain),fire:epPerBall(AMMO_PRICES.fire),breaker:epPerBall(AMMO_PRICES.breaker),explosive:epPerBall(AMMO_PRICES.explosive),leech:epPerBall(AMMO_PRICES.leech)} as const;
-export const SUPPLY_PRICES={powder:{amount:3,currency:'gold'},shield:{amount:3,currency:'gold'},speed:{amount:2,currency:'pearls'},mine:{amount:5,currency:'pearls'}} as const satisfies Record<string,Price>;
+export const SUPPLY_PRICES={powder:{amount:3,currency:'gold'},shield:{amount:3,currency:'gold'},speed:{amount:2,currency:'pearls'},mine:{amount:5,currency:'pearls'},compass:{amount:1,currency:'pearls'}} as const satisfies Record<string,Price>;
 export type SupplyId=keyof typeof SUPPLY_PRICES;
 
 const STORAGE='yedi-deniz-arsenal-v1';
 export function loadArsenal():ArsenalStock{
-  try{const raw=JSON.parse(localStorage.getItem(STORAGE)||'null');const n=(v:unknown,d:number)=>v===undefined?d:Math.max(0,+(v as number)||0);if(raw)return{fire:n(raw.fire,0),grape:n(raw.grape,0),mine:n(raw.mine,0),powder:n(raw.powder,30),shield:n(raw.shield,30),speed:n(raw.speed,10),explosive:n(raw.explosive,10),breaker:n(raw.breaker,10),leech:n(raw.leech,10),seeded:!!raw.seeded,seededV2:!!raw.seededV2,ballsV1:!!raw.ballsV1};}catch{}
+  try{const raw=JSON.parse(localStorage.getItem(STORAGE)||'null');const n=(v:unknown,d:number)=>v===undefined?d:Math.max(0,+(v as number)||0);if(raw)return{fire:n(raw.fire,0),grape:n(raw.grape,0),mine:n(raw.mine,0),powder:n(raw.powder,30),shield:n(raw.shield,30),speed:n(raw.speed,10),compass:n(raw.compass,5),explosive:n(raw.explosive,10),breaker:n(raw.breaker,10),leech:n(raw.leech,10),seeded:!!raw.seeded,seededV2:!!raw.seededV2,ballsV1:!!raw.ballsV1};}catch{}
   // İlk açılışta tanıtım stoğu
-  return{fire:750,grape:750,mine:3,powder:30,shield:30,speed:10,explosive:500,breaker:500,leech:500,seeded:false,seededV2:false,ballsV1:true};
+  return{fire:750,grape:750,mine:3,powder:30,shield:30,speed:10,compass:5,explosive:500,breaker:500,leech:500,seeded:false,seededV2:false,ballsV1:true};
 }
 export function saveArsenal(stock:ArsenalStock){try{localStorage.setItem(STORAGE,JSON.stringify(stock));}catch{}}
