@@ -352,3 +352,17 @@ body.touch-ui .slot-bar,body.touch-ui #ammoPicker{display:none!important}
 .quick-slot .qtip{display:none!important}
 .qtip-float{position:fixed;z-index:150;display:none;flex-direction:column;align-items:center;gap:1px;padding:4px 9px;white-space:nowrap;border:1px solid #9e6a3b;border-radius:5px;background:#1d1214f2;color:#e9d6bd;font:600 10px Inter,sans-serif;pointer-events:none;transform:translate(-50%,-100%);box-shadow:0 4px 10px #000a}
 .qtip-float.show{display:flex}.qtip-float b{color:#f3d496;font:700 11px Cinzel,serif}
+/* Tam ekran seviye atlama kutlaması */
+.levelup-splash{position:fixed;inset:0;z-index:200;display:none;place-items:center;background:radial-gradient(circle,#3a1a0ccc 0%,#05080af0 70%);cursor:pointer;overflow:hidden}
+.levelup-splash.open{display:grid;animation:luFade 3.8s ease forwards}
+.lu-rays{position:absolute;left:50%;top:50%;width:160vmax;height:160vmax;margin:-80vmax 0 0 -80vmax;background:repeating-conic-gradient(#ffcf6a22 0 6deg,transparent 6deg 18deg);animation:luSpin 12s linear infinite;-webkit-mask:radial-gradient(circle,#000 0,transparent 45%);mask:radial-gradient(circle,#000 0,transparent 45%)}
+.lu-card{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;animation:luPop .7s cubic-bezier(.2,1.6,.4,1) both}
+.lu-badge{width:min(42vmin,260px);aspect-ratio:1;background:url(/assets/level-badges-v1.webp) no-repeat;background-size:800% 100%;filter:drop-shadow(0 0 24px #ffb43acc) drop-shadow(0 6px 10px #000)}
+.lu-card span{color:#ffcf6a;font:700 clamp(12px,2.4vmin,18px) Cinzel,serif;letter-spacing:.4em}
+.lu-card h2{margin:0;color:#fff1c9;font:900 clamp(34px,9vmin,72px) Cinzel,serif;letter-spacing:.08em;text-shadow:0 0 18px #ff9a2a,0 4px 6px #000}
+.lu-card p{margin:0;color:#e9d6bd;font:600 clamp(11px,2vmin,15px) Inter,sans-serif}
+@keyframes luPop{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes luSpin{to{transform:rotate(360deg)}}
+@keyframes luFade{0%,82%{opacity:1}100%{opacity:0}}
+.lu-card p.lu-gift{display:flex;align-items:center;gap:6px;margin-top:4px;color:#ffd36a;font-weight:700}
+.lu-card p.lu-gift img{width:24px;height:24px;object-fit:contain}

@@ -23,7 +23,7 @@ import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
 import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,claimReward,GRADUATE_LEVEL,MAX_APPRENTICES,TOGETHER_XP_BONUS} from './mentorship';
 import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
 import {loadLog,saveLog,addLog,daySummary,LOG_KINDS,type LogKind,type LogEntry} from './logbook';
-import {BALL_DAMAGE,CHAIN_FACTOR,CHAIN_SLOW,FIRE_NPC_FACTOR,EXPLOSIVE_PLAYER_FACTOR,leechHeal,repairAmount,ELITE_POINTS_PER_BALL,ELITE_MAX_LEVEL,eliteLevelEp,eliteLevelFromEp,ABILITIES,SPECIAL_AMMO,MINE,SPEED_BOOST,CONSUMABLES,AMMO_PRICES,SUPPLY_PRICES,loadArsenal,saveArsenal,type AbilityId,type SpecialAmmo,type ConsumableId,type SupplyId,type Price,priceOf} from './arsenal';
+import {BALL_DAMAGE,CHAIN_FACTOR,CHAIN_SLOW,FIRE_NPC_FACTOR,EXPLOSIVE_PLAYER_FACTOR,leechHeal,repairAmount,ELITE_POINTS_PER_BALL,ELITE_MAX_LEVEL,questEp,bossEp,eliteLevelEp,eliteLevelFromEp,ABILITIES,SPECIAL_AMMO,MINE,SPEED_BOOST,CONSUMABLES,AMMO_PRICES,SUPPLY_PRICES,loadArsenal,saveArsenal,type AbilityId,type SpecialAmmo,type ConsumableId,type SupplyId,type Price,priceOf} from './arsenal';
 import {loadFleetOwners,saveFleetOwners,loadRuins,markRuin,ruinLeft,ruinLabel,clearRuins} from './conquest';
 import {RIVAL_SP,battleRank,loadRivalLog,claimRivalSp,dayKey,RANK_SHEET,RANK_COLS,RANK_ICONS,rankIcon,BATTLE_RANKS} from './battle';
 import {setupChat} from './chat';
@@ -550,9 +550,9 @@ function bossFire(e:Enemy){
   if(enraged&&!e.escortsCalled){e.escortsCalled=true;const def=NPCS[mapDef().npcs[1]];for(let k=0;k<2;k++){const ship=makeShip(def,e.x+(k?70:-70),e.y+50,e.angle);ship.aggro=true;ship.combatTimer=20;ship.summoned=true;ship.name=`${e.name} Muhafızı`;enemies.push(ship);}toast(`${e.name} muhafızlarını çağırdı!`);}
 }
 function defeatBoss(e:Enemy){
-  const b=e.boss!;stopBossMusic();gainRage(rage,RAGE_PER_BOSS);state.fame+=xpGain(b.xp);bumpAch('boss');state.pearls+=b.pearls;bossOf(currentMap).pending=false;saveBosses();saveAccount();
+  const b=e.boss!;stopBossMusic();const bEp=bossEp(b.tier);gainElitePoints(bEp);gainRage(rage,RAGE_PER_BOSS);state.fame+=xpGain(b.xp);bumpAch('boss');state.pearls+=b.pearls;bossOf(currentMap).pending=false;saveBosses();saveAccount();
   for(let n=0;n<3;n++)setTimeout(()=>{burst(e.x+(Math.random()-.5)*80,e.y+(Math.random()-.5)*50,true);playExplosion();},n*260);
-  rewardNotice(`${b.name} batırıldı · +${fmt(b.xp)} TP · +${fmt(b.pearls)} inci kazanıldı`,'battle',{xp:b.xp,sink:true});
+  rewardNotice(`${b.name} batırıldı · +${fmt(b.xp)} TP · +${fmt(b.pearls)} inci · +${fmt(bEp)} EP kazanıldı`,'battle',{xp:b.xp,sink:true});
 }
 function populateMap(){
   stopBossMusic();abilityQueue.length=0;
@@ -757,6 +757,13 @@ function releaseSalvo(round:SalvoRound){
   playCannon(state.cannonType,round.ammo);
   muzzleFlash(x,y,Math.atan2(muzzle.y,muzzle.x));
 }
+// NPC ve canavar atış menzili: başlangıç topunun (Döküm 390) altında, oyuncu vuramadığı yerden hasar yemesin
+const NPC_FIRE_RANGE=360;
+// Güvenli haritalar dışında NPC, oyuncu menzile girince saldırır; oyuncu menzilden çıkınca birkaç saniye sonra vazgeçer
+function proximityAggro(u:{aggro:boolean;combatTimer:number},d:number){
+  if(d>=NPC_FIRE_RANGE||mapDef().safe||state.hp<=0||state.invulnerable>0)return;
+  if(!u.aggro){u.aggro=true;u.combatTimer=4;}else u.combatTimer=Math.max(u.combatTimer,4);
+}
 function enemyFire(e:Enemy){
   if(e.boss){bossFire(e);return;}
   const a=Math.atan2(player.y-e.y,player.x-e.x);playEnemyCannon(dist(e,player),(e.x-player.x)/600);
@@ -797,6 +804,10 @@ const MAX_WRECKS=24;
 const DMG_GOLD='#ffd23a',DMG_RED='#ff4a3a',DMG_BLUE='#5fb8ff';
 let playerSlow=0,repairClock=0;
 function healText(x:number,y:number,value:number){particles.push({x,y:y-14,vx:0,vy:-22,life:1.1,maxLife:1.1,kind:'damage',color:'#5ee07a',text:`+${Math.round(value).toLocaleString('tr-TR')}`});}
+function killRewardText(x:number,y:number,xp:number,gold:number){
+  particles.push({x,y:y-36,vx:0,vy:-18,life:1.8,maxLife:1.8,kind:'damage',color:'#c9a2ff',text:`+${fmt(xp)} TP`});
+  particles.push({x,y:y-14,vx:0,vy:-18,life:1.8,maxLife:1.8,kind:'damage',color:'#ffd36a',text:`+${fmt(gold)} Altın`});
+}
 function damageText(x:number,y:number,value:number,color=DMG_GOLD){particles.push({x,y,vx:0,vy:-24,life:1,maxLife:1,kind:'damage',color,text:`-${Math.round(value).toLocaleString('tr-TR')}`});}
 let toastTimer=0;
 function toast(msg:string){ui('toast').textContent=msg;ui('toast').classList.add('show');toastTimer=2.2;}
@@ -1338,15 +1349,17 @@ function recordQuestProgress(kind:QuestDef['kind'],id:string){
   if(!quest||quest.map!==currentMap||quest.kind!==kind||!quest.ids.includes(id))return;
   questProgress[quest.id]=(questProgress[quest.id]??0)+1;saveQuestState();
   if(questProgress[quest.id]<quest.required)return;
-  state.gold+=goldGainAch(quest.gold);state.fame+=xpGain(quest.xp);state.pearls+=quest.pearls;bumpAch('quest');
-  rewardNotice(`Görev tamamlandı: ${quest.title} · +${fmt(quest.gold)} altın · +${fmt(quest.pearls)} inci · +${fmt(quest.xp)} TP`,'gain',{xp:quest.xp,gold:quest.gold});
+  state.gold+=goldGainAch(quest.gold);state.fame+=xpGain(quest.xp);state.pearls+=quest.pearls;bumpAch('quest');const qEp=questEp(quest.tier);gainElitePoints(qEp);
+  rewardNotice(`Görev tamamlandı: ${quest.title} · +${fmt(quest.gold)} altın · +${fmt(quest.pearls)} inci · +${fmt(quest.xp)} TP · +${fmt(qEp)} EP`,'gain',{xp:quest.xp,gold:quest.gold});
   toast(`${quest.title} tamamlandı`);questProgress[quest.id]=0;questCooldownUntil[quest.id]=Date.now()+QUEST_COOLDOWN_MS;state.activeQuest=null;saveQuestState();saveAccount();
 }
+// Her seviye atlayışta küçük hediye: inci ve Ateş Güllesi (yeni seviyeyle büyür)
+const levelGift=(level:number)=>({pearls:50*level,fire:300*level});
 let levelUpTimer=0;
 function showLevelUp(level:number){
   let el=document.getElementById('levelUpSplash');
   if(!el){el=document.createElement('div');el.id='levelUpSplash';el.className='levelup-splash';document.body.append(el);el.onclick=()=>el!.classList.remove('open');}
-  el.innerHTML=`<div class="lu-rays"></div><div class="lu-card"><i class="lu-badge" style="background-position:${(Math.min(MAX_LEVEL,level)-1)/7*100}% 0"></i><span>YENİ SEVİYE</span><h2>SEVİYE ${level}</h2><p>+${HP_PER_LEVEL.toLocaleString('tr-TR')} gövde · +1 uzmanlık puanı · yeni denizler açıldı</p></div>`;
+  el.innerHTML=`<div class="lu-rays"></div><div class="lu-card"><i class="lu-badge" style="background-position:${(Math.min(MAX_LEVEL,level)-1)/7*100}% 0"></i><span>YENİ SEVİYE</span><h2>SEVİYE ${level}</h2><p>+${HP_PER_LEVEL.toLocaleString('tr-TR')} gövde · +1 uzmanlık puanı · yeni denizler açıldı</p><p class="lu-gift"><img src="/assets/icon-pearl-v1.webp" alt=""/>+${fmt(levelGift(level).pearls)} İnci <img src="/assets/ammo-fire-v2.webp" alt=""/>+${fmt(levelGift(level).fire)} Ateş Güllesi</p></div>`;
   el.classList.remove('open');void el.offsetWidth;el.classList.add('open');
   clearTimeout(levelUpTimer);levelUpTimer=window.setTimeout(()=>el!.classList.remove('open'),3800);
 }
@@ -1434,7 +1447,7 @@ function update(dt:number){{const rc=document.getElementById('recenterShip');if(
     const amt=repairAmount((1+upgrades.repair*.04)*bonus.repair*(1+eliteBonus().repair)),before=state.hp;
     state.hp=Math.min(effectiveMaxHp(),state.hp+amt);if(state.hp>before)healText(player.x,player.y,state.hp-before);
     if(state.hp>=effectiveMaxHp()){state.repairing=false;saveAccount();ui('repair').classList.remove('active');rewardNotice('Gövde tamamen onarıldı','none');}}}else repairClock=0;
-  monsters.forEach(m=>{if((m.frozen??0)>0){m.frozen=Math.max(0,m.frozen!-dt);m.cooldown=Math.max(m.cooldown,.5);return;}m.phase+=dt;m.cooldown-=dt;m.slowTimer=Math.max(0,m.slowTimer-dt);if(m.aggro){m.combatTimer-=dt;if(m.combatTimer<=0||Math.hypot(m.x-m.homeX,m.y-m.homeY)>720)m.aggro=false;}if(m.aggro&&dist(m,player)<430&&m.cooldown<=0)monsterFire(m);});
+  monsters.forEach(m=>{if((m.frozen??0)>0){m.frozen=Math.max(0,m.frozen!-dt);m.cooldown=Math.max(m.cooldown,.5);return;}m.phase+=dt;m.cooldown-=dt;m.slowTimer=Math.max(0,m.slowTimer-dt);proximityAggro(m,dist(m,player));if(m.aggro){m.combatTimer-=dt;if(m.combatTimer<=0||Math.hypot(m.x-m.homeX,m.y-m.homeY)>720)m.aggro=false;}if(m.aggro&&dist(m,player)<NPC_FIRE_RANGE&&m.cooldown<=0)monsterFire(m);});
   // Saldırı: kaptan hareket etse de hedef menzildeyken ateş sürer; hedef menzilden çıkınca saldırı durur
   // ve menzile tekrar girildiğinde SALDIR'a yeniden basmak gerekir.
   if(state.attacking&&selected){
@@ -1454,7 +1467,7 @@ function update(dt:number){{const rc=document.getElementById('recenterShip');if(
     if(e.captain){if(siege)updateSiegeCaptain(e,dt);else updateCaptain(e,dt);continue;}
     if(e.commander){updateCommander(e,dt);continue;}
     if((e.frozen??0)>0){e.frozen=Math.max(0,e.frozen!-dt);e.cooldown=Math.max(e.cooldown,.5);continue;}
-    const d=dist(e,player);e.wander+=dt;e.slowTimer=Math.max(0,e.slowTimer-dt);if(e.aggro){e.combatTimer-=dt;if(e.combatTimer<=0||Math.hypot(e.x-e.homeX,e.y-e.homeY)>680)e.aggro=false;}
+    const d=dist(e,player);e.wander+=dt;e.slowTimer=Math.max(0,e.slowTimer-dt);proximityAggro(e,d);if(e.aggro){e.combatTimer-=dt;if(e.combatTimer<=0||Math.hypot(e.x-e.homeX,e.y-e.homeY)>680)e.aggro=false;}
     const homeDistance=Math.hypot(e.x-e.homeX,e.y-e.homeY);
     const target=e.aggro?Math.atan2(player.y-e.y,player.x-e.x)+Math.PI/2:homeDistance>90?Math.atan2(e.homeY-e.y,e.homeX-e.x)+Math.PI/2:e.angle+Math.sin(e.wander*.35)*.008;
     e.angle+=Math.atan2(Math.sin(target-e.angle),Math.cos(target-e.angle))*dt*(e.aggro?.8:.25);
@@ -1464,7 +1477,7 @@ function update(dt:number){{const rc=document.getElementById('recenterShip');if(
       e.face??={east:Math.sin(e.angle)>=0,north:Math.cos(e.angle)>0};
       const st=isoAdvance(e.iso??null,e.x,e.y,e.isoT.x,e.isoT.y,e.speed*(e.aggro?1:.45)*slow*1.4,dt,e.face);e.iso=st.m;
       if(st.done)e.isoT=undefined;else{e.x=clamp(e.x+st.mx,40,WORLD_WIDTH-40);e.y=clamp(e.y+st.my,40,WORLD_HEIGHT-40);}}
-    else e.face={east:player.x>e.x,north:player.y<e.y};/* menzilde durup ateş ederken oyuncuya döner */ if(e.aggro&&d<440&&e.cooldown<=0)enemyFire(e);e.cooldown-=dt;
+    else e.face={east:player.x>e.x,north:player.y<e.y};/* menzilde durup ateş ederken oyuncuya döner */ if(e.aggro&&d<NPC_FIRE_RANGE&&e.cooldown<=0)enemyFire(e);e.cooldown-=dt;
   }
   for(let i=shots.length-1;i>=0;i--){
     const s=shots[i];
@@ -1517,7 +1530,7 @@ function update(dt:number){{const rc=document.getElementById('recenterShip');if(
     if(p.vz!==undefined){p.z=(p.z??0)+p.vz*dt;p.vz-=340*dt;if(p.z<=0){p.z=0;p.vz=undefined;p.vx*=.25;p.vy*=.25;p.vr=(p.vr??0)*.1;if(p.kind==='splinter')particles.push({x:p.x,y:p.y,vx:0,vy:0,life:.4,maxLife:.4,kind:'foam',size:20,variant:0});}}
     if(p.life<=0)particles.splice(i,1);}
   for(let i=wrecks.length-1;i>=0;i--){wrecks[i].t+=dt;if(wrecks[i].t>=WRECK_TIME)wrecks.splice(i,1);}
-  let need=xpNeed(state.level);while(state.fame>=need){state.fame-=need;state.level++;setAch('level',state.level);{const rw=onOwnLevel(mentorship,state.level);for(const r of rw)rewardNotice(`${r.level>=GRADUATE_LEVEL?'Mezuniyet':'Muço'} ödülü hazır · Kaptan & Muço penceresinden talep et`,'gain');saveMentorship(mentorship);}state.maxHp=baseMaxHp();state.hp=effectiveMaxHp();saveAccount();playLevelUp();rewardNotice(`Seviye ${state.level} oldun · +${HP_PER_LEVEL.toLocaleString('tr-TR')} azami gövde · +1 uzmanlık puanı · ${state.level}/1 açıldı`);toast(`Seviye ${state.level}! Yeni denizler açıldı`);showLevelUp(state.level);need=xpNeed(state.level);}
+  let need=xpNeed(state.level);while(state.fame>=need){state.fame-=need;state.level++;setAch('level',state.level);{const rw=onOwnLevel(mentorship,state.level);for(const r of rw)rewardNotice(`${r.level>=GRADUATE_LEVEL?'Mezuniyet':'Muço'} ödülü hazır · Kaptan & Muço penceresinden talep et`,'gain');saveMentorship(mentorship);}state.maxHp=baseMaxHp();state.hp=effectiveMaxHp();const gift=levelGift(state.level);state.pearls+=gift.pearls;arsenal.fire+=gift.fire;saveArsenal(arsenal);renderQuickSlots();saveAccount();playLevelUp();rewardNotice(`Seviye ${state.level} oldun · +${HP_PER_LEVEL.toLocaleString('tr-TR')} azami gövde · +1 uzmanlık puanı · +${fmt(gift.pearls)} inci · +${fmt(gift.fire)} Ateş Güllesi · ${state.level}/1 açıldı`);toast(`Seviye ${state.level}! Yeni denizler açıldı`);showLevelUp(state.level);need=xpNeed(state.level);}
   if(toastTimer>0){toastTimer-=dt;if(toastTimer<=0)ui('toast').classList.remove('show');}uiClock-=dt;if(uiClock<=0){uiClock=.1;updateUI();};
 }
 
@@ -1654,7 +1667,7 @@ function sinkEnemy(e:Enemy){
   if(e.commander){siegeWon(e);return;}
   if(e.boss){defeatBoss(e);return;}
   // NPC tecrübe puanı ve altın verir; savaş puanı (SP) yalnızca rakip oyuncu batırınca gelir (src/battle.ts).
-    const goldGain=goldGainAch(e.rewardGold*(1+bonus.bounty)),fame=xpGain(e.rewardFame);state.gold+=goldGain;state.fame+=fame;saveAccount();bumpAch('npc');if(e.role==='heavy')bumpAch('heavy');
+    const goldGain=goldGainAch(e.rewardGold*(1+bonus.bounty)),fame=xpGain(e.rewardFame);state.gold+=goldGain;state.fame+=fame;saveAccount();bumpAch('npc');killRewardText(e.x,e.y,fame,goldGain);if(e.role==='heavy')bumpAch('heavy');
   rewardNotice(`${e.name} batırıldı · +${fmt(goldGain)} altın · +${fmt(fame)} TP kazanıldı`,'battle',{xp:fame,gold:goldGain,sink:true});if(e.def)recordQuestProgress('npc',e.def.id);countBossKill(e);if(!e.summoned)setTimeout(spawnEnemy,1800);
 }
 // Savaş puanı kazancı; rütbe atlanırsa duyurulur
@@ -1665,7 +1678,7 @@ function gainSp(n:number){const before=battleRank(state.battlePoints).index;stat
 function defeatMonster(m:Monster){
   spawnWreck(m);
   playExplosion();const d=m.def;
-    const goldGain=goldGainAch(d.gold*(1+bonus.bounty)),fame=xpGain(d.xp);state.gold+=goldGain;state.fame+=fame;saveAccount();bumpAch('monster');
+    const goldGain=goldGainAch(d.gold*(1+bonus.bounty)),fame=xpGain(d.xp);state.gold+=goldGain;state.fame+=fame;saveAccount();bumpAch('monster');killRewardText(m.x,m.y,fame,goldGain);
   rewardNotice(`${m.name} yenildi · +${fmt(goldGain)} altın · +${fmt(fame)} TP kazanıldı`,'battle',{xp:fame,gold:goldGain,sink:true});recordQuestProgress('monster',d.id);
   const p=randomSeaPoint(900);m.hp=m.maxHp;m.aggro=false;m.burnTimer=0;m.x=p.x;m.y=p.y;m.homeX=m.x;m.homeY=m.y;m.combatTimer=0;selected=null;state.attacking=false;
 }

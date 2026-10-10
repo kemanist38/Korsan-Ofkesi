@@ -15,7 +15,7 @@ const setup=e.ELITE_ENTRY_PRICE+a.priceOf(e.CANNON_COSTS.heavy,315)+Object.value
 // Encounter-driven calibration: actual target HP, damage, reload, fire DOT and leech.
 // Navigation distances and captain/loadout milestones are explicit assumptions, not measured telemetry.
 {
- const c=load('src/campaign.ts');let time=0,ep=0,index=0,gold=0,pearls=0;const balls={grape:0,fire:0,breaker:0,explosive:0,leech:0},stats={},bossCount={};
+ const c=load('src/campaign.ts');let time=0,ep=0,index=0,gold=0,pearls=0;const balls={chain:0,fire:0,breaker:0,explosive:0,leech:0},stats={},bossCount={};
  const milestones=[4,12.7,26.4,46.3,72.7,104.5,140.8,Infinity];
  while(ep<a.eliteLevelEp(15)){
   const hours=time/3600,tier=1+milestones.findIndex(h=>hours<h),up=Math.min(10,Math.floor(hours/8)),gun=hours<12?cannons.cast:cannons.heavy,b=p.cumulativeEliteBonus(a.eliteLevelFromEp(ep));
@@ -54,9 +54,9 @@ const setup=e.ELITE_ENTRY_PRICE+a.priceOf(e.CANNON_COSTS.heavy,315)+Object.value
  const speedPotions=Math.ceil(time*.25/a.ABILITIES.speed.duration),mines=Math.ceil(time/3600*5),supplyPearls=a.priceOf(a.SUPPLY_PRICES.speed,speedPotions)+a.priceOf(a.SUPPLY_PRICES.mine,mines);
  const result={hours:time/3600,ep,balls,totalBalls:Object.values(balls).reduce((a,b)=>a+b,0),ammoPearls,setup,supplyPearls,setupPurchase:cheapestPack(setup),ammoPurchase:cheapestPack(ammoPearls),purchase:cheapestPack(setup+ammoPearls+supplyPearls),stats,gold,bossPearls:pearls};
  console.log(JSON.stringify(result,null,2));
- if(!process.argv.includes('--all-leech')&&!process.argv.includes('--fast-route')&&!process.argv.includes('--slow-route')){assert(result.hours>=200&&result.hours<=220);assert(result.purchase.tl>=5500&&result.purchase.tl<=8500);}
+ if(!process.argv.includes('--all-leech')&&!process.argv.includes('--fast-route')&&!process.argv.includes('--slow-route')){assert(result.hours>=160&&result.hours<=190);assert(result.purchase.tl>=9000&&result.purchase.tl<=12500);}
  const old=[0,0,25000,65000,130000,230000,360000,530000,750000,1020000,1360000,1780000,2300000,2950000,3850000,5000000];
  for(let level=1;level<=15;level++){const value=e.migrateElitePoints(old[level]);assert.equal(a.eliteLevelFromEp(value),level);assert.equal(e.migrateElitePoints(value,2),value);}
- assert(Object.values(a.ELITE_POINTS_PER_BALL).every(v=>v===.1));
+ {const v=a.ELITE_POINTS_PER_BALL;assert(v.chain<v.fire&&v.fire<v.breaker&&v.breaker<v.explosive&&v.explosive<v.leech);}
  console.log('PASS: encounter budget and existing elite levels preserved');
 }
