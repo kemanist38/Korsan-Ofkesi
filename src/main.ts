@@ -791,12 +791,7 @@ function killerNear(){let best='',bd=Infinity;
   for(const e of enemies)if(e.aggro||e.tower){const d=dist(e,player);if(d<bd){bd=d;best=e.name;}}
   for(const m of monsters)if(m.aggro){const d=dist(m,player);if(d<bd){bd=d;best=m.name;}}
   return best||'düşman';}
-let sunkTimer=0;
-function showSunkBy(name:string){
-  let el=document.getElementById('sunkBanner');if(!el){el=document.createElement('div');el.id='sunkBanner';el.className='sunk-banner';document.body.append(el);}
-  el.innerHTML=`<b>${name}</b> tarafından batırıldın`;el.classList.remove('show');void el.offsetWidth;el.classList.add('show');
-  clearTimeout(sunkTimer);sunkTimer=window.setTimeout(()=>el!.classList.remove('show'),3500);
-}
+function showSunkBy(name:string){rewardNotice(`${name} tarafından batırıldın`,'battle');}
 function respawn(){
   if(siege){siegeRespawn();return;}
   const deathMap=currentMap;
@@ -830,10 +825,6 @@ const MAX_WRECKS=24;
 const DMG_GOLD='#ffd23a',DMG_RED='#ff4a3a',DMG_BLUE='#5fb8ff';
 let playerSlow=0,repairClock=0;
 function healText(x:number,y:number,value:number){particles.push({x,y:y-14,vx:0,vy:-22,life:1.1,maxLife:1.1,kind:'damage',color:'#5ee07a',text:`+${Math.round(value).toLocaleString('tr-TR')}`});}
-function killRewardText(x:number,y:number,xp:number,gold:number){
-  particles.push({x,y:y-36,vx:0,vy:-18,life:1.8,maxLife:1.8,kind:'damage',color:'#c9a2ff',text:`+${fmt(xp)} TP`});
-  particles.push({x,y:y-14,vx:0,vy:-18,life:1.8,maxLife:1.8,kind:'damage',color:'#ffd36a',text:`+${fmt(gold)} Altın`});
-}
 function damageText(x:number,y:number,value:number,color=DMG_GOLD){particles.push({x,y,vx:0,vy:-24,life:1,maxLife:1,kind:'damage',color,text:`-${Math.round(value).toLocaleString('tr-TR')}`});}
 let toastTimer=0;
 function toast(msg:string){ui('toast').textContent=msg;ui('toast').classList.add('show');toastTimer=2.2;}
@@ -1698,7 +1689,7 @@ function sinkEnemy(e:Enemy){
   if(e.commander){siegeWon(e);return;}
   if(e.boss){defeatBoss(e);return;}
   // NPC tecrübe puanı ve altın verir; savaş puanı (SP) yalnızca rakip oyuncu batırınca gelir (src/battle.ts).
-    const goldGain=goldGainAch(e.rewardGold*(1+bonus.bounty)),fame=xpGain(e.rewardFame);state.gold+=goldGain;state.fame+=fame;saveAccount();bumpAch('npc');killRewardText(e.x,e.y,fame,goldGain);if(e.role==='heavy')bumpAch('heavy');
+    const goldGain=goldGainAch(e.rewardGold*(1+bonus.bounty)),fame=xpGain(e.rewardFame);state.gold+=goldGain;state.fame+=fame;saveAccount();bumpAch('npc');if(e.role==='heavy')bumpAch('heavy');
   rewardNotice(`${e.name} batırıldı · +${fmt(goldGain)} altın · +${fmt(fame)} TP kazanıldı`,'battle',{xp:fame,gold:goldGain,sink:true});if(e.def){recordQuestProgress('npc',e.def.id);levelQuestHit('npc',e.def.id,e.def.tier);}countBossKill(e);if(!e.summoned)setTimeout(spawnEnemy,1800);
 }
 // Savaş puanı kazancı; rütbe atlanırsa duyurulur
@@ -1709,7 +1700,7 @@ function gainSp(n:number){const before=battleRank(state.battlePoints).index;stat
 function defeatMonster(m:Monster){
   spawnWreck(m);
   playExplosion();const d=m.def;
-    const goldGain=goldGainAch(d.gold*(1+bonus.bounty)),fame=xpGain(d.xp);state.gold+=goldGain;state.fame+=fame;saveAccount();bumpAch('monster');killRewardText(m.x,m.y,fame,goldGain);
+    const goldGain=goldGainAch(d.gold*(1+bonus.bounty)),fame=xpGain(d.xp);state.gold+=goldGain;state.fame+=fame;saveAccount();bumpAch('monster');
   rewardNotice(`${m.name} yenildi · +${fmt(goldGain)} altın · +${fmt(fame)} TP kazanıldı`,'battle',{xp:fame,gold:goldGain,sink:true});recordQuestProgress('monster',d.id);levelQuestHit('monster',d.id,d.tier);
   const p=randomSeaPoint(900);m.hp=m.maxHp;m.aggro=false;m.burnTimer=0;m.x=p.x;m.y=p.y;m.homeX=m.x;m.homeY=m.y;m.combatTimer=0;selected=null;state.attacking=false;
 }

@@ -395,11 +395,6 @@ h3.pearl-title{color:#f3d496!important;border-color:#9e513b66!important}
 .combat-controls .combat-action.active{box-shadow:none!important}
 .combat-controls .combat-action.dim{opacity:.45;filter:grayscale(.7) brightness(.85);transition:opacity .2s,filter .2s}
 .sound-row{flex-wrap:wrap;gap:10px 16px}
-/* Batırılınca kısa yazı */
-.sunk-banner{position:fixed;left:50%;top:32%;z-index:120;transform:translate(-50%,-50%);padding:10px 22px;border:1px solid #b5463a;border-radius:8px;background:linear-gradient(#3a1410ee,#1a0a0aee);color:#f3d6c0;font:600 16px Inter,sans-serif;white-space:nowrap;pointer-events:none;opacity:0;box-shadow:0 8px 24px #000a}
-.sunk-banner b{color:#ff8a6a;font:700 17px Cinzel,serif}
-.sunk-banner.show{animation:sunkIn 3.5s ease forwards}
-@keyframes sunkIn{0%{opacity:0;transform:translate(-50%,-40%)}10%,80%{opacity:1;transform:translate(-50%,-50%)}100%{opacity:0;transform:translate(-50%,-50%)}}
 /* Sıralama: ilk 3 altın / gümüş / bronz */
 .rank-row.top1,.rank-row.top2,.rank-row.top3{border-width:1px;border-style:solid}
 .rank-row.top1{border-color:#e8c05a!important;background:linear-gradient(90deg,#4a3410,#1c1514 60%)!important;box-shadow:inset 3px 0 0 #ffd36a}
