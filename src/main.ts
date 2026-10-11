@@ -520,7 +520,7 @@ function spyRivals():SpyRival[]{return TEST_RANKERS.map(r=>{const live=enemies.f
       if(state.pearls<SPY_COST){toast(`Casus için ${SPY_COST} inci gerekli`);return;}
       const r=sendSpy(spyStore,name,spyRivals());if(r.kind==='unknown')return;
       state.pearls-=SPY_COST;saveAccount();updateUI();const n=escapeHtml(r.rival!.nick);nick.value='';
-      if(r.kind==='blocked'){addLog(logbook,{t:Date.now(),kind:'battle',text:`Casus yakalandı · ${r.rival!.nick}`});saveLog(logbook);spyDialog('CASUS YAKALANDI',`<b>${n}</b> gemisindeki Casus Kalkanı casusunu yakaladı.<br><small>Kalkanın ${r.shieldLeft} hakkı kaldı.</small>`);return;}
+      if(r.kind==='blocked'){addLog(logbook,{t:Date.now(),kind:'battle',text:`Casus yakalandı · ${r.rival!.nick}`});saveLog(logbook);spyDialog('CASUS YAKALANDI',`<b>${n}</b> gemisindeki Casus Kalkanı casusunu yakaladı.<br><small>Konum öğrenilemedi, inci harcandı.</small>`);return;}
       const rv=r.rival!;addLog(logbook,{t:Date.now(),kind:'battle',text:`Casus raporu · ${rv.nick} · ${rv.map} ${rv.coord}`});saveLog(logbook);
       spyDialog('CASUS RAPORU',rv.online?`<b>${n}</b> şu an oyunda.<div class="spy-loc"><span>Harita</span><b>${rv.map}</b><span>Koordinat</span><b>${rv.coord}</b></div>`:`<b>${n}</b> şu an oyunda değil. Son çıkış yaptığı yer:<div class="spy-loc"><span>Harita</span><b>${rv.map}</b><span>Koordinat</span><b>${rv.coord}</b></div>`);
     });};}
