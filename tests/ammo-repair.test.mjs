@@ -20,5 +20,5 @@ test('leech steals only from players, on a lucky hit, capped by own max HP',()=>
   let sum=0;for(let i=0;i<1000;i++)sum+=A.leechHeal(10_000,true,1e9,i/1000);assert.ok(sum/(1000*10_000)<.04);
 });
 test('repair adds a fixed amount per second, bonuses capped',()=>{
-  assert.equal(A.repairAmount(1),1500);assert.equal(A.repairAmount(5),Math.round(1500*1.7));assert.equal(A.repairAmount(.5),1500);
+  assert.equal(A.repairAmount(1),4000);assert.equal(A.repairAmount(5),Math.round(4000*1.7));assert.equal(A.repairAmount(.5),4000);
 });
