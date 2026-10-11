@@ -172,7 +172,8 @@ let levelQuest=loadLevelQuest(state.level),levelQuestNoticed=false;
 // Seviye görevi açık mı: TP dolmuş ama görev bitmemiş
 const levelQuestOpen=()=>state.fame>=xpNeed(state.level)&&!levelQuestDone(levelQuest);
 function levelQuestHit(kind:'npc'|'monster',id:string,tier:number){
-  if(!levelQuestKill(levelQuest,kind,id,tier,state.fame>=xpNeed(state.level)))return;saveLevelQuest(levelQuest);
+  if(levelQuest.map&&levelQuest.map!==currentMap&&state.fame>=xpNeed(state.level)&&!levelQuestDone(levelQuest)&&tier===levelQuest.level){toast(`Seviye görevi ${levelQuest.map} haritasında · bu batırma sayılmadı`);return;}
+  if(!levelQuestKill(levelQuest,kind,id,tier,state.fame>=xpNeed(state.level),currentMap))return;saveLevelQuest(levelQuest);
   const g=levelQuestGoal(levelQuest.level);
   if(levelQuestDone(levelQuest))rewardNotice(`Seviye görevi tamamlandı · Seviye ${levelQuest.level+1} açılıyor`,'gain');
   else toast(`Seviye görevi · ${levelQuest.ships}/${g.ships} ağır gemi · ${levelQuest.monsters}/${g.monsters} canavar`);
@@ -180,7 +181,7 @@ function levelQuestHit(kind:'npc'|'monster',id:string,tier:number){
 function levelQuestHtml(){
   if(!needsLevelQuest(state.level)||!Number.isFinite(xpNeed(state.level)))return'';
   const g=levelQuestGoal(state.level),open=levelQuestOpen(),L=state.level;
-  return`<article class="quest-entry level-quest ${open?'active':''}"><div class="quest-number">★</div><div class="quest-copy"><span>SEVİYE GÖREVİ · ${L} → ${L+1}</span><h3>${open?'Seviye görevi hazır':'TP dolunca açılır'}</h3><p>${L}/1 veya ${L}/2 denizinde ${g.ships} ağır gemi batır ve ${g.monsters} canavar yen. Görev bitene kadar kazandığın TP birikir.</p><b>${levelQuest.ships}/${g.ships} Ağır gemi · ${levelQuest.monsters}/${g.monsters} Canavar</b></div></article>`;
+  return`<article class="quest-entry level-quest ${open?'active':''}"><div class="quest-number">★</div><div class="quest-copy"><span>SEVİYE GÖREVİ · ${L} → ${L+1}</span><h3>${open?'Seviye görevi hazır':'TP dolunca açılır'}</h3><p>${levelQuest.map?`${levelQuest.map} haritasında`:`${L}/1 veya ${L}/2 haritasında (ilk batırdığın harita seçilir)`} ${g.ships} ağır gemi batır ve ${g.monsters} canavar yen. Görev bitene kadar kazandığın TP birikir.</p><b>${levelQuest.ships}/${g.ships} Ağır gemi · ${levelQuest.monsters}/${g.monsters} Canavar</b></div></article>`;
 }
 // Eski ölçekli kayıtlar (100 canlı, 18 toplu gemi) bir kez Seafight ölçeğine taşınır: can formülden hesaplanır,
 // gemiye en az 50 döküm top yerleştirilir.
@@ -1416,6 +1417,7 @@ function cancelQuest(id:string){
 function recordQuestProgress(kind:QuestDef['kind'],id:string){
   if(state.activeQuest===null)return;
   const quest=questById(state.activeQuest);
+  if(quest&&quest.map!==currentMap&&quest.kind===kind&&(kind==='npc'||kind==='monster')&&quest.ids.includes(id)){toast(`Görev ${quest.map} haritasında · bu batırma sayılmadı`);return;}
   if(!quest||quest.map!==currentMap||quest.kind!==kind||!quest.ids.includes(id))return;
   questProgress[quest.id]=(questProgress[quest.id]??0)+1;saveQuestState();
   if(questProgress[quest.id]<quest.required)return;
