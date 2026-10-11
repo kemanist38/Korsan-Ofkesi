@@ -1,7 +1,7 @@
 import {ELITE_THRESHOLD_SCALE} from './economy';
 // Özel yetenekler ve yeni mühimmatlar. Hesap kaydına dokunmamak için ayrı anahtarda saklanır.
 export type AbilityId='speed'|'mine';
-export type ArsenalStock={fire:number;grape:number;mine:number;powder:number;shield:number;speed:number;compass:number;explosive:number;breaker:number;leech:number;seeded:boolean;seededV2:boolean;ballsV1:boolean};
+export type ArsenalStock={fire:number;grape:number;mine:number;powder:number;shield:number;speed:number;compass:number;spyShield:number;explosive:number;breaker:number;leech:number;seeded:boolean;seededV2:boolean;ballsV1:boolean};
 
 export const ABILITIES:Record<AbilityId,{name:string;key:string;duration:number;cooldown:number;description:string;icon:string}>={
   // Hız İksiri: sayaçlı sarf malzemesi; her içişte 1 adet harcanır, etkisi sürerken yeniden içilemez
@@ -72,8 +72,8 @@ export type SupplyId=keyof typeof SUPPLY_PRICES;
 
 const STORAGE='yedi-deniz-arsenal-v1';
 export function loadArsenal():ArsenalStock{
-  try{const raw=JSON.parse(localStorage.getItem(STORAGE)||'null');const n=(v:unknown,d:number)=>v===undefined?d:Math.max(0,+(v as number)||0);if(raw)return{fire:n(raw.fire,0),grape:n(raw.grape,0),mine:n(raw.mine,0),powder:n(raw.powder,30),shield:n(raw.shield,30),speed:n(raw.speed,10),compass:n(raw.compass,5),explosive:n(raw.explosive,10),breaker:n(raw.breaker,10),leech:n(raw.leech,10),seeded:!!raw.seeded,seededV2:!!raw.seededV2,ballsV1:!!raw.ballsV1};}catch{}
+  try{const raw=JSON.parse(localStorage.getItem(STORAGE)||'null');const n=(v:unknown,d:number)=>v===undefined?d:Math.max(0,+(v as number)||0);if(raw)return{fire:n(raw.fire,0),grape:n(raw.grape,0),mine:n(raw.mine,0),powder:n(raw.powder,30),shield:n(raw.shield,30),speed:n(raw.speed,10),compass:n(raw.compass,5),spyShield:n(raw.spyShield,0),explosive:n(raw.explosive,10),breaker:n(raw.breaker,10),leech:n(raw.leech,10),seeded:!!raw.seeded,seededV2:!!raw.seededV2,ballsV1:!!raw.ballsV1};}catch{}
   // İlk açılışta tanıtım stoğu
-  return{fire:750,grape:750,mine:3,powder:30,shield:30,speed:10,compass:5,explosive:500,breaker:500,leech:500,seeded:false,seededV2:false,ballsV1:true};
+  return{fire:750,grape:750,mine:3,powder:30,shield:30,speed:10,compass:5,spyShield:0,explosive:500,breaker:500,leech:500,seeded:false,seededV2:false,ballsV1:true};
 }
 export function saveArsenal(stock:ArsenalStock){try{localStorage.setItem(STORAGE,JSON.stringify(stock));}catch{}}
