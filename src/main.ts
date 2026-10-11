@@ -94,7 +94,7 @@ const QUICK_TIPS:Record<QuickItemId,string>={iron:'Sınırsız',chain:'Yavaşlat
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <main class="game-shell">
-    <canvas id="sea"></canvas><div class="info-strip" id="infoStrip"></div><div class="grain"></div>
+    <canvas id="sea"></canvas><div class="info-strip"><span id="infoStrip"></span><span class="strip-res"><i class="sprite icon-gold"></i><b id="stripGold">0</b><i class="sprite icon-pearl"></i><b id="stripPearls">0</b><button id="stripPearlPlus" aria-label="İnci satın al">+</button></span></div><div class="grain"></div>
     <section class="hud">
       <div class="corner-buttons"><button class="round-button" id="openShop" aria-label="Market"><img src="/assets/icon-market-v2.webp" alt="" draggable="false"/></button><button class="round-button" id="openMenu" aria-label="Menü"><img src="/assets/icon-menu-v2.webp" alt="" draggable="false"/></button></div>
       <nav class="shop-tabs" id="shopTabs"><button id="openEliteShips" data-shop="eliteShipOverlay"><img class="nav-img" id="shipNavIcon" alt="" draggable="false"/><span>TERSANE</span></button><button id="openEquipShop" data-shop="equipShopOverlay"><i class="nav-img equip-nav"></i><span>DONANIM</span></button><button id="openCannonShop" data-shop="cannonShopOverlay"><img class="nav-img" src="/assets/cannon-cast-v1.webp" alt="" draggable="false"/><span>TOPLAR</span></button><button id="openShip" data-shop="shipOverlay"><img class="nav-img" src="/assets/icon-inventory-v3.webp" alt="" draggable="false"/><span>ENVANTER</span></button><button id="openMarket" data-shop="marketOverlay"><img class="nav-img" src="/assets/ammo-fire-v2.webp" alt="" draggable="false"/><span>GÜLLELER</span></button><button id="openLoadoutTab" data-shop="supplyOverlay"><img class="nav-img" src="/assets/icon-chest-v2.webp" alt="" draggable="false"/><span>MALZEMELER</span></button><button id="openPearlShop" data-shop="pearlShopOverlay"><img class="nav-img" src="/assets/icon-pearl-v1.webp" alt="" draggable="false"/><span>MAĞAZA</span></button><button class="shop-close" id="closeShopTabs" aria-label="Marketi kapat">×</button></nav>
@@ -495,7 +495,7 @@ function syncShopTabs(){const open=SHOP_OVERLAYS.find(id=>ui(id).classList.conta
   document.querySelectorAll<HTMLButtonElement>('#shopTabs [data-shop]').forEach(b=>b.classList.toggle('active',b.dataset.shop===open));}
 const shopWatch=new MutationObserver(syncShopTabs);SHOP_OVERLAYS.forEach(id=>shopWatch.observe(ui(id),{attributes:true,attributeFilter:['class']}));
 document.querySelectorAll<HTMLButtonElement>('#shopTabs [data-shop]').forEach(b=>b.onclick=()=>showShop(b.dataset.shop!));
-ui('openShop').onclick=()=>showShop(lastShop);
+ui('stripPearlPlus').onclick=()=>document.getElementById('pearlResource')?.click();ui('openShop').onclick=()=>showShop(lastShop);
 // Mağaza sekmesi (İnci Hazinesi): gerçek parayla VİP ve inci paketleri (src/pearlShop.ts)
 function openPearlShop(){renderPearlShop();ui('pearlShopOverlay').classList.add('open');}
 function closePearlShop(){ui('pearlShopOverlay').classList.remove('open');}
@@ -1404,6 +1404,7 @@ function updateDots(){try{
   set('openDaily',daily1);set('openMentorship',mate);set('openMenuQuests',quest);set('openQuestTop',quest);set('openMenu',daily1||mate);
 }catch{}}
 function updateUI(){
+  ui('stripGold').textContent=state.gold.toLocaleString('tr-TR');ui('stripPearls').textContent=state.pearls.toLocaleString('tr-TR');
   updateDots();
   // Saldırı sürerken SALDIR, gövde tamken (tamir yokken) TAMİR soluk görünür
   ui('attack').classList.toggle('dim',state.attacking);ui('repair').classList.toggle('dim',!state.repairing&&state.hp>=effectiveMaxHp());
