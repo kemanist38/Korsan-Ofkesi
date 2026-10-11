@@ -433,3 +433,4 @@ html.touch .event-panel{top:126px!important}
 html.touch .corner-buttons{top:8px!important}
 html.touch .event-panel{top:70px!important}
 #infoStrip i{display:inline-block;width:22px}
+html.touch .info-strip{justify-content:flex-start;padding-left:14px}
