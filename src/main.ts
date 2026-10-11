@@ -22,6 +22,7 @@ import {redeem,loadRedeemed,saveRedeemed,rewardText} from './coupons';
 import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
 import {loadLevelQuest,saveLevelQuest,levelQuestDone,levelQuestKill,levelQuestGoal,needsLevelQuest,levelQuestMap} from './level-quest';
 import {SPY_COST,SPY_SHIELD_PRICE,loadSpy,sendSpy,type SpyRival} from './spy';
+import {startNet,joinSea,sendState,sendFire,sendSunk,sendChat,myNetId,type NetState,type NetHandlers} from './net';
 import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,claimReward,GRADUATE_LEVEL,MAX_APPRENTICES,TOGETHER_XP_BONUS} from './mentorship';
 import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
 import {loadLog,saveLog,addLog,daySummary,LOG_KINDS,type LogKind,type LogEntry} from './logbook';
@@ -54,7 +55,7 @@ type SalvoRound = { powder?:boolean; delay:number; target:Target; side:number; s
 type EnemyRole='light'|'heavy';
 // Test kaptanı: elit gemili, oyuncu gibi savaşan yapay rakip (yalnız test modunda 1/1'de)
 type Captain={elite:EliteShipId;ammo:AmmoKind;ammoClock:number;foe:Enemy|null;orbit:Vec|null;orbitClock:number};
-type Enemy = Vec & { kind:'ship'; captain?:Captain; pvp?:PvpBudget; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number; lastHitBy?:'player'|'captain'; siege?:boolean; commander?:boolean;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
+type Enemy = Vec & { kind:'ship'; remote?:{id:string;tx:number;ty:number;seen:number;sp:number;tag:string|null}; captain?:Captain; pvp?:PvpBudget; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number; lastHitBy?:'player'|'captain'; siege?:boolean; commander?:boolean;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
 type ParticleKind='flare'|'ember'|'glint'|'wisp'|'foam'|'smoke'|'spark'|'damage'|'flash'|'splinter'|'bubble'|'plank'|'firePuff'|'target'|'poison'|'soul'|'shock';
 // z: su üstünden yükseklik (ekranda yukarı kayar); vz ile savrulan parçalar suya düşer
 type Particle = Vec & { vx:number; vy:number; life:number; maxLife:number; kind:ParticleKind; text?:string; color?:string; z?:number; vz?:number; rot?:number; vr?:number; size?:number; variant?:number };
@@ -283,7 +284,7 @@ let guild:Guild|null=loadGuild();
 let buildType:TowerType='cannon';
 let focusedFoundation:string|null=null;
 const profile=loadProfile();
-const chat=setupChat(()=>({nick:profile.nick,tag:guild?.tag??null}));
+const chat=setupChat(()=>({nick:profile.nick,tag:guild?.tag??null}),(tab,who,text)=>{if(tab==='global')sendChat({nick:who,text,at:Date.now()});});
 function escapeHtml(t:string){return t.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));}
 // HUD 10 Hz güncellenir; DOM yalnız içerik değişince yazılır (her karede yeniden kurmak donmaya yol açıyordu)
 const towerRuins=loadRuins();
@@ -507,6 +508,30 @@ document.querySelectorAll<HTMLButtonElement>('#shopTabs [data-shop]').forEach(b=
     if(col.value===''||!(c>=0&&c<GRID_COLS)||!(ri>=0&&ri<GRID_ROWS)){toast(`Geçersiz koordinat · sütun 00–${GRID_COLS-1}, satır AA–${rowName(GRID_ROWS-1)}`);return;}
     routeTarget=navigablePoint({x:(c+.5)*CELL_W,y:(ri+.5)*CELL_H});destination=routeVia(routeTarget);attackChase=false;
     toast(`Rota: ${colName(c)} ${rowName(ri)}`);(document.activeElement as HTMLElement|null)?.blur();};}
+// ---------------------------------------------------------------- Çevrim içi deniz
+const NET_ELITES=new Set(Object.keys(ELITE_ISO));
+function remoteOf(id:string){return enemies.find(e=>e.remote?.id===id);}
+const netHandlers:NetHandlers={
+  state:(n:NetState)=>{if(siege||n.id===myNetId)return;let e=remoteOf(n.id);
+    if(!e){e={kind:'ship',role:'heavy',x:n.x,y:n.y,angle:0,hp:n.hp,maxHp:n.maxHp,cooldown:99,speed:0,damage:0,reload:99,rewardGold:0,rewardFame:0,color:'#79372f',name:n.nick,tier:8,aggro:false,wander:0,slowTimer:0,homeX:n.x,homeY:n.y,combatTimer:0,hitRadius:44,
+      captain:{elite:(NET_ELITES.has(n.ship)?n.ship:'phantom') as EliteShipId,ammo:'iron',ammoClock:99,foe:null,orbit:null,orbitClock:0},remote:{id:n.id,tx:n.x,ty:n.y,seen:0,sp:n.sp,tag:n.tag}} as Enemy;enemies.push(e);}
+    const r=e.remote!;r.tx=n.x;r.ty=n.y;r.seen=performance.now();r.sp=n.sp;r.tag=n.tag;e.name=(n.tag?`[${n.tag}]`:'')+n.nick;e.hp=n.hp;e.maxHp=n.maxHp;e.face={east:n.east,north:n.north};
+    e.captain!.elite=(NET_ELITES.has(n.ship)?n.ship:'phantom') as EliteShipId;},
+  leave:id=>{const e=remoteOf(id);if(e){enemies.splice(enemies.indexOf(e),1);if(selected===e){selected=null;state.attacking=false;}}},
+  fire:f=>{const e=remoteOf(f.from);if(!e)return;const a=Math.atan2(f.ty-f.y,f.tx-f.x);muzzleFlash(f.x+Math.cos(a)*30,f.y+Math.sin(a)*30-10,a,44);playEnemyCannon(dist(e,player),(e.x-player.x)/600);
+    if(f.to!==myNetId||state.invulnerable>0)return;const b=Math.atan2(player.y-f.y,player.x-f.x);
+    shots.push({x:f.x,y:f.y,vx:Math.cos(b)*420,vy:Math.sin(b)*420,life:2.4,owner:'enemy',damage:f.damage,hit:false,ammo:f.ammo as AmmoKind,captain:e});},
+  sunk:k=>{const e=remoteOf(k.victim);if(e){burst(e.x,e.y,true);playExplosion();splashAt(e.x,e.y,190);enemies.splice(enemies.indexOf(e),1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}}
+    if(k.by===myNetId){gainRage(rage,RAGE_PER_RIVAL);const sp=claimRivalSp(rivalLog,k.victimNick)?gainSp(RIVAL_SP*spMult()):0;sinkNotice(k.victimNick,sp);rivalSinks++;saveRivalSinks(rivalSinks);saveAccount();}
+    else if(k.victim!==myNetId)rewardNotice(`${k.byNick}, ${k.victimNick} kaptanını batırdı`,'battle');},
+  chat:(c:{nick:string;text:string;at:number})=>chat.receive(c.nick,c.text,c.at),
+};
+startNet(netHandlers);
+let netClock=0;
+function netTick(dt:number){joinSea(siege?null:currentMap);netClock-=dt;if(netClock>0)return;netClock=.12;
+  const f=isoFace,ship=activeShip==='starter'?'starter':String(activeShip);
+  sendState({id:myNetId,nick:profile.nick,tag:guild?.tag??null,ship,x:Math.round(player.x),y:Math.round(player.y),east:f.east,north:f.north,hp:Math.max(0,Math.round(state.hp)),maxHp:effectiveMaxHp(),sp:state.battlePoints,level:state.level,t:Date.now()});
+  const now=performance.now();for(let i=enemies.length-1;i>=0;i--){const e=enemies[i];if(e.remote&&now-e.remote.seen>6000){enemies.splice(i,1);if(selected===e){selected=null;state.attacking=false;}}}}
 // Casus: rakip kaptanın konumu (oyundaysa şimdiki, değilse son çıkış yaptığı harita ve koordinat)
 const spyStore=loadSpy();
 const OFFLINE_SPOTS:Record<string,[string,string]>={ADM_AHMET:['8/2','31BK'],'ADM_YASİN':['7/1','12AF'],ADM_DOGAN:['6/2','47CC']};
@@ -819,6 +844,7 @@ function releaseSalvo(round:SalvoRound){
   const tx=(round.target.x-player.x)/Math.max(1,d),ty=(round.target.y-player.y)/Math.max(1,d),forwardDot=fx*tx+fy*ty;
   const muzzle=forwardDot>.55?{x:fx*24,y:fy*24}:forwardDot<-.55?{x:-fx*20,y:-fy*20}:{x:rx*round.side*18,y:ry*round.side*18};
   const x=player.x+muzzle.x,y=player.y+muzzle.y;
+  {const t=round.target as Enemy;if(t.kind==='ship'&&t.remote)sendFire({from:myNetId,to:t.remote.id,x,y,tx:t.x,ty:t.y,damage:round.damage,ammo:round.ammo});}
   shots.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life:Math.max(1.1,d/speed+.5),owner:'player',damage:round.damage,hit:false,ammo:round.ammo,target:round.target,powder:round.powder});
   playCannon(state.cannonType,round.ammo);
   muzzleFlash(x,y,Math.atan2(muzzle.y,muzzle.x));
@@ -1539,6 +1565,7 @@ function update(dt:number){{const rc=document.getElementById('recenterShip');if(
   player.angle=Math.atan2(Math.sin(player.angle),Math.cos(player.angle));
   for(const e of enemies){
     if(e.tower){if(siege)updateSiegeTower(e,dt);else updateTower(e,dt);continue;}
+    if(e.remote){const k=Math.min(1,dt*10);e.x+=(e.remote.tx-e.x)*k;e.y+=(e.remote.ty-e.y)*k;continue;}
     if(e.captain){if(siege)updateSiegeCaptain(e,dt);else updateCaptain(e,dt);continue;}
     if(e.commander){updateCommander(e,dt);continue;}
     if((e.frozen??0)>0){e.frozen=Math.max(0,e.frozen!-dt);e.cooldown=Math.max(e.cooldown,.5);continue;}
@@ -1569,6 +1596,7 @@ function update(dt:number){{const rc=document.getElementById('recenterShip');if(
     if(s.owner==='player'){
       for(let j=enemies.length-1;j>=0&&s.life>0;j--){
         const e=enemies[j];if(isAlly(e))continue;
+        if(e.remote&&dist(s,e)<(e.hitRadius??25)){s.hit=true;s.life=0;burst(e.x,e.y);playHit();continue;}
         if(dist(s,e)<(e.hitRadius??25)){const rawHit=(s.damage*(s.ammo==='breaker'&&e.tower?SPECIAL_AMMO.breaker.towerFactor:1)*(s.ammo==='fire'&&!e.tower&&!e.captain?FIRE_NPC_FACTOR:1)*(s.ammo==='explosive'&&e.captain?EXPLOSIVE_PLAYER_FACTOR:1));const hit=e.captain?pvpClamp(e.pvp??=newPvpBudget(e.maxHp,performance.now()/1000),e.maxHp,rawHit,performance.now()/1000):rawHit;s.hit=true;if(s.slow)e.slowTimer=Math.max(e.slowTimer,s.slow);if(s.splash)towerSplash(s,e);e.aggro=true;e.lastHitBy='player';e.combatTimer=12;if(s.ammo==='chain'&&e.captain)e.slowTimer=CHAIN_SLOW.seconds;e.hp-=hit;siegeHit(e,hit,profile.nick);damageText(e.x,e.y,hit,s.powder?DMG_GOLD:DMG_RED);burst(e.x,e.y);playHit();ammoImpact(s,e,hit);s.life=0;
           if(e.hp<=0)sinkEnemy(e);
         }
@@ -1591,7 +1619,7 @@ function update(dt:number){{const rc=document.getElementById('recenterShip');if(
       if(s.captain&&s.ammo==='leech'&&enemies.includes(s.captain)){const c=s.captain,h=leechHeal(taken,true,c.maxHp);if(h>0){c.hp=Math.min(c.maxHp,c.hp+h);spawnSoul(player,c);}}
       }
       if(state.hp<=0){
-        const killer=s.captain?.name??killerNear();
+        const killer=s.captain?.name??killerNear();if(s.captain?.remote)sendSunk({victim:myNetId,by:s.captain.remote.id,victimNick:profile.nick,byNick:s.captain.name});
         respawn();showSunkBy(killer);
         // Respawn empties shots. Stop reading this volley, then finish UI/draw normally.
         break;
@@ -1606,7 +1634,7 @@ function update(dt:number){{const rc=document.getElementById('recenterShip');if(
     if(p.vz!==undefined){p.z=(p.z??0)+p.vz*dt;p.vz-=340*dt;if(p.z<=0){p.z=0;p.vz=undefined;p.vx*=.25;p.vy*=.25;p.vr=(p.vr??0)*.1;if(p.kind==='splinter')particles.push({x:p.x,y:p.y,vx:0,vy:0,life:.4,maxLife:.4,kind:'foam',size:20,variant:0});}}
     if(p.life<=0)particles.splice(i,1);}
   for(let i=wrecks.length-1;i>=0;i--){wrecks[i].t+=dt;if(wrecks[i].t>=WRECK_TIME)wrecks.splice(i,1);}
-  compassReveal=Math.max(0,compassReveal-dt);compassCooldown=Math.max(0,compassCooldown-dt);compassPulse=Math.max(0,compassPulse-dt*.8);
+  netTick(dt);compassReveal=Math.max(0,compassReveal-dt);compassCooldown=Math.max(0,compassCooldown-dt);compassPulse=Math.max(0,compassPulse-dt*.8);
   let need=xpNeed(state.level);if(state.fame>=need&&!levelQuestDone(levelQuest)&&!levelQuestNoticed){levelQuestNoticed=true;const g=levelQuestGoal(state.level);rewardNotice(`TP doldu · Seviye görevi: ${levelQuestMap(state.level)} haritasında ${g.ships} ağır gemi ve ${g.monsters} canavar`,'gain');toast('Seviye görevi hazır · Görevler');}
   while(state.fame>=need&&levelQuestDone(levelQuest)){state.fame-=need;state.level++;levelQuest=loadLevelQuest(state.level);saveLevelQuest(levelQuest);levelQuestNoticed=false;setAch('level',state.level);{const rw=onOwnLevel(mentorship,state.level);for(const r of rw)rewardNotice(`${r.level>=GRADUATE_LEVEL?'Mezuniyet':'Muço'} ödülü hazır · Kaptan & Muço penceresinden talep et`,'gain');saveMentorship(mentorship);}state.maxHp=baseMaxHp();state.hp=effectiveMaxHp();const gift=levelGift(state.level);state.pearls+=gift.pearls;arsenal.fire+=gift.fire;saveArsenal(arsenal);renderQuickSlots();saveAccount();playLevelUp();rewardNotice(`Seviye ${state.level} oldun · +${HP_PER_LEVEL.toLocaleString('tr-TR')} azami gövde · +1 uzmanlık puanı · +${fmt(gift.pearls)} inci · +${fmt(gift.fire)} Ateş Güllesi · ${state.level}/1 açıldı`);toast(`Seviye ${state.level}! Yeni denizler açıldı`);showLevelUp(state.level);need=xpNeed(state.level);}
   if(toastTimer>0){toastTimer-=dt;if(toastTimer<=0)ui('toast').classList.remove('show');}uiClock-=dt;if(uiClock<=0){uiClock=.1;updateUI();};
@@ -2149,7 +2177,7 @@ function captainHit(t:Enemy,s:Shot,from:Enemy|null){const dmg=Math.round(s.damag
 function drawCaptain(e:Enemy,s:Vec){const c=e.captain!,im=eliteIsoImage(ELITE_ISO[c.elite]);if(!im.complete||!im.naturalWidth)return;
   const f=e.face??{east:true,north:false},idx=f.north?(f.east?0:3):(f.east?1:2),h=im.naturalHeight,D=158;
   drawHullWater(e,100);ctx.save();ctx.translate(s.x,s.y);if((e.frozen??0)>0)ctx.filter='saturate(.4) brightness(1.3) hue-rotate(160deg)';ctx.drawImage(im,idx*h,0,h,h,-D/2,-D*.7,D,D);ctx.restore();
-  const top=-122;drawHealthBar(s.x,s.y+top,80,e.hp/e.maxHp,siege?'#4fd18a':'#f0584a');{const sp=TEST_RANKERS.find(r=>r.nick===e.name)?.sp??0,show=!settings.hideOthersInsignia;drawCaptainName(s.x,s.y+top-11,'',e.name,14,show?battleRank(sp).index:-1);if(show)drawInsignia(s.x,s.y+34,Math.round(sp/25),115);}}
+  const top=-122;drawHealthBar(s.x,s.y+top,80,e.hp/e.maxHp,siege?'#4fd18a':'#f0584a');{const sp=e.remote?.sp??TEST_RANKERS.find(r=>r.nick===e.name)?.sp??0,show=!settings.hideOthersInsignia;drawCaptainName(s.x,s.y+top-11,'',e.name,14,show?battleRank(sp).index:-1);if(show)drawInsignia(s.x,s.y+34,Math.round(sp/25),115);}}
 // Capture once at death, then fade the same pose without new particles or assets.
 function spawnWreck(o:Enemy|Monster){
   if(!onScreen(o,320))return;
@@ -2292,4 +2320,4 @@ let last=performance.now();function loop(now:number){const raw=(now-last)/1000,d
   const hide=()=>{if(done)return;done=true;setTimeout(()=>{splash.classList.add('gone');setTimeout(()=>splash.remove(),700);},Math.max(0,2000-(performance.now()-shown)));};
   if(document.readyState==='complete')hide();else window.addEventListener('load',hide);setTimeout(hide,6000);}}
 // Yalnızca geliştirme sunucusunda: tarayıcı testleri için durum erişimi.
-if(import.meta.env.DEV)(window as any).__ky={isoFace,levelUp:showLevelUp,sunk:showSunkBy,setLevel:(l:number,f:number)=>{state.level=l;state.fame=f;levelQuest=loadLevelQuest(l);levelQuestNoticed=false;},lqKill:(k:"npc"|"monster",id:string,t:number)=>levelQuestHit(k,id,t),range:()=>effectiveRange(),spawnBoss:()=>spawnBoss(),elite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;},rage:()=>{rage.meter=RAGE_MAX;activateRage();},get rageState(){return rage;},treasure,rollTreasurePart,manual:(on:boolean)=>{manualClock=on;},step:(dt:number)=>{update(dt);draw();},noFade:()=>{mapFade=0;},cinematic,makeShip,NPCS,MONSTERS,state,player,camera,enemies,monsters,respawn,enterMap,mapDef,fleetOwner,lootChests,sparkles,sinkEnemy,burst,splashAt,enterSiege,leaveSiege,get siege(){return siege;},shots,particles,wrecks,select:(t:Target)=>{selected=t;state.attacking=true;},ammo:(id:AmmoKind)=>{state.ammo=id;renderQuickSlots();},potion:()=>activateAbility('speed'),setElite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;fitCannonsToCapacity();},route:(v:Vec)=>{routeTarget=navigablePoint(v);destination=routeVia(routeTarget);},fleetNav,get routeTarget(){return routeTarget;},get selected(){return selected;},get destination(){return destination;}};
+if(import.meta.env.DEV)(window as any).__ky={net:netHandlers,isoFace,levelUp:showLevelUp,sunk:showSunkBy,setLevel:(l:number,f:number)=>{state.level=l;state.fame=f;levelQuest=loadLevelQuest(l);levelQuestNoticed=false;},lqKill:(k:"npc"|"monster",id:string,t:number)=>levelQuestHit(k,id,t),range:()=>effectiveRange(),spawnBoss:()=>spawnBoss(),elite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;},rage:()=>{rage.meter=RAGE_MAX;activateRage();},get rageState(){return rage;},treasure,rollTreasurePart,manual:(on:boolean)=>{manualClock=on;},step:(dt:number)=>{update(dt);draw();},noFade:()=>{mapFade=0;},cinematic,makeShip,NPCS,MONSTERS,state,player,camera,enemies,monsters,respawn,enterMap,mapDef,fleetOwner,lootChests,sparkles,sinkEnemy,burst,splashAt,enterSiege,leaveSiege,get siege(){return siege;},shots,particles,wrecks,select:(t:Target)=>{selected=t;state.attacking=true;},ammo:(id:AmmoKind)=>{state.ammo=id;renderQuickSlots();},potion:()=>activateAbility('speed'),setElite:(id:EliteShipId)=>{activeEliteShip=id;activeShip=id;fitCannonsToCapacity();},route:(v:Vec)=>{routeTarget=navigablePoint(v);destination=routeVia(routeTarget);},fleetNav,get routeTarget(){return routeTarget;},get selected(){return selected;},get destination(){return destination;}};
