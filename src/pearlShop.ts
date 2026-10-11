@@ -13,7 +13,7 @@ export const packTotal=(p:PearlPack)=>p.pearls+p.bonus;
 export const pearlsPerLira=(p:PearlPack)=>packTotal(p)/p.price;
 export const priceText=(n:number)=>`${n.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})} ₺`;
 
-// VİP üyelik: hareket halindeyken tamir (VİP'siz oyuncu hareket ederken tamir olamaz) ve %10 fazla tecrübe puanı.
+// VİP üyelik: %10 fazla tecrübe puanı.
 // Süre üstüne eklenir: aktif VİP varken yeni paket, kalan sürenin sonuna eklenir.
 export type VipPack={id:string;months:number;price:number;tag?:string};
 export const VIP_PACKS:VipPack[]=[
