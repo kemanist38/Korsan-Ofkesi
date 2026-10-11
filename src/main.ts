@@ -55,7 +55,7 @@ type SalvoRound = { powder?:boolean; delay:number; target:Target; side:number; s
 type EnemyRole='light'|'heavy';
 // Test kaptanı: elit gemili, oyuncu gibi savaşan yapay rakip (yalnız test modunda 1/1'de)
 type Captain={elite:EliteShipId;ammo:AmmoKind;ammoClock:number;foe:Enemy|null;orbit:Vec|null;orbitClock:number};
-type Enemy = Vec & { kind:'ship'; remote?:{id:string;tx:number;ty:number;seen:number;sp:number;tag:string|null}; captain?:Captain; pvp?:PvpBudget; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number; lastHitBy?:'player'|'captain'; siege?:boolean; commander?:boolean;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
+type Enemy = Vec & { kind:'ship'; remote?:{id:string;tx:number;ty:number;vx:number;vy:number;seen:number;sp:number;tag:string|null}; captain?:Captain; pvp?:PvpBudget; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number; lastHitBy?:'player'|'captain'; siege?:boolean; commander?:boolean;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
 type ParticleKind='flare'|'ember'|'glint'|'wisp'|'foam'|'smoke'|'spark'|'damage'|'flash'|'splinter'|'bubble'|'plank'|'firePuff'|'target'|'poison'|'soul'|'shock';
 // z: su üstünden yükseklik (ekranda yukarı kayar); vz ile savrulan parçalar suya düşer
 type Particle = Vec & { vx:number; vy:number; life:number; maxLife:number; kind:ParticleKind; text?:string; color?:string; z?:number; vz?:number; rot?:number; vr?:number; size?:number; variant?:number };
@@ -514,8 +514,8 @@ function remoteOf(id:string){return enemies.find(e=>e.remote?.id===id);}
 const netHandlers:NetHandlers={
   state:(n:NetState)=>{if(siege||n.id===myNetId)return;let e=remoteOf(n.id);
     if(!e){e={kind:'ship',role:'heavy',x:n.x,y:n.y,angle:0,hp:n.hp,maxHp:n.maxHp,cooldown:99,speed:0,damage:0,reload:99,rewardGold:0,rewardFame:0,color:'#79372f',name:n.nick,tier:8,aggro:false,wander:0,slowTimer:0,homeX:n.x,homeY:n.y,combatTimer:0,hitRadius:44,
-      captain:{elite:(NET_ELITES.has(n.ship)?n.ship:'phantom') as EliteShipId,ammo:'iron',ammoClock:99,foe:null,orbit:null,orbitClock:0},remote:{id:n.id,tx:n.x,ty:n.y,seen:0,sp:n.sp,tag:n.tag}} as Enemy;enemies.push(e);}
-    const r=e.remote!;r.tx=n.x;r.ty=n.y;r.seen=performance.now();r.sp=n.sp;r.tag=n.tag;e.name=(n.tag?`[${n.tag}]`:'')+n.nick;e.hp=n.hp;e.maxHp=n.maxHp;e.face={east:n.east,north:n.north};
+      captain:{elite:(NET_ELITES.has(n.ship)?n.ship:'phantom') as EliteShipId,ammo:'iron',ammoClock:99,foe:null,orbit:null,orbitClock:0},remote:{id:n.id,tx:n.x,ty:n.y,vx:0,vy:0,seen:0,sp:n.sp,tag:n.tag}} as Enemy;enemies.push(e);}
+    const r=e.remote!;r.tx=n.x;r.ty=n.y;r.vx=n.vx??0;r.vy=n.vy??0;r.seen=performance.now();r.sp=n.sp;r.tag=n.tag;e.name=(n.tag?`[${n.tag}]`:'')+n.nick;e.hp=n.hp;e.maxHp=n.maxHp;e.face={east:n.east,north:n.north};
     e.captain!.elite=(NET_ELITES.has(n.ship)?n.ship:'phantom') as EliteShipId;},
   leave:id=>{const e=remoteOf(id);if(e){enemies.splice(enemies.indexOf(e),1);if(selected===e){selected=null;state.attacking=false;}}},
   fire:f=>{const e=remoteOf(f.from);if(!e)return;const a=Math.atan2(f.ty-f.y,f.tx-f.x);muzzleFlash(f.x+Math.cos(a)*30,f.y+Math.sin(a)*30-10,a,44);playEnemyCannon(dist(e,player),(e.x-player.x)/600);
@@ -527,10 +527,11 @@ const netHandlers:NetHandlers={
   chat:(c:{nick:string;text:string;at:number})=>chat.receive(c.nick,c.text,c.at),
 };
 startNet(netHandlers);
-let netClock=0;
-function netTick(dt:number){joinSea(siege?null:currentMap);netClock-=dt;if(netClock>0)return;netClock=.12;
+let netClock=0;const netPrev={x:0,y:0},netVel={x:0,y:0};
+function netTick(dt:number){joinSea(siege?null:currentMap);{const ix=(player.x-netPrev.x)/Math.max(dt,1e-3),iy=(player.y-netPrev.y)/Math.max(dt,1e-3),ok=Math.hypot(ix,iy)<600;netVel.x=netVel.x*.8+(ok?ix:0)*.2;netVel.y=netVel.y*.8+(ok?iy:0)*.2;}netPrev.x=player.x;netPrev.y=player.y;
+  netClock-=dt;if(netClock>0)return;netClock=.05;
   const f=isoFace,ship=activeShip==='starter'?'starter':String(activeShip);
-  sendState({id:myNetId,nick:profile.nick,tag:guild?.tag??null,ship,x:Math.round(player.x),y:Math.round(player.y),east:f.east,north:f.north,hp:Math.max(0,Math.round(state.hp)),maxHp:effectiveMaxHp(),sp:state.battlePoints,level:state.level,t:Date.now()});
+  sendState({id:myNetId,nick:profile.nick,tag:guild?.tag??null,ship,x:Math.round(player.x),y:Math.round(player.y),east:f.east,north:f.north,hp:Math.max(0,Math.round(state.hp)),maxHp:effectiveMaxHp(),sp:state.battlePoints,level:state.level,t:Date.now(),vx:Math.round(netVel.x),vy:Math.round(netVel.y)});
   {const others=enemies.filter(e=>e.remote),pill=ui('netPill');pill.dataset.status=netStatus;
     ui('netText').textContent=netStatus==='ok'?`Çevrim içi · ${others.length} kaptan`:netStatus==='error'?'Bağlantı yok':netStatus==='off'?'Çevrim dışı':'Bağlanıyor…';
     pill.title=netStatus==='error'?netError:others.map(e=>`${e.name} · ${coordLabel(e)}`).join('\n')||'Bu haritada başka kaptan yok';}
@@ -1574,7 +1575,8 @@ function update(dt:number){{const rc=document.getElementById('recenterShip');if(
   player.angle=Math.atan2(Math.sin(player.angle),Math.cos(player.angle));
   for(const e of enemies){
     if(e.tower){if(siege)updateSiegeTower(e,dt);else updateTower(e,dt);continue;}
-    if(e.remote){const k=Math.min(1,dt*10);e.x+=(e.remote.tx-e.x)*k;e.y+=(e.remote.ty-e.y)*k;continue;}
+    if(e.remote){const r=e.remote,age=Math.min(.25,(performance.now()-r.seen)/1000),px=r.tx+r.vx*age,py=r.ty+r.vy*age,k=Math.min(1,dt*18);
+      if(Math.hypot(px-e.x,py-e.y)>400){e.x=px;e.y=py;}else{e.x+=(px-e.x)*k;e.y+=(py-e.y)*k;}continue;}
     if(e.captain){if(siege)updateSiegeCaptain(e,dt);else updateCaptain(e,dt);continue;}
     if(e.commander){updateCommander(e,dt);continue;}
     if((e.frozen??0)>0){e.frozen=Math.max(0,e.frozen!-dt);e.cooldown=Math.max(e.cooldown,.5);continue;}
