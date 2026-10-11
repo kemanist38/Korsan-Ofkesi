@@ -11,7 +11,7 @@ import './rage-ui.css';
 import {ACTIONS,loadSettings,saveSettings,keyLabel,normalizeKey,DEFAULT_BINDS,type ActionId} from './settings';
 import {playBossMusic,stopBossMusic,playBossHorn,setAudio,unlockAudio,playCannon,playEnemyCannon,playHit,playExplosion,playCoins,playSpeed,playRage,playShield,playSplash,playLevelUp,playMapJump,playSink,playHeal,playClick} from './audio';
 import {drawSeaSparkle,drawNpcShip,drawMonsterSheet,drawChestSprite,drawIslandSprite,drawFleetBase,drawBastion,drawBuiltTower,drawMineSprite,seaTilePattern,islandSheetUrl,shipLabelOffset,portraitStyle,preload,fleetBaseUrl,fleetTowerUrl,setTowerTheme,TOWER_LABEL_OFFSET,FLEET_ART,drawFleetOccluder} from './sprites';
-import {MAPS,GRID,THEMES,NPCS,MONSTERS,QUESTS,QUEST_COOLDOWN_MS,FLEET,FLEET_SCALE,WORLD_WIDTH,WORLD_HEIGHT,MAX_LEVEL,xpNeed,neighbor,bossFor,BOSS_KILLS,BOSS_ATLAS,BOSS_ATLAS_COLS,MAP_KEYS,type BossDef,type MapDef,tierOf,fleetTower,fleetReward,PORTRAIT_COUNT,PORTRAIT_COLS,PORTRAIT_ATLAS,GRID_COLS,GRID_ROWS,CELL_W,CELL_H,colName,rowName,gridCell,coordLabel,type MapKey,type WorldIsland,type NpcDef,type MonsterDef,type Dir,type QuestDef} from './campaign';
+import {MAPS,GRID,THEMES,NPCS,MONSTERS,QUESTS,QUEST_COOLDOWN_MS,FLEET,FLEET_SCALE,WORLD_WIDTH,WORLD_HEIGHT,MAX_LEVEL,xpNeed,neighbor,bossFor,BOSS_KILLS,BOSS_ATLAS,BOSS_ATLAS_COLS,MAP_KEYS,type BossDef,type MapDef,tierOf,fleetTower,fleetReward,PORTRAIT_COUNT,PORTRAIT_COLS,PORTRAIT_ATLAS,coordLabel,type MapKey,type WorldIsland,type NpcDef,type MonsterDef,type Dir,type QuestDef} from './campaign';
 import {ACHIEVEMENTS,loadAchievements,saveAchievements,unlockReached,achievementBonus,bonusText,badgeStyle,type AchStat} from './achievements';
 import {loadDaily,saveDaily,dailyStatus,claimDaily,dailyReward,type DailyReward} from './daily';
 import {TREASURE_PARTS,PART_CHANCE,DIG_RADIUS,DIG_SECONDS,TREASURE_ICON,loadTreasure,saveTreasure,treasureReward} from './treasure';
@@ -94,7 +94,7 @@ const QUICK_TIPS:Record<QuickItemId,string>={iron:'Sınırsız',chain:'Yavaşlat
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <main class="game-shell">
-    <canvas id="sea"></canvas><div class="grain"></div>
+    <canvas id="sea"></canvas><div class="info-strip" id="infoStrip"></div><div class="grain"></div>
     <section class="hud">
       <div class="corner-buttons"><button class="round-button" id="openShop" aria-label="Market"><img src="/assets/icon-market-v2.webp" alt="" draggable="false"/></button><button class="round-button" id="openMenu" aria-label="Menü"><img src="/assets/icon-menu-v2.webp" alt="" draggable="false"/></button></div>
       <nav class="shop-tabs" id="shopTabs"><button id="openEliteShips" data-shop="eliteShipOverlay"><img class="nav-img" id="shipNavIcon" alt="" draggable="false"/><span>TERSANE</span></button><button id="openEquipShop" data-shop="equipShopOverlay"><i class="nav-img equip-nav"></i><span>DONANIM</span></button><button id="openCannonShop" data-shop="cannonShopOverlay"><img class="nav-img" src="/assets/cannon-cast-v1.webp" alt="" draggable="false"/><span>TOPLAR</span></button><button id="openShip" data-shop="shipOverlay"><img class="nav-img" src="/assets/icon-inventory-v3.webp" alt="" draggable="false"/><span>ENVANTER</span></button><button id="openMarket" data-shop="marketOverlay"><img class="nav-img" src="/assets/ammo-fire-v2.webp" alt="" draggable="false"/><span>GÜLLELER</span></button><button id="openLoadoutTab" data-shop="supplyOverlay"><img class="nav-img" src="/assets/icon-chest-v2.webp" alt="" draggable="false"/><span>MALZEMELER</span></button><button id="openPearlShop" data-shop="pearlShopOverlay"><img class="nav-img" src="/assets/icon-pearl-v1.webp" alt="" draggable="false"/><span>MAĞAZA</span></button><button class="shop-close" id="closeShopTabs" aria-label="Marketi kapat">×</button></nav>
@@ -2220,32 +2220,11 @@ function draw(){
   drawAbilityFx(ctx,worldToScreen,innerWidth,innerHeight);
   particles.forEach(p=>{if(p.kind==='damage')drawParticle(p);});
   ctx.restore();
-  if(!cinematic.on)drawCoordRulers();
   if(mapFade>0){ctx.fillStyle=`rgba(2,10,14,${Math.min(1,mapFade)})`;ctx.fillRect(0,0,w,h);}
   drawMinimap();
 }
-// Koordinat cetvelleri: ekran kenarında kamerayı izler (dünya içinde ızgara çizgisi ve rota çizgisi çizilmez; görüntü temiz kalsın).
-function drawCoordRulers(){
-  const w=innerWidth,h=innerHeight,z=camera.zoom,T=16,L=26,top=0,here=gridCell(player);
-  const sx=(x:number)=>w/2+(x-camera.x)*z,sy=(y:number)=>h/2+(y-camera.y)*z;
-  ctx.save();ctx.fillStyle='rgba(4,16,20,.62)';ctx.fillRect(L,top,w-L,T);ctx.fillRect(0,top,L,h-top);
-  ctx.fillStyle='rgba(215,190,130,.35)';ctx.fillRect(L,top+T-1,w-L,1);ctx.fillRect(L-1,top+T,1,h-top-T);
-  ctx.font='700 9px Inter';ctx.textAlign='center';ctx.textBaseline='middle';
-  const c0=Math.max(0,Math.floor((camera.x-w/2/z)/CELL_W)),c1=Math.min(GRID_COLS-1,Math.ceil((camera.x+w/2/z)/CELL_W));
-  for(let c=c0;c<=c1;c++){const x=sx((c+.5)*CELL_W);if(x<L+8||x>w-6)continue;const cur=c===here.c;
-    if(cur){ctx.fillStyle='rgba(241,198,98,.28)';ctx.fillRect(sx(c*CELL_W),top,CELL_W*z,T-1);}
-    ctx.fillStyle=cur?'#ffd98a':'#b9cfc9';ctx.fillText(colName(c),x,top+T/2);
-    ctx.fillStyle='rgba(185,207,201,.35)';ctx.fillRect(Math.round(sx(c*CELL_W)),top+T-4,1,3);}
-  const r0=Math.max(0,Math.floor((camera.y-h/2/z)/CELL_H)),r1=Math.min(GRID_ROWS-1,Math.ceil((camera.y+h/2/z)/CELL_H));
-  for(let r=r0;r<=r1;r++){const y=sy((r+.5)*CELL_H);if(y<top+T+6||y>h-4)continue;const cur=r===here.r;
-    if(cur){ctx.fillStyle='rgba(241,198,98,.28)';ctx.fillRect(0,sy(r*CELL_H),L-1,CELL_H*z);}
-    ctx.fillStyle=cur?'#ffd98a':'#b9cfc9';ctx.fillText(rowName(r),L/2,y);
-    ctx.fillStyle='rgba(185,207,201,.35)';ctx.fillRect(L-4,Math.round(sy(r*CELL_H)),3,1);}
-  ctx.fillStyle='rgba(4,16,20,.9)';ctx.fillRect(0,top,L,T);ctx.fillStyle='#d4a64c';ctx.font='700 8px Inter';ctx.fillText('◎',L/2,top+T/2);
-  ctx.restore();
-}
 let lastCoord='';
-function updateCoordBadge(){const text=`${siege?'KALE':currentMap} - ${coordLabel(player)}`;if(text!==lastCoord){lastCoord=text;ui('mapCoord').textContent=text;}}
+function updateCoordBadge(){const text=`${siege?'KALE':currentMap} - ${coordLabel(player)}`;if(text!==lastCoord){lastCoord=text;ui('mapCoord').textContent=text;const st=document.getElementById('infoStrip');if(st)st.innerHTML=`Harita: <b>${siege?'KALE':currentMap}</b><i></i>Koordinat: <b>${coordLabel(player)}</b>`;}}
 function drawMinimap(){const W=188,H=133,sx=(x:number)=>x/WORLD_WIDTH*W,sy=(y:number)=>y/WORLD_HEIGHT*H,th=theme();
   mini.setTransform(minimap.width/W,0,0,minimap.height/H,0,0);mini.clearRect(0,0,W,H);void th;
   for(const dir of ['north','south','east','west'] as Dir[]){const to=neighbor(currentMap,dir);if(!to)continue;mini.fillStyle=state.level>=MAPS[to].tier?'#6fd6c4aa':'#e07a5f88';if(dir==='north')mini.fillRect(W/2-14,0,28,2);if(dir==='south')mini.fillRect(W/2-14,H-2,28,2);if(dir==='west')mini.fillRect(0,H/2-12,2,24);if(dir==='east')mini.fillRect(W-2,H/2-12,2,24);}
