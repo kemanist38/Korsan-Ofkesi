@@ -2,7 +2,7 @@
 // değilse son çıkış yaptığı harita ve koordinat öğrenilir. Hedefin Casus Kalkanı varsa casus yakalanır ve kalkandan
 // 1 hak düşer; kalkan bitince (ör. 10 hakta 11. casus) konum ele verilir.
 // Sunucu gelene kadar rakipler test kaptanlarıdır ve kalkanları bu cihazda saklanır.
-export const SPY_COST=10,SPY_SHIELD_PRICE=20;
+export const SPY_COST=100,SPY_SHIELD_PRICE=150;
 export type SpyRival={nick:string;online:boolean;map:string;coord:string};
 export type SpyResult={kind:'found'|'blocked'|'unknown';rival?:SpyRival;shieldLeft?:number};
 const KEY='yedi-deniz-spy-v1';
