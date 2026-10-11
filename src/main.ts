@@ -21,6 +21,7 @@ import {BOARDS,rankRows,rankPage,RANK_PAGE_SIZE,type BoardId,type RankPlayer,typ
 import {redeem,loadRedeemed,saveRedeemed,rewardText} from './coupons';
 import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
 import {loadLevelQuest,saveLevelQuest,levelQuestDone,levelQuestKill,levelQuestGoal,needsLevelQuest} from './level-quest';
+import {SPY_COST,SPY_SHIELD_PRICE,loadSpy,sendSpy,type SpyRival} from './spy';
 import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,claimReward,GRADUATE_LEVEL,MAX_APPRENTICES,TOGETHER_XP_BONUS} from './mentorship';
 import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
 import {loadLog,saveLog,addLog,daySummary,LOG_KINDS,type LogKind,type LogEntry} from './logbook';
@@ -94,7 +95,7 @@ const QUICK_TIPS:Record<QuickItemId,string>={iron:'Sınırsız',chain:'Yavaşlat
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <main class="game-shell">
-    <canvas id="sea"></canvas><div class="info-strip"><form class="coord-go" id="coordGo" autocomplete="off"><span>Koordinata git</span><input id="goCol" inputmode="numeric" maxlength="2" placeholder="55" aria-label="Sütun (00–60)"/><input id="goRow" maxlength="2" placeholder="AN" aria-label="Satır (AA–CZ)"/><button type="submit">GİT</button></form><span class="strip-res"><i class="sprite icon-gold"></i><b id="stripGold">0</b><i class="sprite icon-pearl"></i><b id="stripPearls">0</b><button id="stripPearlPlus" aria-label="İnci satın al">+</button></span></div><div class="grain"></div>
+    <canvas id="sea"></canvas><div class="info-strip"><form class="coord-go" id="coordGo" autocomplete="off"><span>Koordinata git</span><input id="goCol" inputmode="numeric" maxlength="2" placeholder="55" aria-label="Sütun (00–60)"/><input id="goRow" maxlength="2" placeholder="AN" aria-label="Satır (AA–CZ)"/><button type="submit">GİT</button></form><form class="coord-go spy-go" id="spyGo" autocomplete="off"><input id="spyNick" maxlength="20" placeholder="Rakip adı" aria-label="Rakip kaptan adı"/><button type="submit" title="Casus gönder · ${SPY_COST} inci">CASUS · ${SPY_COST} İNCİ</button></form><span class="strip-res"><i class="sprite icon-gold"></i><b id="stripGold">0</b><i class="sprite icon-pearl"></i><b id="stripPearls">0</b><button id="stripPearlPlus" aria-label="İnci satın al">+</button></span></div><div class="grain"></div>
     <section class="hud">
       <div class="corner-buttons"><button class="round-button" id="openShop" aria-label="Market"><img src="/assets/icon-market-v2.webp" alt="" draggable="false"/></button><button class="round-button" id="openMenu" aria-label="Menü"><img src="/assets/icon-menu-v2.webp" alt="" draggable="false"/></button></div>
       <nav class="shop-tabs" id="shopTabs"><button id="openEliteShips" data-shop="eliteShipOverlay"><img class="nav-img" id="shipNavIcon" alt="" draggable="false"/><span>TERSANE</span></button><button id="openEquipShop" data-shop="equipShopOverlay"><i class="nav-img equip-nav"></i><span>DONANIM</span></button><button id="openCannonShop" data-shop="cannonShopOverlay"><img class="nav-img" src="/assets/cannon-cast-v1.webp" alt="" draggable="false"/><span>TOPLAR</span></button><button id="openShip" data-shop="shipOverlay"><img class="nav-img" src="/assets/icon-inventory-v3.webp" alt="" draggable="false"/><span>ENVANTER</span></button><button id="openMarket" data-shop="marketOverlay"><img class="nav-img" src="/assets/ammo-fire-v2.webp" alt="" draggable="false"/><span>GÜLLELER</span></button><button id="openLoadoutTab" data-shop="supplyOverlay"><img class="nav-img" src="/assets/icon-chest-v2.webp" alt="" draggable="false"/><span>MALZEMELER</span></button><button id="openPearlShop" data-shop="pearlShopOverlay"><img class="nav-img" src="/assets/icon-pearl-v1.webp" alt="" draggable="false"/><span>MAĞAZA</span></button><button class="shop-close" id="closeShopTabs" aria-label="Marketi kapat">×</button></nav>
@@ -505,6 +506,20 @@ document.querySelectorAll<HTMLButtonElement>('#shopTabs [data-shop]').forEach(b=
     if(col.value===''||!(c>=0&&c<GRID_COLS)||!(ri>=0&&ri<GRID_ROWS)){toast(`Geçersiz koordinat · sütun 00–${GRID_COLS-1}, satır AA–${rowName(GRID_ROWS-1)}`);return;}
     routeTarget=navigablePoint({x:(c+.5)*CELL_W,y:(ri+.5)*CELL_H});destination=routeVia(routeTarget);attackChase=false;
     toast(`Rota: ${colName(c)} ${rowName(ri)}`);(document.activeElement as HTMLElement|null)?.blur();};}
+// Casus: rakip kaptanın konumu (oyundaysa şimdiki, değilse son çıkış yaptığı harita ve koordinat)
+const spyStore=loadSpy();
+const OFFLINE_SPOTS:Record<string,[string,string]>={ADM_AHMET:['8/2','31BK'],'ADM_YASİN':['7/1','12AF'],ADM_DOGAN:['6/2','47CC']};
+function spyRivals():SpyRival[]{return TEST_RANKERS.map(r=>{const live=enemies.find(e=>e.captain&&e.name===r.nick);
+  return live?{nick:r.nick,online:true,map:currentMap,coord:coordLabel(live)}:{nick:r.nick,online:false,map:OFFLINE_SPOTS[r.nick]?.[0]??'1/1',coord:OFFLINE_SPOTS[r.nick]?.[1]??'00AA'};});}
+{const nick=ui('spyNick') as HTMLInputElement;nick.addEventListener('keydown',e=>e.stopPropagation());
+  ui('spyGo').onsubmit=e=>{e.preventDefault();const name=nick.value.trim();if(!name){toast('Rakip kaptanın adını yaz');return;}
+    if(state.pearls<SPY_COST){toast(`Casus için ${SPY_COST} inci gerekli`);return;}
+    const r=sendSpy(spyStore,name,spyRivals());
+    if(r.kind==='unknown'){toast(`"${name}" adında bir kaptan bulunamadı`);return;}
+    state.pearls-=SPY_COST;saveAccount();updateUI();const n=r.rival!.nick;
+    if(r.kind==='blocked')rewardNotice(`Casus yakalandı · ${n} Casus Kalkanı kullandı (${r.shieldLeft} hak kaldı) · −${SPY_COST} inci`,'battle');
+    else rewardNotice(r.rival!.online?`Casus raporu · ${n} şu an ${r.rival!.map} haritasında, ${r.rival!.coord} koordinatında · −${SPY_COST} inci`:`Casus raporu · ${n} oyunda değil · son çıkış: ${r.rival!.map} haritası, ${r.rival!.coord} · −${SPY_COST} inci`,'battle');
+    nick.value='';nick.blur();};}
 ui('stripPearlPlus').onclick=()=>document.getElementById('pearlResource')?.click();ui('openShop').onclick=()=>showShop(lastShop);
 // Mağaza sekmesi (İnci Hazinesi): gerçek parayla VİP ve inci paketleri (src/pearlShop.ts)
 function openPearlShop(){renderPearlShop();ui('pearlShopOverlay').classList.add('open');}
@@ -1079,8 +1094,9 @@ function renderMarket(){
 function openSupply(){renderSupply();ui('supplyOverlay').classList.add('open');}
 function closeSupply(){ui('supplyOverlay').classList.remove('open');}
 function renderSupply(){
-  renderBuyRows('supplyList',(Object.keys(SUPPLY_PRICES) as SupplyId[]).map(id=>({id,name:QUICK_ITEMS[id].name,art:`<div class="ammo-icon">${itemAsset(id)}<b>${fmt(arsenal[id])}</b></div>`,
-    desc:QUICK_ITEMS[id].description,unit:SUPPLY_PRICES[id],give:(n:number)=>{arsenal[id]+=n;},after:renderSupply})));
+  renderBuyRows('supplyList',[...(Object.keys(SUPPLY_PRICES) as SupplyId[]).map(id=>({id,name:QUICK_ITEMS[id].name,art:`<div class="ammo-icon">${itemAsset(id)}<b>${fmt(arsenal[id])}</b></div>`,
+    desc:QUICK_ITEMS[id].description,unit:SUPPLY_PRICES[id] as Price,give:(n:number)=>{arsenal[id]+=n;},after:renderSupply})),
+    {id:'spyShield',name:'Casus Kalkanı',art:`<div class="ammo-icon"><img class="raster-item" src="/assets/icon-shield-v3.webp" alt=""/><b>${fmt(arsenal.spyShield)}</b></div>`,desc:'Gemine gönderilen her casusu yakalar ve 1 hak harcar; hakların bitince sonraki casus konumunu öğrenir. Örn. 10 hak → 10 casus engellenir, 11. casus konumunu bulur.',unit:{amount:SPY_SHIELD_PRICE,currency:'pearls'},give:(n:number)=>{arsenal.spyShield+=n;},after:renderSupply}]);
 }
 let loadoutTab:'ammo'|'consumable'='ammo';
 let pendingQuickItem:QuickItemId|null=null;
