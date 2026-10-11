@@ -20,7 +20,7 @@ import {PEARL_PACKS,packTotal,priceText,VIP_PACKS,VIP_XP_BONUS,loadVipUntil,save
 import {BOARDS,rankRows,rankPage,RANK_PAGE_SIZE,type BoardId,type RankPlayer,type RankFleet,type RankRow} from './leaderboard';
 import {redeem,loadRedeemed,saveRedeemed,rewardText} from './coupons';
 import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
-import {loadLevelQuest,saveLevelQuest,levelQuestDone,levelQuestKill,levelQuestGoal,needsLevelQuest} from './level-quest';
+import {loadLevelQuest,saveLevelQuest,levelQuestDone,levelQuestKill,levelQuestGoal,needsLevelQuest,levelQuestMap} from './level-quest';
 import {SPY_COST,SPY_SHIELD_PRICE,loadSpy,sendSpy,type SpyRival} from './spy';
 import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,claimReward,GRADUATE_LEVEL,MAX_APPRENTICES,TOGETHER_XP_BONUS} from './mentorship';
 import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
@@ -172,7 +172,7 @@ let levelQuest=loadLevelQuest(state.level),levelQuestNoticed=false;
 // Seviye görevi açık mı: TP dolmuş ama görev bitmemiş
 const levelQuestOpen=()=>state.fame>=xpNeed(state.level)&&!levelQuestDone(levelQuest);
 function levelQuestHit(kind:'npc'|'monster',id:string,tier:number){
-  if(levelQuest.map&&levelQuest.map!==currentMap&&state.fame>=xpNeed(state.level)&&!levelQuestDone(levelQuest)&&tier===levelQuest.level){toast(`Seviye görevi ${levelQuest.map} haritasında · bu batırma sayılmadı`);return;}
+  if(levelQuestMap(levelQuest.level)!==currentMap&&state.fame>=xpNeed(state.level)&&!levelQuestDone(levelQuest)&&tier===levelQuest.level){toast(`Seviye görevi ${levelQuestMap(levelQuest.level)} haritasında · bu batırma sayılmadı`);return;}
   if(!levelQuestKill(levelQuest,kind,id,tier,state.fame>=xpNeed(state.level),currentMap))return;saveLevelQuest(levelQuest);
   const g=levelQuestGoal(levelQuest.level);
   if(levelQuestDone(levelQuest))rewardNotice(`Seviye görevi tamamlandı · Seviye ${levelQuest.level+1} açılıyor`,'gain');
@@ -181,7 +181,7 @@ function levelQuestHit(kind:'npc'|'monster',id:string,tier:number){
 function levelQuestHtml(){
   if(!needsLevelQuest(state.level)||!Number.isFinite(xpNeed(state.level)))return'';
   const g=levelQuestGoal(state.level),open=levelQuestOpen(),L=state.level;
-  return`<article class="quest-entry level-quest ${open?'active':''}"><div class="quest-number">★</div><div class="quest-copy"><span>SEVİYE GÖREVİ · ${L} → ${L+1}</span><h3>${open?'Seviye görevi hazır':'TP dolunca açılır'}</h3><p>${levelQuest.map?`${levelQuest.map} haritasında`:`${L}/1 veya ${L}/2 haritasında (ilk batırdığın harita seçilir)`} ${g.ships} ağır gemi batır ve ${g.monsters} canavar yen. Görev bitene kadar kazandığın TP birikir.</p><b>${levelQuest.ships}/${g.ships} Ağır gemi · ${levelQuest.monsters}/${g.monsters} Canavar</b></div></article>`;
+  return`<article class="quest-entry level-quest ${open?'active':''}"><div class="quest-number">★</div><div class="quest-copy"><span>SEVİYE GÖREVİ · ${L} → ${L+1}</span><h3>${open?'Seviye görevi hazır':'TP dolunca açılır'}</h3><p>${levelQuestMap(L)} haritasında ${g.ships} ağır gemi batır ve ${g.monsters} canavar yen. Görev bitene kadar kazandığın TP birikir.</p><b>${levelQuest.ships}/${g.ships} Ağır gemi · ${levelQuest.monsters}/${g.monsters} Canavar</b></div></article>`;
 }
 // Eski ölçekli kayıtlar (100 canlı, 18 toplu gemi) bir kez Seafight ölçeğine taşınır: can formülden hesaplanır,
 // gemiye en az 50 döküm top yerleştirilir.
@@ -1607,7 +1607,7 @@ function update(dt:number){{const rc=document.getElementById('recenterShip');if(
     if(p.life<=0)particles.splice(i,1);}
   for(let i=wrecks.length-1;i>=0;i--){wrecks[i].t+=dt;if(wrecks[i].t>=WRECK_TIME)wrecks.splice(i,1);}
   compassReveal=Math.max(0,compassReveal-dt);compassCooldown=Math.max(0,compassCooldown-dt);compassPulse=Math.max(0,compassPulse-dt*.8);
-  let need=xpNeed(state.level);if(state.fame>=need&&!levelQuestDone(levelQuest)&&!levelQuestNoticed){levelQuestNoticed=true;const g=levelQuestGoal(state.level);rewardNotice(`TP doldu · Seviye görevi: ${state.level}. denizde ${g.ships} ağır gemi ve ${g.monsters} canavar`,'gain');toast('Seviye görevi hazır · Görevler');}
+  let need=xpNeed(state.level);if(state.fame>=need&&!levelQuestDone(levelQuest)&&!levelQuestNoticed){levelQuestNoticed=true;const g=levelQuestGoal(state.level);rewardNotice(`TP doldu · Seviye görevi: ${levelQuestMap(state.level)} haritasında ${g.ships} ağır gemi ve ${g.monsters} canavar`,'gain');toast('Seviye görevi hazır · Görevler');}
   while(state.fame>=need&&levelQuestDone(levelQuest)){state.fame-=need;state.level++;levelQuest=loadLevelQuest(state.level);saveLevelQuest(levelQuest);levelQuestNoticed=false;setAch('level',state.level);{const rw=onOwnLevel(mentorship,state.level);for(const r of rw)rewardNotice(`${r.level>=GRADUATE_LEVEL?'Mezuniyet':'Muço'} ödülü hazır · Kaptan & Muço penceresinden talep et`,'gain');saveMentorship(mentorship);}state.maxHp=baseMaxHp();state.hp=effectiveMaxHp();const gift=levelGift(state.level);state.pearls+=gift.pearls;arsenal.fire+=gift.fire;saveArsenal(arsenal);renderQuickSlots();saveAccount();playLevelUp();rewardNotice(`Seviye ${state.level} oldun · +${HP_PER_LEVEL.toLocaleString('tr-TR')} azami gövde · +1 uzmanlık puanı · +${fmt(gift.pearls)} inci · +${fmt(gift.fire)} Ateş Güllesi · ${state.level}/1 açıldı`);toast(`Seviye ${state.level}! Yeni denizler açıldı`);showLevelUp(state.level);need=xpNeed(state.level);}
   if(toastTimer>0){toastTimer-=dt;if(toastTimer<=0)ui('toast').classList.remove('show');}uiClock-=dt;if(uiClock<=0){uiClock=.1;updateUI();};
 }
