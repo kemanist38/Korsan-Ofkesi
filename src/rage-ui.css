@@ -474,3 +474,10 @@ html.touch .spy-go input{width:96px}
 .strip-res{right:22px!important;gap:0!important}
 .strip-res b{padding:1px 10px 1px 6px;margin-right:6px!important;border:1px solid #8a5a2c;border-left:0;border-radius:0 10px 10px 0;background:#140807aa}
 .strip-res i.sprite{position:relative;z-index:1;width:20px!important;height:20px!important;filter:drop-shadow(0 1px 1px #000)}
+/* Çevrim içi durumu */
+.net-pill{display:flex;align-items:center;gap:5px;height:17px;padding:0 8px;border:1px solid #8a5a2c;border-radius:9px;background:#140807;color:#d9c3a0;font:600 10px Inter,sans-serif;cursor:pointer;pointer-events:auto;white-space:nowrap}
+.net-pill i{width:8px;height:8px;border-radius:50%;background:#c9a13a;box-shadow:0 0 5px currentColor}
+.net-pill[data-status="ok"] i{background:#4fd18a}.net-pill[data-status="error"] i,.net-pill[data-status="off"] i{background:#e0584a}
+html.touch .coord-go>span{display:none}
+html.touch .spy-go input{width:72px!important}
+html.touch .info-strip{gap:10px}
