@@ -459,3 +459,18 @@ html.touch .spy-go input{width:96px}
 .spy-dialog footer{display:flex;gap:10px;justify-content:center}
 .spy-dialog button{padding:8px 18px;border:1px solid #f1c662;border-radius:6px;background:linear-gradient(#7a1e12,#3a0c06);color:#ffe2a0;font:800 11px Inter,sans-serif;letter-spacing:.06em;cursor:pointer}
 .spy-dialog button[data-x]{border-color:#7a6a5a;background:#2a2022;color:#c9b8a0}
+/* Üst şerit: ahşap-metal çerçeve, altın kenar ve perçinler */
+:root{--strip:24px}
+.info-strip{background:
+  radial-gradient(circle at 8px 50%,#e8c06a 0 2px,#5a3410 2.5px,transparent 3.5px) left/100% 100% no-repeat,
+  radial-gradient(circle at calc(100% - 8px) 50%,#e8c06a 0 2px,#5a3410 2.5px,transparent 3.5px) left/100% 100% no-repeat,
+  repeating-linear-gradient(90deg,#00000000 0 46px,#0000002a 46px 47px),
+  linear-gradient(#4a2418,#2a1210 55%,#1a0a08)!important;
+  border-bottom:0!important;box-shadow:inset 0 1px #ffd98a55,inset 0 -1px #00000088,0 1px #c69b4e,0 2px #5a3410,0 3px #e8c06a99,0 6px 10px #000b!important;padding-left:22px!important}
+.info-strip::after{content:'';position:absolute;left:50%;bottom:-7px;width:44px;height:10px;transform:translateX(-50%);background:linear-gradient(#e8c06a,#8a5a2c);clip-path:polygon(0 0,100% 0,60% 100%,40% 100%);filter:drop-shadow(0 2px 2px #000a);pointer-events:none}
+.coord-go input,.spy-go input{height:17px!important;border:1px solid #c69b4e!important;border-radius:4px!important;background:linear-gradient(#0e0605,#24120e)!important;box-shadow:inset 0 1px 3px #000c,0 0 0 1px #00000066}
+.coord-go button{height:17px!important;border-radius:4px!important;box-shadow:inset 0 1px #ffffff33,0 1px 2px #000a}
+.coord-go span{font-family:Cinzel,serif!important;font-weight:700!important;letter-spacing:.06em;color:#f3d496!important}
+.strip-res{right:22px!important;gap:0!important}
+.strip-res b{padding:1px 10px 1px 6px;margin-right:6px!important;border:1px solid #8a5a2c;border-left:0;border-radius:0 10px 10px 0;background:#140807aa}
+.strip-res i.sprite{position:relative;z-index:1;width:20px!important;height:20px!important;filter:drop-shadow(0 1px 1px #000)}
