@@ -434,3 +434,11 @@ html.touch .corner-buttons{top:8px!important}
 html.touch .event-panel{top:70px!important}
 #infoStrip i{display:inline-block;width:22px}
 html.touch .info-strip{justify-content:flex-start;padding-left:14px}
+/* Koordinata git formu (üst şerit, sol) */
+.coord-go{position:absolute;left:14px;top:0;height:100%;display:flex;align-items:center;gap:5px;pointer-events:auto;margin:0}
+.coord-go span{color:#e0b46a;font:600 11px Inter,sans-serif;margin-right:2px}
+.coord-go input{width:30px;height:15px;padding:0 3px;border:1px solid #8a5a2c;border-radius:3px;background:#140807;color:#ffd98a;font:700 11px Inter,sans-serif;text-align:center;text-transform:uppercase;outline:none}
+.coord-go input:focus{border-color:#f1c662;box-shadow:0 0 4px #f1c66288}
+.coord-go input::placeholder{color:#7a5a3a}
+.coord-go button{height:15px;padding:0 8px;border:1px solid #f1c662;border-radius:3px;background:linear-gradient(#7a1e12,#3a0c06);color:#ffe2a0;font:800 9px Inter,sans-serif;letter-spacing:.06em;cursor:pointer;line-height:1}
+html.touch .coord-go input{font-size:16px;height:17px;width:34px}
