@@ -418,3 +418,19 @@ html.touch .resources .compact b{font-size:13px;line-height:1}
 html.touch .event-panel{top:130px!important}
 html.touch .corner-buttons{top:66px!important}
 html.touch .event-panel{top:126px!important}
+/* Üst bilgi şeridi: kenar koordinat cetvelleri yerine ince bir şerit (harita + koordinat), HUD şeridin altında başlar */
+:root{--strip:20px}
+.info-strip{position:fixed;left:0;right:0;top:0;height:var(--strip);z-index:45;display:flex;align-items:center;justify-content:center;gap:6px;pointer-events:none;background:linear-gradient(#3a1612,#1e0b09);border-bottom:2px solid #8a5a2c;box-shadow:0 2px 6px #000a;color:#e0b46a;font:600 12px Inter,sans-serif;letter-spacing:.03em}
+.info-strip b{color:#ffd98a;font-weight:700}.info-strip i{width:18px}
+.hud{top:var(--strip)!important;height:calc((100% - var(--strip)) / var(--ui,1))!important}
+/* Altın ve inci üst şeritte, sağda; eski kutular gizli, köşe düğmeleri yine en üstte */
+.strip-res{position:absolute;right:14px;top:0;height:100%;display:flex;align-items:center;gap:6px;pointer-events:auto}
+.strip-res i.sprite{width:16px;height:16px;flex:none}
+.strip-res b{color:#ffe7b0;font:700 12px Inter,sans-serif;margin-right:8px}
+.strip-res b#stripPearls{color:#bff3ee}
+.strip-res button{width:16px;height:16px;padding:0;border:1px solid #6fd68a;border-radius:50%;background:#2f6b3e;color:#fff;font:700 12px/1 Inter;cursor:pointer;display:grid;place-items:center}
+.resources{display:none!important}
+html.touch .corner-buttons{top:8px!important}
+html.touch .event-panel{top:70px!important}
+#infoStrip i{display:inline-block;width:22px}
+html.touch .info-strip{justify-content:flex-start;padding-left:14px}
