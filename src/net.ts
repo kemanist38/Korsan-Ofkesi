@@ -3,7 +3,7 @@
 // (yeterli: arkadaş grubuyla ilk sürüm). Kanal adı: sea-<harita>; sohbet için tek global kanal.
 import {createClient,type RealtimeChannel} from '@supabase/supabase-js';
 
-const URL='https://vidjvineafeiyocliau.supabase.co';
+const URL='https://vidjvineafeiyoclioau.supabase.co';
 const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZGp2aW5lYWZlaXlvY2xpb2F1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE3Mjk2NjMsImV4cCI6MjEwNzMwNTY2M30.sKlmmfQRr-ZASkaSbax22ca80cyDCc8DNz4Idq19g5s';
 
 export type NetState={id:string;nick:string;tag:string|null;ship:string;x:number;y:number;east:boolean;north:boolean;hp:number;maxHp:number;sp:number;level:number;t:number};
