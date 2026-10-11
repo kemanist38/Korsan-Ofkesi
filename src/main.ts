@@ -11,7 +11,7 @@ import './rage-ui.css';
 import {ACTIONS,loadSettings,saveSettings,keyLabel,normalizeKey,DEFAULT_BINDS,type ActionId} from './settings';
 import {playBossMusic,stopBossMusic,playBossHorn,setAudio,unlockAudio,playCannon,playEnemyCannon,playHit,playExplosion,playCoins,playSpeed,playRage,playShield,playSplash,playLevelUp,playMapJump,playSink,playHeal,playClick} from './audio';
 import {drawSeaSparkle,drawNpcShip,drawMonsterSheet,drawChestSprite,drawIslandSprite,drawFleetBase,drawBastion,drawBuiltTower,drawMineSprite,seaTilePattern,islandSheetUrl,shipLabelOffset,portraitStyle,preload,fleetBaseUrl,fleetTowerUrl,setTowerTheme,TOWER_LABEL_OFFSET,FLEET_ART,drawFleetOccluder} from './sprites';
-import {MAPS,GRID,THEMES,NPCS,MONSTERS,QUESTS,QUEST_COOLDOWN_MS,FLEET,FLEET_SCALE,WORLD_WIDTH,WORLD_HEIGHT,MAX_LEVEL,xpNeed,neighbor,bossFor,BOSS_KILLS,BOSS_ATLAS,BOSS_ATLAS_COLS,MAP_KEYS,type BossDef,type MapDef,tierOf,fleetTower,fleetReward,PORTRAIT_COUNT,PORTRAIT_COLS,PORTRAIT_ATLAS,coordLabel,type MapKey,type WorldIsland,type NpcDef,type MonsterDef,type Dir,type QuestDef} from './campaign';
+import {MAPS,GRID,THEMES,NPCS,MONSTERS,QUESTS,QUEST_COOLDOWN_MS,FLEET,FLEET_SCALE,WORLD_WIDTH,WORLD_HEIGHT,MAX_LEVEL,xpNeed,neighbor,bossFor,BOSS_KILLS,BOSS_ATLAS,BOSS_ATLAS_COLS,MAP_KEYS,type BossDef,type MapDef,tierOf,fleetTower,fleetReward,PORTRAIT_COUNT,PORTRAIT_COLS,PORTRAIT_ATLAS,coordLabel,GRID_COLS,GRID_ROWS,CELL_W,CELL_H,colName,rowName,type MapKey,type WorldIsland,type NpcDef,type MonsterDef,type Dir,type QuestDef} from './campaign';
 import {ACHIEVEMENTS,loadAchievements,saveAchievements,unlockReached,achievementBonus,bonusText,badgeStyle,type AchStat} from './achievements';
 import {loadDaily,saveDaily,dailyStatus,claimDaily,dailyReward,type DailyReward} from './daily';
 import {TREASURE_PARTS,PART_CHANCE,DIG_RADIUS,DIG_SECONDS,TREASURE_ICON,loadTreasure,saveTreasure,treasureReward} from './treasure';
@@ -94,7 +94,7 @@ const QUICK_TIPS:Record<QuickItemId,string>={iron:'Sınırsız',chain:'Yavaşlat
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <main class="game-shell">
-    <canvas id="sea"></canvas><div class="info-strip"><span id="infoStrip"></span><span class="strip-res"><i class="sprite icon-gold"></i><b id="stripGold">0</b><i class="sprite icon-pearl"></i><b id="stripPearls">0</b><button id="stripPearlPlus" aria-label="İnci satın al">+</button></span></div><div class="grain"></div>
+    <canvas id="sea"></canvas><div class="info-strip"><form class="coord-go" id="coordGo" autocomplete="off"><span>Koordinata git</span><input id="goCol" inputmode="numeric" maxlength="2" placeholder="55" aria-label="Sütun (00–60)"/><input id="goRow" maxlength="2" placeholder="AN" aria-label="Satır (AA–CZ)"/><button type="submit">GİT</button></form><span class="strip-res"><i class="sprite icon-gold"></i><b id="stripGold">0</b><i class="sprite icon-pearl"></i><b id="stripPearls">0</b><button id="stripPearlPlus" aria-label="İnci satın al">+</button></span></div><div class="grain"></div>
     <section class="hud">
       <div class="corner-buttons"><button class="round-button" id="openShop" aria-label="Market"><img src="/assets/icon-market-v2.webp" alt="" draggable="false"/></button><button class="round-button" id="openMenu" aria-label="Menü"><img src="/assets/icon-menu-v2.webp" alt="" draggable="false"/></button></div>
       <nav class="shop-tabs" id="shopTabs"><button id="openEliteShips" data-shop="eliteShipOverlay"><img class="nav-img" id="shipNavIcon" alt="" draggable="false"/><span>TERSANE</span></button><button id="openEquipShop" data-shop="equipShopOverlay"><i class="nav-img equip-nav"></i><span>DONANIM</span></button><button id="openCannonShop" data-shop="cannonShopOverlay"><img class="nav-img" src="/assets/cannon-cast-v1.webp" alt="" draggable="false"/><span>TOPLAR</span></button><button id="openShip" data-shop="shipOverlay"><img class="nav-img" src="/assets/icon-inventory-v3.webp" alt="" draggable="false"/><span>ENVANTER</span></button><button id="openMarket" data-shop="marketOverlay"><img class="nav-img" src="/assets/ammo-fire-v2.webp" alt="" draggable="false"/><span>GÜLLELER</span></button><button id="openLoadoutTab" data-shop="supplyOverlay"><img class="nav-img" src="/assets/icon-chest-v2.webp" alt="" draggable="false"/><span>MALZEMELER</span></button><button id="openPearlShop" data-shop="pearlShopOverlay"><img class="nav-img" src="/assets/icon-pearl-v1.webp" alt="" draggable="false"/><span>MAĞAZA</span></button><button class="shop-close" id="closeShopTabs" aria-label="Marketi kapat">×</button></nav>
@@ -495,6 +495,16 @@ function syncShopTabs(){const open=SHOP_OVERLAYS.find(id=>ui(id).classList.conta
   document.querySelectorAll<HTMLButtonElement>('#shopTabs [data-shop]').forEach(b=>b.classList.toggle('active',b.dataset.shop===open));}
 const shopWatch=new MutationObserver(syncShopTabs);SHOP_OVERLAYS.forEach(id=>shopWatch.observe(ui(id),{attributes:true,attributeFilter:['class']}));
 document.querySelectorAll<HTMLButtonElement>('#shopTabs [data-shop]').forEach(b=>b.onclick=()=>showShop(b.dataset.shop!));
+// Koordinata git: 55 AN → o hücrenin ortasına rota çizilir
+{const col=ui('goCol') as HTMLInputElement,row=ui('goRow') as HTMLInputElement;
+  col.oninput=()=>{col.value=col.value.replace(/\D/g,'').slice(0,2);if(col.value.length===2)row.focus();};
+  row.oninput=()=>{row.value=row.value.toLocaleUpperCase('tr-TR').replace(/İ/g,'I').replace(/[^A-Z]/g,'').slice(0,2);};
+  for(const el of [col,row])el.addEventListener('keydown',e=>{e.stopPropagation();});
+  ui('coordGo').onsubmit=e=>{e.preventDefault();const c=Number(col.value),r=row.value;
+    const ri=r.length===2?(r.charCodeAt(0)-65)*26+(r.charCodeAt(1)-65):-1;
+    if(col.value===''||!(c>=0&&c<GRID_COLS)||!(ri>=0&&ri<GRID_ROWS)){toast(`Geçersiz koordinat · sütun 00–${GRID_COLS-1}, satır AA–${rowName(GRID_ROWS-1)}`);return;}
+    routeTarget=navigablePoint({x:(c+.5)*CELL_W,y:(ri+.5)*CELL_H});destination=routeVia(routeTarget);attackChase=false;
+    toast(`Rota: ${colName(c)} ${rowName(ri)}`);(document.activeElement as HTMLElement|null)?.blur();};}
 ui('stripPearlPlus').onclick=()=>document.getElementById('pearlResource')?.click();ui('openShop').onclick=()=>showShop(lastShop);
 // Mağaza sekmesi (İnci Hazinesi): gerçek parayla VİP ve inci paketleri (src/pearlShop.ts)
 function openPearlShop(){renderPearlShop();ui('pearlShopOverlay').classList.add('open');}
@@ -2225,7 +2235,7 @@ function draw(){
   drawMinimap();
 }
 let lastCoord='';
-function updateCoordBadge(){const text=`${siege?'KALE':currentMap} - ${coordLabel(player)}`;if(text!==lastCoord){lastCoord=text;ui('mapCoord').textContent=text;const st=document.getElementById('infoStrip');if(st)st.innerHTML=`Harita: <b>${siege?'KALE':currentMap}</b><i></i>Koordinat: <b>${coordLabel(player)}</b>`;}}
+function updateCoordBadge(){const text=`${siege?'KALE':currentMap} - ${coordLabel(player)}`;if(text!==lastCoord){lastCoord=text;ui('mapCoord').textContent=text;}}
 function drawMinimap(){const W=188,H=133,sx=(x:number)=>x/WORLD_WIDTH*W,sy=(y:number)=>y/WORLD_HEIGHT*H,th=theme();
   mini.setTransform(minimap.width/W,0,0,minimap.height/H,0,0);mini.clearRect(0,0,W,H);void th;
   for(const dir of ['north','south','east','west'] as Dir[]){const to=neighbor(currentMap,dir);if(!to)continue;mini.fillStyle=state.level>=MAPS[to].tier?'#6fd6c4aa':'#e07a5f88';if(dir==='north')mini.fillRect(W/2-14,0,28,2);if(dir==='south')mini.fillRect(W/2-14,H-2,28,2);if(dir==='west')mini.fillRect(0,H/2-12,2,24);if(dir==='east')mini.fillRect(W-2,H/2-12,2,24);}
