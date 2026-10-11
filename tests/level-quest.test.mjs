@@ -14,9 +14,8 @@ test('level quest gates level 2+ and counts only matching targets while ready',(
   assert.equal(Q.levelQuestKill(q,'monster','m3-2',3,true),true);
   assert.equal(Q.levelQuestDone(q),true);
 });
-test('level quest is locked to the map of its first counted kill',()=>{
+test("level quest only counts on the level's first map",()=>{
   const q={level:3,ships:0,monsters:0};
-  assert.equal(Q.levelQuestKill(q,'npc','n3-1-heavy',3,true,'3/1'),true);assert.equal(q.map,'3/1');
-  assert.equal(Q.levelQuestKill(q,'npc','n3-2-heavy',3,true,'3/2'),false);assert.equal(q.ships,1);
-  assert.equal(Q.levelQuestKill(q,'npc','n3-2-heavy',3,true,'3/1'),true);
+  assert.equal(Q.levelQuestKill(q,'npc','n3-2-heavy',3,true,'3/2'),false);
+  assert.equal(Q.levelQuestKill(q,'npc','n3-2-heavy',3,true,'3/1'),true);assert.equal(Q.levelQuestMap(3),'3/1');
 });
