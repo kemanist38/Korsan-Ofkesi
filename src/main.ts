@@ -441,7 +441,7 @@ setInterval(renderDayEvent,15000);
       if(id==='dock')for(const k of tree('dock')){EL[k].classList.remove('moved','vertical');EL[k].style.left='';EL[k].style.top='';}save();});}
   addEventListener('resize',()=>{fitHud();for(const id of IDS)if(EL[id].classList.contains('moved'))place(id,parseFloat(EL[id].style.left)*uiScale,parseFloat(EL[id].style.top)*uiScale);});}
 ui('ability-speed').onclick=()=>activateAbility('speed');ui('ability-mine').onclick=dropMine;ui('rageButton').onclick=activateRage;
-function recenterShip(){camera.x=player.x;camera.y=player.y;freeLook={x:player.x,y:player.y};toast('Kamera gemiye ortalandı');}
+function recenterShip(){freeLook=null;camera.x=player.x;camera.y=player.y;toast('Kamera gemiye ortalandı');}
 ui('recenterShip').onclick=recenterShip;{const top=ui('topStatus');const hp=document.querySelector('.hud-dock .hp-line'),sp=document.querySelector('.hud-dock .battle-line');if(hp)top.appendChild(hp);if(sp)top.appendChild(sp);top.classList.add('four-bars');}{const rc=ui('recenterShip');rc.className='combat-action recenter-btn';rc.innerHTML='<b><svg viewBox="0 0 48 48" width="70%" height="70%" aria-hidden="true"><g fill="none" stroke="#ffe09b" stroke-width="3" stroke-linecap="round"><circle cx="24" cy="24" r="12"/><circle cx="24" cy="24" r="4" fill="#ffe09b"/><path d="M24 4v40M4 24h40M9.9 9.9l28.2 28.2M38.1 9.9 9.9 38.1"/></g><g fill="#ffe09b"><circle cx="24" cy="4" r="2.6"/><circle cx="24" cy="44" r="2.6"/><circle cx="4" cy="24" r="2.6"/><circle cx="44" cy="24" r="2.6"/><circle cx="9.9" cy="9.9" r="2.6"/><circle cx="38.1" cy="38.1" r="2.6"/><circle cx="38.1" cy="9.9" r="2.6"/><circle cx="9.9" cy="38.1" r="2.6"/></g></svg></b><span>GEMİ</span>';rc.title='Gemiyi ortala';ui('combatControls').appendChild(rc);}
 ui('openWorldMap').onclick=openWorldMap;ui('closeWorldMap').onclick=closeWorldMap;
 ui('worldMapOverlay').addEventListener('pointerdown',e=>{if(e.target===ui('worldMapOverlay'))closeWorldMap();});
@@ -1546,8 +1546,7 @@ function update(dt:number){{const rc=document.getElementById('recenterShip');if(
     player.speed=clamp(player.speed,0,isoShip()&&destination?effectiveSpeed()*2.2:effectiveSpeed()+4);
     player.x=clamp(player.x+Math.sin(player.angle)*player.speed*dt,25,WORLD_WIDTH-25);player.y=clamp(player.y-Math.cos(player.angle)*player.speed*dt,25,WORLD_HEIGHT-25);resolveIslandCollision();
   updateAbilityFx(dt);
-  player.cooldown=Math.max(0,player.cooldown-dt);updateRage(dt);state.invulnerable=Math.max(0,state.invulnerable-dt);collisionNotice=Math.max(0,collisionNotice-dt);// Kamera gemiyi kendiliğinden izlemez: yerinde durur, oyuncu GEMİ düğmesi / V tuşu ile ortalar
-  if(!freeLook&&!cinematic.focus)freeLook={x:camera.x,y:camera.y};
+  player.cooldown=Math.max(0,player.cooldown-dt);updateRage(dt);state.invulnerable=Math.max(0,state.invulnerable-dt);collisionNotice=Math.max(0,collisionNotice-dt);// Kamera gemiyi izler; oyuncu kamerayı kaydırırsa (serbest bakış) orada kalır, gemiye kendiliğinden dönmez — GEMİ / V ile ortalanır
   {const f=cinematic.focus??freeLook??player;const cf=f===player?Math.min(1,dt*12):Math.min(1,dt*3);camera.x+=(f.x-camera.x)*cf;camera.y+=(f.y-camera.y)*cf;}camera.zoom+=(camera.targetZoom-camera.zoom)*Math.min(1,dt*7);
   for(let i=salvoQueue.length-1;i>=0;i--){salvoQueue[i].delay-=dt;if(salvoQueue[i].delay<=0){releaseSalvo(salvoQueue[i]);salvoQueue.splice(i,1);}}
   // Otomatik tamir: 5 sn hasar almayınca gövde kendiliğinden onarılmaya başlar (hareket halinde de, herkes için)
