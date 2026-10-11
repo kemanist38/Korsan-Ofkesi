@@ -22,7 +22,7 @@ import {redeem,loadRedeemed,saveRedeemed,rewardText} from './coupons';
 import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
 import {loadLevelQuest,saveLevelQuest,levelQuestDone,levelQuestKill,levelQuestGoal,needsLevelQuest,levelQuestMap} from './level-quest';
 import {SPY_COST,SPY_SHIELD_PRICE,loadSpy,sendSpy,type SpyRival} from './spy';
-import {startNet,joinSea,sendState,sendFire,sendSunk,sendChat,myNetId,type NetState,type NetHandlers} from './net';
+import {netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,myNetId,type NetState,type NetHandlers} from './net';
 import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,claimReward,GRADUATE_LEVEL,MAX_APPRENTICES,TOGETHER_XP_BONUS} from './mentorship';
 import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
 import {loadLog,saveLog,addLog,daySummary,LOG_KINDS,type LogKind,type LogEntry} from './logbook';
@@ -96,7 +96,7 @@ const QUICK_TIPS:Record<QuickItemId,string>={iron:'Sınırsız',chain:'Yavaşlat
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <main class="game-shell">
-    <canvas id="sea"></canvas><div class="info-strip"><form class="coord-go" id="coordGo" autocomplete="off"><span>Koordinata git</span><input id="goCol" inputmode="numeric" maxlength="2" placeholder="55" aria-label="Sütun (00–60)"/><input id="goRow" maxlength="2" placeholder="AN" aria-label="Satır (AA–CZ)"/><button type="submit">GİT</button></form><form class="coord-go spy-go" id="spyGo" autocomplete="off"><input id="spyNick" maxlength="20" placeholder="Rakip adı" aria-label="Rakip kaptan adı"/><button type="submit">CASUS</button></form><span class="strip-res"><i class="sprite icon-gold"></i><b id="stripGold">0</b><i class="sprite icon-pearl"></i><b id="stripPearls">0</b><button id="stripPearlPlus" aria-label="İnci satın al">+</button></span></div><div class="grain"></div>
+    <canvas id="sea"></canvas><div class="info-strip"><form class="coord-go" id="coordGo" autocomplete="off"><span>Koordinata git</span><input id="goCol" inputmode="numeric" maxlength="2" placeholder="55" aria-label="Sütun (00–60)"/><input id="goRow" maxlength="2" placeholder="AN" aria-label="Satır (AA–CZ)"/><button type="submit">GİT</button></form><form class="coord-go spy-go" id="spyGo" autocomplete="off"><input id="spyNick" maxlength="20" placeholder="Rakip adı" aria-label="Rakip kaptan adı"/><button type="submit">CASUS</button></form><button class="net-pill" id="netPill" type="button"><i></i><span id="netText">Bağlanıyor…</span></button><span class="strip-res"><i class="sprite icon-gold"></i><b id="stripGold">0</b><i class="sprite icon-pearl"></i><b id="stripPearls">0</b><button id="stripPearlPlus" aria-label="İnci satın al">+</button></span></div><div class="grain"></div>
     <section class="hud">
       <div class="corner-buttons"><button class="round-button" id="openShop" aria-label="Market"><img src="/assets/icon-market-v2.webp" alt="" draggable="false"/></button><button class="round-button" id="openMenu" aria-label="Menü"><img src="/assets/icon-menu-v2.webp" alt="" draggable="false"/></button></div>
       <nav class="shop-tabs" id="shopTabs"><button id="openEliteShips" data-shop="eliteShipOverlay"><img class="nav-img" id="shipNavIcon" alt="" draggable="false"/><span>TERSANE</span></button><button id="openEquipShop" data-shop="equipShopOverlay"><i class="nav-img equip-nav"></i><span>DONANIM</span></button><button id="openCannonShop" data-shop="cannonShopOverlay"><img class="nav-img" src="/assets/cannon-cast-v1.webp" alt="" draggable="false"/><span>TOPLAR</span></button><button id="openShip" data-shop="shipOverlay"><img class="nav-img" src="/assets/icon-inventory-v3.webp" alt="" draggable="false"/><span>ENVANTER</span></button><button id="openMarket" data-shop="marketOverlay"><img class="nav-img" src="/assets/ammo-fire-v2.webp" alt="" draggable="false"/><span>GÜLLELER</span></button><button id="openLoadoutTab" data-shop="supplyOverlay"><img class="nav-img" src="/assets/icon-chest-v2.webp" alt="" draggable="false"/><span>MALZEMELER</span></button><button id="openPearlShop" data-shop="pearlShopOverlay"><img class="nav-img" src="/assets/icon-pearl-v1.webp" alt="" draggable="false"/><span>MAĞAZA</span></button><button class="shop-close" id="closeShopTabs" aria-label="Marketi kapat">×</button></nav>
@@ -531,6 +531,9 @@ let netClock=0;
 function netTick(dt:number){joinSea(siege?null:currentMap);netClock-=dt;if(netClock>0)return;netClock=.12;
   const f=isoFace,ship=activeShip==='starter'?'starter':String(activeShip);
   sendState({id:myNetId,nick:profile.nick,tag:guild?.tag??null,ship,x:Math.round(player.x),y:Math.round(player.y),east:f.east,north:f.north,hp:Math.max(0,Math.round(state.hp)),maxHp:effectiveMaxHp(),sp:state.battlePoints,level:state.level,t:Date.now()});
+  {const others=enemies.filter(e=>e.remote),pill=ui('netPill');pill.dataset.status=netStatus;
+    ui('netText').textContent=netStatus==='ok'?`Çevrim içi · ${others.length} kaptan`:netStatus==='error'?'Bağlantı yok':netStatus==='off'?'Çevrim dışı':'Bağlanıyor…';
+    pill.title=netStatus==='error'?netError:others.map(e=>`${e.name} · ${coordLabel(e)}`).join('\n')||'Bu haritada başka kaptan yok';}
   const now=performance.now();for(let i=enemies.length-1;i>=0;i--){const e=enemies[i];if(e.remote&&now-e.remote.seen>6000){enemies.splice(i,1);if(selected===e){selected=null;state.attacking=false;}}}}
 // Casus: rakip kaptanın konumu (oyundaysa şimdiki, değilse son çıkış yaptığı harita ve koordinat)
 const spyStore=loadSpy();
@@ -557,6 +560,11 @@ function spyDialog(title:string,html:string,ok='TAMAM',onOk?:()=>void){
   el.querySelector<HTMLButtonElement>('[data-ok]')!.onclick=()=>{close();onOk?.();};
   const x=el.querySelector<HTMLButtonElement>('[data-x]');if(x)x.onclick=close;
   el.onclick=e=>{if(e.target===el)close();};}
+// Çevrim içi kaptan listesi: dokununca en yakın kaptana rota çizilir
+ui('netPill').onclick=()=>{const others=enemies.filter(e=>e.remote);if(netStatus!=='ok'){toast(netStatus==='error'?`Sunucuya bağlanılamadı (${netError})`:'Sunucuya bağlanılıyor…');return;}
+  if(!others.length){toast(`${currentMap} haritasında başka kaptan yok`);return;}
+  const t=others.sort((a,b)=>dist(a,player)-dist(b,player))[0];routeTarget=navigablePoint({x:t.x,y:t.y});destination=routeVia(routeTarget);attackChase=false;
+  toast(`${others.map(e=>`${e.name} (${coordLabel(e)})`).join(' · ')} · rota: ${t.name}`);};
 ui('stripPearlPlus').onclick=()=>document.getElementById('pearlResource')?.click();ui('openShop').onclick=()=>showShop(lastShop);
 // Mağaza sekmesi (İnci Hazinesi): gerçek parayla VİP ve inci paketleri (src/pearlShop.ts)
 function openPearlShop(){renderPearlShop();ui('pearlShopOverlay').classList.add('open');}

@@ -17,7 +17,9 @@ export const myNetId=(()=>{try{let v=sessionStorage.getItem(ID_KEY);if(!v){v=Mat
 
 let client:ReturnType<typeof createClient>|null=null,sea:RealtimeChannel|null=null,chatCh:RealtimeChannel|null=null,seaName='';
 let handlers:NetHandlers|null=null;
-export const netOnline=()=>!!sea;
+// Bağlantı durumu (ekranda gösterilir): 'off' | 'connecting' | 'ok' | 'error'
+export let netStatus:'off'|'connecting'|'ok'|'error'='off',netError='';
+export const netOnline=()=>netStatus==='ok';
 
 export function startNet(h:NetHandlers){
   handlers=h;
@@ -35,7 +37,8 @@ export function joinSea(map:string|null){
     .on('broadcast',{event:'fire'},({payload})=>handlers?.fire(payload as NetFire))
     .on('broadcast',{event:'sunk'},({payload})=>handlers?.sunk(payload as NetSunk))
     .on('presence',{event:'leave'},({key})=>handlers?.leave(key))
-    .subscribe(status=>{if(status==='SUBSCRIBED')void ch.track({id:myNetId});});
+    .subscribe((status,err)=>{if(sea!==ch)return;if(status==='SUBSCRIBED'){netStatus='ok';netError='';void ch.track({id:myNetId});}else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){netStatus='error';netError=status+(err?` · ${err.message}`:'');}});
+  netStatus='connecting';
   sea=ch;
 }
 const send=(ch:RealtimeChannel|null,event:string,payload:unknown)=>{if(ch)void ch.send({type:'broadcast',event,payload});};
