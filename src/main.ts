@@ -1044,8 +1044,8 @@ function purchaseEliteOne(){
 }
 // Tersane iki sekmeli: ELİT GEMİLER (başlangıç + 15 elit) ve ÖZEL GEMİLER (yalnızca görünüm tasarımları). Kartlarda kısa yazı.
 let shipyardTab:'elite'|'special'='elite';
-const isDesign=(id:string)=>id==='pirate-rage'||id==='inferno';
 function renderEliteShips(){
+  const isDesign=(id:string)=>id==='pirate-rage'||id==='inferno';
   const unlocked=ELITE_TEST_MODE?ELITE_MAX_LEVEL:elitePurchased?eliteLevelFromEp(state.elitePoints):0;
   const card=(id:string,name:string,art:string,requirement:string,effect:string,active:boolean,locked=false,label='SEÇ')=>
     `<article class="elite-card ${active?'active':''} ${previewShip===id?'previewed':''} ${locked?'locked':''}"><button class="ship-preview-button" data-preview="${id}" aria-label="${name} önizle" aria-pressed="${previewShip===id}">${art}<strong>${name}</strong></button><p class="ship-requirement">${requirement}</p><p class="ship-effect">${effect}</p><button class="ship-select" data-select-ship="${id}" ${locked||active&&!isDesign(id)?'disabled':''}>${active?(isDesign(id)?'ÇIKAR':'SEÇİLİ'):label}</button></article>`;
