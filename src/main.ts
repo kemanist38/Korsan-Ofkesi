@@ -2,7 +2,7 @@ import {ELITE_ENTRY_PRICE,CANNON_COSTS,UPGRADE_PRICE_MULTIPLIER,ELITE_ECONOMY_VE
 import {migrateQuestRules,type SavedQuests} from './quest-migration';
 import {ELITE_CANNON_CAPACITY,ELITE_REWARDS,cumulativeEliteBonus,eliteBonusText} from './elite-progression';
 import {drawMysticPlayerMarker} from './player-marker';
-import {PIRATE_RAGE_DESIGN,loadSpecialDesign,saveSpecialDesign,loadDesignOwned,saveDesignOwned,type SpecialDesignId} from './special-designs';
+import {PIRATE_RAGE_DESIGN,INFERNO_DESIGN,loadSpecialDesign,saveSpecialDesign,loadDesignOwned,saveDesignOwned,type SpecialDesignId} from './special-designs';
 import {loadFestival,saveFestival,festivalStatus,claimFestival,FESTIVAL_REWARDS,FESTIVAL_DAYS,type FestivalReward} from './festival';
 import {drawFlare,drawShotSprite,drawPuff,drawGlint} from './shotArt';
 import './storageMigration';
@@ -527,8 +527,10 @@ const netHandlers:NetHandlers={
   chat:(c:{nick:string;text:string;at:number})=>chat.receive(c.nick,c.text,c.at),
 };
 startNet(netHandlers);
-let netClock=0;const netPrev={x:0,y:0},netVel={x:0,y:0};
+let netClock=0,shipDir16=8;const netPrev={x:0,y:0},netVel={x:0,y:0};
 function netTick(dt:number){joinSea(siege?null:currentMap);{const ix=(player.x-netPrev.x)/Math.max(dt,1e-3),iy=(player.y-netPrev.y)/Math.max(dt,1e-3),ok=Math.hypot(ix,iy)<600;netVel.x=netVel.x*.8+(ok?ix:0)*.2;netVel.y=netVel.y*.8+(ok?iy:0)*.2;}netPrev.x=player.x;netPrev.y=player.y;
+  // 16 yönlü tasarımlar: görünüş ortalama gidiş yönünden (çapraz adımlar yumuşatılmış hız). Ekranda dikey hız yarı ölçekli → ×2
+  if(Math.hypot(netVel.x,netVel.y)>25)shipDir16=(8+Math.round(Math.atan2(netVel.y*2,netVel.x)/(Math.PI/8))+16)%16;
   netClock-=dt;if(netClock>0)return;netClock=.05;
   const f=isoFace,ship=activeShip==='starter'?'starter':String(activeShip);
   sendState({id:myNetId,nick:profile.nick,tag:guild?.tag??null,ship,x:Math.round(player.x),y:Math.round(player.y),east:f.east,north:f.north,hp:Math.max(0,Math.round(state.hp)),maxHp:effectiveMaxHp(),sp:state.battlePoints,level:state.level,t:Date.now(),vx:Math.round(netVel.x),vy:Math.round(netVel.y)});
@@ -1043,10 +1045,12 @@ function purchaseEliteOne(){
 // Tersane iki sekmeli: ELİT GEMİLER (başlangıç + 15 elit) ve ÖZEL GEMİLER (yalnızca görünüm tasarımları). Kartlarda kısa yazı.
 let shipyardTab:'elite'|'special'='elite';
 function renderEliteShips(){
+  const isDesign=(id:string)=>id==='pirate-rage'||id==='inferno';
   const unlocked=ELITE_TEST_MODE?ELITE_MAX_LEVEL:elitePurchased?eliteLevelFromEp(state.elitePoints):0;
   const card=(id:string,name:string,art:string,requirement:string,effect:string,active:boolean,locked=false,label='SEÇ')=>
-    `<article class="elite-card ${active?'active':''} ${previewShip===id?'previewed':''} ${locked?'locked':''}"><button class="ship-preview-button" data-preview="${id}" aria-label="${name} önizle" aria-pressed="${previewShip===id}">${art}<strong>${name}</strong></button><p class="ship-requirement">${requirement}</p><p class="ship-effect">${effect}</p><button class="ship-select" data-select-ship="${id}" ${locked||active&&id!=='pirate-rage'?'disabled':''}>${active?(id==='pirate-rage'?'ÇIKAR':'SEÇİLİ'):label}</button></article>`;
-  const special=card('pirate-rage','Pirate Rage',`<img class="elite-art" src="${PIRATE_RAGE_DESIGN.card}" alt="" draggable="false"/>`,designOwned?'Özel tasarım':'Açılış Festivali ödülü',designOwned?'Sadece görünüm':'7 festival gününün hepsinde giriş yapana verilir',!!activeSpecialDesign,!designOwned);
+    `<article class="elite-card ${active?'active':''} ${previewShip===id?'previewed':''} ${locked?'locked':''}"><button class="ship-preview-button" data-preview="${id}" aria-label="${name} önizle" aria-pressed="${previewShip===id}">${art}<strong>${name}</strong></button><p class="ship-requirement">${requirement}</p><p class="ship-effect">${effect}</p><button class="ship-select" data-select-ship="${id}" ${locked||active&&!isDesign(id)?'disabled':''}>${active?(isDesign(id)?'ÇIKAR':'SEÇİLİ'):label}</button></article>`;
+  const special=card('pirate-rage','Pirate Rage',`<img class="elite-art" src="${PIRATE_RAGE_DESIGN.card}" alt="" draggable="false"/>`,designOwned?'Özel tasarım':'Açılış Festivali ödülü',designOwned?'Sadece görünüm':'7 festival gününün hepsinde giriş yapana verilir',activeSpecialDesign==='pirate-rage',!designOwned)
+    +card('inferno',INFERNO_DESIGN.name,`<img class="elite-art" src="${INFERNO_DESIGN.card}" alt="" draggable="false"/>`,'Özel tasarım · 16 yön (deneme)','Sadece görünüm',activeSpecialDesign==='inferno',!ELITE_TEST_MODE);
   const starter=card('starter','Yedi Deniz','<span class="starter-ship-art" role="img" aria-label="Başlangıç gemisi"></span>','0 EP','Başlangıç gemisi',activeShip==='starter'&&!activeSpecialDesign);
   const cards=ELITE_SHIPS.map(ship=>{
     const purchase=ship.level===1&&!elitePurchased&&!ELITE_TEST_MODE;
@@ -1066,7 +1070,8 @@ function renderEliteShips(){
   });
   grid.querySelectorAll<HTMLButtonElement>('[data-select-ship]').forEach(button=>button.onclick=()=>{
     const id=button.dataset.selectShip!;
-    if(id==='pirate-rage'){if(!designOwned){toast('Pirate Rage, Açılış Festivali\'nin son ödülü');return;}activeSpecialDesign=activeSpecialDesign?null:'pirate-rage';saveSpecialDesign(activeSpecialDesign);previewShip='pirate-rage';renderEliteShips();toast(activeSpecialDesign?'Pirate Rage tasarımı seçildi':'Geminin kendi görünümü seçildi');return;}
+    if(id==='pirate-rage'){if(!designOwned){toast('Pirate Rage, Açılış Festivali\'nin son ödülü');return;}activeSpecialDesign=activeSpecialDesign==='pirate-rage'?null:'pirate-rage';saveSpecialDesign(activeSpecialDesign);previewShip='pirate-rage';renderEliteShips();toast(activeSpecialDesign?'Pirate Rage tasarımı seçildi':'Geminin kendi görünümü seçildi');return;}
+    if(id==='inferno'){if(!ELITE_TEST_MODE)return;activeSpecialDesign=activeSpecialDesign==='inferno'?null:'inferno';saveSpecialDesign(activeSpecialDesign);previewShip='inferno';renderEliteShips();toast(activeSpecialDesign?`${INFERNO_DESIGN.name} tasarımı seçildi`:'Geminin kendi görünümü seçildi');return;}
     if(id==='starter'){previewShip='starter';equipStarterShip();return;}
     const ship=ELITE_SHIPS.find(s=>s.id===id);if(!ship)return;
     if(ship.level===1&&!elitePurchased&&!ELITE_TEST_MODE){purchaseEliteOne();return;}
@@ -2085,11 +2090,11 @@ const eliteIsoImages=new Map<string,HTMLImageElement>();
 function eliteIsoImage(src:string){let im=eliteIsoImages.get(src);if(!im){im=new Image();im.decoding='async';im.src=`${src}?r=${SHIP_ART_REV}`;eliteIsoImages.set(src,im);}return im;}
 const shipAlpha=()=>1;
 function drawEliteDirectionalShip(s:Vec){
-  const iso=activeSpecialDesign?PIRATE_RAGE_DESIGN.sprite:ELITE_ISO[eliteShip().id];
-  {const im=eliteIsoImage(iso);if(!im.complete||!im.naturalWidth)return false;
+  const f=playerShipFrame();if(!f||!activeSpecialDesign&&!eliteEnabled())return false;
+  {const [im,sx,sy,sw,sh,dx,dy,dw,dh]=f;if(!im.complete||!im.naturalWidth)return false;
     ctx.save();ctx.translate(s.x,s.y);ctx.globalAlpha=(state.invulnerable&&Math.floor(performance.now()/120)%2?.55:1)*shipAlpha();ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
     // Gölge bulanıklığı yok (keskin kenar); gemi altındaki su havuzu gölgeyi verir. Kaynak kare 512 px: yakınlaştırmada da net
-    const c=im.naturalHeight,D=158;ctx.drawImage(im,isoIndex()*c,0,c,c,-D/2,-D*.7,D,D);ctx.restore();return true;}
+    ctx.drawImage(im,sx,sy,sw,sh,dx,dy,dw,dh);ctx.restore();return true;}
   return false;
 }
 function drawPlayerShip(){
@@ -2269,7 +2274,9 @@ function hullCenter(im:HTMLImageElement,sx:number,sy:number,sw:number,sh:number,
   hullCenters.set(key,c);return{x:dx+c.x*dw,y:dy+c.y*dh};}
 // Şu an çizilen oyuncu gemisi karesi (drawPlayerShip ile aynı kaynak ve hedef dikdörtgeni)
 function playerShipFrame():[HTMLImageElement,number,number,number,number,number,number,number,number]|null{
-  if(activeSpecialDesign||eliteEnabled()){const im=eliteIsoImage(activeSpecialDesign?PIRATE_RAGE_DESIGN.sprite:ELITE_ISO[eliteShip().id]);
+  if(activeSpecialDesign==='inferno'){const im=eliteIsoImage(INFERNO_DESIGN.dir16);
+    if(im.complete&&im.naturalWidth){const c=im.naturalHeight,D=166;return[im,shipDir16*c,0,c,c,-D/2,-D*.68,D,D];}}
+  else if(activeSpecialDesign||eliteEnabled()){const im=eliteIsoImage(activeSpecialDesign?PIRATE_RAGE_DESIGN.sprite:ELITE_ISO[eliteShip().id]);
     if(im.complete&&im.naturalWidth){const c=im.naturalHeight,D=158;return[im,isoIndex()*c,0,c,c,-D/2,-D*.7,D,D];}}
   if(directionalShipImage.complete&&directionalShipImage.naturalWidth){const f=shipDirectionFrame(isoFaceAngle(isoFace));return[directionalShipImage,(f%4)*256,Math.floor(f/4)*256,256,256,-80,-86,160,160];}
   return null;}
