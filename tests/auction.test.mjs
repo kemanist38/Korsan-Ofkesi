@@ -12,7 +12,7 @@ test('every hour has the same 4 distinct lots for all players: one cannon, one a
     for(const k of ['cannon','ammo','supply'])assert.ok(lots.some(l=>l.kind===k));assert.deepEqual(A.lotsFor(h),lots);}
 });
 test('highest bid wins, outbid gold is refunded, lower or equal-later bids are rejected',()=>{
-  const h=490001,lot=A.lotsFor(h)[0],s=A.emptyAuction(h),bid=(id,amount,at)=>({hour:h,lot:lot.key,amount,id,at});lot.start=20000;
+  const h=490001,lot=A.lotsFor(h)[0],s=A.emptyAuction(h),bid=(id,amount,at)=>({hour:h,lot:lot.key,amount,id,nick:id,at});lot.start=20000;
   assert.equal(A.minNextBid(lot),1);
   assert.deepEqual(A.applyBid(s,bid('me',lot.start,1),'me'),{accepted:true,refund:0});s.mine[lot.key]=lot.start;
   assert.equal(A.minNextBid(lot,s.top[lot.key]),21000);
@@ -24,6 +24,6 @@ test('highest bid wins, outbid gold is refunded, lower or equal-later bids are r
 });
 test('my top bid at the end of the hour wins the lot',()=>{
   const h=490002,lot={...A.lotsFor(h)[1],start:5000},s=A.emptyAuction(h);
-  A.applyBid(s,{hour:h,lot:lot.key,amount:lot.start,id:'me',at:1},'me');s.mine[lot.key]=lot.start;
+  A.applyBid(s,{hour:h,lot:lot.key,amount:lot.start,id:'me',nick:'me',at:1},'me');s.mine[lot.key]=lot.start;
   assert.deepEqual(A.wonLots(s,'me').map(l=>l.key),[lot.key]);
 });

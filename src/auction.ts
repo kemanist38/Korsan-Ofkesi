@@ -4,8 +4,8 @@
 export const AUCTION_MS=3600000;
 export type LotKind='cannon'|'ammo'|'supply';
 export type LotDef={key:string;kind:LotKind;item:string;qty:number};
-// Teklif verenin adı gönderilmez ve gösterilmez; yalnızca kazananı tanımak için gizli kimlik taşınır
-export type Bid={hour:number;lot:string;amount:number;id:string;at:number};
+// Teklif verenin yalnızca kaptan adı gösterilir; kazananı tanımak için ayrıca gizli kimlik taşınır
+export type Bid={hour:number;lot:string;amount:number;id:string;nick:string;at:number};
 export type AuctionState={hour:number;top:Record<string,Bid>;mine:Record<string,number>};
 
 // Lot havuzu (başlangıç fiyatı yok: ilk teklif istenen herhangi bir tutar olabilir)
