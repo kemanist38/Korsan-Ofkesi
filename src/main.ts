@@ -858,7 +858,9 @@ function fireAtTarget(){
   const ammoMult=state.ammo==='chain'?CHAIN_FACTOR:isSpecial(state.ammo)?SPECIAL_AMMO[state.ammo].damage:1,mix=state.cannon>0?(loaded*ammoMult+ironUsed)/state.cannon:1;
   const fx=Math.sin(player.angle),fy=-Math.cos(player.angle),tx=selected.x-player.x,ty=selected.y-player.y;
   const powderF=state.ammo==='heal'?1:useConsumable('powder'),side=fx*ty-fy*tx>0?-1:1,damage=state.cannon*BALL_DAMAGE*(1+upgrades.damage*.11)*cannon.damage*bonus.damage*mix*(1+equipBonus().damage+achBonus().damage+eliteBonus().damage)*powderF*rageSalvo(rage);
-  salvoQueue.push({delay:0,target:selected,side,slot:0,damage,ammo:state.ammo,powder:powderF>1});
+  // Şifa salvosu en çok 13–15 bin can doldurur (top sayısına göre daha az olabilir)
+  const amount=state.ammo==='heal'?Math.round(Math.min(damage,13000+Math.random()*2000)):damage;
+  salvoQueue.push({delay:0,target:selected,side,slot:0,damage:amount,ammo:state.ammo,powder:powderF>1});
   if(ironUsed){state.ironAmmo-=ironUsed;if(state.ironAmmo<=0)toast('Demir gülle bitti — marketten altınla alabilirsin');}
   if(state.ammo==='chain'){state.chainAmmo-=loaded;gainElitePoints(loaded*ELITE_POINTS_PER_BALL.chain);bumpAch('eliteBalls',loaded);}
   else if(isSpecial(state.ammo)){arsenal[state.ammo]-=loaded;saveArsenal(arsenal);gainElitePoints(loaded*ELITE_POINTS_PER_BALL[state.ammo]);bumpAch('eliteBalls',loaded);}
