@@ -55,7 +55,7 @@ type SalvoRound = { powder?:boolean; delay:number; target:Target; side:number; s
 type EnemyRole='light'|'heavy';
 // Test kaptanı: elit gemili, oyuncu gibi savaşan yapay rakip (yalnız test modunda 1/1'de)
 type Captain={elite:EliteShipId;ammo:AmmoKind;ammoClock:number;foe:Enemy|null;orbit:Vec|null;orbitClock:number};
-type Enemy = Vec & { kind:'ship'; remote?:{id:string;tx:number;ty:number;vx:number;vy:number;seen:number;sp:number;tag:string|null}; captain?:Captain; pvp?:PvpBudget; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number; lastHitBy?:'player'|'captain'; siege?:boolean; commander?:boolean;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
+type Enemy = Vec & { kind:'ship'; dir16?:number; remote?:{id:string;tx:number;ty:number;vx:number;vy:number;seen:number;sp:number;tag:string|null}; captain?:Captain; pvp?:PvpBudget; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number; lastHitBy?:'player'|'captain'; siege?:boolean; commander?:boolean;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
 type ParticleKind='flare'|'ember'|'glint'|'wisp'|'foam'|'smoke'|'spark'|'damage'|'flash'|'splinter'|'bubble'|'plank'|'firePuff'|'target'|'poison'|'soul'|'shock';
 // z: su üstünden yükseklik (ekranda yukarı kayar); vz ile savrulan parçalar suya düşer
 type Particle = Vec & { vx:number; vy:number; life:number; maxLife:number; kind:ParticleKind; text?:string; color?:string; z?:number; vz?:number; rot?:number; vr?:number; size?:number; variant?:number };
@@ -517,7 +517,7 @@ const netHandlers:NetHandlers={
   state:(n:NetState)=>{if(siege||n.id===myNetId)return;let e=remoteOf(n.id);
     if(!e){e={kind:'ship',role:'heavy',x:n.x,y:n.y,angle:0,hp:n.hp,maxHp:n.maxHp,cooldown:99,speed:0,damage:0,reload:99,rewardGold:0,rewardFame:0,color:'#79372f',name:n.nick,tier:8,aggro:false,wander:0,slowTimer:0,homeX:n.x,homeY:n.y,combatTimer:0,hitRadius:44,
       captain:{elite:(NET_ELITES.has(n.ship)?n.ship:'phantom') as EliteShipId,ammo:'iron',ammoClock:99,foe:null,orbit:null,orbitClock:0},remote:{id:n.id,tx:n.x,ty:n.y,vx:0,vy:0,seen:0,sp:n.sp,tag:n.tag}} as Enemy;enemies.push(e);}
-    const r=e.remote!;r.tx=n.x;r.ty=n.y;r.vx=n.vx??0;r.vy=n.vy??0;r.seen=performance.now();r.sp=n.sp;r.tag=n.tag;e.name=(n.tag?`[${n.tag}]`:'')+n.nick;e.hp=n.hp;e.maxHp=n.maxHp;e.face={east:n.east,north:n.north};
+    const r=e.remote!;r.tx=n.x;r.ty=n.y;r.vx=n.vx??0;r.vy=n.vy??0;r.seen=performance.now();r.sp=n.sp;r.tag=n.tag;e.name=(n.tag?`[${n.tag}]`:'')+n.nick;e.hp=n.hp;e.maxHp=n.maxHp;e.face={east:n.east,north:n.north};e.dir16=n.d16;
     e.captain!.elite=(NET_ELITES.has(n.ship)?n.ship:'phantom') as EliteShipId;},
   leave:id=>{const e=remoteOf(id);if(e){enemies.splice(enemies.indexOf(e),1);if(selected===e){selected=null;state.attacking=false;}}},
   fire:f=>{const e=remoteOf(f.from);if(!e)return;const a=Math.atan2(f.ty-f.y,f.tx-f.x);muzzleFlash(f.x+Math.cos(a)*30,f.y+Math.sin(a)*30-10,a,44);playEnemyCannon(dist(e,player),(e.x-player.x)/600);
@@ -535,7 +535,7 @@ function netTick(dt:number){joinSea(siege?null:currentMap);{const ix=(player.x-n
   if(Math.hypot(netVel.x,netVel.y)>25)shipDir16=(8+Math.round(Math.atan2(netVel.y*2,netVel.x)/(Math.PI/8))+16)%16;
   netClock-=dt;if(netClock>0)return;netClock=.05;
   const f=isoFace,ship=activeShip==='starter'?'starter':String(activeShip);
-  sendState({id:myNetId,nick:profile.nick,tag:guild?.tag??null,ship,x:Math.round(player.x),y:Math.round(player.y),east:f.east,north:f.north,hp:Math.max(0,Math.round(state.hp)),maxHp:effectiveMaxHp(),sp:state.battlePoints,level:state.level,t:Date.now(),vx:Math.round(netVel.x),vy:Math.round(netVel.y)});
+  sendState({id:myNetId,nick:profile.nick,tag:guild?.tag??null,ship,x:Math.round(player.x),y:Math.round(player.y),east:f.east,north:f.north,hp:Math.max(0,Math.round(state.hp)),maxHp:effectiveMaxHp(),sp:state.battlePoints,level:state.level,t:Date.now(),vx:Math.round(netVel.x),vy:Math.round(netVel.y),d16:dir16Sprite()?shipDir16:undefined});
   {const others=enemies.filter(e=>e.remote),pill=ui('netPill');pill.dataset.status=netStatus;
     ui('netText').textContent=netStatus==='ok'?`Çevrim içi · ${others.length} kaptan`:netStatus==='error'?'Bağlantı yok':netStatus==='off'?'Çevrim dışı':'Bağlanıyor…';
     pill.title=netStatus==='error'?netError:others.map(e=>`${e.name} · ${coordLabel(e)}`).join('\n')||'Bu haritada başka kaptan yok';}
@@ -2206,9 +2206,16 @@ function captainHit(t:Enemy,s:Shot,from:Enemy|null){const dmg=Math.round(s.damag
   if(s.ammo==='chain')t.slowTimer=CHAIN_SLOW.seconds;
   if(s.ammo==='leech'&&from){const h=leechHeal(dmg,true,from.maxHp);if(h>0){from.hp=Math.min(from.maxHp,from.hp+h);spawnSoul(t,from);}}
   if(from&&t.captain&&!t.captain.foe)t.captain.foe=from;if(t.hp<=0)sinkEnemy(t);}
-function drawCaptain(e:Enemy,s:Vec){const c=e.captain!,im=eliteIsoImage(ELITE_ISO[c.elite]);if(!im.complete||!im.naturalWidth)return;
-  const f=e.face??{east:true,north:false},idx=f.north?(f.east?0:3):(f.east?1:2),h=im.naturalHeight,D=158;
-  drawHullWater(e,100);ctx.save();ctx.translate(s.x,s.y);if((e.frozen??0)>0)ctx.filter='saturate(.4) brightness(1.3) hue-rotate(160deg)';ctx.drawImage(im,idx*h,0,h,h,-D/2,-D*.7,D,D);ctx.restore();
+// Kaptan gemisi karesi: 16 yönlü görsel (çevrim içi oyuncu kendi yönünü gönderir; yoksa hızdan ya da son çaprazdan) ya da 4 çapraz
+function captainFrame(e:Enemy):[HTMLImageElement,number,number,number,number]|null{const c=e.captain!,d16=ELITE_DIR16[c.elite];
+  if(d16){const im=eliteIsoImage(d16);if(im.complete&&im.naturalWidth){const h=im.naturalHeight,r=e.remote;
+    let k=e.dir16;if(k==null&&r&&Math.hypot(r.vx,r.vy)>25)k=(8+Math.round(Math.atan2(r.vy*2,r.vx)/(Math.PI/8))+16)%16;
+    if(k==null){const f=e.face??{east:true,north:false};k=f.north?(f.east?6:2):(f.east?10:14);}
+    return[im,k*h,h,166,.68];}}
+  const im=eliteIsoImage(ELITE_ISO[c.elite]);if(!im.complete||!im.naturalWidth)return null;
+  const f=e.face??{east:true,north:false},idx=f.north?(f.east?0:3):(f.east?1:2),h=im.naturalHeight;return[im,idx*h,h,158,.7];}
+function drawCaptain(e:Enemy,s:Vec){const fr=captainFrame(e);if(!fr)return;const [im,sx,h,D,ky]=fr;
+  drawHullWater(e,100);ctx.save();ctx.translate(s.x,s.y);if((e.frozen??0)>0)ctx.filter='saturate(.4) brightness(1.3) hue-rotate(160deg)';ctx.drawImage(im,sx,0,h,h,-D/2,-D*ky,D,D);ctx.restore();
   const top=-122;drawHealthBar(s.x,s.y+top,80,e.hp/e.maxHp,siege?'#4fd18a':'#f0584a');{const sp=e.remote?.sp??TEST_RANKERS.find(r=>r.nick===e.name)?.sp??0,show=!settings.hideOthersInsignia;drawCaptainName(s.x,s.y+top-11,'',e.name,14,show?battleRank(sp).index:-1);if(show)drawInsignia(s.x,s.y+34,Math.round(sp/25),115);}}
 // Capture once at death, then fade the same pose without new particles or assets.
 function spawnWreck(o:Enemy|Monster){
@@ -2217,7 +2224,7 @@ function spawnWreck(o:Enemy|Monster){
   const c=image.getContext('2d');if(!c)return;c.translate(192,230);
   let drawn=false;
   if(o.kind==='monster')drawn=drawMonsterSheet(c,o.def,0,0,o.phase);
-  else if(o.captain){const im=eliteIsoImage(ELITE_ISO[o.captain.elite]);if(im.complete&&im.naturalWidth){const f=o.face??{east:true,north:false},idx=f.north?(f.east?0:3):(f.east?1:2),h=im.naturalHeight;c.drawImage(im,idx*h,0,h,h,-79,-158*.7,158,158);drawn=true;}}
+  else if(o.captain){const fr=captainFrame(o);if(fr){const [im,sx,h,D,ky]=fr;c.drawImage(im,sx,0,h,h,-D/2,-D*ky,D,D);drawn=true;}}
   else if(o.def)drawn=drawNpcShip(c,o.def.sprite,o.def.span,0,0,npcFaceAngle(o),performance.now());
   if(!drawn)return;if(wrecks.length>=MAX_WRECKS)wrecks.shift();
   wrecks.push({x:o.x,y:o.y,image,t:0});

@@ -8,21 +8,21 @@ export type EliteShip={
 
 // Elit gemiler: her gemi bir rol ve sürekli bir pasif taşır. Etkin yetenek bütün gemilerde ortaktır: Korsan Öfkesi (src/rage.ts).
 export const ELITE_SHIPS:EliteShip[]=[
-{id:'phantom',level:1,name:'Hayalet Kadırga',english:'The Phantom Galleon',asset:'/assets/elite-phantom-art-v22.webp',role:'Kaçış'},
-{id:'magma',level:2,name:'Volkanik Zırhlı',english:'Volcanic Dreadnought',asset:'/assets/elite-magma-art-v22.webp',role:'Alan hasarı'},
-{id:'glacial',level:3,name:'Buzul Tiranı',english:'Glacial Tyrant',asset:'/assets/elite-glacial-art-v22.webp',role:'Kontrol'},
-{id:'kraken',level:4,name:"Kraken'in Gazabı",english:"Kraken's Embrace",asset:'/assets/elite-kraken-art-v22.webp',role:'Yakalama'},
-{id:'ironclad',level:5,name:'Veba Kadırgası',english:'Plague Galley',asset:'/assets/elite-ironclad-art-v22.webp',role:'Tank'},
-{id:'crimson',level:6,name:'Kanlı Ay Korveti',english:'Crimson Moon Corsair',asset:'/assets/elite-crimson-art-v22.webp',role:'Can emme'},
-{id:'atlantean',level:7,name:'Kadim Atlantis Muhafızı',english:'Atlantean Sentry',asset:'/assets/elite-atlantean-art-v22.webp',role:'Koruma'},
-{id:'bone',level:8,name:'Kemik Biçici',english:'Bone Harvester',asset:'/assets/elite-bone-art-v22.webp',role:'İnfaz'},
-{id:'tempest',level:9,name:'Fırtına Habercisi',english:'Tempest Harbinger',asset:'/assets/elite-tempest-art-v22.webp',role:'Zincir hasar'},
-{id:'sovereign',level:10,name:'Kraliyet Sancaktarı',english:'Royal Standard-Bearer',asset:'/assets/elite-sovereign-art-v22.webp',role:'Destek / ganimet'},
-{id:'jade',level:11,name:'Yeşim Ejderha',english:'Jade Dragon',asset:'/assets/elite-jade-art-v22.webp',role:'Menzil'},
-{id:'ragnarok',level:12,name:'Ragnarok Yıkıcısı',english:'Ragnarok Destroyer',asset:'/assets/elite-ragnarok-art-v22.webp',role:'Öfke'},
-{id:'void',level:13,name:'Hiçlik Hükümdarı',english:'Void Monarch',asset:'/assets/elite-void-art-v22.webp',role:'Kaos'},
-{id:'coral',level:14,name:'Kara Öfke',english:'Black Fury',asset:'/assets/elite-coral-art-v22.webp',role:'İyileştirme'},
-{id:'sand',level:15,name:'Alevli Taç',english:'Flaming Crown',asset:'/assets/elite-sand-art-v22.webp',role:'Hız / gizlilik'}
+{id:'phantom',level:1,name:'Hayalet Kadırga',english:'The Phantom Galleon',asset:'/assets/elite-phantom-art-v23.webp',role:'Kaçış'},
+{id:'magma',level:2,name:'Volkanik Zırhlı',english:'Volcanic Dreadnought',asset:'/assets/elite-magma-art-v23.webp',role:'Alan hasarı'},
+{id:'glacial',level:3,name:'Buzul Tiranı',english:'Glacial Tyrant',asset:'/assets/elite-glacial-art-v23.webp',role:'Kontrol'},
+{id:'kraken',level:4,name:"Kraken'in Gazabı",english:"Kraken's Embrace",asset:'/assets/elite-kraken-art-v23.webp',role:'Yakalama'},
+{id:'ironclad',level:5,name:'Veba Kadırgası',english:'Plague Galley',asset:'/assets/elite-ironclad-art-v23.webp',role:'Tank'},
+{id:'crimson',level:6,name:'Kanlı Ay Korveti',english:'Crimson Moon Corsair',asset:'/assets/elite-crimson-art-v23.webp',role:'Can emme'},
+{id:'atlantean',level:7,name:'Kadim Atlantis Muhafızı',english:'Atlantean Sentry',asset:'/assets/elite-atlantean-art-v23.webp',role:'Koruma'},
+{id:'bone',level:8,name:'Kemik Biçici',english:'Bone Harvester',asset:'/assets/elite-bone-art-v23.webp',role:'İnfaz'},
+{id:'tempest',level:9,name:'Fırtına Habercisi',english:'Tempest Harbinger',asset:'/assets/elite-tempest-art-v23.webp',role:'Zincir hasar'},
+{id:'sovereign',level:10,name:'Kraliyet Sancaktarı',english:'Royal Standard-Bearer',asset:'/assets/elite-sovereign-art-v23.webp',role:'Destek / ganimet'},
+{id:'jade',level:11,name:'Yeşim Ejderha',english:'Jade Dragon',asset:'/assets/elite-jade-art-v23.webp',role:'Menzil'},
+{id:'ragnarok',level:12,name:'Ragnarok Yıkıcısı',english:'Ragnarok Destroyer',asset:'/assets/elite-ragnarok-art-v23.webp',role:'Öfke'},
+{id:'void',level:13,name:'Hiçlik Hükümdarı',english:'Void Monarch',asset:'/assets/elite-void-art-v23.webp',role:'Kaos'},
+{id:'coral',level:14,name:'Kara Öfke',english:'Black Fury',asset:'/assets/elite-coral-art-v23.webp',role:'İyileştirme'},
+{id:'sand',level:15,name:'Alevli Taç',english:'Flaming Crown',asset:'/assets/elite-sand-art-v23.webp',role:'Hız / gizlilik'}
 ];
 export const eliteById=(id:string)=>ELITE_SHIPS.find(ship=>ship.id===id)??ELITE_SHIPS[0];
 // Seafight usulü 4 çapraz görünüş: her elit için yan yana 512 px kareler, sıra KD, GD, GB, KB.
