@@ -8,8 +8,6 @@ export const ACHIEVEMENTS:AchievementDef[]=[
   {id:'npc-1000',name:'Deniz Kurdu',desc:'1.000 NPC gemisi batır',stat:'npc',goal:1000,pearls:50,bonus:{}},
   {id:'npc-10000',name:'Yedi Denizin Korkusu',desc:'10.000 NPC gemisi batır',stat:'npc',goal:10000,pearls:200,bonus:{}},
   {id:'heavy-200',name:'Filo Avcısı',desc:'200 ağır gemi batır',stat:'heavy',goal:200,pearls:20,bonus:{}},
-  {id:'monster-50',name:'Canavar Avcısı',desc:'50 deniz canavarı yen',stat:'monster',goal:50,pearls:20,bonus:{}},
-  {id:'monster-500',name:'Leviathan Katili',desc:'500 deniz canavarı yen',stat:'monster',goal:500,pearls:100,bonus:{}},
   {id:'boss-1',name:'İlk Amiral',desc:'Bir harita bossunu batır',stat:'boss',goal:1,pearls:20,bonus:{}},
   {id:'boss-16',name:'Yedi Denizin Efendisi',desc:'16 harita bossu batır',stat:'boss',goal:16,pearls:300,bonus:{}},
   {id:'chest-100',name:'Ganimetçi',desc:'100 ganimet sandığı topla',stat:'chest',goal:100,pearls:15,bonus:{}},
@@ -30,7 +28,7 @@ export function saveAchievements(a:AchState){try{localStorage.setItem(STORAGE,JS
 // Hedefine ulaşmış ama henüz açılmamış başarımları açar ve döndürür
 export function unlockReached(a:AchState){const fresh=ACHIEVEMENTS.filter(d=>!a.unlocked.includes(d.id)&&a.stats[d.stat]>=d.goal);for(const d of fresh)a.unlocked.push(d.id);return fresh;}
 // Sabit koleksiyon: ileride eklenen madalyalar kazanılmış ödülü geri almaz.
-export const MAIN_COLLECTION=['npc-100', 'npc-1000', 'npc-10000', 'heavy-200', 'monster-50', 'monster-500', 'boss-1', 'boss-16', 'chest-100', 'treasure-1', 'treasure-25', 'quest-10', 'quest-100', 'elite-10000', 'level-5', 'level-8', 'daily-7'] as const;
+export const MAIN_COLLECTION=['npc-100', 'npc-1000', 'npc-10000', 'heavy-200', 'boss-1', 'boss-16', 'chest-100', 'treasure-1', 'treasure-25', 'quest-10', 'quest-100', 'elite-10000', 'level-5', 'level-8', 'daily-7'] as const;
 export function achievementBonus(a:AchState){
   a.collectionComplete=!!a.collectionComplete||MAIN_COLLECTION.every(id=>a.unlocked.includes(id));
   return{gold:0,xp:0,damage:a.collectionComplete?.05:0,hp:a.collectionComplete?.05:0};

@@ -11,7 +11,6 @@ export const BOARDS:Board[]=[
   {id:'ep',name:'Elit Puan',unit:'EP',fleet:false,desc:'Toplam elit puan'},
   {id:'sp',name:'Oyuncu Savaş Puanı',unit:'SP',fleet:false,desc:'Rakip kaptan batırarak kazanılan savaş puanı'},
   {id:'boss',name:'Boss Avcıları',unit:'boss',fleet:false,desc:'Batırılan harita bossu'},
-  {id:'monster',name:'Canavar Avcıları',unit:'canavar',fleet:false,desc:'Yenilen deniz canavarı'},
   {id:'npc',name:'Deniz Kurtları',unit:'gemi',fleet:false,desc:'Batırılan NPC gemisi'},
   {id:'treasure',name:'Define Avcıları',unit:'define',fleet:false,desc:'Kazılan hazine'},
   {id:'fleetXp',name:'Filo Tecrübe',unit:'TP',fleet:true,desc:'Filo üyelerinin toplam tecrübe puanı'},
