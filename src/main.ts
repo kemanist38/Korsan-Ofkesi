@@ -529,6 +529,8 @@ const netHandlers:NetHandlers={
 startNet(netHandlers);
 let netClock=0,shipDir16=8;const netPrev={x:0,y:0},netVel={x:0,y:0};
 function netTick(dt:number){joinSea(siege?null:currentMap);{const ix=(player.x-netPrev.x)/Math.max(dt,1e-3),iy=(player.y-netPrev.y)/Math.max(dt,1e-3),ok=Math.hypot(ix,iy)<600;netVel.x=netVel.x*.8+(ok?ix:0)*.2;netVel.y=netVel.y*.8+(ok?iy:0)*.2;}netPrev.x=player.x;netPrev.y=player.y;
+  // 16 yönlü tasarımlar: görünüş ortalama gidiş yönünden (çapraz adımlar yumuşatılmış hız). Ekranda dikey hız yarı ölçekli → ×2
+  if(Math.hypot(netVel.x,netVel.y)>25)shipDir16=(8+Math.round(Math.atan2(netVel.y*2,netVel.x)/(Math.PI/8))+16)%16;
   netClock-=dt;if(netClock>0)return;netClock=.05;
   const f=isoFace,ship=activeShip==='starter'?'starter':String(activeShip);
   sendState({id:myNetId,nick:profile.nick,tag:guild?.tag??null,ship,x:Math.round(player.x),y:Math.round(player.y),east:f.east,north:f.north,hp:Math.max(0,Math.round(state.hp)),maxHp:effectiveMaxHp(),sp:state.battlePoints,level:state.level,t:Date.now(),vx:Math.round(netVel.x),vy:Math.round(netVel.y)});
