@@ -30,7 +30,7 @@ export const SPECIAL_AMMO={
   breaker:{name:'Kule Kırıcı',damage:2.25,reload:1.15,rangeFactor:1,burnSeconds:0,burnDps:0,blastRadius:0,blastFactor:0,towerFactor:2.6,leech:0,icon:'/assets/ammo-breaker-v2.webp',description:'Kulelere ve ada tahkimatına 2,6 kat hasar.'},
   leech:{name:'Can Emici',damage:3,reload:1.1,rangeFactor:1,burnSeconds:0,burnDps:0,blastRadius:0,blastFactor:0,towerFactor:1,leech:.3,icon:'/assets/ammo-leech-v2.webp',description:'Yalnız oyunculara karşı: isabetlerin %20\'si hasarın %15\'i kadar can çalar (en çok canının %2\'si).'},
   // Şifa: hasar vermez; vurduğu oyuncunun (ya da dost kulenin) canını, salvonun hasarı kadar doldurur. NPC'ye ve düşmana sıkılamaz.
-  heal:{name:'Şifa Güllesi',damage:1,reload:1.1,rangeFactor:1,burnSeconds:0,burnDps:0,blastRadius:0,blastFactor:0,towerFactor:1,leech:0,icon:'/assets/icon-repair-v2.webp',description:'Hasar vermez: oyuncuların ve dost kulelerin canını doldurur. NPC\'ye sıkılamaz.'}
+  heal:{name:'Şifa Güllesi',damage:1,reload:1.1,rangeFactor:1,burnSeconds:0,burnDps:0,blastRadius:0,blastFactor:0,towerFactor:1,leech:0,icon:'/assets/ammo-heal-v1.webp',description:'Hasar vermez: oyuncuların ve dost kulelerin canını doldurur. NPC\'ye sıkılamaz.'}
 } as const;
 export type SpecialAmmo=keyof typeof SPECIAL_AMMO;
 
