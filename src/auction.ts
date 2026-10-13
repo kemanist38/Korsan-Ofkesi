@@ -3,23 +3,24 @@
 // teklif geçilirse hemen geri verilir; saat dolunca kazanan eşyayı alır ve ihale sıfırlanır.
 export const AUCTION_MS=3600000;
 export type LotKind='cannon'|'ammo'|'supply';
-export type LotDef={key:string;kind:LotKind;item:string;qty:number;start:number};
-export type Bid={hour:number;lot:string;amount:number;id:string;nick:string;at:number};
+export type LotDef={key:string;kind:LotKind;item:string;qty:number};
+// Teklif verenin adı gönderilmez ve gösterilmez; yalnızca kazananı tanımak için gizli kimlik taşınır
+export type Bid={hour:number;lot:string;amount:number;id:string;at:number};
 export type AuctionState={hour:number;top:Record<string,Bid>;mine:Record<string,number>};
 
-// Lot havuzu: başlangıç teklifi saatte kazanılan altına göre (orta seviye oyuncu ~20–70 bin altın/saat)
+// Lot havuzu (başlangıç fiyatı yok: ilk teklif istenen herhangi bir tutar olabilir)
 const POOL:LotDef[]=[
-  {key:'heavy',kind:'cannon',item:'heavy',qty:20,start:40000},
-  {key:'rapid',kind:'cannon',item:'rapid',qty:20,start:25000},
-  {key:'long',kind:'cannon',item:'long',qty:20,start:15000},
-  {key:'explosive',kind:'ammo',item:'explosive',qty:3000,start:30000},
-  {key:'leech',kind:'ammo',item:'leech',qty:3000,start:35000},
-  {key:'breaker',kind:'ammo',item:'breaker',qty:3000,start:25000},
-  {key:'fire',kind:'ammo',item:'fire',qty:3000,start:20000},
-  {key:'speed',kind:'supply',item:'speed',qty:20,start:12000},
-  {key:'mine',kind:'supply',item:'mine',qty:15,start:20000},
-  {key:'shield',kind:'supply',item:'shield',qty:300,start:8000},
-  {key:'powder',kind:'supply',item:'powder',qty:300,start:8000},
+  {key:'heavy',kind:'cannon',item:'heavy',qty:20},
+  {key:'rapid',kind:'cannon',item:'rapid',qty:20},
+  {key:'long',kind:'cannon',item:'long',qty:20},
+  {key:'explosive',kind:'ammo',item:'explosive',qty:3000},
+  {key:'leech',kind:'ammo',item:'leech',qty:3000},
+  {key:'breaker',kind:'ammo',item:'breaker',qty:3000},
+  {key:'fire',kind:'ammo',item:'fire',qty:3000},
+  {key:'speed',kind:'supply',item:'speed',qty:20},
+  {key:'mine',kind:'supply',item:'mine',qty:15},
+  {key:'shield',kind:'supply',item:'shield',qty:300},
+  {key:'powder',kind:'supply',item:'powder',qty:300},
 ];
 export const auctionHour=(now:number)=>Math.floor(now/AUCTION_MS);
 export const auctionEnds=(hour:number)=>(hour+1)*AUCTION_MS;
@@ -28,8 +29,8 @@ function rng(seed:number){let a=seed>>>0;return()=>{a=(a+0x6D2B79F5)>>>0;let t=a
 export function lotsFor(hour:number):LotDef[]{const r=rng(hour*2654435761),pick=(list:LotDef[])=>list[Math.floor(r()*list.length)];
   const out:LotDef[]=[];for(const kind of ['cannon','ammo','supply'] as LotKind[])out.push(pick(POOL.filter(l=>l.kind===kind)));
   out.push(pick(POOL.filter(l=>!out.includes(l))));return out;}
-// Bir sonraki geçerli teklif: başlangıç fiyatı ya da en yüksek teklifin %5 fazlası (en az 1.000), 100'e yuvarlanır
-export function minNextBid(lot:LotDef,top?:Bid){if(!top)return lot.start;return Math.ceil(Math.max(top.amount+1000,top.amount*1.05)/100)*100;}
+// Bir sonraki geçerli teklif: ilk teklif en az 1 altın; sonrakiler en yüksek teklifin %5 fazlası (en az +100), 100'e yuvarlanır
+export function minNextBid(_lot:LotDef,top?:Bid){if(!top)return 1;return Math.ceil(Math.max(top.amount+100,top.amount*1.05)/100)*100;}
 // a teklifi b'yi geçer mi: daha yüksek olan, eşitse önce verilen kazanır (eşit anda kimlik sırası)
 export const beats=(a:Bid,b?:Bid)=>!b||a.amount>b.amount||(a.amount===b.amount&&(a.at<b.at||(a.at===b.at&&a.id<b.id)));
 export const emptyAuction=(hour:number):AuctionState=>({hour,top:{},mine:{}});
