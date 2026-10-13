@@ -1566,8 +1566,11 @@ function update(dt:number){{const rc=document.getElementById('recenterShip');if(
   player.cooldown=Math.max(0,player.cooldown-dt);updateRage(dt);state.invulnerable=Math.max(0,state.invulnerable-dt);collisionNotice=Math.max(0,collisionNotice-dt);// Kamera gemiyi izler; oyuncu kamerayı kaydırırsa (serbest bakış) orada kalır, gemiye kendiliğinden dönmez — GEMİ / V ile ortalanır
   {const f=cinematic.focus??freeLook??player;const cf=f===player?Math.min(1,dt*12):Math.min(1,dt*3);camera.x+=(f.x-camera.x)*cf;camera.y+=(f.y-camera.y)*cf;}camera.zoom+=(camera.targetZoom-camera.zoom)*Math.min(1,dt*7);
   for(let i=salvoQueue.length-1;i>=0;i--){salvoQueue[i].delay-=dt;if(salvoQueue[i].delay<=0){releaseSalvo(salvoQueue[i]);salvoQueue.splice(i,1);}}
-  // Otomatik tamir: 3 sn hasar almayınca gövde kendiliğinden onarılmaya başlar (hareket halinde de, herkes için)
-  if(!state.repairing&&state.hp>0&&state.hp<effectiveMaxHp()&&playerHitClock>=AUTO_REPAIR_DELAY){state.repairing=true;document.getElementById('repair')?.classList.add('active');}
+  // Otomatik tamir: gemi durur, saldırmaz ve 3 sn hasar almazsa gövde kendiliğinden onarılmaya başlar
+  // Tamir yalnızca gemi dururken ve saldırmıyorken sürer; hareket ya da saldırı başlayınca kendiliğinden durur
+  const repairIdle=!state.attacking&&!destination&&player.speed<5;
+  if(state.repairing&&!repairIdle){state.repairing=false;repairClock=0;document.getElementById('repair')?.classList.remove('active');}
+  if(repairIdle&&!state.repairing&&state.hp>0&&state.hp<effectiveMaxHp()&&playerHitClock>=AUTO_REPAIR_DELAY){state.repairing=true;document.getElementById('repair')?.classList.add('active');}
   playerSlow=Math.max(0,playerSlow-dt);
   // Tamir saniyede bir kez sabit miktar ekler ve yeşil "+N" yazısıyla gösterir
   if(state.repairing){repairClock+=dt;while(repairClock>=1&&state.repairing){repairClock-=1;
