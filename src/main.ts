@@ -105,7 +105,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       <div class="panel quest" hidden><span class="eyebrow">Aktif görev</span><h3 id="questTitle">Görev seçilmedi</h3><p id="questDescription">Kaptan, yapmak istediğin görevi görev defterinden seçebilirsin.</p><div class="progress" id="quest">Hazır olduğunda bir görev başlat</div><button class="quest-open" id="openQuests">GÖREVLERİ AÇ</button></div>
       <section class="combat-targets" id="combatTargets" aria-live="polite"></section>
       <div class="hud-dock"><div class="dock-status"><div class="status-pair"><div class="status-line hp-line"><span>CP</span><i><em id="hpHudBar"></em></i><b id="hpHudText">100 / 100</b></div></div><div class="dock-center"><button class="recenter" id="recenterShip" aria-label="Gemiyi haritada ortala">✥</button></div><div class="status-pair"><div class="status-line battle-line"><span>SP</span><i><em id="battleBar"></em></i><b id="battleText">0 / 100</b></div></div></div></div><div class="slot-bar" id="ammoBar" data-bar="ammo"><div class="bar-grip" title="Tutup sürükle · çift tık: eski yerine"><button class="bar-toggle" aria-label="Gülle yuvalarını aç/kapat" title="Aç/kapat"><i></i></button></div><div class="bar-slots" id="ammoSlots"></div></div><div class="slot-bar" id="itemBar" data-bar="item"><div class="bar-grip" title="Tutup sürükle · çift tık: eski yerine"><button class="bar-toggle" aria-label="Malzeme yuvalarını aç/kapat" title="Aç/kapat"><i></i></button></div><div class="bar-slots" id="itemSlots"></div></div><div class="ammo-picker" id="ammoPicker"></div><div class="top-status" id="topStatus"><div class="status-line xp-line"><span>TP</span><i><em id="xpHudBar"></em></i><b id="xpHudText">0 / 100</b></div><b class="top-level" id="level" title="Kaptan seviyesi">1</b><div class="status-line elite-line"><span>EP</span><i><em id="eliteBar"></em></i><b id="eliteText">0 / 100</b></div></div>
-      <div class="combat-controls" id="combatControls"><button class="combat-action attack" id="attack" title="Saldır"><b><img src="/assets/icon-attack-v2.webp" alt="" draggable="false"/></b><span id="attackLabel">SALDIR</span><small id="reloadText">HAZIR</small></button><button class="combat-action repair" id="repair" title="Tamir et"><b><img src="/assets/icon-repair-v2.webp" alt="" draggable="false"/></b><span>TAMİR</span><small data-bind="repair"></small></button><button class="combat-action speed ability" id="ability-speed" title="Hız İksiri"><b><img src="/assets/icon-speed-potion-v2.webp" alt="" draggable="false"/></b><span>HIZ</span><small data-bind="speed"></small></button><button class="combat-action mine ability" id="ability-mine" title="Deniz Mayını"><b><img src="/assets/icon-mine-v2.webp" alt="" draggable="false"/></b><span>MAYIN</span><small data-bind="mine"></small></button><button class="combat-action rage" id="rageButton" title="Korsan Öfkesi — bar dolunca bas: 2 salvo %25 hasar, %15 hız"><b><img src="/assets/icon-app-192.png" alt="" draggable="false"/></b><span>KORSAN ÖFKESİ</span><small id="rageTime">%0</small></button></div>
+      <div class="combat-controls" id="combatControls"><button class="combat-action attack" id="attack" title="Saldır"><b><img src="/assets/icon-attack-v2.webp" alt="" draggable="false"/></b><span id="attackLabel">SALDIR</span><small id="reloadText">HAZIR</small></button><button class="combat-action speed ability" id="ability-speed" title="Hız İksiri"><b><img src="/assets/icon-speed-potion-v2.webp" alt="" draggable="false"/></b><span>HIZ</span><small data-bind="speed"></small></button><button class="combat-action mine ability" id="ability-mine" title="Deniz Mayını"><b><img src="/assets/icon-mine-v2.webp" alt="" draggable="false"/></b><span>MAYIN</span><small data-bind="mine"></small></button><button class="combat-action rage" id="rageButton" title="Korsan Öfkesi — bar dolunca bas: 2 salvo %25 hasar, %15 hız"><b><img src="/assets/icon-app-192.png" alt="" draggable="false"/></b><span>KORSAN ÖFKESİ</span><small id="rageTime">%0</small></button></div>
       <div class="map-cluster"><div class="map-badge" id="mapBadge"><strong id="mapName"></strong><small id="mapSubtitle"></small><b class="map-coord" id="mapCoord" title="Konum koordinatı">1/1 - 00AA</b></div><canvas id="minimap" width="188" height="133"></canvas><button class="world-map-button" id="openWorldMap" aria-label="Dünya haritalarını görüntüle"><img id="worldMapIcon" alt="" draggable="false"/><span>DÜNYA</span></button><button class="quest-bust" id="openQuestTop" aria-label="Görevler"><img src="/assets/quest-captain-v2.webp" alt="" draggable="false"/><span>GÖREVLER</span><small id="questBadge"></small></button><div class="panel zoom-controls"><button id="zoomOut" aria-label="Uzaklaştır">−</button><span id="zoomValue">70%</span><button id="zoomIn" aria-label="Yakınlaştır">+</button></div></div>
       <div class="sink-notices" id="sinkNotices" role="status" aria-live="polite"></div>
       <div class="toast" id="toast"></div>
@@ -310,7 +310,7 @@ let rebinding:ActionId|null=null;
 const held=(action:ActionId,...extra:string[])=>keys.has(settings.binds[action])||extra.some(k=>keys.has(k));
 function closeAllOverlays(){ui('menuOverlay').classList.remove('open');closeMentorship();closePearlShop();closeWorldMap();closeQuestLog();closeEliteShips();closeShipMenu();closeMarket();closeCaptainProfile();closeDevelopment();closeCrew();closeGuild();closeSettings();closeLoadout();}
 function runAction(action:ActionId){
-  if(action==='attack')toggleAttack();else if(action==='rage')activateRage();else if(action==='repair')toggleRepair();else if(action==='recenter')recenterShip();
+  if(action==='attack')toggleAttack();else if(action==='rage')activateRage();else if(action==='recenter')recenterShip();
   else if(action==='jump')useJump();else if(action==='speed')activateAbility('speed');else if(action==='shield')toggleConsumable('shield');else if(action==='mine')dropMine();else if(action==='compass')useCompass();
   else if(action==='map'){ui('worldMapOverlay').classList.contains('open')?closeWorldMap():openWorldMap();}
   else if(action==='zoomIn')setZoom(camera.targetZoom+.1);else if(action==='zoomOut')setZoom(camera.targetZoom-.1);
@@ -365,7 +365,6 @@ function worldClick(e:{clientX:number;clientY:number}){
   minimap.addEventListener('pointermove',e=>{if(down)at(e);});
   const up=()=>{down=false;};minimap.addEventListener('pointerup',up);minimap.addEventListener('pointercancel',up);}
 ui('attack').onclick=toggleAttack;
-ui('repair').onclick=toggleRepair;
 // Küçük ekranlar (telefon, tablet): arayüz en az 1180 × 640'lık sanal bir alana göre dizilip orantılı küçültülür.
 // Böylece telefonda da masaüstündeki yerleşim korunur; ölçek --ui değişkeniyle CSS'e verilir (bkz. .hud, .chat).
 let uiScale=1;
@@ -912,6 +911,8 @@ const MAX_WRECKS=24;
 // Hasar yazısı: verdiğin hasar barut açıkken sarı, kapalıyken kırmızı; aldığın hasar kalkan açıkken mavi, kapalıyken kırmızı
 const DMG_GOLD='#ffd23a',DMG_RED='#ff4a3a',DMG_BLUE='#5fb8ff';
 let playerSlow=0,repairClock=0;
+// Hasar almadan bu kadar saniye geçince otomatik tamir başlar (tamir butonu yok)
+const AUTO_REPAIR_DELAY=3;
 function healText(x:number,y:number,value:number){particles.push({x,y:y-14,vx:0,vy:-22,life:1.1,maxLife:1.1,kind:'damage',color:'#5ee07a',text:`+${Math.round(value).toLocaleString('tr-TR')}`});}
 function damageText(x:number,y:number,value:number,color=DMG_GOLD){particles.push({x,y,vx:0,vy:-24,life:1,maxLife:1,kind:'damage',color,text:`-${Math.round(value).toLocaleString('tr-TR')}`});}
 let toastTimer=0;
@@ -1486,7 +1487,7 @@ function updateUI(){
   ui('stripGold').textContent=state.gold.toLocaleString('tr-TR');ui('stripPearls').textContent=state.pearls.toLocaleString('tr-TR');
   updateDots();
   // Saldırı sürerken SALDIR, gövde tamken (tamir yokken) TAMİR soluk görünür
-  ui('attack').classList.toggle('dim',state.attacking);ui('repair').classList.toggle('dim',!state.repairing&&state.hp>=effectiveMaxHp());
+  ui('attack').classList.toggle('dim',state.attacking);document.getElementById('repair')?.classList.toggle('dim',!state.repairing&&state.hp>=effectiveMaxHp());
   ui('pearls').textContent=state.pearls<1000?String(state.pearls).padStart(3,'0'):fmt(state.pearls);ui('gold').textContent=state.gold<1000?String(state.gold).padStart(3,'0'):fmt(state.gold);
   if(TOUCH&&document.getElementById('mobMain')){const c=ui('mobMain').querySelector('b');if(c)c.textContent=quickCount(state.ammo);}document.querySelectorAll<HTMLElement>('.slot-bar [data-quick-item],#mobTray [data-quick-item]').forEach(slot=>{const item=slot.dataset.quickItem as QuickItemId;const count=slot.querySelector('b');if(count)count.textContent=quickCount(item);slot.classList.toggle('active',item===state.ammo||((item==='powder'||item==='shield')&&consumableOn[item]));});
   ui('hpText').textContent=`${Math.ceil(state.hp).toLocaleString('tr-TR')} / ${effectiveMaxHp().toLocaleString('tr-TR')}`; (ui('hpBar') as HTMLElement).style.width=`${state.hp/effectiveMaxHp()*100}%`;
@@ -1495,7 +1496,7 @@ function updateUI(){
   const quest=state.activeQuest===null?null:questById(state.activeQuest);ui('questTitle').textContent=quest?.title||'Görev seçilmedi';ui('questDescription').textContent=quest?.description||'Kaptan, yapmak istediğin görevi görev defterinden seçebilirsin.';ui('quest').textContent=quest?`${questProgress[quest.id]??0} / ${quest.required} ${questUnit(quest)}`:'Hazır olduğunda bir görev başlat';ui('questBadge').textContent=quest?`${questProgress[quest.id]??0}/${quest.required}`:'';ui('openQuestTop').classList.toggle('has-quest',!!quest);
   ui('reloadText').textContent=player.cooldown>0?`${player.cooldown.toLocaleString('tr-TR',{minimumFractionDigits:1,maximumFractionDigits:1})} sn`:'HAZIR';ui('attack').classList.toggle('reloading',player.cooldown>0);
   ui('attackLabel').textContent=state.attacking?'SALDIRIYI İPTAL ET':'SALDIR';ui('attack').classList.toggle('active',state.attacking);
-  ui('repair').classList.toggle('active',state.repairing);
+  document.getElementById('repair')?.classList.toggle('active',state.repairing);
   {const b=ui('rageButton'),on=rageActive(rage),ready=rageReady(rage);b.classList.toggle('active',on);b.classList.toggle('ready',ready);
     b.style.setProperty('--rage',(on?1:rage.meter/RAGE_MAX).toFixed(3));ui('rageTime').textContent=on?`${rage.salvos}/${RAGE_SALVOS} SALVO`:ready?'HAZIR':`%${Math.floor(rage.meter)}`;}
   renderCombatTargets();
@@ -1564,14 +1565,14 @@ function update(dt:number){{const rc=document.getElementById('recenterShip');if(
   player.cooldown=Math.max(0,player.cooldown-dt);updateRage(dt);state.invulnerable=Math.max(0,state.invulnerable-dt);collisionNotice=Math.max(0,collisionNotice-dt);// Kamera gemiyi izler; oyuncu kamerayı kaydırırsa (serbest bakış) orada kalır, gemiye kendiliğinden dönmez — GEMİ / V ile ortalanır
   {const f=cinematic.focus??freeLook??player;const cf=f===player?Math.min(1,dt*12):Math.min(1,dt*3);camera.x+=(f.x-camera.x)*cf;camera.y+=(f.y-camera.y)*cf;}camera.zoom+=(camera.targetZoom-camera.zoom)*Math.min(1,dt*7);
   for(let i=salvoQueue.length-1;i>=0;i--){salvoQueue[i].delay-=dt;if(salvoQueue[i].delay<=0){releaseSalvo(salvoQueue[i]);salvoQueue.splice(i,1);}}
-  // Otomatik tamir: 5 sn hasar almayınca gövde kendiliğinden onarılmaya başlar (hareket halinde de, herkes için)
-  if(!state.repairing&&state.hp>0&&state.hp<effectiveMaxHp()&&playerHitClock>=5){state.repairing=true;ui('repair').classList.add('active');}
+  // Otomatik tamir: 3 sn hasar almayınca gövde kendiliğinden onarılmaya başlar (hareket halinde de, herkes için)
+  if(!state.repairing&&state.hp>0&&state.hp<effectiveMaxHp()&&playerHitClock>=AUTO_REPAIR_DELAY){state.repairing=true;document.getElementById('repair')?.classList.add('active');}
   playerSlow=Math.max(0,playerSlow-dt);
   // Tamir saniyede bir kez sabit miktar ekler ve yeşil "+N" yazısıyla gösterir
   if(state.repairing){repairClock+=dt;while(repairClock>=1&&state.repairing){repairClock-=1;
     const amt=repairAmount((1+upgrades.repair*.04)*bonus.repair*(1+eliteBonus().repair)),before=state.hp;
     state.hp=Math.min(effectiveMaxHp(),state.hp+amt);if(state.hp>before)healText(player.x,player.y,state.hp-before);
-    if(state.hp>=effectiveMaxHp()){state.repairing=false;saveAccount();ui('repair').classList.remove('active');rewardNotice('Gövde tamamen onarıldı','none');}}}else repairClock=0;
+    if(state.hp>=effectiveMaxHp()){state.repairing=false;saveAccount();document.getElementById('repair')?.classList.remove('active');rewardNotice('Gövde tamamen onarıldı','none');}}}else repairClock=0;
   monsters.forEach(m=>{if((m.frozen??0)>0){m.frozen=Math.max(0,m.frozen!-dt);m.cooldown=Math.max(m.cooldown,.5);return;}m.phase+=dt;m.cooldown-=dt;m.slowTimer=Math.max(0,m.slowTimer-dt);proximityAggro(m,dist(m,player));if(m.aggro){m.combatTimer-=dt;if(m.combatTimer<=0||Math.hypot(m.x-m.homeX,m.y-m.homeY)>720)m.aggro=false;}if(m.aggro&&dist(m,player)<NPC_FIRE_RANGE&&m.cooldown<=0)monsterFire(m);});
   // Saldırı: kaptan hareket etse de hedef menzildeyken ateş sürer; hedef menzilden çıkınca saldırı durur
   // ve menzile tekrar girildiğinde SALDIR'a yeniden basmak gerekir.

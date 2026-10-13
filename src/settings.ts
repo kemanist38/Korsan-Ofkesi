@@ -3,7 +3,7 @@ export type ActionId='forward'|'back'|'left'|'right'|'attack'|'repair'|'rage'|'r
   |'ammo1'|'ammo2'|'ammo3'|'ammo4'|'ammo5'|'ammo6'|'item1'|'item2'|'item3'|'item4'|'item5'|'item6';
 
 export const ACTIONS:{id:ActionId;label:string;group:string}[]=[
-    {id:'attack',label:'Saldır / saldırıyı bırak',group:'Savaş'},{id:'repair',label:'Tamir et',group:'Savaş'},{id:'rage',label:'Korsan Öfkesi',group:'Savaş'},
+    {id:'attack',label:'Saldır / saldırıyı bırak',group:'Savaş'},{id:'rage',label:'Korsan Öfkesi',group:'Savaş'},
   {id:'speed',label:'Hız İksiri',group:'Savaş'},{id:'shield',label:'Kalkan (aç/kapat)',group:'Savaş'},{id:'mine',label:'Deniz Mayını',group:'Savaş'},{id:'compass',label:'Pusula',group:'Savaş'},
   {id:'forward',label:'Haritayı yukarı kaydır',group:'Kamera ve harita'},{id:'back',label:'Haritayı aşağı kaydır',group:'Kamera ve harita'},{id:'left',label:'Haritayı sola kaydır',group:'Kamera ve harita'},{id:'right',label:'Haritayı sağa kaydır',group:'Kamera ve harita'},
   {id:'recenter',label:'Gemiyi ortala',group:'Kamera ve harita'},{id:'zoomIn',label:'Yakınlaştır',group:'Kamera ve harita'},{id:'zoomOut',label:'Uzaklaştır',group:'Kamera ve harita'},
