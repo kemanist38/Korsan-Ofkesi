@@ -16,9 +16,12 @@ export const shipLabelOffset=(span:number)=>-Math.round(shipDrawSize(span)*.46);
 // 4 görünüşlü sayfa (dosya adında "-iso-"): elitler gibi sıra KD, GD, GB, KB; açı hangi çeyrekteyse o çapraz çizilir.
 // Ölçüye bakılmaz: eski 16 yönlü sayfa (8 × 2 kare) de genişlik = 4 × yükseklik olduğu için ayırt edilemez.
 export function isoQuadrant(angle:number){const a=((angle%(Math.PI*2))+Math.PI*2)%(Math.PI*2);return a<Math.PI/2?0:a<Math.PI?1:a<Math.PI*1.5?2:3;}
-export function drawNpcShip(ctx:CanvasRenderingContext2D,sprite:string,span:number,x:number,y:number,angle:number,time:number){
+export function drawNpcShip(ctx:CanvasRenderingContext2D,sprite:string,span:number,x:number,y:number,angle:number,time:number,frame16?:number){
   if(!sprite)return false;
   const sheet=load(sprite);if(!ready(sheet))return false;
+  // 3D modelden 16 yönlü tek sıra sayfa ("-dir16-"): kare doğrudan verilir (yoksa güneydoğu)
+  if(sprite.includes('-dir16-')){const F=sheet.naturalHeight,size=shipDrawSize(span)*1.08,i=frame16??10;void time;
+    ctx.save();ctx.drawImage(sheet,i*F,0,F,F,x-size/2,y-size*.64,size,size);ctx.restore();return true;}
   if(sprite.includes('-iso-')){const F=sheet.naturalHeight,size=shipDrawSize(span),i=isoQuadrant(angle);void time;
     ctx.save();ctx.shadowColor='#000a';ctx.shadowBlur=11;ctx.shadowOffsetY=3;ctx.drawImage(sheet,i*F,0,F,F,x-size*SHIP.anchorX/SHIP.frame,y-size*SHIP.anchorY/SHIP.frame,size,size);ctx.restore();return true;}
   const step=Math.PI*2/SHIP.dirs,index=((Math.round(angle/step)%SHIP.dirs)+SHIP.dirs)%SHIP.dirs;

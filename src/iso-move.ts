@@ -16,3 +16,11 @@ export function isoAdvance(m:IsoMove|null,px:number,py:number,tx:number,ty:numbe
     m.sx=best[0];m.sy=best[1];m.left=ISO_STEP;}
   const t=Math.min(dt,m.left);m.left-=dt;face.east=m.sx>0;face.north=m.sy<0;
   return{m,mx:m.sx*V*t,my:m.sy*H*t,done:false};}
+// Düz gidiş (16 yönlü görseli olan gemiler): yerde sabit hız, ekranda dikey bileşen yarı ölçekli.
+// dir: 16 yönlü sayfadaki kare (k = pruva ekranda sağdan saat yönünde (k-8)·22,5°).
+export const dir16Toward=(dx:number,dy:number)=>(8+Math.round(Math.atan2(dy*2,dx)/(Math.PI/8))+16)%16;
+export function straightStep(px:number,py:number,tx:number,ty:number,V:number,dt:number){
+  const dx=tx-px,dy=ty-py,gy=dy*2,g=Math.hypot(dx,gy);
+  if(g<1)return{mx:0,my:0,done:true,dir:-1};
+  const step=Math.min(g,V*dt);
+  return{mx:dx/g*step,my:gy/g*step/2,done:false,dir:dir16Toward(dx,dy)};}
