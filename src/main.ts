@@ -40,7 +40,7 @@ import {towerContains,towerMuzzle} from './towerGeometry';
 import {loadGuild,saveGuild,islandSlots,towerTypeCost,tagError,canBuild,TOWER_TYPES,ROLE_NAMES,TOWER_SLOTS,type TowerType,type GuildRole,GUILD_NAME_MAX,GUILD_TAG_MAX,type Guild} from './guild';
 import {loadProfile,saveProfile,nickError,rankOf,NICK_CHANGE_COST,NICK_COOLDOWN_MS,NICK_MAX} from './profile';
 import {createChest,chestRewardText,CHEST_PICKUP_RADIUS,CHEST_CLICK_RADIUS,DRIFT_RESPAWN_SECONDS,type LootChest} from './loot';
-import {ELITE_SHIPS,ELITE_ISO,eliteById,type EliteShipId} from './elite-ships';
+import {ELITE_SHIPS,ELITE_ISO,ELITE_DIR16,eliteById,type EliteShipId} from './elite-ships';
 import {isoAdvance,type IsoMove,type IsoFace} from './iso-move';
 import {spawnText,spawnSoul,spawnRage,clearRageFx,screenTint,updateAbilityFx,drawAbilityFx} from './abilityFx';
 import {newRage,rageActive,rageReady,gainRage,startRage,rageSalvo,tickRage,RAGE_MAX,RAGE_SPEED,RAGE_SALVOS,RAGE_PER_RIVAL,RAGE_PER_BOSS} from './rage';
@@ -1520,7 +1520,16 @@ function renderCombatTargets(){
 const isoFace={east:false,north:false};let isoMove:IsoMove|null=null;
 // Bütün gemiler (başlangıç gemisi dahil) Seafight usulü 4 çaprazda merdiven hareketiyle gider
 const isoShip=()=>true;
+// 16 yönlü görseli olan gemi (özel tasarım ya da elit): hedefe dümdüz gider, görünüş gidiş yönünden seçilir
+const dir16Sprite=()=>activeSpecialDesign==='inferno'?INFERNO_DESIGN.dir16:activeSpecialDesign?null:eliteEnabled()?ELITE_DIR16[eliteShip().id]??null:null;
 const isoIndex=()=>isoFace.north?(isoFace.east?0:3):(isoFace.east?1:2);
+// Düz gidiş (16 yönlü gemiler): yerde sabit hız, ekranda dikey bileşen yarı ölçekli (çapraz hareketle aynı perspektif)
+function straightAdvance(px:number,py:number,tx:number,ty:number,V:number,dt:number){
+  const dx=tx-px,dy=ty-py,gx=dx,gy=dy*2,g=Math.hypot(gx,gy);
+  if(g<1)return{m:null,mx:0,my:0,done:true};
+  const step=Math.min(g,V*dt),mx=gx/g*step,my=gy/g*step/2;
+  shipDir16=(8+Math.round(Math.atan2(gy,gx)/(Math.PI/8))+16)%16;isoFace.east=gx>=0;isoFace.north=gy<0;
+  return{m:null,mx,my,done:false};}
 function update(dt:number){{const rc=document.getElementById('recenterShip');if(rc){const away=!!freeLook&&dist(freeLook,player)>60;if(rc.classList.contains('show')!==away)rc.classList.toggle('show',away);}}
     // W-A-S-D (ve oklar) gemiyi yürütmez: gemi yerinde kalırken harita kayar, oyuncu tıklayacağı yeri önceden görür. V gemiye geri ortalar.
     {const px=(held('right','arrowright')?1:0)-(held('left','arrowleft')?1:0),py=(held('back','arrowdown')?1:0)-(held('forward','arrowup')?1:0);
@@ -1530,7 +1539,7 @@ function update(dt:number){{const rc=document.getElementById('recenterShip');if(
     if(routeTarget){if(dist(player,routeTarget)<14)routeTarget=null;else destination=routeVia(routeTarget);}
     if(destination&&!thrust&&!turn&&isoShip()){
       // Seafight usulü: 8 yön, dikey hız yarı, anlık kalkış/duruş; açı yalnızca iz ve efektler için tutulur
-      const V=effectiveSpeed()*1.8,st=isoAdvance(isoMove,player.x,player.y,destination.x,destination.y,V,dt,isoFace);isoMove=st.m;
+      const V=effectiveSpeed()*1.8,st=dir16Sprite()?straightAdvance(player.x,player.y,destination.x,destination.y,V,dt):isoAdvance(isoMove,player.x,player.y,destination.x,destination.y,V,dt,isoFace);isoMove=st.m;
       // Açı ve hız bu adımın hareketini verecek şekilde ayarlanır; taşıma aşağıdaki ortak satırda yapılır
       if(st.done){destination=null;player.speed=0;isoMove=null;}else if(st.mx||st.my){player.angle=Math.atan2(st.mx,-st.my);player.speed=Math.hypot(st.mx,st.my)/Math.max(dt,1e-3);}else player.speed=0;
     }
@@ -2274,7 +2283,7 @@ function hullCenter(im:HTMLImageElement,sx:number,sy:number,sw:number,sh:number,
   hullCenters.set(key,c);return{x:dx+c.x*dw,y:dy+c.y*dh};}
 // Şu an çizilen oyuncu gemisi karesi (drawPlayerShip ile aynı kaynak ve hedef dikdörtgeni)
 function playerShipFrame():[HTMLImageElement,number,number,number,number,number,number,number,number]|null{
-  if(activeSpecialDesign==='inferno'){const im=eliteIsoImage(INFERNO_DESIGN.dir16);
+  const d16=dir16Sprite();if(d16){const im=eliteIsoImage(d16);
     if(im.complete&&im.naturalWidth){const c=im.naturalHeight,D=166;return[im,shipDir16*c,0,c,c,-D/2,-D*.68,D,D];}}
   else if(activeSpecialDesign||eliteEnabled()){const im=eliteIsoImage(activeSpecialDesign?PIRATE_RAGE_DESIGN.sprite:ELITE_ISO[eliteShip().id]);
     if(im.complete&&im.naturalWidth){const c=im.naturalHeight,D=158;return[im,isoIndex()*c,0,c,c,-D/2,-D*.7,D,D];}}
