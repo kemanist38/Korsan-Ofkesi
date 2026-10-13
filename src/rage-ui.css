@@ -295,8 +295,7 @@ body.touch-ui .slot-bar,body.touch-ui #ammoPicker{display:none!important}
 /* Sağ alt savaş düğmeleri: 3x2 düzen — üst: gemiyi ortala, hız, öfke · alt: mayın, tamir, saldır */
 .combat-controls{width:262px;height:196px}
 .combat-controls .combat-action.attack{right:0;bottom:6px}
-.combat-controls .combat-action.repair{right:104px;bottom:20px}
-.combat-controls .combat-action.mine{right:186px;bottom:20px}
+.combat-controls .combat-action.mine{right:104px;bottom:20px}
 .combat-controls .combat-action.rage{right:11px;bottom:122px}
 .combat-controls .combat-action.speed{right:104px;bottom:122px}
 .combat-controls .combat-action.recenter-btn{right:186px;bottom:122px;width:58px;height:58px;border-radius:50%!important;background:url(/assets/ui-orb-teal-v1.webp) center/100% 100% no-repeat;border:0;transform:none}

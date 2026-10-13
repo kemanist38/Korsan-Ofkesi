@@ -182,7 +182,7 @@ button.event-row{cursor:pointer}
 .combat-controls .combat-action.attack{right:0;bottom:6px;width:86px;height:86px;background-image:url(/assets/ui-orb-red-v1.webp)}
 .combat-controls .combat-action.attack small{right:auto;top:auto;left:50%;bottom:-2px;transform:translateX(-50%);border-color:#d86a4f88}
 .combat-controls .combat-action.attack span{bottom:-16px;font-size:8px}
-.combat-controls .combat-action.repair{right:104px;bottom:18px}
+
 .combat-controls .combat-action.speed{right:94px;bottom:86px}
 .combat-controls .combat-action.mine{right:0;bottom:142px}
 .combat-controls .combat-action.active{box-shadow:0 0 0 3px #6fd6c4,0 0 18px #6fd6c4aa}
