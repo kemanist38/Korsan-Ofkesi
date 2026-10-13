@@ -320,6 +320,8 @@ addEventListener('keydown',e=>{
   unlockAudio();const key=normalizeKey(e);
   if(rebinding){e.preventDefault();if(key!=='escape'){for(const a of ACTIONS)if(settings.binds[a.id]===key)settings.binds[a.id]='';settings.binds[rebinding]=key;saveSettings(settings);renderQuickSlots();refreshBindHints();}rebinding=null;renderSettings();return;}
   if(e.target instanceof HTMLInputElement)return;
+  // Tab: yakındaki hedefler arasında sırayla geçiş (Shift+Tab geri)
+  if(e.key==='Tab'){e.preventDefault();cycleTarget(e.shiftKey?-1:1);return;}
   if(key==='enter'&&!Object.values(settings.binds).includes('enter')){e.preventDefault();chat.open();(document.getElementById('chatInput') as HTMLInputElement|null)?.focus();return;}
   keys.add(key);
   if(key==='escape'){closeAllOverlays();return;}
@@ -472,7 +474,7 @@ ui('openMarket').onclick=openMarket;
 
 ui('marketOverlay').addEventListener('pointerdown',e=>{if(e.target===ui('marketOverlay'))closeMarket();});
 ui('supplyOverlay').addEventListener('pointerdown',e=>{if(e.target===ui('supplyOverlay'))closeSupply();});
-// Fare tekerleği yakındaki rakipleri sırayla işaretler (yakından uzağa); yakınlaştırma klavye kısayollarında
+// Tab yakındaki rakipleri sırayla işaretler (yakından uzağa)
 function cycleTarget(dir:number){
   const reach=Math.max(900,effectiveRange()*1.6);
   const list:Target[]=[...enemies,...monsters].filter(t=>targetExists(t)&&Math.hypot(t.x-player.x,t.y-player.y)<=reach)
@@ -482,8 +484,8 @@ function cycleTarget(dir:number){
   const next=i<0?list[0]:list[(i+dir+list.length)%list.length];
   if(next!==selected){selected=next;attackChase=false;updateUI();}
 }
-let wheelAt=0;
-canvas.addEventListener('wheel',e=>{e.preventDefault();const now=performance.now();if(now-wheelAt<120)return;wheelAt=now;cycleTarget(e.deltaY>0?1:-1);},{passive:false});
+// Fare tekerleği haritayı yakınlaştırır / uzaklaştırır (yalnızca masaüstü; dokunmatikte tekerlek yok)
+canvas.addEventListener('wheel',e=>{e.preventDefault();setZoom(camera.targetZoom+(e.deltaY<0?.1:-.1));},{passive:false});
 ui('closeLoadout').onclick=closeLoadout;
 ui('loadoutOverlay').addEventListener('pointerdown',e=>{if(e.target===ui('loadoutOverlay'))closeLoadout();});
 // Sağ üst: market (sekmeli gemi/top/mühimmat pencereleri) ve menü (profil, filo, geliştirme, tayfa, ayarlar)
