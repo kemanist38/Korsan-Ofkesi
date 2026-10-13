@@ -65,7 +65,9 @@ export const NPC_SPAN={small:84,medium:112,large:144} as const;
 export const npcSize=(id:string)=>id.endsWith('-1-light')?'small':id.endsWith('-2-heavy')?'large':'medium';
 const npc=(id:string,name:string,role:'light'|'heavy',tier:number,sprite=''):Omit<NpcDef,'portrait'>=>{const span=NPC_SPAN[npcSize(id)];
   const dmg=role==='light'?750:1650,t=tier-1,size=npcSize(id)==='small'?0:npcSize(id)==='medium'?1:2,hp=PVE_HP[tier][size],r={xp:PVE_XP[tier][size],gold:killReward(Math.round((size===0?3750:9000)*hpScale(tier)),tier).gold};
-  return{id,name,sprite,span,role,tier,hp,damage:Math.round(dmg*dmgScale(tier)),reload:role==='light'?2.6:2.7,speed:(role==='light'?50:34)+t*1.5,gold:r.gold,xp:r.xp};
+  // İlk üç denizde ağır gemilerin hasarı %20 düşük: yeni oyuncu 50 dökme topla büyük gemiye girince sık batıyordu
+  const soft=role==='heavy'&&tier<=3?.8:1;
+  return{id,name,sprite,span,role,tier,hp,damage:Math.round(dmg*dmgScale(tier)*soft),reload:role==='light'?2.6:2.7,speed:(role==='light'?50:34)+t*1.5,gold:r.gold,xp:r.xp};
 };
 const NPC_LIST:Omit<NpcDef,'portrait'>[]=[
   npc('n1-1-light','Kıyı Sandalı','light',1,'/assets/trial-coast-boat-dir16-v1.webp'),npc('n1-1-heavy','Tüccar Yelkenlisi','heavy',1,'/assets/trial-coast-merchant-dir16-v1.webp'),
