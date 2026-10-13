@@ -61,10 +61,12 @@ export const MINE={armSeconds:1,triggerRadius:46,blastRadius:95,baseDamage:4000,
 // Her top her salvoda 1 gülle harcar. Fiyatlar 300 gülle içindir.
 export type Price={amount:number;currency:'gold'|'pearls';per?:number};
 export const priceOf=(p:Price,qty:number)=>Math.ceil(qty*p.amount/(p.per??1));
-export const AMMO_PRICES={chain:{amount:6,currency:'pearls',per:300},fire:{amount:8,currency:'pearls',per:300},breaker:{amount:10,currency:'pearls',per:300},explosive:{amount:12,currency:'pearls',per:300},leech:{amount:15,currency:'pearls',per:300}} as const satisfies Record<string,Price>;
+// Fiyatlar yarıya indirildi (oyuncu harcamaktan korkmasın); 300 gülle başına inci
+export const AMMO_PRICES={chain:{amount:3,currency:'pearls',per:300},fire:{amount:4,currency:'pearls',per:300},breaker:{amount:5,currency:'pearls',per:300},explosive:{amount:6,currency:'pearls',per:300},leech:{amount:8,currency:'pearls',per:300}} as const satisfies Record<string,Price>;
 // Elit puan gülleye harcanan inciyle orantılı: her inci EP_PER_PEARL EP eder. Pahalı gülle atan, gülle başına daha çok EP alır
-// (zincir 0,075 · alev 0,1 · kule kırıcı 0,125 · patlayıcı 0,15 · can emici 0,1875). En büyük paketle Elit 15 ≈ 9.800 ₺.
-export const EP_PER_PEARL=3.75;
+// (zincir 0,15 · alev 0,2 · kule kırıcı 0,25 · patlayıcı 0,3 · can emici 0,4: eskisinin ~2 katı EP). Elit 15 için gülle
+// harcaması eskisinin ~1/4'ü (yaklaşık 1/4 inci).
+export const EP_PER_PEARL=15;
 const epPerBall=(p:Price)=>Math.round(p.amount/(p.per??1)*EP_PER_PEARL*10_000)/10_000;
 export const ELITE_POINTS_PER_BALL={chain:epPerBall(AMMO_PRICES.chain),fire:epPerBall(AMMO_PRICES.fire),breaker:epPerBall(AMMO_PRICES.breaker),explosive:epPerBall(AMMO_PRICES.explosive),leech:epPerBall(AMMO_PRICES.leech)} as const;
 export const SUPPLY_PRICES={powder:{amount:3,currency:'gold'},shield:{amount:3,currency:'gold'},speed:{amount:2,currency:'pearls'},mine:{amount:5,currency:'pearls'},compass:{amount:1,currency:'pearls'}} as const satisfies Record<string,Price>;

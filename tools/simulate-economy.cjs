@@ -54,7 +54,7 @@ const setup=e.ELITE_ENTRY_PRICE+a.priceOf(e.CANNON_COSTS.heavy,315)+Object.value
  const speedPotions=Math.ceil(time*.25/a.ABILITIES.speed.duration),mines=Math.ceil(time/3600*5),supplyPearls=a.priceOf(a.SUPPLY_PRICES.speed,speedPotions)+a.priceOf(a.SUPPLY_PRICES.mine,mines);
  const result={hours:time/3600,ep,balls,totalBalls:Object.values(balls).reduce((a,b)=>a+b,0),ammoPearls,setup,supplyPearls,setupPurchase:cheapestPack(setup),ammoPurchase:cheapestPack(ammoPearls),purchase:cheapestPack(setup+ammoPearls+supplyPearls),stats,gold,bossPearls:pearls};
  console.log(JSON.stringify(result,null,2));
- if(!process.argv.includes('--all-leech')&&!process.argv.includes('--fast-route')&&!process.argv.includes('--slow-route')){assert(result.hours>=160&&result.hours<=190);assert(result.purchase.tl>=9000&&result.purchase.tl<=12500);}
+ if(!process.argv.includes('--all-leech')&&!process.argv.includes('--fast-route')&&!process.argv.includes('--slow-route')){assert(result.hours>=100&&result.hours<=135);assert(result.purchase.tl>=3000&&result.purchase.tl<=5000);}
  const old=[0,0,25000,65000,130000,230000,360000,530000,750000,1020000,1360000,1780000,2300000,2950000,3850000,5000000];
  for(let level=1;level<=15;level++){const value=e.migrateElitePoints(old[level]);assert.equal(a.eliteLevelFromEp(value),level);assert.equal(e.migrateElitePoints(value,2),value);}
  {const v=a.ELITE_POINTS_PER_BALL;assert(v.chain<v.fire&&v.fire<v.breaker&&v.breaker<v.explosive&&v.explosive<v.leech);}
