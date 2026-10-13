@@ -61,9 +61,9 @@ test('every map has its own boss, summoned by 200 of the sea\'s largest NPC',()=
   // Her denizin iki haritası aynı bossu paylaşır; denizler arasında isimler benzersizdir.
   assert.equal(names.size,keys.length/2,'unique boss name per sea');
 });
-test('each map offers its own four quests whose rewards grow with the map level',()=>{
+test('each map offers its own three quests (no monster hunts) whose rewards grow with the map level',()=>{
   const {QUESTS,MAP_KEYS:keys,MAPS:maps,NPCS}=world;
-  for(const key of keys){const qs=QUESTS.filter(q=>q.map===key);assert.equal(qs.length,4);
+  for(const key of keys){const qs=QUESTS.filter(q=>q.map===key);assert.equal(qs.length,3);assert.ok(!qs.some(q=>q.kind==='monster'));
     const light=qs.find(q=>q.id.endsWith('-light'));assert.deepEqual(light.ids,[maps[key].npcs[0]]);
     assert.equal(light.required,20);assert.equal(light.gold,Math.round(light.required*NPCS[maps[key].npcs[0]].gold*world.QUEST_BONUS));assert.ok(!('wood' in light));}
   const g=k=>QUESTS.find(q=>q.id===`q${k}-heavy`);
