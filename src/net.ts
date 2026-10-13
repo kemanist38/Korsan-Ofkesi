@@ -12,12 +12,14 @@ export type NetState={id:string;nick?:string;tag?:string|null;ship?:string;x:num
 export type NetFire={from:string;to:string;x:number;y:number;tx:number;ty:number;damage:number;ammo:string};
 export type NetSunk={victim:string;by:string;victimNick:string;byNick:string};
 export type NetChat={nick:string;text:string;at:number};
-export type NetHandlers={state:(s:NetState)=>void;leave:(id:string)=>void;fire:(f:NetFire)=>void;sunk:(s:NetSunk)=>void;chat:(c:NetChat)=>void};
+// İhale: tekliflerin kendisi (bid), yeni katılanın mevcut teklifleri istemesi (ask) ve buna verilen cevap (known)
+export type NetBid={hour:number;lot:string;amount:number;id:string;nick:string;at:number};
+export type NetHandlers={state:(s:NetState)=>void;leave:(id:string)=>void;fire:(f:NetFire)=>void;sunk:(s:NetSunk)=>void;chat:(c:NetChat)=>void;bid?:(b:NetBid)=>void;bidAsk?:(hour:number)=>void;bidKnown?:(bids:NetBid[])=>void};
 
 const ID_KEY='yedi-deniz-net-id';
 export const myNetId=(()=>{try{let v=sessionStorage.getItem(ID_KEY);if(!v){v=Math.random().toString(36).slice(2,10);sessionStorage.setItem(ID_KEY,v);}return v;}catch{return Math.random().toString(36).slice(2,10);}})();
 
-let client:ReturnType<typeof createClient>|null=null,sea:RealtimeChannel|null=null,chatCh:RealtimeChannel|null=null,seaName='';
+let client:ReturnType<typeof createClient>|null=null,sea:RealtimeChannel|null=null,chatCh:RealtimeChannel|null=null,auctionCh:RealtimeChannel|null=null,seaName='';
 let handlers:NetHandlers|null=null;
 // Bağlantı durumu (ekranda gösterilir): 'off' | 'connecting' | 'ok' | 'error'
 export let netStatus:'off'|'connecting'|'ok'|'error'='off',netError='';
@@ -28,6 +30,11 @@ export function startNet(h:NetHandlers){
   try{client=createClient(URL,ANON,{realtime:{params:{eventsPerSecond:40}}});}catch{client=null;return;}
   chatCh=client.channel('chat-global',{config:{broadcast:{self:false}}});
   chatCh.on('broadcast',{event:'chat'},({payload})=>handlers?.chat(payload as NetChat)).subscribe();
+  const ac=client.channel('auction-global',{config:{broadcast:{self:false}}});auctionCh=ac;
+  ac.on('broadcast',{event:'bid'},({payload})=>handlers?.bid?.(payload as NetBid))
+    .on('broadcast',{event:'ask'},({payload})=>handlers?.bidAsk?.((payload as {hour:number}).hour))
+    .on('broadcast',{event:'known'},({payload})=>handlers?.bidKnown?.((payload as {bids:NetBid[]}).bids))
+    .subscribe(status=>{if(status==='SUBSCRIBED')send(ac,'ask',{hour:Math.floor(Date.now()/3600000)});});
 }
 // Haritaya katıl (harita değişince eski kanaldan çıkılır). Siege gibi özel alanlarda null verilir.
 export function joinSea(map:string|null){
@@ -48,3 +55,5 @@ export const sendState=(s:NetState)=>send(sea,'state',s);
 export const sendFire=(f:NetFire)=>send(sea,'fire',f);
 export const sendSunk=(s:NetSunk)=>send(sea,'sunk',s);
 export const sendChat=(c:NetChat)=>send(chatCh,'chat',c);
+export const sendBid=(b:NetBid)=>send(auctionCh,'bid',b);
+export const sendKnownBids=(bids:NetBid[])=>send(auctionCh,'known',{bids});

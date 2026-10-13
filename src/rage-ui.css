@@ -8,7 +8,7 @@
   --shop-top:max(12px,calc((calc(100 * 1dvh / var(--ui,1)) - 550px)/2));
   --shop-nav-height:62px;
 }
-.shop-tabs{border:1px solid var(--rage-edge);border-bottom-color:#b26943;border-radius:10px 10px 0 0;background:linear-gradient(#352326,#181417);box-shadow:inset 0 1px #c3a08c44,0 8px 25px #0008;padding:4px 6px;grid-template-columns:repeat(7,minmax(0,1fr)) 40px}
+.shop-tabs{border:1px solid var(--rage-edge);border-bottom-color:#b26943;border-radius:10px 10px 0 0;background:linear-gradient(#352326,#181417);box-shadow:inset 0 1px #c3a08c44,0 8px 25px #0008;padding:4px 6px;grid-template-columns:repeat(8,minmax(0,1fr)) 40px}
 .shop-tabs button{background:transparent;border-color:transparent;border-radius:5px;color:var(--rage-muted);font-size:10px}
 .shop-tabs button.active,.shop-tabs button:hover{background:linear-gradient(#65302a,#31191c);border-color:#ae6244;color:#ffe1af;box-shadow:inset 0 -2px #ed8c46}
 .shop-tabs button .nav-img,.shop-tabs button .sprite,.shop-tabs .equip-nav{width:28px;height:28px}
