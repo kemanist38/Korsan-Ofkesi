@@ -525,7 +525,7 @@ const netHandlers:NetHandlers={
     if(n.ship!==undefined){e.remoteShip=n.ship;e.captain!.elite=(NET_ELITES.has(n.ship)?n.ship:'phantom') as EliteShipId;}},
   leave:id=>{const e=remoteOf(id);if(e){enemies.splice(enemies.indexOf(e),1);if(selected===e){selected=null;state.attacking=false;}}},
   fire:f=>{const e=remoteOf(f.from);if(!e)return;
-    if(f.ammo==='heal'){if(f.to===myNetId){const amt=Math.max(0,Math.min(f.damage,effectiveMaxHp()-state.hp));state.hp+=amt;healText(player.x,player.y,amt);playHeal();updateUI();}return;}const a=Math.atan2(f.ty-f.y,f.tx-f.x);muzzleFlash(f.x+Math.cos(a)*30,f.y+Math.sin(a)*30-10,a,44);playEnemyCannon(dist(e,player),(e.x-player.x)/600);
+    if(f.ammo==='heal'){healFlights.push({x:f.x,y:f.y,to:f.to,amount:f.damage,life:3,age:0});return;}const a=Math.atan2(f.ty-f.y,f.tx-f.x);muzzleFlash(f.x+Math.cos(a)*30,f.y+Math.sin(a)*30-10,a,44);playEnemyCannon(dist(e,player),(e.x-player.x)/600);
     if(f.to!==myNetId||state.invulnerable>0)return;const b=Math.atan2(player.y-f.y,player.x-f.x);
     shots.push({x:f.x,y:f.y,vx:Math.cos(b)*420,vy:Math.sin(b)*420,life:2.4,owner:'enemy',damage:f.damage,hit:false,ammo:f.ammo as AmmoKind,captain:e});},
   sunk:k=>{const e=remoteOf(k.victim);if(e){burst(e.x,e.y,true);playExplosion();splashAt(e.x,e.y,190);enemies.splice(enemies.indexOf(e),1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}}
@@ -1597,7 +1597,7 @@ function straightAdvance(px:number,py:number,tx:number,ty:number,V:number,dt:num
   const step=Math.min(g,V*dt),mx=gx/g*step,my=gy/g*step/2;
   shipDir16=(8+Math.round(Math.atan2(gy,gx)/(Math.PI/8))+16)%16;isoFace.east=gx>=0;isoFace.north=gy<0;
   return{m:null,mx,my,done:false};}
-function update(dt:number){{const rc=document.getElementById('recenterShip');if(rc){const away=!!freeLook&&dist(freeLook,player)>60;if(rc.classList.contains('show')!==away)rc.classList.toggle('show',away);}}
+function update(dt:number){updateHealFlights(dt);{const rc=document.getElementById('recenterShip');if(rc){const away=!!freeLook&&dist(freeLook,player)>60;if(rc.classList.contains('show')!==away)rc.classList.toggle('show',away);}}
     // W-A-S-D (ve oklar) gemiyi yürütmez: gemi yerinde kalırken harita kayar, oyuncu tıklayacağı yeri önceden görür. V gemiye geri ortalar.
     {const px=(held('right','arrowright')?1:0)-(held('left','arrowleft')?1:0),py=(held('back','arrowdown')?1:0)-(held('forward','arrowup')?1:0);
       if(px||py){const base=freeLook??camera,n=Math.hypot(px,py),v=520*dt/camera.zoom;lookAt(base.x+px/n*v,base.y+py/n*v);}
@@ -2192,8 +2192,19 @@ function targetExistsOrPlayer(t:Target|typeof player){return t===player||targetE
 function shotHeight(s:Shot){if(!s.flight)return 0;const p=Math.min(1,(s.age??0)/s.flight);return (s.arc??0)*4*p*(1-p);}
 function drawShotShadow(s:Shot){const p=worldToScreen(s),h=shotHeight(s),k=1-Math.min(.5,h/160);drawVfx(ctx,'shadow',p.x,p.y+2,16*k,{alpha:.6*k});}
 // Gülleler: kullanıcının mühimmat ikonlarıyla aynı tarzdaki uçuş görselleri (shotArt.ts); iz görselin içindedir.
+// Şifa güllesi: uçarken küçük yeşil parıltılı gülle görseli
+const healBallImg=new Image();healBallImg.src=SPECIAL_AMMO.heal.icon;
+function drawHealBall(x:number,y:number,rot:number){ctx.save();ctx.translate(x,y);const g=ctx.createRadialGradient(0,0,2,0,0,20);g.addColorStop(0,'#8dffb488');g.addColorStop(1,'#8dffb400');ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,20,0,7);ctx.fill();
+  if(healBallImg.complete&&healBallImg.naturalWidth){ctx.rotate(rot);ctx.drawImage(healBallImg,-15,-15,30,30);}ctx.restore();}
+// Başka bir oyuncunun attığı şifa güllesi: yalnız görüntü olarak uçar, hedefe varınca (hedef bizsek) canı doldurur
+const healFlights:{x:number;y:number;to:string;amount:number;life:number;age:number}[]=[];
+function updateHealFlights(dt:number){for(let i=healFlights.length-1;i>=0;i--){const h=healFlights[i],t=h.to===myNetId?player:remoteOf(h.to);h.age+=dt;h.life-=dt;
+  if(!t||h.life<=0){healFlights.splice(i,1);continue;}const d=Math.hypot(t.x-h.x,t.y-h.y),step=510*dt;
+  if(d<=step+20){healFlights.splice(i,1);if(h.to===myNetId){const amt=Math.max(0,Math.min(h.amount,effectiveMaxHp()-state.hp));state.hp+=amt;healText(player.x,player.y,amt);playHeal();updateUI();}else healText(t.x,t.y,h.amount);continue;}
+  h.x+=(t.x-h.x)/d*step;h.y+=(t.y-h.y)/d*step;}}
 function drawShotBall(s:Shot){const p=worldToScreen(s),y=p.y-shotHeight(s),spin=(s.age??0)*16,a=Math.atan2(s.vy,s.vx);
   if(s.visual==='spit'){drawVfx(ctx,'spit',p.x,y,34,{rot:spin*.2});return;}
+  if(s.ammo==='heal'){drawHealBall(p.x,y,spin*.15);return;}
   const look=s.owner==='enemy'&&!s.captain?(s.ammo==='fire'?'fire':'iron'):s.ammo==='chain'||s.ammo==='fire'||s.ammo==='explosive'||s.ammo==='breaker'||s.ammo==='leech'?s.ammo:'iron';
   drawShotSprite(ctx,look,p.x,y,a);}
 function drawParticle(p:Particle){if(!onScreen(p,260))return;const s=worldToScreen(p),a=Math.max(0,Math.min(1,p.life/p.maxLife)),y=s.y-(p.z??0),size=p.size;
@@ -2373,7 +2384,7 @@ function draw(){
   atShipScale(player,()=>{drawPlayerMarker();drawHullWater(player,hullLength(player));drawPlayerShip();
 });
   drawFleetOccluders();atShipScale(player,drawPlayerLabel);
-  particles.forEach(p=>{if(!UNDER.has(p.kind)&&p.kind!=='damage')drawParticle(p);});shots.forEach(drawShotBall);
+  particles.forEach(p=>{if(!UNDER.has(p.kind)&&p.kind!=='damage')drawParticle(p);});shots.forEach(drawShotBall);for(const h of healFlights){const p=worldToScreen(h);drawHealBall(p.x,p.y-10,h.age*2.4);}
   drawAbilityFx(ctx,worldToScreen,innerWidth,innerHeight);
   particles.forEach(p=>{if(p.kind==='damage')drawParticle(p);});
   ctx.restore();
