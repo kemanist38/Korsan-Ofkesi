@@ -41,7 +41,7 @@ import {loadGuild,saveGuild,islandSlots,towerTypeCost,tagError,canBuild,TOWER_TY
 import {loadProfile,saveProfile,nickError,rankOf,NICK_CHANGE_COST,NICK_COOLDOWN_MS,NICK_MAX} from './profile';
 import {createChest,chestRewardText,CHEST_PICKUP_RADIUS,CHEST_CLICK_RADIUS,DRIFT_RESPAWN_SECONDS,type LootChest} from './loot';
 import {ELITE_SHIPS,ELITE_ISO,ELITE_DIR16,eliteById,type EliteShipId} from './elite-ships';
-import {isoAdvance,type IsoMove,type IsoFace} from './iso-move';
+import {isoAdvance,straightStep,dir16Toward,type IsoMove,type IsoFace} from './iso-move';
 import {spawnText,spawnSoul,spawnRage,clearRageFx,screenTint,updateAbilityFx,drawAbilityFx} from './abilityFx';
 import {newRage,rageActive,rageReady,gainRage,startRage,rageSalvo,tickRage,RAGE_MAX,RAGE_SPEED,RAGE_SALVOS,RAGE_PER_RIVAL,RAGE_PER_BOSS} from './rage';
 
@@ -1609,9 +1609,12 @@ function update(dt:number){{const rc=document.getElementById('recenterShip');if(
     if(!e.aggro||d>240){const slow=e.slowTimer>0?.55:1,want={x:clamp(e.x+Math.sin(e.angle)*320,40,WORLD_WIDTH-40),y:clamp(e.y-Math.cos(e.angle)*320,40,WORLD_HEIGHT-40)};
       if(!e.isoT||dist(e.isoT,want)>60){e.isoT=want;e.iso=null;}
       e.face??={east:Math.sin(e.angle)>=0,north:Math.cos(e.angle)>0};
-      const st=isoAdvance(e.iso??null,e.x,e.y,e.isoT.x,e.isoT.y,e.speed*(e.aggro?1:.45)*slow*1.4,dt,e.face);e.iso=st.m;
+      const V=e.speed*(e.aggro?1:.45)*slow*1.4;
+      // 16 yönlü görseli olan NPC hedefe dümdüz gider (elit gemiler gibi); diğerleri çapraz merdiven
+      const st=e.def?.sprite.includes('-dir16-')?straightStep(e.x,e.y,e.isoT.x,e.isoT.y,V,dt):isoAdvance(e.iso??null,e.x,e.y,e.isoT.x,e.isoT.y,V,dt,e.face);
+      if('m' in st)e.iso=st.m;else if(st.dir>=0)e.dir16=st.dir;
       if(st.done)e.isoT=undefined;else{e.x=clamp(e.x+st.mx,40,WORLD_WIDTH-40);e.y=clamp(e.y+st.my,40,WORLD_HEIGHT-40);}}
-    else e.face={east:player.x>e.x,north:player.y<e.y};/* menzilde durup ateş ederken oyuncuya döner */ if(e.aggro&&d<NPC_FIRE_RANGE&&e.cooldown<=0)enemyFire(e);e.cooldown-=dt;
+    else{e.face={east:player.x>e.x,north:player.y<e.y};e.dir16=dir16Toward(player.x-e.x,player.y-e.y);}/* menzilde durup ateş ederken oyuncuya döner */ if(e.aggro&&d<NPC_FIRE_RANGE&&e.cooldown<=0)enemyFire(e);e.cooldown-=dt;
   }
   for(let i=shots.length-1;i>=0;i--){
     const s=shots[i];
@@ -1728,7 +1731,7 @@ function updateSiegeCaptain(e:Enemy,dt:number){const c=e.captain!,f=SIEGE_MAP.fl
   let way:Vec|null=c.orbit;if(way){const ae=Math.atan2(e.y-f.y,e.x-f.x),at=Math.atan2(way.y-f.y,way.x-f.x),diff=Math.atan2(Math.sin(at-ae),Math.cos(at-ae));
     if(!open&&Math.abs(diff)>.35){const a=ae+Math.sign(diff)*.5;way={x:f.x+Math.cos(a)*ring,y:f.y+Math.sin(a)*ring};}
     else if(open)way=routeVia(way,e);}
-  e.face??={east:true,north:true};if(way){const st=isoAdvance(e.iso??null,e.x,e.y,way.x,way.y,e.speed*(e.slowTimer>0?.55:1)*1.4,dt,e.face);e.iso=st.m;
+  e.face??={east:true,north:true};if(way){const st=straightStep(e.x,e.y,way.x,way.y,e.speed*(e.slowTimer>0?.55:1)*1.4,dt);if(st.dir>=0)e.dir16=st.dir;
     if(st.done)e.iso=null;else{e.x=clamp(e.x+st.mx,40,WORLD_WIDTH-40);e.y=clamp(e.y+st.my,40,WORLD_HEIGHT-40);const back=fleetCollision(e);if(back){e.x=back.x;e.y=back.y;}}}
   for(const o of [player,...enemies.filter(x=>x.captain&&x!==e)] as Vec[]){const dx=e.x-o.x,dy=e.y-o.y,dd=Math.hypot(dx,dy)||1;if(dd<150){const k=(150-dd)*Math.min(1,dt*3);e.x+=dx/dd*k;e.y+=dy/dd*k*.6;}}
   c.ammoClock-=dt;if(c.ammoClock<=0){c.ammoClock=5+Math.random()*4;const all:AmmoKind[]=['iron','chain','fire','explosive','breaker','leech'];c.ammo=all[Math.floor(Math.random()*all.length)];}
@@ -2189,7 +2192,7 @@ function updateCaptain(e:Enemy,dt:number){const c=e.captain!;e.slowTimer=Math.ma
     c.orbit={x:clamp(foe.x+Math.cos(a)*r,80,WORLD_WIDTH-80),y:clamp(foe.y+Math.sin(a)*r,80,WORLD_HEIGHT-80)};c.orbitClock=2.5+Math.random()*2;e.iso=null;
     // savaş alanından (doğduğu yer) 650 birimden fazla uzaklaşmaz
     const hx=c.orbit.x-e.homeX,hy=c.orbit.y-e.homeY,hl=Math.hypot(hx,hy);if(hl>650){c.orbit.x=e.homeX+hx/hl*650;c.orbit.y=e.homeY+hy/hl*650;}}
-  e.face??={east:true,north:false};const st=isoAdvance(e.iso??null,e.x,e.y,c.orbit.x,c.orbit.y,e.speed*(e.slowTimer>0?.55:1)*1.4,dt,e.face);e.iso=st.m;
+  e.face??={east:true,north:false};const st=straightStep(e.x,e.y,c.orbit.x,c.orbit.y,e.speed*(e.slowTimer>0?.55:1)*1.4,dt);if(st.dir>=0)e.dir16=st.dir;
   if(st.done)c.orbitClock=0;else{e.x=clamp(e.x+st.mx,40,WORLD_WIDTH-40);e.y=clamp(e.y+st.my,40,WORLD_HEIGHT-40);}
   // üst üste binmesin: diğer kaptanlardan ve oyuncudan en az 170 birim uzak durur
   for(const o of [player,...enemies.filter(x=>x.captain&&x!==e)] as Vec[]){const dx=e.x-o.x,dy=e.y-o.y,dd=Math.hypot(dx,dy)||1;if(dd<170){const k=(170-dd)*Math.min(1,dt*3);e.x+=dx/dd*k;e.y+=dy/dd*k*.6;}}
@@ -2225,7 +2228,7 @@ function spawnWreck(o:Enemy|Monster){
   let drawn=false;
   if(o.kind==='monster')drawn=drawMonsterSheet(c,o.def,0,0,o.phase);
   else if(o.captain){const fr=captainFrame(o);if(fr){const [im,sx,h,D,ky]=fr;c.drawImage(im,sx,0,h,h,-D/2,-D*ky,D,D);drawn=true;}}
-  else if(o.def)drawn=drawNpcShip(c,o.def.sprite,o.def.span,0,0,npcFaceAngle(o),performance.now());
+  else if(o.def)drawn=drawNpcShip(c,o.def.sprite,o.def.span,0,0,npcFaceAngle(o),performance.now(),o.dir16);
   if(!drawn)return;if(wrecks.length>=MAX_WRECKS)wrecks.shift();
   wrecks.push({x:o.x,y:o.y,image,t:0});
 }
@@ -2321,7 +2324,7 @@ function draw(){
   drawMapEdges();islands.forEach(i=>{if(onScreen(i,i.r+260))drawIsland(i);});drawFleetIsland();lootChests.forEach(drawLootChest);drawTreasureMark();sparkles.forEach(drawSparkle);mines.forEach(m=>{const p=worldToScreen(m);drawMineSprite(ctx,p.x,p.y,performance.now(),m.arm>0,m.life<5);});monsters.forEach(m=>{if(onScreen(m,320))atShipScale(m,()=>drawMonster(m));});
   particles.forEach(p=>{if(UNDER.has(p.kind))drawParticle(p);});wrecks.forEach(w=>atShipScale(w,()=>drawWreck(w)));shots.forEach(drawShotShadow);
   if(selected&&targetExists(selected))drawTargetMarker(selected);
-  enemies.filter(e=>onScreen(e,e.boss?420:300)).sort((a,b)=>a.y-b.y).forEach(e=>atShipScale(e.tower?null:e,()=>{const s=worldToScreen(e);if(e.captain){drawCaptain(e,s);return;}if(e.boss)drawBossAura(e,s);if(!e.tower)drawHullWater(e,hullLength(e));const raster=e.tower?drawBastion(ctx,e.towerIndex??0,s.x,s.y):e.def?drawNpcShip(ctx,e.def.sprite,e.def.span,s.x,s.y,npcFaceAngle(e),performance.now()):false;if(!raster)return;const top=raster?(e.tower?TOWER_LABEL_OFFSET:shipLabelOffset(e.def!.span)):-42;if(e.boss){drawBossFlag(s,top);drawBossPlate(e,s,top);return;}const bw=e.tower||e.role==='heavy'?72:56;drawHealthBar(s.x,s.y+top,bw,e.hp/e.maxHp,e.tower?'#f09a4f':e.role==='heavy'?'#f0584a':'#4fd0da');ctx.fillStyle='#e6dccb';ctx.font='700 15px Inter';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText(e.name,s.x,s.y+top-7);ctx.shadowBlur=0;}));
+  enemies.filter(e=>onScreen(e,e.boss?420:300)).sort((a,b)=>a.y-b.y).forEach(e=>atShipScale(e.tower?null:e,()=>{const s=worldToScreen(e);if(e.captain){drawCaptain(e,s);return;}if(e.boss)drawBossAura(e,s);if(!e.tower)drawHullWater(e,hullLength(e));const raster=e.tower?drawBastion(ctx,e.towerIndex??0,s.x,s.y):e.def?drawNpcShip(ctx,e.def.sprite,e.def.span,s.x,s.y,npcFaceAngle(e),performance.now(),e.dir16):false;if(!raster)return;const top=raster?(e.tower?TOWER_LABEL_OFFSET:shipLabelOffset(e.def!.span)):-42;if(e.boss){drawBossFlag(s,top);drawBossPlate(e,s,top);return;}const bw=e.tower||e.role==='heavy'?72:56;drawHealthBar(s.x,s.y+top,bw,e.hp/e.maxHp,e.tower?'#f09a4f':e.role==='heavy'?'#f0584a':'#4fd0da');ctx.fillStyle='#e6dccb';ctx.font='700 15px Inter';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText(e.name,s.x,s.y+top-7);ctx.shadowBlur=0;}));
   atShipScale(player,()=>{drawPlayerMarker();drawHullWater(player,hullLength(player));drawPlayerShip();
 });
   drawFleetOccluders();atShipScale(player,drawPlayerLabel);
