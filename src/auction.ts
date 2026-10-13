@@ -17,6 +17,7 @@ const POOL:LotDef[]=[
   {key:'leech',kind:'ammo',item:'leech',qty:3000},
   {key:'breaker',kind:'ammo',item:'breaker',qty:3000},
   {key:'fire',kind:'ammo',item:'fire',qty:3000},
+  {key:'heal',kind:'ammo',item:'heal',qty:3000},
   {key:'speed',kind:'supply',item:'speed',qty:20},
   {key:'mine',kind:'supply',item:'mine',qty:15},
   {key:'shield',kind:'supply',item:'shield',qty:300},

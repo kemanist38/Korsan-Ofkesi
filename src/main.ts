@@ -27,7 +27,7 @@ import {loadAuction,saveAuction,emptyAuction,auctionHour,auctionEnds,lotsFor,min
 import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,claimReward,GRADUATE_LEVEL,MAX_APPRENTICES,TOGETHER_XP_BONUS} from './mentorship';
 import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
 import {loadLog,saveLog,addLog,daySummary,LOG_KINDS,type LogKind,type LogEntry} from './logbook';
-import {BALL_DAMAGE,CHAIN_FACTOR,CHAIN_SLOW,FIRE_NPC_FACTOR,EXPLOSIVE_PLAYER_FACTOR,leechHeal,repairAmount,ELITE_POINTS_PER_BALL,ELITE_MAX_LEVEL,questEp,bossEp,eliteLevelEp,eliteLevelFromEp,ABILITIES,SPECIAL_AMMO,MINE,SPEED_BOOST,VISION_RADIUS,COMPASS,CONSUMABLES,AMMO_PRICES,SUPPLY_PRICES,loadArsenal,saveArsenal,type AbilityId,type SpecialAmmo,type ConsumableId,type SupplyId,type Price,priceOf} from './arsenal';
+import {IRON_START,IRON_PRICE,BALL_DAMAGE,CHAIN_FACTOR,CHAIN_SLOW,FIRE_NPC_FACTOR,EXPLOSIVE_PLAYER_FACTOR,leechHeal,repairAmount,ELITE_POINTS_PER_BALL,ELITE_MAX_LEVEL,questEp,bossEp,eliteLevelEp,eliteLevelFromEp,ABILITIES,SPECIAL_AMMO,MINE,SPEED_BOOST,VISION_RADIUS,COMPASS,CONSUMABLES,AMMO_PRICES,SUPPLY_PRICES,loadArsenal,saveArsenal,type AbilityId,type SpecialAmmo,type ConsumableId,type SupplyId,type Price,priceOf} from './arsenal';
 import {loadFleetOwners,saveFleetOwners,loadRuins,markRuin,ruinLeft,ruinLabel,clearRuins} from './conquest';
 import {RIVAL_SP,battleRank,loadRivalLog,claimRivalSp,dayKey,RANK_SHEET,RANK_COLS,RANK_ICONS,rankIcon,BATTLE_RANKS} from './battle';
 import {setupChat} from './chat';
@@ -85,15 +85,15 @@ const UPGRADES:Record<UpgradeKind,{name:string;description:string;effect:string;
   repair:{name:'Usta Marangozlar',description:'Açık denizde yapılan tamirin hızını artırır.',effect:'+%4 tamir',pearls:7}
 };
 const QUICK_ITEMS:Record<QuickItemId,{name:string;icon:string;category:'ammo'|'consumable';description:string}>={
-  iron:{name:'Demir Gülle',icon:'iron',category:'ammo',description:'Standart ve sınırsız top güllesi.'},chain:{name:'Zincir Güllesi',icon:'chain',category:'ammo',description:'Oyuncuları 3 saniye %40 yavaşlatır; NPC\'ye etki etmez.'},
+  iron:{name:'Demir Gülle',icon:'iron',category:'ammo',description:'Standart top güllesi; altınla ucuza alınır (1.000 gülle = 10 altın).'},chain:{name:'Zincir Güllesi',icon:'chain',category:'ammo',description:'Oyuncuları 3 saniye %40 yavaşlatır; NPC\'ye etki etmez.'},
   fire:{name:'Ateş Güllesi',icon:'damage',category:'ammo',description:'NPC ve canavarlara %40 fazla hasar.'},
-  explosive:{name:'Patlayıcı Gülle',icon:'damage',category:'ammo',description:'Oyunculara %40 fazla hasar.'},breaker:{name:'Kule Kırıcı',icon:'iron',category:'ammo',description:'Kulelere 2,6 kat hasar.'},leech:{name:'Can Emici',icon:'damage',category:'ammo',description:'Yalnız oyunculardan şansla can çalar.'},
+  explosive:{name:'Patlayıcı Gülle',icon:'damage',category:'ammo',description:'Oyunculara %40 fazla hasar.'},breaker:{name:'Kule Kırıcı',icon:'iron',category:'ammo',description:'Kulelere 2,6 kat hasar.'},leech:{name:'Can Emici',icon:'damage',category:'ammo',description:'Yalnız oyunculardan şansla can çalar.'},heal:{name:'Şifa Güllesi',icon:'repairkit',category:'ammo',description:'Hasar vermez; oyuncuların ve dost kulelerin canını doldurur. NPC\'ye sıkılamaz.'},
   repairkit:{name:'Tamir Sandığı',icon:'repairkit',category:'consumable',description:'Açık deniz tamirini başlatır.'},speed:{name:'Hız İksiri',icon:'speed',category:'consumable',description:'İçince 4 sn boyunca hız %55 artar; her kullanımda 1 adet harcar.'},
   compass:{name:'Pusula',icon:'compass',category:'consumable',description:'Basınca 8 saniye boyunca haritadaki bütün gemileri ve canavarları mini haritada gösterir. 20 saniyede bir kullanılır, her kullanımda 1 adet harcar.'},
   powder:{name:'Kara Barut',icon:'damage',category:'consumable',description:CONSUMABLES.powder.description},shield:{name:'Kalkan',icon:'hull',category:'consumable',description:CONSUMABLES.shield.description},mine:{name:'Deniz Mayını',icon:'hull',category:'consumable',description:'Kıçtan mayın bırakır.'}
 };
 const AMMO_ROW=6;
-const QUICK_TIPS:Record<QuickItemId,string>={iron:'Sınırsız',chain:'Yavaşlatır',fire:'NPC +%40',explosive:'Oyuncu +%40',breaker:'Kule ×2,6',leech:'Can çalar',repairkit:'Tamir',speed:'Hızlandırır',compass:'Herkesi gösterir',powder:'Hasar artar',shield:'Hasar azalır',mine:'Mayın bırakır'};
+const QUICK_TIPS:Record<QuickItemId,string>={iron:'Altınla',heal:'Can doldurur',chain:'Yavaşlatır',fire:'NPC +%40',explosive:'Oyuncu +%40',breaker:'Kule ×2,6',leech:'Can çalar',repairkit:'Tamir',speed:'Hızlandırır',compass:'Herkesi gösterir',powder:'Hasar artar',shield:'Hasar azalır',mine:'Mayın bırakır'};
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <main class="game-shell">
@@ -144,7 +144,7 @@ const keys = new Set<string>();
 const QUEST_STORAGE='yedi-deniz-quests-v2';
 const ACCOUNT_STORAGE='yedi-deniz-account-v1';
 let storedQuests:SavedQuests|null=null;
-let storedAccount:{pearls?:number;gold:number;wood?:number;fame:number;level:number;maxHp:number;hp:number;chainAmmo:number;elitePoints?:number;eliteEconomyVersion?:number;battlePoints?:number;cannonType?:CannonKind;cannonInventory?:CannonStock;mountedCannons?:CannonStock;equipOwned?:Record<string,number>;equipped?:Partial<Record<EquipSlot,string|null>>;quickSlots?:Array<QuickItemId|null>;upgrades:Record<UpgradeKind,number>;eliteShip?:EliteShipId;activeShip?:ShipSelection;elitePurchased?:boolean;currentMap?:MapKey}|null=null;
+let storedAccount:{pearls?:number;gold:number;wood?:number;fame:number;level:number;maxHp:number;hp:number;chainAmmo:number;ironAmmo?:number;elitePoints?:number;eliteEconomyVersion?:number;battlePoints?:number;cannonType?:CannonKind;cannonInventory?:CannonStock;mountedCannons?:CannonStock;equipOwned?:Record<string,number>;equipped?:Partial<Record<EquipSlot,string|null>>;quickSlots?:Array<QuickItemId|null>;upgrades:Record<UpgradeKind,number>;eliteShip?:EliteShipId;activeShip?:ShipSelection;elitePurchased?:boolean;currentMap?:MapKey}|null=null;
 try{storedQuests=migrateQuestRules(JSON.parse(localStorage.getItem(QUEST_STORAGE)||'null'));if(storedQuests)localStorage.setItem(QUEST_STORAGE,JSON.stringify(storedQuests));}catch{storedQuests=null;}
 try{storedAccount=JSON.parse(localStorage.getItem(ACCOUNT_STORAGE)||'null');if(storedAccount){storedAccount.elitePoints=migrateElitePoints(storedAccount.elitePoints??0,storedAccount.eliteEconomyVersion);storedAccount.eliteEconomyVersion=ELITE_ECONOMY_VERSION;}}catch{storedAccount=null;}
 const storedActive=storedQuests?.active&&QUESTS.some(q=>q.id===storedQuests!.active)?storedQuests.active:null;
@@ -169,7 +169,7 @@ let vipUntil=loadVipUntil();const isVip=()=>vipActive(vipUntil);
 let mentorship=loadMentorship();
 const mentorNearby=()=>false;
 const xpGain=(n:number)=>Math.round(n*(1+achBonus().xp)*xpMult()*(isVip()?1+VIP_XP_BONUS:1)*(mentorship.mentor&&mentorNearby()?1+TOGETHER_XP_BONUS:1)),goldGainAch=(n:number)=>Math.round(n*(1+achBonus().gold)*goldMult());
-const state = { pearls:storedAccount?.pearls??30, gold:storedAccount?.gold??40, fame:storedAccount?.fame??0, level:ELITE_TEST_MODE?MAX_LEVEL:Math.min(MAX_LEVEL,storedAccount?.level??1), hp:storedAccount?.hp??Infinity, maxHp:storedAccount?.maxHp??100, elitePoints:storedAccount?.elitePoints??0,battlePoints:storedAccount?.battlePoints??0,cannon:18, cannonType:storedAccount?.cannonType&&CANNONS[storedAccount.cannonType]?storedAccount.cannonType:'cast' as CannonKind, activeQuest:storedActive as string|null, ammo:'iron' as AmmoKind, chainAmmo:storedAccount?.chainAmmo??2000, attacking:false, repairing:false, invulnerable:0 };
+const state = { pearls:storedAccount?.pearls??30, gold:storedAccount?.gold??40, fame:storedAccount?.fame??0, level:ELITE_TEST_MODE?MAX_LEVEL:Math.min(MAX_LEVEL,storedAccount?.level??1), hp:storedAccount?.hp??Infinity, maxHp:storedAccount?.maxHp??100, elitePoints:storedAccount?.elitePoints??0,battlePoints:storedAccount?.battlePoints??0,cannon:18, cannonType:storedAccount?.cannonType&&CANNONS[storedAccount.cannonType]?storedAccount.cannonType:'cast' as CannonKind, activeQuest:storedActive as string|null, ammo:'iron' as AmmoKind, chainAmmo:storedAccount?.chainAmmo??2000,ironAmmo:storedAccount?.ironAmmo??IRON_START, attacking:false, repairing:false, invulnerable:0 };
 let levelQuest=loadLevelQuest(state.level),levelQuestNoticed=false;
 // Seviye görevi açık mı: TP dolmuş ama görev bitmemiş
 const levelQuestOpen=()=>state.fame>=xpNeed(state.level)&&!levelQuestDone(levelQuest);
@@ -213,8 +213,8 @@ const crew=loadCrew();
 // Test aşaması (ELITE_TEST_MODE): her açılışta bol stok ve tam gelişmiş gemi. Değerler yalnızca alt sınırdır;
 // harcadıkça azalır, sayfa yenilenince yeniden dolar.
 if(ELITE_TEST_MODE){const M=5_000_000;
-  for(const k of ['fire','explosive','breaker','leech','powder','shield','speed','mine','compass'] as const)arsenal[k]=Math.max(arsenal[k],M);saveArsenal(arsenal);
-  state.chainAmmo=Math.max(state.chainAmmo,M);state.gold=Math.max(state.gold,M);state.pearls=Math.max(state.pearls,M);
+  for(const k of ['fire','explosive','breaker','leech','heal','powder','shield','speed','mine','compass'] as const)arsenal[k]=Math.max(arsenal[k],M);saveArsenal(arsenal);
+  state.chainAmmo=Math.max(state.chainAmmo,M);state.ironAmmo=Math.max(state.ironAmmo,M);state.gold=Math.max(state.gold,M);state.pearls=Math.max(state.pearls,M);
   state.fame=Math.max(state.fame,100_000_000);state.battlePoints=Math.max(state.battlePoints,BATTLE_RANKS[BATTLE_RANKS.length-1].sp);state.elitePoints=Math.max(state.elitePoints,200_000_000);
   for(const id of Object.keys(TALENTS) as TalentId[])crew.talents[id]=TALENTS[id].max;
   for(const id of Object.keys(OFFICERS) as OfficerId[])crew.officers[id]=OFFICER_MAX_RANK;
@@ -343,7 +343,7 @@ function worldClick(e:{clientX:number;clientY:number}){
     if(slot!==undefined){focusedFoundation=`${currentMap}:${slot}`;openGuild();document.querySelector(`[data-foundation="${focusedFoundation}"]`)?.scrollIntoView({block:'center'});toast(slots[slot]?`${TOWER_TYPES[slots[slot]!.type].name} · Kaide ${slot+1}`:`Kaide ${slot+1}: kule tipini seçip DİK düğmesine bas`);return;}
   }
   const towerHit=enemies.filter(n=>n.tower&&towerContains(world,n)).sort((a,b)=>b.y-a.y)[0];
-  const hit=towerHit??[...enemies,...monsters].filter(n=>!isAlly(n)&&dist(n,world)<Math.max(42,n.kind==='monster'?n.radius:(n.hitRadius??0))).sort((a,b)=>dist(a,world)-dist(b,world))[0];
+  const hit=towerHit??[...enemies,...monsters].filter(n=>(state.ammo==='heal'?n.kind==='ship'&&!!n.captain:!isAlly(n))&&dist(n,world)<Math.max(42,n.kind==='monster'?n.radius:(n.hitRadius??0))).sort((a,b)=>dist(a,world)-dist(b,world))[0];
   if(hit){if(hit!==selected){selected=hit;state.attacking=false;attackChase=false;ui('attack').classList.remove('active');}else if(!state.attacking)toggleAttack();}
   else{const glint=sparkles.find(g=>dist(g,world)<34);if(glint){routeTarget={x:glint.x,y:glint.y};destination=routeVia(routeTarget);attackChase=false;return;}const chest=lootChests.find(c=>dist(c,world)<CHEST_CLICK_RADIUS);routeTarget=chest?{x:chest.x,y:chest.y}:navigablePoint(world);destination=routeVia(routeTarget);attackChase=false;}
 }
@@ -524,7 +524,8 @@ const netHandlers:NetHandlers={
     if(n.sp!==undefined)r.sp=n.sp;if(n.maxHp!==undefined)e.maxHp=n.maxHp;if(n.tag!==undefined)r.tag=n.tag;if(n.nick!==undefined)e.name=(r.tag?`[${r.tag}]`:'')+n.nick;
     if(n.ship!==undefined){e.remoteShip=n.ship;e.captain!.elite=(NET_ELITES.has(n.ship)?n.ship:'phantom') as EliteShipId;}},
   leave:id=>{const e=remoteOf(id);if(e){enemies.splice(enemies.indexOf(e),1);if(selected===e){selected=null;state.attacking=false;}}},
-  fire:f=>{const e=remoteOf(f.from);if(!e)return;const a=Math.atan2(f.ty-f.y,f.tx-f.x);muzzleFlash(f.x+Math.cos(a)*30,f.y+Math.sin(a)*30-10,a,44);playEnemyCannon(dist(e,player),(e.x-player.x)/600);
+  fire:f=>{const e=remoteOf(f.from);if(!e)return;
+    if(f.ammo==='heal'){if(f.to===myNetId){const amt=Math.max(0,Math.min(f.damage,effectiveMaxHp()-state.hp));state.hp+=amt;healText(player.x,player.y,amt);playHeal();updateUI();}return;}const a=Math.atan2(f.ty-f.y,f.tx-f.x);muzzleFlash(f.x+Math.cos(a)*30,f.y+Math.sin(a)*30-10,a,44);playEnemyCannon(dist(e,player),(e.x-player.x)/600);
     if(f.to!==myNetId||state.invulnerable>0)return;const b=Math.atan2(player.y-f.y,player.x-f.x);
     shots.push({x:f.x,y:f.y,vx:Math.cos(b)*420,vy:Math.sin(b)*420,life:2.4,owner:'enemy',damage:f.damage,hit:false,ammo:f.ammo as AmmoKind,captain:e});},
   sunk:k=>{const e=remoteOf(k.victim);if(e){burst(e.x,e.y,true);playExplosion();splashAt(e.x,e.y,190);enemies.splice(enemies.indexOf(e),1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}}
@@ -844,18 +845,27 @@ function toggleRepair(){
 function fireAtTarget(){
   const cannon=CANNONS[state.cannonType];
   if(!selected||player.cooldown>0||dist(player,selected)>effectiveRange())return;
+  // Şifa yalnız oyunculara (ve dost kulelere); hasar veren gülle dosta sıkılamaz
+  const friendTarget=selected.kind==='ship'&&!!selected.captain;
+  if(state.ammo==='heal'&&!friendTarget){toast('Şifa Güllesi yalnız oyunculara ve dost kulelere sıkılır');stopAttack();return;}
+  if(state.ammo!=='heal'&&isAlly(selected)){stopAttack();return;}
   if(state.ammo==='chain'&&state.chainAmmo<=0){state.ammo='iron';toast('Zincir güllesi tükendi');}
-  if(isSpecial(state.ammo)&&arsenal[state.ammo]<=0){toast(`${SPECIAL_AMMO[state.ammo].name} tükendi`);state.ammo='iron';renderQuickSlots();}
-  // Seafight mantığı: her top 1 gülle harcar. Stok top sayısından azsa kalan toplar demir gülle atar.
-  const stock=state.ammo==='chain'?state.chainAmmo:isSpecial(state.ammo)?arsenal[state.ammo]:Infinity,loaded=Math.min(state.cannon,stock);
-  const ammoMult=state.ammo==='chain'?CHAIN_FACTOR:isSpecial(state.ammo)?SPECIAL_AMMO[state.ammo].damage:1,mix=state.cannon>0?(loaded*ammoMult+(state.cannon-loaded))/state.cannon:1;
+  if(isSpecial(state.ammo)&&arsenal[state.ammo]<=0){toast(`${SPECIAL_AMMO[state.ammo].name} tükendi`);if(state.ammo==='heal'){stopAttack();renderQuickSlots();return;}state.ammo='iron';renderQuickSlots();}
+  // Seafight mantığı: her top 1 gülle harcar. Stok top sayısından azsa kalan toplar demir gülle atar; demir de biterse o toplar ateş etmez.
+  const stock=state.ammo==='chain'?state.chainAmmo:isSpecial(state.ammo)?arsenal[state.ammo]:0,loaded=Math.min(state.cannon,stock);
+  const ironUsed=state.ammo==='heal'?0:Math.min(state.cannon-loaded,state.ironAmmo);
+  if(loaded+ironUsed<=0){toast('Demir gülle bitti — marketten altınla alabilirsin');stopAttack();return;}
+  const ammoMult=state.ammo==='chain'?CHAIN_FACTOR:isSpecial(state.ammo)?SPECIAL_AMMO[state.ammo].damage:1,mix=state.cannon>0?(loaded*ammoMult+ironUsed)/state.cannon:1;
   const fx=Math.sin(player.angle),fy=-Math.cos(player.angle),tx=selected.x-player.x,ty=selected.y-player.y;
-  const powderF=useConsumable('powder'),side=fx*ty-fy*tx>0?-1:1,damage=state.cannon*BALL_DAMAGE*(1+upgrades.damage*.11)*cannon.damage*bonus.damage*mix*(1+equipBonus().damage+achBonus().damage+eliteBonus().damage)*powderF*rageSalvo(rage);
+  const powderF=state.ammo==='heal'?1:useConsumable('powder'),side=fx*ty-fy*tx>0?-1:1,damage=state.cannon*BALL_DAMAGE*(1+upgrades.damage*.11)*cannon.damage*bonus.damage*mix*(1+equipBonus().damage+achBonus().damage+eliteBonus().damage)*powderF*rageSalvo(rage);
   salvoQueue.push({delay:0,target:selected,side,slot:0,damage,ammo:state.ammo,powder:powderF>1});
-  if(state.ammo==='chain'){state.chainAmmo-=loaded;saveAccount();gainElitePoints(loaded*ELITE_POINTS_PER_BALL.chain);bumpAch('eliteBalls',loaded);}
-  else if(isSpecial(state.ammo)){arsenal[state.ammo]-=loaded;saveArsenal(arsenal);renderQuickSlots();gainElitePoints(loaded*ELITE_POINTS_PER_BALL[state.ammo]);bumpAch('eliteBalls',loaded);}
+  if(ironUsed){state.ironAmmo-=ironUsed;if(state.ironAmmo<=0)toast('Demir gülle bitti — marketten altınla alabilirsin');}
+  if(state.ammo==='chain'){state.chainAmmo-=loaded;gainElitePoints(loaded*ELITE_POINTS_PER_BALL.chain);bumpAch('eliteBalls',loaded);}
+  else if(isSpecial(state.ammo)){arsenal[state.ammo]-=loaded;saveArsenal(arsenal);gainElitePoints(loaded*ELITE_POINTS_PER_BALL[state.ammo]);bumpAch('eliteBalls',loaded);}
+  saveAccount();renderQuickSlots();
   player.cooldown=(1-equipBonus().reload)*cannon.reload*Math.max(.6,1-upgrades.reload*.04)*bonus.reload/(1+eliteBonus().reload)*(state.ammo==='chain'?1.18:1)*(isSpecial(state.ammo)?SPECIAL_AMMO[state.ammo].reload:1);
 }
+function stopAttack(){state.attacking=false;attackChase=false;ui('attack').classList.remove('active');}
 function gainElitePoints(ep:number){
   ep*=epMult();if(ep<=0)return;const before=eliteLevelFromEp(state.elitePoints);state.elitePoints=Math.round((state.elitePoints+ep)*1000)/1000;const after=eliteLevelFromEp(state.elitePoints);saveAccount();
   if(after>before&&elitePurchased){const ship=ELITE_SHIPS.find(x=>x.level===after);rewardNotice(`Elit ${after} açıldı${ship?` · ${ship.name} tersanede`:''}`);}
@@ -873,7 +883,7 @@ function releaseSalvo(round:SalvoRound){
   const x=player.x+muzzle.x,y=player.y+muzzle.y;
   {const t=round.target as Enemy;if(t.kind==='ship'&&t.remote)sendFire({from:myNetId,to:t.remote.id,x,y,tx:t.x,ty:t.y,damage:round.damage,ammo:round.ammo});}
   shots.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life:Math.max(1.1,d/speed+.5),owner:'player',damage:round.damage,hit:false,ammo:round.ammo,target:round.target,powder:round.powder});
-  playCannon(state.cannonType,round.ammo);
+  playCannon(state.cannonType,round.ammo==='heal'?'iron':round.ammo);
   muzzleFlash(x,y,Math.atan2(muzzle.y,muzzle.x));
 }
 // NPC ve canavar atış menzili: başlangıç topunun (Döküm 390) altında, oyuncu vuramadığı yerden hasar yemesin
@@ -945,7 +955,7 @@ function sinkNotice(name:string,sp:number){
   rewardNotice(sp>0?`${name} batırıldı · +${fmt(sp)} SP kazanıldı`:`${name} batırıldı · günlük SP sınırına ulaşıldı`,'battle',{sp,sink:true});
 }
 function saveQuestState(){localStorage.setItem(QUEST_STORAGE,JSON.stringify({rulesVersion:2,active:state.activeQuest,progress:questProgress,cooldowns:questCooldownUntil}));}
-function saveAccount(){localStorage.setItem(ACCOUNT_STORAGE,JSON.stringify({pearls:state.pearls,gold:state.gold,fame:state.fame,level:state.level,maxHp:state.maxHp,hp:state.hp,chainAmmo:state.chainAmmo,elitePoints:state.elitePoints,eliteEconomyVersion:ELITE_ECONOMY_VERSION,battlePoints:state.battlePoints,cannonType:state.cannonType,cannonInventory,mountedCannons,equipOwned,equipped,quickSlots,upgrades,eliteShip:activeEliteShip,activeShip,elitePurchased,currentMap}));try{localStorage.setItem(WORLD_STORAGE,currentMap);}catch{}}
+function saveAccount(){localStorage.setItem(ACCOUNT_STORAGE,JSON.stringify({pearls:state.pearls,gold:state.gold,fame:state.fame,level:state.level,maxHp:state.maxHp,hp:state.hp,chainAmmo:state.chainAmmo,ironAmmo:state.ironAmmo,elitePoints:state.elitePoints,eliteEconomyVersion:ELITE_ECONOMY_VERSION,battlePoints:state.battlePoints,cannonType:state.cannonType,cannonInventory,mountedCannons,equipOwned,equipped,quickSlots,upgrades,eliteShip:activeEliteShip,activeShip,elitePurchased,currentMap}));try{localStorage.setItem(WORLD_STORAGE,currentMap);}catch{}}
 function effectiveRange(){return(CANNONS[state.cannonType].range+upgrades.range*18+bonus.range+equipBonus().range);}
 function effectiveSpeed(){return(128+upgrades.speed*5)*bonus.speed*(1+equipBonus().speed+eliteBonus().speed)*(abilityActive('speed')?SPEED_BOOST:1)*(rageActive(rage)?RAGE_SPEED:1)*(playerSlow>0?CHAIN_SLOW.factor:1);}
 function cannonCapacity(){return earnedEliteLevel()>0?ELITE_CANNON_CAPACITY:BASE_CANNONS;}
@@ -1156,8 +1166,8 @@ function confirmBuy(){
 function openMarket(){renderMarket();ui('marketOverlay').classList.add('open');}
 function closeMarket(){ui('marketOverlay').classList.remove('open');}
 function renderMarket(){
-  renderBuyRows('marketList',(Object.keys(AMMO_PRICES) as (keyof typeof AMMO_PRICES)[]).map(id=>({id,name:QUICK_ITEMS[id].name,art:`<div class="ammo-icon">${itemAsset(id)}<b>${quickCount(id)}</b></div>`,
-    desc:id==='chain'?`${QUICK_ITEMS.chain.description} · Her gülle ${ELITE_POINTS_PER_BALL.chain.toLocaleString('tr-TR',{maximumFractionDigits:4})} EP`:`${SPECIAL_AMMO[id].description} · Her gülle ${ELITE_POINTS_PER_BALL[id].toLocaleString('tr-TR',{maximumFractionDigits:4})} EP`,unit:AMMO_PRICES[id],give:(n:number)=>{if(id==='chain')state.chainAmmo+=n;else arsenal[id]+=n;},after:renderMarket})));
+  renderBuyRows('marketList',[{id:'iron',name:QUICK_ITEMS.iron.name,art:`<div class="ammo-icon">${itemAsset('iron')}<b>${quickCount('iron')}</b></div>`,desc:'Standart top güllesi. Her top her salvoda 1 gülle harcar; demir gülle bitince toplar ateş etmez.',unit:IRON_PRICE,give:(n:number)=>{state.ironAmmo+=n;},after:renderMarket},...(Object.keys(AMMO_PRICES) as (keyof typeof AMMO_PRICES)[]).map(id=>({id,name:QUICK_ITEMS[id].name,art:`<div class="ammo-icon">${itemAsset(id)}<b>${quickCount(id)}</b></div>`,
+    desc:id==='chain'?`${QUICK_ITEMS.chain.description} · Her gülle ${ELITE_POINTS_PER_BALL.chain.toLocaleString('tr-TR',{maximumFractionDigits:4})} EP`:`${SPECIAL_AMMO[id].description} · Her gülle ${ELITE_POINTS_PER_BALL[id].toLocaleString('tr-TR',{maximumFractionDigits:4})} EP`,unit:AMMO_PRICES[id],give:(n:number)=>{if(id==='chain')state.chainAmmo+=n;else arsenal[id]+=n;},after:renderMarket}))]);
 }
 function openSupply(){renderSupply();ui('supplyOverlay').classList.add('open');}
 function closeSupply(){ui('supplyOverlay').classList.remove('open');}
@@ -1200,7 +1210,7 @@ function renderAuction(){renderAuctionTimer();const list=ui('auctionList'),lots=
 setInterval(()=>{auctionTick();if(ui('auctionOverlay').classList.contains('open'))renderAuctionTimer();},1000);
 let loadoutTab:'ammo'|'consumable'='ammo';
 let pendingQuickItem:QuickItemId|null=null;
-function quickCount(item:QuickItemId){if(item==='iron')return'∞';if(item==='chain')return fmt(state.chainAmmo);if(isSpecial(item)||item==='mine'||item==='powder'||item==='shield'||item==='speed'||item==='compass')return fmt(arsenal[item]);return'';}
+function quickCount(item:QuickItemId){if(item==='iron')return fmt(state.ironAmmo);if(item==='chain')return fmt(state.chainAmmo);if(isSpecial(item)||item==='mine'||item==='powder'||item==='shield'||item==='speed'||item==='compass')return fmt(arsenal[item]);return'';}
 function slotKey(index:number){return keyLabel(settings.binds[(index<AMMO_ROW?`ammo${index+1}`:`item${index-AMMO_ROW+1}`) as ActionId]);}
 function itemAsset(item:QuickItemId){return rasterItemAssets[item]?`<img class="raster-item" src="${rasterItemAssets[item]}" alt="${QUICK_ITEMS[item].name}" draggable="false"/>`:`<i class="sprite icon-${QUICK_ITEMS[item].icon}"></i>`;}
 function quickSlotHtml(item:QuickItemId|null,index:number){const row=index<AMMO_ROW?'ammo-row':'item-row',key=slotKey(index),k=key==='—'?'':key;
@@ -1683,7 +1693,10 @@ function update(dt:number){{const rc=document.getElementById('recenterShip');if(
     s.x+=s.vx*dt;s.y+=s.vy*dt;s.life-=dt;
     if(s.owner==='player'){
       for(let j=enemies.length-1;j>=0&&s.life>0;j--){
-        const e=enemies[j];if(isAlly(e))continue;
+        const e=enemies[j];
+        // Şifa güllesi yalnız hedefindeki oyuncuya işler (yoldaki gemilere çarpmaz); uzak oyuncunun canını kendi oyunu doldurur
+        if(s.ammo==='heal'){if(e!==s.target||dist(s,e)>=(e.hitRadius??25))continue;s.hit=true;s.life=0;const amt=Math.max(0,Math.min(s.damage,e.maxHp-e.hp));if(!e.remote)e.hp+=amt;healText(e.x,e.y,e.remote?s.damage:amt);playHeal();continue;}
+        if(isAlly(e))continue;
         if(e.remote&&dist(s,e)<(e.hitRadius??25)){s.hit=true;s.life=0;burst(e.x,e.y);playHit();continue;}
         if(dist(s,e)<(e.hitRadius??25)){const rawHit=(s.damage*(s.ammo==='breaker'&&e.tower?SPECIAL_AMMO.breaker.towerFactor:1)*(s.ammo==='fire'&&!e.tower&&!e.captain?FIRE_NPC_FACTOR:1)*(s.ammo==='explosive'&&e.captain?EXPLOSIVE_PLAYER_FACTOR:1));const hit=e.captain?pvpClamp(e.pvp??=newPvpBudget(e.maxHp,performance.now()/1000),e.maxHp,rawHit,performance.now()/1000):rawHit;s.hit=true;if(s.slow)e.slowTimer=Math.max(e.slowTimer,s.slow);if(s.splash)towerSplash(s,e);e.aggro=true;e.lastHitBy='player';e.combatTimer=12;if(s.ammo==='chain'&&e.captain)e.slowTimer=CHAIN_SLOW.seconds;e.hp-=hit;siegeHit(e,hit,profile.nick);damageText(e.x,e.y,hit,s.powder?DMG_GOLD:DMG_RED);burst(e.x,e.y);playHit();ammoImpact(s,e,hit);s.life=0;
           if(e.hp<=0)sinkEnemy(e);
