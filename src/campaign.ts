@@ -30,7 +30,9 @@ export const tierOf=(key:MapKey)=>Number(key.split('/')[0]);
 // Seviye atlamak için gereken tecrübe (TP); seviye yalnızca TP ile atlanır, her seviyede sayaç sıfırlanır.
 // LEVEL_XP[n] = n → n+1. Offline model: ~140 active hours, 10h/day, 8h quests.
 // See tools/simulate-leveling.cjs for loadout/travel assumptions and sensitivity checks.
-export const LEVEL_XP=[0,10000,42000,753000,2054000,4363000,6161000,10542000];
+// Eğri yumuşatıldı: eski tabloda 3. seviyede 18 kat sıçrama vardı (oyuncu ilk 2 saatte 3. seviyeye çıkıp 18 saat takılıyordu).
+// Hedef süre (normal oyuncu, 10 sa/gün): ~2, 6, 12, 18, 25, 33, 44 saat.
+export const LEVEL_XP=[0,20000,200000,500000,1500000,3200000,5800000,11400000];
 export const xpNeed=(level:number)=>level>=MAX_LEVEL?Infinity:LEVEL_XP[level];
 
 type Theme={name:string;sea:[string,string];tint:string;look:IslandLook;fleet:FleetTheme;label:string};
@@ -55,7 +57,8 @@ export const XP_PER_HP=(_tier:number)=>1/120;
 export const GOLD_PER_HP=.65/90;
 export const killReward=(hp:number,tier:number)=>({xp:Math.round(hp*XP_PER_HP(tier)),gold:Math.round(hp*GOLD_PER_HP)});
 export const hpScale=(tier:number)=>Math.pow(1.6,tier-1);
-export const dmgScale=(tier:number)=>1+.5*(tier-1);
+// 8. denizde artış 4,0'da durur: eski 4,5 kat hasarla büyük gemi oyuncuyu tek başına batırıyordu
+export const dmgScale=(tier:number)=>Math.min(4,1+.5*(tier-1));
 // Her denizde üç boy gemi: küçük (x-1-light), orta (x-1-heavy ve x-2-light aynı gemi), büyük (x-2-heavy).
 // span: geminin dünyadaki boyu (birim); başlangıç gemisi ~130 birim.
 export const NPC_SPAN={small:84,medium:112,large:144} as const;
