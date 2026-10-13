@@ -4,9 +4,11 @@ import {loadTs} from './load.mjs';
 globalThis.localStorage??={getItem:()=>null,setItem:()=>{}};
 const A=await loadTs('arsenal.ts');
 
-test('iron, chain, fire, explosive, tower breaker and leech; no burning',()=>{
-  assert.deepEqual(Object.keys(A.SPECIAL_AMMO).sort(),['breaker','explosive','fire','leech']);
-  assert.deepEqual(Object.keys(A.AMMO_PRICES).sort(),['breaker','chain','explosive','fire','leech']);
+test('iron (gold), chain, fire, explosive, tower breaker, leech and heal; no burning',()=>{
+  assert.deepEqual(Object.keys(A.SPECIAL_AMMO).sort(),['breaker','explosive','fire','heal','leech']);
+  assert.deepEqual(Object.keys(A.AMMO_PRICES).sort(),['breaker','chain','explosive','fire','heal','leech']);
+  assert.equal(A.IRON_PRICE.currency,'gold');assert.ok(A.IRON_START>0);
+  for(const k of Object.keys(A.AMMO_PRICES))assert.equal(A.AMMO_PRICES[k].currency,'pearls');
   assert.equal(A.SPECIAL_AMMO.fire.burnSeconds,0,'fire no longer burns');
   assert.ok(A.FIRE_NPC_FACTOR>1&&A.EXPLOSIVE_PLAYER_FACTOR>1);assert.ok(A.SPECIAL_AMMO.breaker.towerFactor>2);
   assert.ok(A.CHAIN_SLOW.factor<1&&A.CHAIN_SLOW.seconds>0);

@@ -1,7 +1,7 @@
 import {ELITE_THRESHOLD_SCALE} from './economy';
 // Özel yetenekler ve yeni mühimmatlar. Hesap kaydına dokunmamak için ayrı anahtarda saklanır.
 export type AbilityId='speed'|'mine';
-export type ArsenalStock={fire:number;grape:number;mine:number;powder:number;shield:number;speed:number;compass:number;spyShield:number;explosive:number;breaker:number;leech:number;seeded:boolean;seededV2:boolean;ballsV1:boolean};
+export type ArsenalStock={fire:number;grape:number;mine:number;powder:number;shield:number;speed:number;compass:number;spyShield:number;explosive:number;breaker:number;leech:number;heal:number;seeded:boolean;seededV2:boolean;ballsV1:boolean};
 
 export const ABILITIES:Record<AbilityId,{name:string;key:string;duration:number;cooldown:number;description:string;icon:string}>={
   // Hız İksiri: sayaçlı sarf malzemesi; her içişte 1 adet harcanır, etkisi sürerken yeniden içilemez
@@ -28,7 +28,9 @@ export const SPECIAL_AMMO={
   fire:{name:'Ateş Güllesi',damage:2.5,reload:1.1,rangeFactor:1,burnSeconds:0,burnDps:250,blastRadius:0,blastFactor:0,towerFactor:1,leech:0,icon:'/assets/ammo-fire-v2.webp',description:'NPC ve canavarlara %40 fazla hasar.'},
   explosive:{name:'Patlayıcı Gülle',damage:2.5,reload:1.1,rangeFactor:1,burnSeconds:0,burnDps:0,blastRadius:0,blastFactor:0,towerFactor:1,leech:0,icon:'/assets/ammo-explosive-v2.webp',description:'Oyunculara %40 fazla hasar.'},
   breaker:{name:'Kule Kırıcı',damage:2.25,reload:1.15,rangeFactor:1,burnSeconds:0,burnDps:0,blastRadius:0,blastFactor:0,towerFactor:2.6,leech:0,icon:'/assets/ammo-breaker-v2.webp',description:'Kulelere ve ada tahkimatına 2,6 kat hasar.'},
-  leech:{name:'Can Emici',damage:3,reload:1.1,rangeFactor:1,burnSeconds:0,burnDps:0,blastRadius:0,blastFactor:0,towerFactor:1,leech:.3,icon:'/assets/ammo-leech-v2.webp',description:'Yalnız oyunculara karşı: isabetlerin %20\'si hasarın %15\'i kadar can çalar (en çok canının %2\'si).'}
+  leech:{name:'Can Emici',damage:3,reload:1.1,rangeFactor:1,burnSeconds:0,burnDps:0,blastRadius:0,blastFactor:0,towerFactor:1,leech:.3,icon:'/assets/ammo-leech-v2.webp',description:'Yalnız oyunculara karşı: isabetlerin %20\'si hasarın %15\'i kadar can çalar (en çok canının %2\'si).'},
+  // Şifa: hasar vermez; vurduğu oyuncunun (ya da dost kulenin) canını, salvonun hasarı kadar doldurur. NPC'ye ve düşmana sıkılamaz.
+  heal:{name:'Şifa Güllesi',damage:1,reload:1.1,rangeFactor:1,burnSeconds:0,burnDps:0,blastRadius:0,blastFactor:0,towerFactor:1,leech:0,icon:'/assets/icon-repair-v2.webp',description:'Hasar vermez: oyuncuların ve dost kulelerin canını doldurur. NPC\'ye sıkılamaz.'}
 } as const;
 export type SpecialAmmo=keyof typeof SPECIAL_AMMO;
 
@@ -57,25 +59,27 @@ export const eliteLevelFromEp=(ep:number)=>{let l=1;while(l<ELITE_MAX_LEVEL&&ep>
 export const MINE={armSeconds:1,triggerRadius:46,blastRadius:95,baseDamage:4000,damagePerLevel:400,maxActive:5,icon:'/assets/icon-mine-v2.webp'};
 
 // Dükkân birim fiyatları (altın). Oyuncu istediği adedi yazar; toplam = adet × birim fiyat.
-// Demir gülle sınırsız ve bedava; diğer bütün gülleler (zincir dahil) inciyle alınır ve EP verir; inci fiyatı sırasıyla artar.
+// Demir gülle altınla satılır ve ucuzdur (IRON_PRICE), artık sınırsız değildir; diğer bütün gülleler (zincir dahil) inciyle alınır ve EP verir; inci fiyatı sırasıyla artar.
 // Her top her salvoda 1 gülle harcar. Fiyatlar 300 gülle içindir.
 export type Price={amount:number;currency:'gold'|'pearls';per?:number};
+export const IRON_PRICE:Price={amount:10,currency:'gold',per:1000};
+export const IRON_START=20000;
 export const priceOf=(p:Price,qty:number)=>Math.ceil(qty*p.amount/(p.per??1));
 // Fiyatlar yarıya indirildi (oyuncu harcamaktan korkmasın); 300 gülle başına inci
-export const AMMO_PRICES={chain:{amount:3,currency:'pearls',per:300},fire:{amount:4,currency:'pearls',per:300},breaker:{amount:5,currency:'pearls',per:300},explosive:{amount:6,currency:'pearls',per:300},leech:{amount:8,currency:'pearls',per:300}} as const satisfies Record<string,Price>;
+export const AMMO_PRICES={chain:{amount:3,currency:'pearls',per:300},fire:{amount:4,currency:'pearls',per:300},breaker:{amount:5,currency:'pearls',per:300},explosive:{amount:6,currency:'pearls',per:300},leech:{amount:8,currency:'pearls',per:300},heal:{amount:6,currency:'pearls',per:300}} as const satisfies Record<string,Price>;
 // Elit puan gülleye harcanan inciyle orantılı: her inci EP_PER_PEARL EP eder. Pahalı gülle atan, gülle başına daha çok EP alır
-// (zincir 0,15 · alev 0,2 · kule kırıcı 0,25 · patlayıcı 0,3 · can emici 0,4: eskisinin ~2 katı EP). Elit 15 için gülle
-// harcaması eskisinin ~1/4'ü (yaklaşık 1/4 inci).
-export const EP_PER_PEARL=15;
+// (zincir 0,0575 · ateş 0,077 · kule kırıcı 0,096 · patlayıcı/şifa 0,115 · can emici 0,153). Simülasyonda Elit 15 ≈ 8.000 ₺ (~207 saat).
+export const EP_PER_PEARL=5.75;
 const epPerBall=(p:Price)=>Math.round(p.amount/(p.per??1)*EP_PER_PEARL*10_000)/10_000;
-export const ELITE_POINTS_PER_BALL={chain:epPerBall(AMMO_PRICES.chain),fire:epPerBall(AMMO_PRICES.fire),breaker:epPerBall(AMMO_PRICES.breaker),explosive:epPerBall(AMMO_PRICES.explosive),leech:epPerBall(AMMO_PRICES.leech)} as const;
-export const SUPPLY_PRICES={powder:{amount:3,currency:'gold'},shield:{amount:3,currency:'gold'},speed:{amount:2,currency:'pearls'},mine:{amount:5,currency:'pearls'},compass:{amount:1,currency:'pearls'}} as const satisfies Record<string,Price>;
+export const ELITE_POINTS_PER_BALL={chain:epPerBall(AMMO_PRICES.chain),fire:epPerBall(AMMO_PRICES.fire),breaker:epPerBall(AMMO_PRICES.breaker),explosive:epPerBall(AMMO_PRICES.explosive),leech:epPerBall(AMMO_PRICES.leech),heal:epPerBall(AMMO_PRICES.heal)} as const;
+// Barut ve kalkan altınla; birikmiş altını harcatmak için pahalı
+export const SUPPLY_PRICES={powder:{amount:10,currency:'gold'},shield:{amount:10,currency:'gold'},speed:{amount:2,currency:'pearls'},mine:{amount:5,currency:'pearls'},compass:{amount:1,currency:'pearls'}} as const satisfies Record<string,Price>;
 export type SupplyId=keyof typeof SUPPLY_PRICES;
 
 const STORAGE='yedi-deniz-arsenal-v1';
 export function loadArsenal():ArsenalStock{
-  try{const raw=JSON.parse(localStorage.getItem(STORAGE)||'null');const n=(v:unknown,d:number)=>v===undefined?d:Math.max(0,+(v as number)||0);if(raw)return{fire:n(raw.fire,0),grape:n(raw.grape,0),mine:n(raw.mine,0),powder:n(raw.powder,30),shield:n(raw.shield,30),speed:n(raw.speed,10),compass:n(raw.compass,5),spyShield:n(raw.spyShield,0),explosive:n(raw.explosive,10),breaker:n(raw.breaker,10),leech:n(raw.leech,10),seeded:!!raw.seeded,seededV2:!!raw.seededV2,ballsV1:!!raw.ballsV1};}catch{}
+  try{const raw=JSON.parse(localStorage.getItem(STORAGE)||'null');const n=(v:unknown,d:number)=>v===undefined?d:Math.max(0,+(v as number)||0);if(raw)return{fire:n(raw.fire,0),grape:n(raw.grape,0),mine:n(raw.mine,0),powder:n(raw.powder,30),shield:n(raw.shield,30),speed:n(raw.speed,10),compass:n(raw.compass,5),spyShield:n(raw.spyShield,0),explosive:n(raw.explosive,10),breaker:n(raw.breaker,10),heal:n(raw.heal,500),leech:n(raw.leech,10),seeded:!!raw.seeded,seededV2:!!raw.seededV2,ballsV1:!!raw.ballsV1};}catch{}
   // İlk açılışta tanıtım stoğu
-  return{fire:750,grape:750,mine:3,powder:30,shield:30,speed:10,compass:5,spyShield:0,explosive:500,breaker:500,leech:500,seeded:false,seededV2:false,ballsV1:true};
+  return{fire:750,grape:750,mine:3,powder:30,shield:30,speed:10,compass:5,spyShield:0,explosive:500,breaker:500,leech:500,heal:500,seeded:false,seededV2:false,ballsV1:true};
 }
 export function saveArsenal(stock:ArsenalStock){try{localStorage.setItem(STORAGE,JSON.stringify(stock));}catch{}}
