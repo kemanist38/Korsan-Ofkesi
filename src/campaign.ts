@@ -89,16 +89,16 @@ export type MonsterDef={id:string;name:string;sprite:string;span:number;frame:nu
 // Canavar, aynı denizin ağır NPC'sinden yaklaşık 2,2 kat daha dayanıklıdır (Seafight'ta canavarlar ağır NPC'lerin 1,5–2 katı).
 const mon=(id:string,name:string,tier:number,radius=54,sprite='',span=140,anchorY=133.4):Omit<MonsterDef,'portrait'>=>{const t=tier-1,hp=PVE_HP[tier][3],r={xp:PVE_XP[tier][3],gold:killReward(Math.round(19500*hpScale(tier)),tier).gold};
   return{id,name,sprite,span,frame:256,anchorY,radius,tier,hp,damage:Math.round(1500*dmgScale(tier)),reload:2.8-t*.08,gold:r.gold,xp:r.xp};};
-// Her seviyede tek canavar türü; görsel tek kare (güneybatıya bakan, 256 px). portrait: portre atlasındaki sabit karesi.
+// Canavarlar oyundan kaldırıldı (görselleri silindi). Tanımlar yalnızca eski kayıt/sıralama alanları ve portre sıraları için duruyor.
 const MONSTER_LIST:(Omit<MonsterDef,'portrait'>&{slot:number})[]=[
-  {...mon('m1-2','Dev Mavi Yılan',1,56,'/assets/trial-coast-serpent-sw-v1.webp'),slot:1},
-  {...mon('m2-1','Pembe Resif Yengeci',2,54,'/assets/pearl-crab-sw-v1.webp',132,130.9),slot:2},
-  {...mon('m3-2','Kadim Orman Leviathanı',3,56,'/assets/azur-leviathan-sw-v1.webp'),slot:5},
-  {...mon('m4-1','Kemik Balığı',4,54,'/assets/haunt-fish-sw-v1.webp'),slot:6},
-  {...mon('m5-2','Dev Donmuş Mors',5,60,'/assets/frost-walrus-sw-v1.webp'),slot:9},
-  {...mon('m6-1','Elektrik Yılanı',6,54,'/assets/storm-eel-sw-v1.webp'),slot:10},
-  {...mon('m7-2','Uçurum Krakeni',7,62,'/assets/void-kraken-sw-v1.webp'),slot:13},
-  {...mon('m8-2','Alev Leviathanı',8,58,'/assets/lava-leviathan-sw-v1.webp'),slot:15},
+  {...mon('m1-2','Dev Mavi Yılan',1,56),slot:1},
+  {...mon('m2-1','Pembe Resif Yengeci',2,54),slot:2},
+  {...mon('m3-2','Kadim Orman Leviathanı',3,56),slot:5},
+  {...mon('m4-1','Kemik Balığı',4,54),slot:6},
+  {...mon('m5-2','Dev Donmuş Mors',5,60),slot:9},
+  {...mon('m6-1','Elektrik Yılanı',6,54),slot:10},
+  {...mon('m7-2','Uçurum Krakeni',7,62),slot:13},
+  {...mon('m8-2','Alev Leviathanı',8,58),slot:15},
 ];
 /** Seviye başına haritada kalan canavar. */
 export const MONSTER_OF_TIER:Record<number,string>=Object.fromEntries(MONSTER_LIST.map(m=>[m.tier,m.id]));
