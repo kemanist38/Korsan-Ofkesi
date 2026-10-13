@@ -55,7 +55,7 @@ type SalvoRound = { powder?:boolean; delay:number; target:Target; side:number; s
 type EnemyRole='light'|'heavy';
 // Test kaptanı: elit gemili, oyuncu gibi savaşan yapay rakip (yalnız test modunda 1/1'de)
 type Captain={elite:EliteShipId;ammo:AmmoKind;ammoClock:number;foe:Enemy|null;orbit:Vec|null;orbitClock:number};
-type Enemy = Vec & { kind:'ship'; dir16?:number; remote?:{id:string;tx:number;ty:number;vx:number;vy:number;seen:number;sp:number;tag:string|null}; captain?:Captain; pvp?:PvpBudget; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number; lastHitBy?:'player'|'captain'; siege?:boolean; commander?:boolean;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
+type Enemy = Vec & { kind:'ship'; dir16?:number; remoteShip?:string; remote?:{id:string;tx:number;ty:number;vx:number;vy:number;seen:number;sp:number;tag:string|null}; captain?:Captain; pvp?:PvpBudget; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number; lastHitBy?:'player'|'captain'; siege?:boolean; commander?:boolean;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
 type ParticleKind='flare'|'ember'|'glint'|'wisp'|'foam'|'smoke'|'spark'|'damage'|'flash'|'splinter'|'bubble'|'plank'|'firePuff'|'target'|'poison'|'soul'|'shock';
 // z: su üstünden yükseklik (ekranda yukarı kayar); vz ile savrulan parçalar suya düşer
 type Particle = Vec & { vx:number; vy:number; life:number; maxLife:number; kind:ParticleKind; text?:string; color?:string; z?:number; vz?:number; rot?:number; vr?:number; size?:number; variant?:number };
@@ -125,7 +125,9 @@ const mini = minimap.getContext('2d')!;
 // Mini harita da cihaz piksel oranında çizilir (çizim kodu 188×133 koordinatlarıyla çalışmaya devam eder)
 {const k=Math.min(3,Math.max(1,devicePixelRatio||1));minimap.width=188*k;minimap.height=133*k;}
 const playerShipImage=new Image();playerShipImage.src='/assets/starter-ship-v2.webp';
-document.documentElement.style.setProperty('--starter-ship',`url("${playerShipImage.src}")`);
+document.documentElement.style.setProperty('--starter-ship','url("/assets/starter-art-v2.webp")');
+// Başlangıç gemisinin 3D modelden 16 yönlü görünüşü (elitlerle aynı kare düzeni)
+const STARTER_DIR16='/assets/starter-dir16-v1.webp';
 // Başlangıç gemisi "Yedi Deniz": 8 yönlü sayfa (4 × 2, 256 px; elitlerle aynı kare sırası)
 const directionalShipImage=new Image();directionalShipImage.src='/assets/starter-ship-dir-v2.webp';
 document.documentElement.style.setProperty('--pirate-icons','url("/assets/pirate-ui-icons-v1.webp")');
@@ -517,7 +519,7 @@ const netHandlers:NetHandlers={
   state:(n:NetState)=>{if(siege||n.id===myNetId)return;let e=remoteOf(n.id);
     if(!e){e={kind:'ship',role:'heavy',x:n.x,y:n.y,angle:0,hp:n.hp,maxHp:n.maxHp,cooldown:99,speed:0,damage:0,reload:99,rewardGold:0,rewardFame:0,color:'#79372f',name:n.nick,tier:8,aggro:false,wander:0,slowTimer:0,homeX:n.x,homeY:n.y,combatTimer:0,hitRadius:44,
       captain:{elite:(NET_ELITES.has(n.ship)?n.ship:'phantom') as EliteShipId,ammo:'iron',ammoClock:99,foe:null,orbit:null,orbitClock:0},remote:{id:n.id,tx:n.x,ty:n.y,vx:0,vy:0,seen:0,sp:n.sp,tag:n.tag}} as Enemy;enemies.push(e);}
-    const r=e.remote!;r.tx=n.x;r.ty=n.y;r.vx=n.vx??0;r.vy=n.vy??0;r.seen=performance.now();r.sp=n.sp;r.tag=n.tag;e.name=(n.tag?`[${n.tag}]`:'')+n.nick;e.hp=n.hp;e.maxHp=n.maxHp;e.face={east:n.east,north:n.north};e.dir16=n.d16;
+    const r=e.remote!;r.tx=n.x;r.ty=n.y;r.vx=n.vx??0;r.vy=n.vy??0;r.seen=performance.now();r.sp=n.sp;r.tag=n.tag;e.name=(n.tag?`[${n.tag}]`:'')+n.nick;e.hp=n.hp;e.maxHp=n.maxHp;e.face={east:n.east,north:n.north};e.dir16=n.d16;e.remoteShip=n.ship;
     e.captain!.elite=(NET_ELITES.has(n.ship)?n.ship:'phantom') as EliteShipId;},
   leave:id=>{const e=remoteOf(id);if(e){enemies.splice(enemies.indexOf(e),1);if(selected===e){selected=null;state.attacking=false;}}},
   fire:f=>{const e=remoteOf(f.from);if(!e)return;const a=Math.atan2(f.ty-f.y,f.tx-f.x);muzzleFlash(f.x+Math.cos(a)*30,f.y+Math.sin(a)*30-10,a,44);playEnemyCannon(dist(e,player),(e.x-player.x)/600);
@@ -1523,7 +1525,7 @@ const isoFace={east:false,north:false};let isoMove:IsoMove|null=null;
 // Bütün gemiler (başlangıç gemisi dahil) Seafight usulü 4 çaprazda merdiven hareketiyle gider
 const isoShip=()=>true;
 // 16 yönlü görseli olan gemi (özel tasarım ya da elit): hedefe dümdüz gider, görünüş gidiş yönünden seçilir
-const dir16Sprite=()=>activeSpecialDesign?null:eliteEnabled()?ELITE_DIR16[eliteShip().id]??null:null;
+const dir16Sprite=()=>activeSpecialDesign?null:eliteEnabled()?ELITE_DIR16[eliteShip().id]??null:STARTER_DIR16;
 const isoIndex=()=>isoFace.north?(isoFace.east?0:3):(isoFace.east?1:2);
 // Düz gidiş (16 yönlü gemiler): yerde sabit hız, ekranda dikey bileşen yarı ölçekli (çapraz hareketle aynı perspektif)
 function straightAdvance(px:number,py:number,tx:number,ty:number,V:number,dt:number){
@@ -2104,7 +2106,7 @@ const eliteIsoImages=new Map<string,HTMLImageElement>();
 function eliteIsoImage(src:string){let im=eliteIsoImages.get(src);if(!im){im=new Image();im.decoding='async';im.src=`${src}?r=${SHIP_ART_REV}`;eliteIsoImages.set(src,im);}return im;}
 const shipAlpha=()=>1;
 function drawEliteDirectionalShip(s:Vec){
-  const f=playerShipFrame();if(!f||!activeSpecialDesign&&!eliteEnabled())return false;
+  const f=playerShipFrame();if(!f)return false;
   {const [im,sx,sy,sw,sh,dx,dy,dw,dh]=f;if(!im.complete||!im.naturalWidth)return false;
     ctx.save();ctx.translate(s.x,s.y);ctx.globalAlpha=(state.invulnerable&&Math.floor(performance.now()/120)%2?.55:1)*shipAlpha();ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
     // Gölge bulanıklığı yok (keskin kenar); gemi altındaki su havuzu gölgeyi verir. Kaynak kare 512 px: yakınlaştırmada da net
@@ -2113,7 +2115,7 @@ function drawEliteDirectionalShip(s:Vec){
 }
 function drawPlayerShip(){
   const s=worldToScreen(player);
-  if((activeSpecialDesign||eliteEnabled())&&drawEliteDirectionalShip(s))return;
+  if((activeSpecialDesign||eliteEnabled()||dir16Sprite())&&drawEliteDirectionalShip(s))return;
   // Elit atlas yüklenene kadar aynı yön karesindeki başlangıç gemisi görünür kalır; gemi asla kaybolmaz.
 
   if(!directionalShipImage.complete||!directionalShipImage.naturalWidth){
@@ -2205,7 +2207,7 @@ function captainHit(t:Enemy,s:Shot,from:Enemy|null){const dmg=Math.round(s.damag
   if(s.ammo==='leech'&&from){const h=leechHeal(dmg,true,from.maxHp);if(h>0){from.hp=Math.min(from.maxHp,from.hp+h);spawnSoul(t,from);}}
   if(from&&t.captain&&!t.captain.foe)t.captain.foe=from;if(t.hp<=0)sinkEnemy(t);}
 // Kaptan gemisi karesi: 16 yönlü görsel (çevrim içi oyuncu kendi yönünü gönderir; yoksa hızdan ya da son çaprazdan) ya da 4 çapraz
-function captainFrame(e:Enemy):[HTMLImageElement,number,number,number,number]|null{const c=e.captain!,d16=ELITE_DIR16[c.elite];
+function captainFrame(e:Enemy):[HTMLImageElement,number,number,number,number]|null{const c=e.captain!,d16=e.remoteShip==='starter'?STARTER_DIR16:ELITE_DIR16[c.elite];
   if(d16){const im=eliteIsoImage(d16);if(im.complete&&im.naturalWidth){const h=im.naturalHeight,r=e.remote;
     let k=e.dir16;if(k==null&&r&&Math.hypot(r.vx,r.vy)>25)k=(8+Math.round(Math.atan2(r.vy*2,r.vx)/(Math.PI/8))+16)%16;
     if(k==null){const f=e.face??{east:true,north:false};k=f.north?(f.east?6:2):(f.east?10:14);}
