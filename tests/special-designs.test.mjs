@@ -20,7 +20,7 @@ test('shipyard special-design toggle changes appearance without changing the equ
   // Tersane ızgarası: Pirate Rage kartının SEÇ/ÇIKAR düğmesi (data-select-ship="pirate-rage")
   const select={dataset:{selectShip:'pirate-rage'},onclick:null};
   const elements=new Map(),ui=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',hidden:false,parentElement:{scrollTop:0},querySelectorAll:q=>q==='[data-select-ship]'?[select]:[]});return elements.get(id);};
-  const ctx=vm.createContext({ui,ELITE_TEST_MODE:true,ELITE_MAX_LEVEL:15,ELITE_SHIPS:[],ELITE_REWARDS:[],PIRATE_RAGE_DESIGN:api.PIRATE_RAGE_DESIGN,INFERNO_DESIGN:api.INFERNO_DESIGN,elitePurchased:true,
+  const ctx=vm.createContext({ui,ELITE_TEST_MODE:true,ELITE_MAX_LEVEL:15,ELITE_SHIPS:[],ELITE_REWARDS:[],PIRATE_RAGE_DESIGN:api.PIRATE_RAGE_DESIGN,elitePurchased:true,
     eliteLevelFromEp:()=>15,earnedEliteLevel:()=>15,eliteBonus:()=>({}),eliteBonusText:()=>'',
     shipyardTab:'special',designOwned:true,activeShip:'phantom',activeSpecialDesign:null,previewShip:'pirate-rage',state:{hp:87000,cannon:125,pearls:30},saveSpecialDesign:api.saveSpecialDesign,toast:()=>{}});
   vm.runInContext(ts.transpile(render.getText(file)),ctx);vm.runInContext('renderEliteShips()',ctx);
@@ -34,7 +34,7 @@ test('Pirate Rage is locked until the opening festival is completed',()=>{
   const render=file.statements.find(s=>ts.isFunctionDeclaration(s)&&s.name?.text==='renderEliteShips');
   const select={dataset:{selectShip:'pirate-rage'},onclick:null},toasts=[];
   const elements=new Map(),ui=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',hidden:false,parentElement:{scrollTop:0},querySelectorAll:q=>q==='[data-select-ship]'?[select]:[]});return elements.get(id);};
-  const ctx=vm.createContext({ui,ELITE_TEST_MODE:false,ELITE_MAX_LEVEL:15,ELITE_SHIPS:[],ELITE_REWARDS:[],PIRATE_RAGE_DESIGN:api.PIRATE_RAGE_DESIGN,INFERNO_DESIGN:api.INFERNO_DESIGN,elitePurchased:true,
+  const ctx=vm.createContext({ui,ELITE_TEST_MODE:false,ELITE_MAX_LEVEL:15,ELITE_SHIPS:[],ELITE_REWARDS:[],PIRATE_RAGE_DESIGN:api.PIRATE_RAGE_DESIGN,elitePurchased:true,
     eliteLevelFromEp:()=>1,eliteBonusText:()=>'',shipyardTab:'special',designOwned:false,activeShip:'starter',activeSpecialDesign:null,previewShip:'pirate-rage',state:{},saveSpecialDesign:api.saveSpecialDesign,toast:t=>toasts.push(t)});
   vm.runInContext(ts.transpile(render.getText(file)),ctx);vm.runInContext('renderEliteShips()',ctx);
   assert.match(ui('eliteShipGrid').innerHTML,/Açılış Festivali ödülü/);
