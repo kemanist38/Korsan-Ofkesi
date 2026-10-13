@@ -2,7 +2,7 @@ import {ELITE_ENTRY_PRICE,CANNON_COSTS,UPGRADE_PRICE_MULTIPLIER,ELITE_ECONOMY_VE
 import {migrateQuestRules,type SavedQuests} from './quest-migration';
 import {ELITE_CANNON_CAPACITY,ELITE_REWARDS,cumulativeEliteBonus,eliteBonusText} from './elite-progression';
 import {drawMysticPlayerMarker} from './player-marker';
-import {PIRATE_RAGE_DESIGN,INFERNO_DESIGN,loadSpecialDesign,saveSpecialDesign,loadDesignOwned,saveDesignOwned,type SpecialDesignId} from './special-designs';
+import {PIRATE_RAGE_DESIGN,loadSpecialDesign,saveSpecialDesign,loadDesignOwned,saveDesignOwned,type SpecialDesignId} from './special-designs';
 import {loadFestival,saveFestival,festivalStatus,claimFestival,FESTIVAL_REWARDS,FESTIVAL_DAYS,type FestivalReward} from './festival';
 import {drawFlare,drawShotSprite,drawPuff,drawGlint} from './shotArt';
 import './storageMigration';
@@ -1049,12 +1049,11 @@ function purchaseEliteOne(){
 // Tersane iki sekmeli: ELİT GEMİLER (başlangıç + 15 elit) ve ÖZEL GEMİLER (yalnızca görünüm tasarımları). Kartlarda kısa yazı.
 let shipyardTab:'elite'|'special'='elite';
 function renderEliteShips(){
-  const isDesign=(id:string)=>id==='pirate-rage'||id==='inferno';
+  const isDesign=(id:string)=>id==='pirate-rage';
   const unlocked=ELITE_TEST_MODE?ELITE_MAX_LEVEL:elitePurchased?eliteLevelFromEp(state.elitePoints):0;
   const card=(id:string,name:string,art:string,requirement:string,effect:string,active:boolean,locked=false,label='SEÇ')=>
     `<article class="elite-card ${active?'active':''} ${previewShip===id?'previewed':''} ${locked?'locked':''}"><button class="ship-preview-button" data-preview="${id}" aria-label="${name} önizle" aria-pressed="${previewShip===id}">${art}<strong>${name}</strong></button><p class="ship-requirement">${requirement}</p><p class="ship-effect">${effect}</p><button class="ship-select" data-select-ship="${id}" ${locked||active&&!isDesign(id)?'disabled':''}>${active?(isDesign(id)?'ÇIKAR':'SEÇİLİ'):label}</button></article>`;
-  const special=card('pirate-rage','Pirate Rage',`<img class="elite-art" src="${PIRATE_RAGE_DESIGN.card}" alt="" draggable="false"/>`,designOwned?'Özel tasarım':'Açılış Festivali ödülü',designOwned?'Sadece görünüm':'7 festival gününün hepsinde giriş yapana verilir',activeSpecialDesign==='pirate-rage',!designOwned)
-    +card('inferno',INFERNO_DESIGN.name,`<img class="elite-art" src="${INFERNO_DESIGN.card}" alt="" draggable="false"/>`,'Özel tasarım · 16 yön (deneme)','Sadece görünüm',activeSpecialDesign==='inferno',!ELITE_TEST_MODE);
+  const special=card('pirate-rage','Pirate Rage',`<img class="elite-art" src="${PIRATE_RAGE_DESIGN.card}" alt="" draggable="false"/>`,designOwned?'Özel tasarım':'Açılış Festivali ödülü',designOwned?'Sadece görünüm':'7 festival gününün hepsinde giriş yapana verilir',activeSpecialDesign==='pirate-rage',!designOwned);
   const starter=card('starter','Yedi Deniz','<span class="starter-ship-art" role="img" aria-label="Başlangıç gemisi"></span>','0 EP','Başlangıç gemisi',activeShip==='starter'&&!activeSpecialDesign);
   const cards=ELITE_SHIPS.map(ship=>{
     const purchase=ship.level===1&&!elitePurchased&&!ELITE_TEST_MODE;
@@ -1075,7 +1074,6 @@ function renderEliteShips(){
   grid.querySelectorAll<HTMLButtonElement>('[data-select-ship]').forEach(button=>button.onclick=()=>{
     const id=button.dataset.selectShip!;
     if(id==='pirate-rage'){if(!designOwned){toast('Pirate Rage, Açılış Festivali\'nin son ödülü');return;}activeSpecialDesign=activeSpecialDesign==='pirate-rage'?null:'pirate-rage';saveSpecialDesign(activeSpecialDesign);previewShip='pirate-rage';renderEliteShips();toast(activeSpecialDesign?'Pirate Rage tasarımı seçildi':'Geminin kendi görünümü seçildi');return;}
-    if(id==='inferno'){if(!ELITE_TEST_MODE)return;activeSpecialDesign=activeSpecialDesign==='inferno'?null:'inferno';saveSpecialDesign(activeSpecialDesign);previewShip='inferno';renderEliteShips();toast(activeSpecialDesign?`${INFERNO_DESIGN.name} tasarımı seçildi`:'Geminin kendi görünümü seçildi');return;}
     if(id==='starter'){previewShip='starter';equipStarterShip();return;}
     const ship=ELITE_SHIPS.find(s=>s.id===id);if(!ship)return;
     if(ship.level===1&&!elitePurchased&&!ELITE_TEST_MODE){purchaseEliteOne();return;}
@@ -1525,7 +1523,7 @@ const isoFace={east:false,north:false};let isoMove:IsoMove|null=null;
 // Bütün gemiler (başlangıç gemisi dahil) Seafight usulü 4 çaprazda merdiven hareketiyle gider
 const isoShip=()=>true;
 // 16 yönlü görseli olan gemi (özel tasarım ya da elit): hedefe dümdüz gider, görünüş gidiş yönünden seçilir
-const dir16Sprite=()=>activeSpecialDesign==='inferno'?INFERNO_DESIGN.dir16:activeSpecialDesign?null:eliteEnabled()?ELITE_DIR16[eliteShip().id]??null:null;
+const dir16Sprite=()=>activeSpecialDesign?null:eliteEnabled()?ELITE_DIR16[eliteShip().id]??null:null;
 const isoIndex=()=>isoFace.north?(isoFace.east?0:3):(isoFace.east?1:2);
 // Düz gidiş (16 yönlü gemiler): yerde sabit hız, ekranda dikey bileşen yarı ölçekli (çapraz hareketle aynı perspektif)
 function straightAdvance(px:number,py:number,tx:number,ty:number,V:number,dt:number){
