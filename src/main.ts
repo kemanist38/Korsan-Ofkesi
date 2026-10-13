@@ -369,8 +369,9 @@ ui('attack').onclick=toggleAttack;
 // Böylece telefonda da masaüstündeki yerleşim korunur; ölçek --ui değişkeniyle CSS'e verilir (bkz. .hud, .chat).
 let uiScale=1;
 // Dokunmatik ekranlarda (telefon) sanal alan 880 × 480: yazılar ve düğmeler parmakla okunup basılabilecek boyda kalır.
-const TOUCH=matchMedia('(pointer:coarse)').matches;
-function fitHud(){const [vw,vh]=TOUCH?[880,480]:[1180,640];uiScale=Math.max(.5,Math.min(1,innerWidth/vw,innerHeight/vh));document.documentElement.style.setProperty('--ui',String(uiScale));document.documentElement.classList.toggle('touch',TOUCH);}
+// Web ve mobil aynı HUD düzenini kullanır (sol altta gülle düğmesi, soldaki hedef listesi, aynı çerçeveler)
+const MOBILE_HUD=true;
+function fitHud(){const [vw,vh]=MOBILE_HUD?[880,480]:[1180,640];uiScale=Math.max(.5,Math.min(1,innerWidth/vw,innerHeight/vh));document.documentElement.style.setProperty('--ui',String(uiScale));document.documentElement.classList.toggle('touch',MOBILE_HUD);}
 fitHud();
 // Günün etkinliği: üst ortada, gece yarısına kalan süreyle
 const dayEventEl=document.createElement('div');dayEventEl.className='day-event';document.querySelector('.hud')!.append(dayEventEl);
@@ -1161,10 +1162,10 @@ function quickSlotHtml(item:QuickItemId|null,index:number){const row=index<AMMO_
 // Sohbet düğmesi mobilde büyük gülle düğmesinin hemen üstünde durur (ölçekten bağımsız, gerçek konuma göre)
 function placeChatAboveDock(){const chat=document.querySelector<HTMLElement>('.chat'),main=document.getElementById('mobMain');if(!chat||!main)return;
   requestAnimationFrame(()=>{const r=main.getBoundingClientRect();chat.style.left=`${Math.max(4,r.left+r.width/2-22)}px`;chat.style.bottom=`${innerHeight-r.top+22}px`;});}
-addEventListener('resize',()=>{if(TOUCH)placeChatAboveDock();});
+addEventListener('resize',()=>{if(MOBILE_HUD)placeChatAboveDock();});
 // Mobil dokunmatik: tüm gülle ve malzemeler tek sırada, soldaki büyük düğme seçili gülleyi gösterir ve sırayı açıp kapatır
 let mobileTrayOpen=false;
-function renderMobileDock(){if(!TOUCH)return;let dock=document.getElementById('mobileDock');
+function renderMobileDock(){if(!MOBILE_HUD)return;let dock=document.getElementById('mobileDock');
   if(!dock){ui('ammoBar').parentElement!.insertAdjacentHTML('beforeend','<div class="mobile-dock" id="mobileDock"><button class="mob-main" id="mobMain"></button><div class="mob-tray" id="mobTray"></div></div>');dock=ui('mobileDock');
     ui('mobMain').onclick=()=>{mobileTrayOpen=!mobileTrayOpen;renderMobileDock();};document.body.classList.add('touch-ui');}
   placeChatAboveDock();
@@ -1489,7 +1490,7 @@ function updateUI(){
   // Saldırı sürerken SALDIR, gövde tamken (tamir yokken) TAMİR soluk görünür
   ui('attack').classList.toggle('dim',state.attacking);document.getElementById('repair')?.classList.toggle('dim',!state.repairing&&state.hp>=effectiveMaxHp());
   ui('pearls').textContent=state.pearls<1000?String(state.pearls).padStart(3,'0'):fmt(state.pearls);ui('gold').textContent=state.gold<1000?String(state.gold).padStart(3,'0'):fmt(state.gold);
-  if(TOUCH&&document.getElementById('mobMain')){const c=ui('mobMain').querySelector('b');if(c)c.textContent=quickCount(state.ammo);}document.querySelectorAll<HTMLElement>('.slot-bar [data-quick-item],#mobTray [data-quick-item]').forEach(slot=>{const item=slot.dataset.quickItem as QuickItemId;const count=slot.querySelector('b');if(count)count.textContent=quickCount(item);slot.classList.toggle('active',item===state.ammo||((item==='powder'||item==='shield')&&consumableOn[item]));});
+  if(MOBILE_HUD&&document.getElementById('mobMain')){const c=ui('mobMain').querySelector('b');if(c)c.textContent=quickCount(state.ammo);}document.querySelectorAll<HTMLElement>('.slot-bar [data-quick-item],#mobTray [data-quick-item]').forEach(slot=>{const item=slot.dataset.quickItem as QuickItemId;const count=slot.querySelector('b');if(count)count.textContent=quickCount(item);slot.classList.toggle('active',item===state.ammo||((item==='powder'||item==='shield')&&consumableOn[item]));});
   ui('hpText').textContent=`${Math.ceil(state.hp).toLocaleString('tr-TR')} / ${effectiveMaxHp().toLocaleString('tr-TR')}`; (ui('hpBar') as HTMLElement).style.width=`${state.hp/effectiveMaxHp()*100}%`;
   const need=xpNeed(state.level);ui('xpText').textContent=Number.isFinite(need)?`${state.fame.toLocaleString('tr-TR')} / ${need.toLocaleString('tr-TR')}`:state.fame.toLocaleString('tr-TR');(ui('xpBar') as HTMLElement).style.width=`${Number.isFinite(need)?Math.min(100,state.fame/need*100):100}%`;ui('level').textContent=String(state.level);ui('level').style.backgroundPosition=`${(Math.min(MAX_LEVEL,Math.max(1,state.level))-1)/7*100}% 0`;ui('level').style.setProperty('--lvp',`${Number.isFinite(need)?Math.min(100,state.fame/need*100):100}%`);ui('level').title=Number.isFinite(need)?`Seviye ${state.level} · sonraki seviyeye %${Math.floor(Math.min(100,state.fame/need*100))}`:`Seviye ${state.level} · en yüksek seviye`;ui('captainLevel').textContent=String(state.level);ui('profileElite').textContent=eliteProgress().text;{const br=battleRank(state.battlePoints);ui('profileBattle').innerHTML=`${rankBadgeHtml(br.index)}${br.name} · ${spText()}`;}(ui('profileEliteBar') as HTMLElement).style.width=`${eliteProgress().pct}%`;(ui('profileBattleBar') as HTMLElement).style.width=`${battleRank(state.battlePoints).pct}%`;
   (ui('xpHudBar') as HTMLElement).style.width=`${Number.isFinite(need)?Math.min(100,state.fame/need*100):100}%`;ui('xpHudText').textContent=Number.isFinite(need)?`${state.fame.toLocaleString('tr-TR')} / ${need.toLocaleString('tr-TR')}`:state.fame.toLocaleString('tr-TR');{const lq=levelQuestOpen();ui('xpHudBar').parentElement!.parentElement!.classList.toggle('lq-ready',lq);if(lq){const g=levelQuestGoal(state.level);ui('xpHudText').textContent=`SEVİYE GÖREVİ ${levelQuest.ships+levelQuest.monsters}/${g.ships+g.monsters}`;}}(ui('hpHudBar') as HTMLElement).style.width=`${Math.max(0,state.hp/effectiveMaxHp()*100)}%`;ui('hpHudText').textContent=`${Math.ceil(state.hp).toLocaleString('tr-TR')} / ${effectiveMaxHp().toLocaleString('tr-TR')}`;(ui('eliteBar') as HTMLElement).style.width=`${eliteProgress().pct}%`;ui('eliteText').textContent=eliteProgress().text;(ui('battleBar') as HTMLElement).style.width=`${battleRank(state.battlePoints).pct}%`;ui('battleText').textContent=spText();

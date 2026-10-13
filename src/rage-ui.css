@@ -161,7 +161,7 @@ html.touch .event-panel{top:100px!important}
 html.touch .corner-buttons,html.touch .chat{z-index:29}
 html.touch body:has(.hud .open) .chat{visibility:hidden}
 /* Telefonda klavye yok: kısayol ayarları ve tuş harfleri gizlenir */
-html.touch .keybinds-block{display:none}
+@media (pointer:coarse){html.touch .keybinds-block{display:none}}
 /* Hedef kartları (Seafight usulü): küçük simge, ad ve sayılı can çubuğu; az yer kaplar */
 .combat-targets,.combat-targets[style]{width:168px;gap:3px}
 .combat-target{grid-template-columns:24px 1fr;gap:5px;min-height:0;padding:3px 5px 3px 3px;border:1px solid #6a4a3a99;border-radius:5px;background:linear-gradient(90deg,#3a2420e6,#1a1416e6)}
