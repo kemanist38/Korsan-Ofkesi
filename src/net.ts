@@ -13,7 +13,7 @@ export type NetFire={from:string;to:string;x:number;y:number;tx:number;ty:number
 export type NetSunk={victim:string;by:string;victimNick:string;byNick:string};
 export type NetChat={nick:string;text:string;at:number};
 // İhale: tekliflerin kendisi (bid), yeni katılanın mevcut teklifleri istemesi (ask) ve buna verilen cevap (known)
-export type NetBid={hour:number;lot:string;amount:number;id:string;at:number};
+export type NetBid={hour:number;lot:string;amount:number;id:string;nick:string;at:number};
 export type NetHandlers={state:(s:NetState)=>void;leave:(id:string)=>void;fire:(f:NetFire)=>void;sunk:(s:NetSunk)=>void;chat:(c:NetChat)=>void;bid?:(b:NetBid)=>void;bidAsk?:(hour:number)=>void;bidKnown?:(bids:NetBid[])=>void};
 
 const ID_KEY='yedi-deniz-net-id';
