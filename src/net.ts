@@ -6,7 +6,9 @@ import {createClient,type RealtimeChannel} from '@supabase/supabase-js';
 const URL='https://vidjvineafeiyoclioau.supabase.co';
 const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZGp2aW5lYWZlaXlvY2xpb2F1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE3Mjk2NjMsImV4cCI6MjEwNzMwNTY2M30.sKlmmfQRr-ZASkaSbax22ca80cyDCc8DNz4Idq19g5s';
 
-export type NetState={id:string;nick:string;tag:string|null;ship:string;x:number;y:number;east:boolean;north:boolean;hp:number;maxHp:number;sp:number;level:number;t:number;vx?:number;vy?:number;d16?:number};
+// Kalabalık haritada trafik az olsun diye kimlik bilgileri (nick, tag, gemi, can üst sınırı, rütbe) yalnızca ara sıra gelen tam
+// mesajda bulunur; sık gelen kısa mesaj sadece konum/yön/can taşır.
+export type NetState={id:string;nick?:string;tag?:string|null;ship?:string;x:number;y:number;east:boolean;north:boolean;hp:number;maxHp?:number;sp?:number;level?:number;t:number;vx?:number;vy?:number;d16?:number};
 export type NetFire={from:string;to:string;x:number;y:number;tx:number;ty:number;damage:number;ammo:string};
 export type NetSunk={victim:string;by:string;victimNick:string;byNick:string};
 export type NetChat={nick:string;text:string;at:number};

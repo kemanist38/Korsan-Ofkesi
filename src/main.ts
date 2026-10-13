@@ -40,7 +40,7 @@ import {towerContains,towerMuzzle} from './towerGeometry';
 import {loadGuild,saveGuild,islandSlots,towerTypeCost,tagError,canBuild,TOWER_TYPES,ROLE_NAMES,TOWER_SLOTS,type TowerType,type GuildRole,GUILD_NAME_MAX,GUILD_TAG_MAX,type Guild} from './guild';
 import {loadProfile,saveProfile,nickError,rankOf,NICK_CHANGE_COST,NICK_COOLDOWN_MS,NICK_MAX} from './profile';
 import {createChest,chestRewardText,CHEST_PICKUP_RADIUS,CHEST_CLICK_RADIUS,DRIFT_RESPAWN_SECONDS,type LootChest} from './loot';
-import {ELITE_SHIPS,ELITE_ISO,ELITE_DIR16,eliteById,type EliteShipId} from './elite-ships';
+import {ELITE_SHIPS,ELITE_DIR16,eliteById,type EliteShipId} from './elite-ships';
 import {isoAdvance,straightStep,dir16Toward,type IsoMove,type IsoFace} from './iso-move';
 import {spawnText,spawnSoul,spawnRage,clearRageFx,screenTint,updateAbilityFx,drawAbilityFx} from './abilityFx';
 import {newRage,rageActive,rageReady,gainRage,startRage,rageSalvo,tickRage,RAGE_MAX,RAGE_SPEED,RAGE_SALVOS,RAGE_PER_RIVAL,RAGE_PER_BOSS} from './rage';
@@ -124,12 +124,10 @@ const minimap = document.querySelector<HTMLCanvasElement>('#minimap')!;
 const mini = minimap.getContext('2d')!;
 // Mini harita da cihaz piksel oranında çizilir (çizim kodu 188×133 koordinatlarıyla çalışmaya devam eder)
 {const k=Math.min(3,Math.max(1,devicePixelRatio||1));minimap.width=188*k;minimap.height=133*k;}
-const playerShipImage=new Image();playerShipImage.src='/assets/starter-ship-v2.webp';
 document.documentElement.style.setProperty('--starter-ship','url("/assets/starter-art-v2.webp")');
 // Başlangıç gemisinin 3D modelden 16 yönlü görünüşü (elitlerle aynı kare düzeni)
 const STARTER_DIR16='/assets/starter-dir16-v1.webp';
 // Başlangıç gemisi "Yedi Deniz": 8 yönlü sayfa (4 × 2, 256 px; elitlerle aynı kare sırası)
-const directionalShipImage=new Image();directionalShipImage.src='/assets/starter-ship-dir-v2.webp';
 document.documentElement.style.setProperty('--pirate-icons','url("/assets/pirate-ui-icons-v1.webp")');
 ([['/assets/icon-world-v2.webp','worldMapIcon'],['/assets/icon-world-v2.webp','menuWorldIcon'],['/assets/icon-ship-nav-v2.webp','shipNavIcon']] as const).forEach(([src,id])=>{const img=document.getElementById(id) as HTMLImageElement|null;if(img)img.src=src;});
 const cannonAssetSources:Record<CannonKind,string>={cast:'/assets/cannon-cast-v1.webp',long:'/assets/cannon-long-v1.webp',rapid:'/assets/cannon-rapid-v1.webp',heavy:'/assets/cannon-heavy-v1.webp'};
@@ -514,14 +512,16 @@ document.querySelectorAll<HTMLButtonElement>('#shopTabs [data-shop]').forEach(b=
     routeTarget=navigablePoint({x:(c+.5)*CELL_W,y:(ri+.5)*CELL_H});destination=routeVia(routeTarget);attackChase=false;
     toast(`Rota: ${colName(c)} ${rowName(ri)}`);(document.activeElement as HTMLElement|null)?.blur();};}
 // ---------------------------------------------------------------- Çevrim içi deniz
-const NET_ELITES=new Set(Object.keys(ELITE_ISO));
+const NET_ELITES=new Set(Object.keys(ELITE_DIR16));
 function remoteOf(id:string){return enemies.find(e=>e.remote?.id===id);}
 const netHandlers:NetHandlers={
   state:(n:NetState)=>{if(siege||n.id===myNetId)return;let e=remoteOf(n.id);
-    if(!e){e={kind:'ship',role:'heavy',x:n.x,y:n.y,angle:0,hp:n.hp,maxHp:n.maxHp,cooldown:99,speed:0,damage:0,reload:99,rewardGold:0,rewardFame:0,color:'#79372f',name:n.nick,tier:8,aggro:false,wander:0,slowTimer:0,homeX:n.x,homeY:n.y,combatTimer:0,hitRadius:44,
-      captain:{elite:(NET_ELITES.has(n.ship)?n.ship:'phantom') as EliteShipId,ammo:'iron',ammoClock:99,foe:null,orbit:null,orbitClock:0},remote:{id:n.id,tx:n.x,ty:n.y,vx:0,vy:0,seen:0,sp:n.sp,tag:n.tag}} as Enemy;enemies.push(e);}
-    const r=e.remote!;r.tx=n.x;r.ty=n.y;r.vx=n.vx??0;r.vy=n.vy??0;r.seen=performance.now();r.sp=n.sp;r.tag=n.tag;e.name=(n.tag?`[${n.tag}]`:'')+n.nick;e.hp=n.hp;e.maxHp=n.maxHp;e.face={east:n.east,north:n.north};e.dir16=n.d16;e.remoteShip=n.ship;
-    e.captain!.elite=(NET_ELITES.has(n.ship)?n.ship:'phantom') as EliteShipId;},
+    if(!e){if(n.nick===undefined||n.ship===undefined)return;/* kimliği bilinmeyen kaptan ilk tam mesajla görünür */
+      e={kind:'ship',role:'heavy',x:n.x,y:n.y,angle:0,hp:n.hp,maxHp:n.maxHp??n.hp,cooldown:99,speed:0,damage:0,reload:99,rewardGold:0,rewardFame:0,color:'#79372f',name:n.nick,tier:8,aggro:false,wander:0,slowTimer:0,homeX:n.x,homeY:n.y,combatTimer:0,hitRadius:44,
+      captain:{elite:(NET_ELITES.has(n.ship)?n.ship:'phantom') as EliteShipId,ammo:'iron',ammoClock:99,foe:null,orbit:null,orbitClock:0},remote:{id:n.id,tx:n.x,ty:n.y,vx:0,vy:0,seen:0,sp:n.sp??0,tag:n.tag??null}} as Enemy;enemies.push(e);}
+    const r=e.remote!;r.tx=n.x;r.ty=n.y;r.vx=n.vx??0;r.vy=n.vy??0;r.seen=performance.now();e.hp=n.hp;e.face={east:n.east,north:n.north};e.dir16=n.d16;
+    if(n.sp!==undefined)r.sp=n.sp;if(n.maxHp!==undefined)e.maxHp=n.maxHp;if(n.tag!==undefined)r.tag=n.tag;if(n.nick!==undefined)e.name=(r.tag?`[${r.tag}]`:'')+n.nick;
+    if(n.ship!==undefined){e.remoteShip=n.ship;e.captain!.elite=(NET_ELITES.has(n.ship)?n.ship:'phantom') as EliteShipId;}},
   leave:id=>{const e=remoteOf(id);if(e){enemies.splice(enemies.indexOf(e),1);if(selected===e){selected=null;state.attacking=false;}}},
   fire:f=>{const e=remoteOf(f.from);if(!e)return;const a=Math.atan2(f.ty-f.y,f.tx-f.x);muzzleFlash(f.x+Math.cos(a)*30,f.y+Math.sin(a)*30-10,a,44);playEnemyCannon(dist(e,player),(e.x-player.x)/600);
     if(f.to!==myNetId||state.invulnerable>0)return;const b=Math.atan2(player.y-f.y,player.x-f.x);
@@ -532,13 +532,20 @@ const netHandlers:NetHandlers={
   chat:(c:{nick:string;text:string;at:number})=>chat.receive(c.nick,c.text,c.at),
 };
 startNet(netHandlers);
-let netClock=0,shipDir16=8;const netPrev={x:0,y:0},netVel={x:0,y:0};
+let netClock=0,netFullClock=0,netHp=0,netIdent='',shipDir16=8;const netPrev={x:0,y:0},netVel={x:0,y:0};
 function netTick(dt:number){joinSea(siege?null:currentMap);{const ix=(player.x-netPrev.x)/Math.max(dt,1e-3),iy=(player.y-netPrev.y)/Math.max(dt,1e-3),ok=Math.hypot(ix,iy)<600;netVel.x=netVel.x*.8+(ok?ix:0)*.2;netVel.y=netVel.y*.8+(ok?iy:0)*.2;}netPrev.x=player.x;netPrev.y=player.y;
   // 16 yönlü tasarımlar: görünüş ortalama gidiş yönünden (çapraz adımlar yumuşatılmış hız). Ekranda dikey hız yarı ölçekli → ×2
   if(Math.hypot(netVel.x,netVel.y)>25)shipDir16=(8+Math.round(Math.atan2(netVel.y*2,netVel.x)/(Math.PI/8))+16)%16;
-  netClock-=dt;if(netClock>0)return;netClock=.05;
-  const f=isoFace,ship=activeShip==='starter'?'starter':String(activeShip);
-  sendState({id:myNetId,nick:profile.nick,tag:guild?.tag??null,ship,x:Math.round(player.x),y:Math.round(player.y),east:f.east,north:f.north,hp:Math.max(0,Math.round(state.hp)),maxHp:effectiveMaxHp(),sp:state.battlePoints,level:state.level,t:Date.now(),vx:Math.round(netVel.x),vy:Math.round(netVel.y),d16:dir16Sprite()?shipDir16:undefined});
+  // Gönderim sıklığı: hareket/savaşta 10/sn, dururken 1/sn; haritada 30'dan fazla kaptan varsa oranla seyrekleşir (100 kişide ~3/sn).
+  // Kimlik bilgileri 2 sn'de bir ya da değişince gönderilir. Alıcı tarafta konum hızla ileri tahmin edildiği için hareket akıcı kalır.
+  netClock-=dt;netFullClock-=dt;if(netClock>0)return;
+  const others=enemies.reduce((n,e)=>n+(e.remote?1:0),0),moving=Math.hypot(netVel.x,netVel.y)>15||state.attacking||Math.round(state.hp)!==netHp,crowd=Math.max(1,others/30);
+  const hp=Math.max(0,Math.round(state.hp));netHp=Math.round(state.hp);const d16=dir16Sprite()?shipDir16:undefined;
+  netClock=moving?Math.min(.35,.1*crowd):1;
+  const f=isoFace,ship=activeShip==='starter'?'starter':String(activeShip),ident=`${profile.nick}|${guild?.tag??''}|${ship}|${effectiveMaxHp()}|${battleRank(state.battlePoints).index}|${state.level}`;
+  const msg:NetState={id:myNetId,x:Math.round(player.x),y:Math.round(player.y),east:f.east,north:f.north,hp,t:Date.now(),vx:Math.round(netVel.x),vy:Math.round(netVel.y),d16};
+  if(netFullClock<=0||ident!==netIdent){netFullClock=2;netIdent=ident;Object.assign(msg,{nick:profile.nick,tag:guild?.tag??null,ship,maxHp:effectiveMaxHp(),sp:state.battlePoints,level:state.level});}
+  sendState(msg);
   {const others=enemies.filter(e=>e.remote),pill=ui('netPill');pill.dataset.status=netStatus;
     ui('netText').textContent=netStatus==='ok'?`Çevrim içi · ${others.length} kaptan`:netStatus==='error'?'Bağlantı yok':netStatus==='off'?'Çevrim dışı':'Bağlanıyor…';
     pill.title=netStatus==='error'?netError:others.map(e=>`${e.name} · ${coordLabel(e)}`).join('\n')||'Bu haritada başka kaptan yok';}
@@ -1259,14 +1266,22 @@ let heroTitle=loadTitle();setInterval(()=>{heroTitle=loadTitle();},60000);
 const rankSheet=new Image();rankSheet.src=RANK_SHEET;
 function drawRankBadge(c:CanvasRenderingContext2D,rank:number,x:number,y:number,size:number){if(!rankSheet.complete||!rankSheet.naturalWidth)return false;
   const i=rankIcon(rank),cell=rankSheet.naturalWidth/RANK_COLS;c.drawImage(rankSheet,(i%RANK_COLS)*cell,Math.floor(i/RANK_COLS)*cell,cell,cell,x,y-size/2,size,size);return true;}
+// Kaptan adı (gölgeli, degrade yazı + rütbe rozeti) her karede yeniden çizilince kalabalık haritada kareyi yiyordu:
+// etiket ekran ölçeğinde bir kez ayrı tuvale çizilir, sonra tek drawImage ile basılır.
+const nameCache=new Map<string,{c:HTMLCanvasElement;w:number;pad:number;h:number;sc:number}>();
+function renderCaptainName(tag:string,nick:string,size:number,rank:number,sc:number){
+  const m=document.createElement('canvas').getContext('2d')!,font=`900 ${size}px Inter, "Arial Black", sans-serif`;m.font=font;
+  const text=tag?`${tag} ${nick}`:nick,w=m.measureText(text).width,bs=rank>=0?Math.round(size*2.6):0,pad=8,tw=w+(bs?bs+3:0),h=Math.max(bs,size*1.6)+pad*2;
+  const c=document.createElement('canvas');c.width=Math.ceil((tw+pad*2)*sc);c.height=Math.ceil(h*sc);const g=c.getContext('2d')!;g.scale(sc,sc);
+  const y=h/2;g.font=font;g.textBaseline='middle';g.textAlign='left';g.lineJoin='round';if(bs)drawRankBadge(g,rank,pad,y,bs);const tx=pad+(bs?bs+3:0);
+  const gr=g.createLinearGradient(0,y-size*.55,0,y+size*.55);gr.addColorStop(0,'#fff6c2');gr.addColorStop(.45,'#ffd34d');gr.addColorStop(1,'#d98a16');
+  g.shadowColor='#000c';g.shadowBlur=5*sc;g.shadowOffsetY=1.5*sc;g.lineWidth=Math.max(3,size*.26);g.strokeStyle='#2b1606';g.strokeText(text,tx,y);
+  g.shadowColor='transparent';g.fillStyle=gr;g.fillText(text,tx,y);return{c,w,pad,h,sc};}
 function drawCaptainName(x:number,y:number,tag:string,nick:string,size=17,rank=-1){
-  ctx.save();ctx.font=`900 ${size}px Inter, "Arial Black", sans-serif`;ctx.textBaseline='middle';ctx.textAlign='left';ctx.lineJoin='round';
-  const text=tag?`${tag} ${nick}`:nick,w=ctx.measureText(text).width,bs=rank>=0?Math.round(size*2.6):0,x0=x-(w+(bs?bs+3:0))/2;
-  if(bs)drawRankBadge(ctx,rank,x0,y,bs);const tx=x0+(bs?bs+3:0);
-  const g=ctx.createLinearGradient(0,y-size*.55,0,y+size*.55);g.addColorStop(0,'#fff6c2');g.addColorStop(.45,'#ffd34d');g.addColorStop(1,'#d98a16');
-  ctx.shadowColor='#000c';ctx.shadowBlur=5;ctx.shadowOffsetY=1.5;ctx.lineWidth=Math.max(3,size*.26);ctx.strokeStyle='#2b1606';ctx.strokeText(text,tx,y);
-  ctx.shadowColor='transparent';ctx.fillStyle=g;ctx.fillText(text,tx,y);
-  ctx.restore();return w;}
+  const t=ctx.getTransform(),sc=Math.min(4,Math.max(.5,Math.round(Math.hypot(t.a,t.b)*4)/4)),ready=rank<0||(rankSheet.complete&&rankSheet.naturalWidth>0);
+  const key=`${size}|${rank}|${sc}|${tag}|${nick}`;let l=ready?nameCache.get(key):undefined;
+  if(!l){l=renderCaptainName(tag,nick,size,rank,sc);if(ready){if(nameCache.size>300)nameCache.clear();nameCache.set(key,l);}}
+  const bs=rank>=0?Math.round(size*2.6):0,tw=l.w+(bs?bs+3:0);ctx.drawImage(l.c,x-tw/2-l.pad,y-l.h/2,l.c.width/l.sc,l.c.height/l.sc);return l.w;}
 // Güverte işareti: adın altında ortalı; kademesi batırılan rakip sayısına göre (sayı yazılmaz)
 let rivalSinks=ELITE_TEST_MODE?Math.max(loadRivalSinks(),12_500):loadRivalSinks();
 const insigniaImg=new Image();insigniaImg.src=INSIGNIA_SHEET;
@@ -1529,7 +1544,6 @@ const isoFace={east:false,north:false};let isoMove:IsoMove|null=null;
 const isoShip=()=>true;
 // 16 yönlü görseli olan gemi (özel tasarım ya da elit): hedefe dümdüz gider, görünüş gidiş yönünden seçilir
 const dir16Sprite=()=>activeSpecialDesign?PIRATE_RAGE_DESIGN.dir16:eliteEnabled()?ELITE_DIR16[eliteShip().id]??null:STARTER_DIR16;
-const isoIndex=()=>isoFace.north?(isoFace.east?0:3):(isoFace.east?1:2);
 // Düz gidiş (16 yönlü gemiler): yerde sabit hız, ekranda dikey bileşen yarı ölçekli (çapraz hareketle aynı perspektif)
 function straightAdvance(px:number,py:number,tx:number,ty:number,V:number,dt:number){
   const dx=tx-px,dy=ty-py,gx=dx,gy=dy*2,g=Math.hypot(gx,gy);
@@ -1599,7 +1613,7 @@ function update(dt:number){{const rc=document.getElementById('recenterShip');if(
   player.angle=Math.atan2(Math.sin(player.angle),Math.cos(player.angle));
   for(const e of enemies){
     if(e.tower){if(siege)updateSiegeTower(e,dt);else updateTower(e,dt);continue;}
-    if(e.remote){const r=e.remote,age=Math.min(.25,(performance.now()-r.seen)/1000),px=r.tx+r.vx*age,py=r.ty+r.vy*age,k=Math.min(1,dt*18);
+    if(e.remote){const r=e.remote,age=Math.min(.6,(performance.now()-r.seen)/1000),px=r.tx+r.vx*age,py=r.ty+r.vy*age,k=Math.min(1,dt*18);
       if(Math.hypot(px-e.x,py-e.y)>400){e.x=px;e.y=py;}else{e.x+=(px-e.x)*k;e.y+=(py-e.y)*k;}continue;}
     if(e.captain){if(siege)updateSiegeCaptain(e,dt);else updateCaptain(e,dt);continue;}
     if(e.commander){updateCommander(e,dt);continue;}
@@ -2093,21 +2107,7 @@ function drawMapEdges(){
 // Sinematik mod (yalnızca geliştirme): tanıtım videosu çekimi için cetveller gizlenir, kamera istenen noktayı izler
 const cinematic:{on:boolean;focus:Vec|null}={on:false,focus:null};
 function worldToScreen(v:Vec){return{x:v.x-camera.x+innerWidth/2,y:v.y-camera.y+innerHeight/2};}
-function drawShip(p:Vec,angle:number,color:string,scale=1){
-  const s=worldToScreen(p);ctx.save();ctx.translate(s.x,s.y);ctx.rotate(angle);ctx.scale(scale,scale);
-  ctx.shadowColor='#000b';ctx.shadowBlur=13;ctx.fillStyle='#2a1c18';ctx.beginPath();ctx.moveTo(0,-34);ctx.quadraticCurveTo(21,-22,17,22);ctx.quadraticCurveTo(10,36,0,40);ctx.quadraticCurveTo(-10,36,-17,22);ctx.quadraticCurveTo(-21,-22,0,-34);ctx.fill();
-  ctx.shadowBlur=0;ctx.fillStyle='#765039';ctx.beginPath();ctx.moveTo(0,-29);ctx.lineTo(12,-17);ctx.lineTo(12,23);ctx.lineTo(0,33);ctx.lineTo(-12,23);ctx.lineTo(-12,-17);ctx.closePath();ctx.fill();
-  ctx.strokeStyle='#301d17';ctx.lineWidth=2;for(let y=-15;y<25;y+=9){ctx.beginPath();ctx.moveTo(-11,y);ctx.lineTo(11,y);ctx.stroke();}
-  ctx.fillStyle=color;ctx.fillRect(-12,15,24,9);ctx.strokeStyle='#d5bd8b';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,-30);ctx.lineTo(0,25);ctx.stroke();
-  ctx.fillStyle='#e5d4ad';ctx.beginPath();ctx.moveTo(-2,-25);ctx.quadraticCurveTo(-29,-15,-2,-2);ctx.closePath();ctx.fill();ctx.fillStyle='#cdb889';ctx.beginPath();ctx.moveTo(2,-17);ctx.quadraticCurveTo(29,-7,2,7);ctx.closePath();ctx.fill();
-  ctx.fillStyle=color;ctx.beginPath();ctx.moveTo(1,-29);ctx.lineTo(14,-24);ctx.lineTo(1,-19);ctx.closePath();ctx.fill();
-  ctx.fillStyle='#171817';for(const x of [-15,15])for(const y of [-8,3,14]){ctx.beginPath();ctx.arc(x,y,2.2,0,7);ctx.fill();}ctx.restore();
-}
-const SHIP_DIRECTION_FRAMES=[4,3,6,5,0,1,2,7] as const;
-// Açı birçok tur dönünce -2π'nin altına inebilir; negatif mod boş kare (görünmez gemi) verirdi → her zaman 0..7
-function shipCompass(angle:number){return((Math.round(angle/(Math.PI/4))%8)+8)%8;}
-function shipDirectionFrame(angle:number){return SHIP_DIRECTION_FRAMES[shipCompass(angle)];}
-// Elit gemiler 4 çapraz görünüşle çizilir (ELITE_ISO); görünüş son gidilen çapraza göre seçilir
+// Gemi görselleri (16 yönlü şeritler) bir kez yüklenip saklanır
 const eliteIsoImages=new Map<string,HTMLImageElement>();
 function eliteIsoImage(src:string){let im=eliteIsoImages.get(src);if(!im){im=new Image();im.decoding='async';im.src=`${src}?r=${SHIP_ART_REV}`;eliteIsoImages.set(src,im);}return im;}
 const shipAlpha=()=>1;
@@ -2119,21 +2119,8 @@ function drawEliteDirectionalShip(s:Vec){
     ctx.drawImage(im,sx,sy,sw,sh,dx,dy,dw,dh);ctx.restore();return true;}
   return false;
 }
-function drawPlayerShip(){
-  const s=worldToScreen(player);
-  if((activeSpecialDesign||eliteEnabled()||dir16Sprite())&&drawEliteDirectionalShip(s))return;
-  // Elit atlas yüklenene kadar aynı yön karesindeki başlangıç gemisi görünür kalır; gemi asla kaybolmaz.
-
-  if(!directionalShipImage.complete||!directionalShipImage.naturalWidth){
-    if(!playerShipImage.complete||!playerShipImage.naturalWidth){drawShip(player,player.angle,'#173f48',1.1);return;}
-  }
-  ctx.save();ctx.translate(s.x,s.y);ctx.shadowColor='#000b';ctx.shadowBlur=13;ctx.globalAlpha=(state.invulnerable&&Math.floor(performance.now()/120)%2?.55:1)*shipAlpha();
-  if(directionalShipImage.complete&&directionalShipImage.naturalWidth){
-    const frame=shipDirectionFrame(isoFaceAngle(isoFace)),sx=(frame%4)*256,sy=Math.floor(frame/4)*256;
-    ctx.drawImage(directionalShipImage,sx,sy,256,256,-80,-86,160,160);
-  }else ctx.drawImage(playerShipImage,-75,-80,150,150);
-  ctx.restore();
-}
+// 16 yönlü görsel yüklenene kadar (ilk saniye) gemi çizilmez; eski 4 yönlü yedek görseller kaldırıldı
+function drawPlayerShip(){drawEliteDirectionalShip(worldToScreen(player));}
 function drawIsland(i:WorldIsland){const s=worldToScreen(i);if(drawIslandSprite(ctx,i,s.x,s.y))return;const g=ctx.createRadialGradient(s.x-20,s.y-30,10,s.x,s.y,i.r);g.addColorStop(0,'#617c4e');g.addColorStop(.5,'#3c593e');g.addColorStop(.66,'#b9a16b');g.addColorStop(.72,'#17434a');g.addColorStop(1,'#0b2b35');ctx.fillStyle=g;ctx.beginPath();for(let n=0;n<18;n++){const a=n/18*Math.PI*2,r=i.r*(.78+Math.sin(n*4.7)*.09);const x=s.x+Math.cos(a)*r,y=s.y+Math.sin(a)*r;n?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();ctx.fill();for(let n=0;n<7;n++){const a=n*2.1,r=i.r*.38;ctx.fillStyle='#213c2d';ctx.beginPath();ctx.arc(s.x+Math.cos(a)*r,s.y+Math.sin(a)*r,7+n%3*2,0,7);ctx.fill();}}
 function drawMonster(m:Monster){const s=worldToScreen(m);if(drawMonsterSheet(ctx,m.def,s.x,s.y,m.phase)){ctx.fillStyle=theme().label;ctx.shadowColor='#000';ctx.shadowBlur=4;ctx.font='600 11px Cinzel';ctx.textAlign='center';ctx.fillText(m.name,s.x,s.y-m.radius-18);ctx.shadowBlur=0;if(m.hp<m.maxHp){ctx.fillStyle='#07161c';ctx.fillRect(s.x-30,s.y-m.radius-12,60,5);ctx.fillStyle='#b070ff';ctx.fillRect(s.x-30,s.y-m.radius-12,60*m.hp/m.maxHp,5);}return;}}
 // İç adanın arkasında bir gemi varsa kale ve üst kule kaideleri gemilerin üstüne yeniden çizilir; o kaidelerdeki kuleler de
@@ -2220,11 +2207,12 @@ function captainFrame(e:Enemy):[HTMLImageElement,number,number,number,number]|nu
     let k=e.dir16;if(k==null&&r&&Math.hypot(r.vx,r.vy)>25)k=(8+Math.round(Math.atan2(r.vy*2,r.vx)/(Math.PI/8))+16)%16;
     if(k==null){const f=e.face??{east:true,north:false};k=f.north?(f.east?6:2):(f.east?10:14);}
     return[im,k*h,h,166,.68];}}
-  const im=eliteIsoImage(ELITE_ISO[c.elite]);if(!im.complete||!im.naturalWidth)return null;
-  const f=e.face??{east:true,north:false},idx=f.north?(f.east?0:3):(f.east?1:2),h=im.naturalHeight;return[im,idx*h,h,158,.7];}
+  return null;}
+// Ekranda çok kaptan varken (kalabalık harita) gövde dalgası ve rütbe nişanı atlanır; gemi, ad ve rozet kalır
+let crowdedSea=false;
 function drawCaptain(e:Enemy,s:Vec){const fr=captainFrame(e);if(!fr)return;const [im,sx,h,D,ky]=fr;
-  drawHullWater(e,100);ctx.save();ctx.translate(s.x,s.y);if((e.frozen??0)>0)ctx.filter='saturate(.4) brightness(1.3) hue-rotate(160deg)';ctx.drawImage(im,sx,0,h,h,-D/2,-D*ky,D,D);ctx.restore();
-  const top=-122;if(siege&&isAlly(e))drawHealthBar(s.x,s.y+44,80,e.hp/e.maxHp,'#4fd18a');{const sp=e.remote?.sp??TEST_RANKERS.find(r=>r.nick===e.name)?.sp??0,show=!settings.hideOthersInsignia;drawCaptainName(s.x,s.y+top-11,'',e.name,14,show?battleRank(sp).index:-1);if(show)drawInsignia(s.x,s.y+34,Math.round(sp/25),115);}}
+  if(!crowdedSea)drawHullWater(e,100);ctx.save();ctx.translate(s.x,s.y);if((e.frozen??0)>0)ctx.filter='saturate(.4) brightness(1.3) hue-rotate(160deg)';ctx.drawImage(im,sx,0,h,h,-D/2,-D*ky,D,D);ctx.restore();
+  const top=-122;if(siege&&isAlly(e))drawHealthBar(s.x,s.y+44,80,e.hp/e.maxHp,'#4fd18a');{const sp=e.remote?.sp??TEST_RANKERS.find(r=>r.nick===e.name)?.sp??0,show=!settings.hideOthersInsignia;drawCaptainName(s.x,s.y+top-11,'',e.name,14,show?battleRank(sp).index:-1);if(show&&!crowdedSea)drawInsignia(s.x,s.y+34,Math.round(sp/25),115);}}
 // Capture once at death, then fade the same pose without new particles or assets.
 function spawnWreck(o:Enemy|Monster){
   if(!onScreen(o,320))return;
@@ -2310,9 +2298,6 @@ function hullCenter(im:HTMLImageElement,sx:number,sy:number,sw:number,sh:number,
 function playerShipFrame():[HTMLImageElement,number,number,number,number,number,number,number,number]|null{
   const d16=dir16Sprite();if(d16){const im=eliteIsoImage(d16);
     if(im.complete&&im.naturalWidth){const c=im.naturalHeight,D=166;return[im,shipDir16*c,0,c,c,-D/2,-D*.68,D,D];}}
-  else if(activeSpecialDesign||eliteEnabled()){const im=eliteIsoImage(activeSpecialDesign?PIRATE_RAGE_DESIGN.sprite:ELITE_ISO[eliteShip().id]);
-    if(im.complete&&im.naturalWidth){const c=im.naturalHeight,D=158;return[im,isoIndex()*c,0,c,c,-D/2,-D*.7,D,D];}}
-  if(directionalShipImage.complete&&directionalShipImage.naturalWidth){const f=shipDirectionFrame(isoFaceAngle(isoFace));return[directionalShipImage,(f%4)*256,Math.floor(f/4)*256,256,256,-80,-86,160,160];}
   return null;}
 function drawPlayerMarker(){
   const s=worldToScreen(player),f=playerShipFrame(),o=f?hullCenter(...f):{x:0,y:10};
@@ -2332,9 +2317,10 @@ function draw(){
   drawMapEdges();islands.forEach(i=>{if(onScreen(i,i.r+260))drawIsland(i);});drawFleetIsland();lootChests.forEach(drawLootChest);drawTreasureMark();sparkles.forEach(drawSparkle);mines.forEach(m=>{const p=worldToScreen(m);drawMineSprite(ctx,p.x,p.y,performance.now(),m.arm>0,m.life<5);});monsters.forEach(m=>{if(onScreen(m,320))atShipScale(m,()=>drawMonster(m));});
   particles.forEach(p=>{if(UNDER.has(p.kind))drawParticle(p);});wrecks.forEach(w=>atShipScale(w,()=>drawWreck(w)));shots.forEach(drawShotShadow);
   if(selected&&targetExists(selected))drawTargetMarker(selected);
-  enemies.filter(e=>onScreen(e,e.boss?420:300)).sort((a,b)=>a.y-b.y).forEach(e=>atShipScale(e.tower?null:e,()=>{const s=worldToScreen(e);if(e.captain){drawCaptain(e,s);return;}if(e.boss)drawBossAura(e,s);if(!e.tower)drawHullWater(e,hullLength(e));const raster=e.tower?drawBastion(ctx,e.towerIndex??0,s.x,s.y):e.def?drawNpcShip(ctx,e.def.sprite,e.def.span,s.x,s.y,npcFaceAngle(e),performance.now(),e.dir16):false;if(!raster)return;const top=raster?(e.tower?TOWER_LABEL_OFFSET:shipLabelOffset(e.def!.span)):-42;if(e.boss){drawBossFlag(s,top);drawBossPlate(e,s,shipBottom(e.def!.span)+34);return;}
+  {const vis=enemies.filter(e=>onScreen(e,e.boss?420:300));crowdedSea=vis.reduce((n,e)=>n+(e.captain?1:0),0)>30;
+  vis.sort((a,b)=>a.y-b.y).forEach(e=>atShipScale(e.tower?null:e,()=>{const s=worldToScreen(e);if(e.captain){drawCaptain(e,s);return;}if(e.boss)drawBossAura(e,s);if(!e.tower)drawHullWater(e,hullLength(e));const raster=e.tower?drawBastion(ctx,e.towerIndex??0,s.x,s.y):e.def?drawNpcShip(ctx,e.def.sprite,e.def.span,s.x,s.y,npcFaceAngle(e),performance.now(),e.dir16):false;if(!raster)return;const top=raster?(e.tower?TOWER_LABEL_OFFSET:shipLabelOffset(e.def!.span)):-42;if(e.boss){drawBossFlag(s,top);drawBossPlate(e,s,shipBottom(e.def!.span)+34);return;}
     // Can çubuğu ve ad görselin altında: önce çubuk, altında ad
-    const bottom=e.tower?TOWER_LABEL_BOTTOM:shipBottom(e.def!.span),bw=e.tower||e.role==='heavy'?72:56;drawHealthBar(s.x,s.y+bottom,bw,e.hp/e.maxHp,e.tower?'#f09a4f':e.role==='heavy'?'#f0584a':'#4fd0da');ctx.fillStyle='#e6dccb';ctx.font='700 13px Inter';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText(e.name,s.x,s.y+bottom+22);ctx.shadowBlur=0;}));
+    const bottom=e.tower?TOWER_LABEL_BOTTOM:shipBottom(e.def!.span),bw=e.tower||e.role==='heavy'?72:56;drawHealthBar(s.x,s.y+bottom,bw,e.hp/e.maxHp,e.tower?'#f09a4f':e.role==='heavy'?'#f0584a':'#4fd0da');ctx.fillStyle='#e6dccb';ctx.font='700 13px Inter';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText(e.name,s.x,s.y+bottom+22);ctx.shadowBlur=0;}));}
   atShipScale(player,()=>{drawPlayerMarker();drawHullWater(player,hullLength(player));drawPlayerShip();
 });
   drawFleetOccluders();atShipScale(player,drawPlayerLabel);
