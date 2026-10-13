@@ -2334,6 +2334,10 @@ function draw(){
 }
 let lastCoord='';
 function updateCoordBadge(){const text=`${siege?'KALE':currentMap} - ${coordLabel(player)}`;if(text!==lastCoord){lastCoord=text;ui('mapCoord').textContent=text;}}
+// Mini harita renkleri: rakip oyuncu kırmızı, dost (aynı lonca ya da kuşatmada müttefik) koyu yeşil, NPC sarı, canavar lila, boss turuncu
+const MINI_COLORS={rival:'#e8322b',friend:'#1e8a3e',npc:'#f2d23a',monster:'#c9a0ff',boss:'#ff8a1c'};
+function miniColor(e:Enemy){if(e.boss)return MINI_COLORS.boss;if(!e.captain)return MINI_COLORS.npc;
+  const friend=isAlly(e)||(!!guild&&!!e.remote?.tag&&e.remote.tag===guild.tag);return friend?MINI_COLORS.friend:MINI_COLORS.rival;}
 function drawMinimap(){const W=188,H=133,sx=(x:number)=>x/WORLD_WIDTH*W,sy=(y:number)=>y/WORLD_HEIGHT*H,th=theme();
   mini.setTransform(minimap.width/W,0,0,minimap.height/H,0,0);mini.clearRect(0,0,W,H);void th;
   for(const dir of ['north','south','east','west'] as Dir[]){const to=neighbor(currentMap,dir);if(!to)continue;mini.fillStyle=state.level>=MAPS[to].tier?'#6fd6c4aa':'#e07a5f88';if(dir==='north')mini.fillRect(W/2-14,0,28,2);if(dir==='south')mini.fillRect(W/2-14,H-2,28,2);if(dir==='west')mini.fillRect(0,H/2-12,2,24);if(dir==='east')mini.fillRect(W-2,H/2-12,2,24);}
@@ -2346,10 +2350,10 @@ function drawMinimap(){const W=188,H=133,sx=(x:number)=>x/WORLD_WIDTH*W,sy=(y:nu
     const g=mini.createRadialGradient(cx,cy,rx*.82,cx,cy,rx*1.05);g.addColorStop(0,'#05080a00');g.addColorStop(1,'#0a141a99');
     mini.fillStyle=g;mini.fillRect(0,0,W,H);}
   if(compassPulse>0){const cx=sx(player.x),cy=sy(player.y);mini.strokeStyle=`rgba(255,214,120,${compassPulse})`;mini.lineWidth=1.5;mini.beginPath();mini.arc(cx,cy,(1-compassPulse)*W,0,7);mini.stroke();}
-  for(const m of monsters){if(!seenOnMap(m))continue;mini.fillStyle='#b070ff';mini.beginPath();mini.arc(sx(m.x),sy(m.y),2.5,0,7);mini.fill();}
+  for(const m of monsters){if(!seenOnMap(m))continue;mini.fillStyle=MINI_COLORS.monster;mini.beginPath();mini.arc(sx(m.x),sy(m.y),2.5,0,7);mini.fill();}
   mini.fillStyle='#f4f8ff';for(const g of sparkles)if(seenOnMap(g))mini.fillRect(sx(g.x)-.5,sy(g.y)-.5,1.5,1.5);
   for(const c of lootChests){if(!seenOnMap(c))continue;mini.fillStyle=c.kind==='gilded'?'#ffd46b':'#d9a95b';mini.fillRect(sx(c.x)-1,sy(c.y)-1,2,2);}
-  for(const e of enemies){if(e.tower||(!e.boss&&!seenOnMap(e)))continue;mini.fillStyle=e.boss?'#f1c662':'#c34e3d';const r=e.boss?5:3;mini.fillRect(sx(e.x)-r/2,sy(e.y)-r/2,r,r);}
+  for(const e of enemies){if(e.tower||(!e.boss&&!seenOnMap(e)))continue;mini.fillStyle=miniColor(e);const r=e.boss?5:e.captain?3.5:3;mini.fillRect(sx(e.x)-r/2,sy(e.y)-r/2,r,r);}
   mini.fillStyle='#f4dd9d';mini.beginPath();mini.arc(sx(player.x),sy(player.y),3,0,7);mini.fill();
   // görüş penceresi: kameranın ekranda gösterdiği alan
   const vw=innerWidth/camera.zoom,vh=innerHeight/camera.zoom;mini.strokeStyle=freeLook?'#ffe09bee':'#ffe09b88';mini.lineWidth=1.2;mini.strokeRect(sx(camera.x-vw/2),sy(camera.y-vh/2),vw/WORLD_WIDTH*W,vh/WORLD_HEIGHT*H);}
