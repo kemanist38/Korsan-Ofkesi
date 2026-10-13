@@ -65,12 +65,12 @@ const npc=(id:string,name:string,role:'light'|'heavy',tier:number,sprite=''):Omi
   return{id,name,sprite,span,role,tier,hp,damage:Math.round(dmg*dmgScale(tier)),reload:role==='light'?2.6:2.7,speed:(role==='light'?50:34)+t*1.5,gold:r.gold,xp:r.xp};
 };
 const NPC_LIST:Omit<NpcDef,'portrait'>[]=[
-  npc('n1-1-light','Kıyı Sandalı','light',1,'/assets/trial-coast-boat-iso-v3.webp'),npc('n1-1-heavy','Tüccar Yelkenlisi','heavy',1,'/assets/trial-coast-merchant-iso-v3.webp'),
-  npc('n1-2-light','Tüccar Yelkenlisi','light',1,'/assets/trial-coast-merchant-iso-v3.webp'),npc('n1-2-heavy','Kraliyet Firkateyni','heavy',1,'/assets/trial-coast-frigate-iso-v3.webp'),
-  npc('n2-1-light','Sedef Kayığı','light',2,'/assets/pearl-boat-iso-v3.webp'),npc('n2-1-heavy','Mercan Kesici','heavy',2,'/assets/pearl-cutter-iso-v3.webp'),
-  npc('n2-2-light','Mercan Kesici','light',2,'/assets/pearl-cutter-iso-v3.webp'),npc('n2-2-heavy','İnci Kraliçe Kalyonu','heavy',2,'/assets/pearl-galleon-iso-v3.webp'),
-  npc('n3-1-light','Yeşim Sürüklenen','light',3,'/assets/azur-boat-iso-v3.webp'),npc('n3-1-heavy','Kristal Yelkenli','heavy',3,'/assets/azur-sail-iso-v3.webp'),
-  npc('n3-2-light','Kristal Yelkenli','light',3,'/assets/azur-sail-iso-v3.webp'),npc('n3-2-heavy','Kadim Azur Gardiyanı','heavy',3,'/assets/azur-guardian-iso-v3.webp'),
+  npc('n1-1-light','Kıyı Sandalı','light',1,'/assets/trial-coast-boat-dir16-v1.webp'),npc('n1-1-heavy','Tüccar Yelkenlisi','heavy',1,'/assets/trial-coast-merchant-dir16-v1.webp'),
+  npc('n1-2-light','Tüccar Yelkenlisi','light',1,'/assets/trial-coast-merchant-dir16-v1.webp'),npc('n1-2-heavy','Kraliyet Firkateyni','heavy',1,'/assets/trial-coast-frigate-dir16-v1.webp'),
+  npc('n2-1-light','Sedef Kayığı','light',2,'/assets/pearl-boat-dir16-v1.webp'),npc('n2-1-heavy','Mercan Kesici','heavy',2,'/assets/pearl-cutter-dir16-v1.webp'),
+  npc('n2-2-light','Mercan Kesici','light',2,'/assets/pearl-cutter-dir16-v1.webp'),npc('n2-2-heavy','İnci Kraliçe Kalyonu','heavy',2,'/assets/pearl-galleon-dir16-v1.webp'),
+  npc('n3-1-light','Yeşim Sürüklenen','light',3,'/assets/azur-boat-dir16-v1.webp'),npc('n3-1-heavy','Kristal Yelkenli','heavy',3,'/assets/azur-sail-dir16-v1.webp'),
+  npc('n3-2-light','Kristal Yelkenli','light',3,'/assets/azur-sail-dir16-v1.webp'),npc('n3-2-heavy','Kadim Azur Gardiyanı','heavy',3,'/assets/azur-guardian-iso-v3.webp'),
   npc('n4-1-light','Solgun Ruh','light',4,'/assets/haunt-boat-iso-v3.webp'),npc('n4-1-heavy','Lanetli Yelken','heavy',4,'/assets/haunt-sail-iso-v3.webp'),
   npc('n4-2-light','Lanetli Yelken','light',4,'/assets/haunt-sail-iso-v3.webp'),npc('n4-2-heavy','Gece Dehşeti Fırkateyni','heavy',4,'/assets/haunt-frigate-iso-v3.webp'),
   npc('n5-1-light','Buz Kırıcı Sandal','light',5,'/assets/frost-boat-iso-v3.webp'),npc('n5-1-heavy','Donuk Yelkenli','heavy',5,'/assets/frost-sail-iso-v3.webp'),
