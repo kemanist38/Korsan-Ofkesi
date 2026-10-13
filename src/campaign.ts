@@ -75,11 +75,11 @@ const NPC_LIST:Omit<NpcDef,'portrait'>[]=[
   npc('n4-2-light','Lanetli Yelken','light',4,'/assets/haunt-sail-dir16-v1.webp'),npc('n4-2-heavy','Gece Dehşeti Fırkateyni','heavy',4,'/assets/haunt-frigate-dir16-v1.webp'),
   npc('n5-1-light','Donuk Yelkenli','light',5,'/assets/frost-sail-dir16-v1.webp'),npc('n5-1-heavy','Donuk Yelkenli','heavy',5,'/assets/frost-sail-dir16-v1.webp'),
   npc('n5-2-light','Donuk Yelkenli','light',5,'/assets/frost-sail-dir16-v1.webp'),npc('n5-2-heavy','Kış Zıpkını Kalyonu','heavy',5,'/assets/frost-galleon-dir16-v1.webp'),
-  npc('n6-1-light','Rüzgar Gülü','light',6,'/assets/storm-boat-iso-v3.webp'),npc('n6-1-heavy','Yağmur Yaran','heavy',6,'/assets/storm-sail-dir16-v1.webp'),
+  npc('n6-1-light','Yağmur Yaran','light',6,'/assets/storm-sail-dir16-v1.webp'),npc('n6-1-heavy','Yağmur Yaran','heavy',6,'/assets/storm-sail-dir16-v1.webp'),
   npc('n6-2-light','Yağmur Yaran','light',6,'/assets/storm-sail-dir16-v1.webp'),npc('n6-2-heavy','Şimşek Lordu','heavy',6,'/assets/storm-galleon-dir16-v1.webp'),
-  npc('n7-1-light','Karanlık İzci','light',7,'/assets/void-boat-iso-v3.webp'),npc('n7-1-heavy','Obsidyen Bıçağı','heavy',7,'/assets/void-sail-dir16-v1.webp'),
+  npc('n7-1-light','Obsidyen Bıçağı','light',7,'/assets/void-sail-dir16-v1.webp'),npc('n7-1-heavy','Obsidyen Bıçağı','heavy',7,'/assets/void-sail-dir16-v1.webp'),
   npc('n7-2-light','Obsidyen Bıçağı','light',7,'/assets/void-sail-dir16-v1.webp'),npc('n7-2-heavy','Hiçlik Savaşçısı','heavy',7,'/assets/void-galleon-dir16-v1.webp'),
-  npc('n8-1-light','Kül Sandalı','light',8,'/assets/lava-boat-iso-v3.webp'),npc('n8-1-heavy','Lav Yaran','heavy',8,'/assets/lava-sail-dir16-v1.webp'),
+  npc('n8-1-light','Lav Yaran','light',8,'/assets/lava-sail-dir16-v1.webp'),npc('n8-1-heavy','Lav Yaran','heavy',8,'/assets/lava-sail-dir16-v1.webp'),
   npc('n8-2-light','Lav Yaran','light',8,'/assets/lava-sail-dir16-v1.webp'),npc('n8-2-heavy','Cehennem Kalyonu','heavy',8,'/assets/lava-galleon-dir16-v1.webp'),
 ];
 export const NPCS:Record<string,NpcDef>=Object.fromEntries(NPC_LIST.map((n,i)=>[n.id,{...n,portrait:i}]));
@@ -172,12 +172,12 @@ export const MAPS:Record<MapKey,MapDef>={
   '4/2':sea('4/2','Paslı Sığlık','Solgun Ruh, Lanetli Yelken ve Gece Dehşeti Fırkateyni ile hayaletlerin sisli sığlığı.',{islands:[[2550,650,190,'Paslı Çapa Adası',1],[650,700,170,'Hurda Kıyısı',0,true],[2500,2550,200,'Demir Kayalık',0]],fleet:[1150,2100,'Batık Filo Adası'],labels:[['PASLI SIĞLIK',1900,1000]]}),
   '5/1':sea('5/1','Ayaz Boğazı','Donuk Yelkenli ve Kış Zıpkını Kalyonu buz kütleleri arasında dolaşır.',{islands:[[650,650,200,'Ayaz Tepesi',0],[2550,650,180,'Donmuş Fener',1],[650,2550,180,'Kar Kayası',1,true]],fleet:[2050,2100,'Ayaz Filo Adası'],labels:[['AYAZ BOĞAZI',1300,1000]]}),
   '5/2':sea('5/2','Kristal Buzullar','Donuk Yelkenli ve Kış Zıpkını Kalyonu ile buzulların parıldayan soğuk derinlikleri.',{islands:[[2550,650,210,'Kristal Buzul',0],[650,700,170,'Işıltı Kayası',1,true],[2550,2550,180,'Kutup Kapısı',1]],fleet:[1150,2100,'Kristal Filo Adası'],labels:[['KRİSTAL BUZULLAR',1900,1000]]}),
-  '6/1':sea('6/1','Zehirli Mangrov','Rüzgar Gülü, Yağmur Yaran ve Şimşek Lordu fırtınalı sularda gezer.',{islands:[[650,650,200,'Mangrov Kökü',0],[2550,650,170,'Çamur Kıyısı',1],[650,2550,190,'Sarmaşık Adası',1,true]],fleet:[2050,2100,'Fırtına Filo Adası'],labels:[['ZEHİRLİ MANGROV',1300,1000]]}),
-  '6/2':sea('6/2','Çürük Lagün','Rüzgar Gülü, Yağmur Yaran ve Şimşek Lordu ile fırtınanın şimşekli lagünü.',{islands:[[2550,650,190,'Çürük Ada',0],[650,700,180,'Balçık Kayası',1,true],[2500,2550,200,'Veba Kıyısı',1]],fleet:[1150,2100,'Şimşek Filo Adası'],labels:[['ÇÜRÜK LAGÜN',1900,1000]]}),
-  '7/1':sea('7/1','Kül Adaları','Karanlık İzci, Obsidyen Bıçağı ve Hiçlik Savaşçısı bu karanlık sularda gezer.',{islands:[[650,650,210,'Kül Dağı',0],[2550,650,180,'Duman Kayası',1],[650,2550,170,'Kor Adası',1,true]],fleet:[2050,2100,'Uçurum Filo Adası'],labels:[['KÜL ADALARI',1300,1000]]}),
-  '7/2':sea('7/2','Magma Boğazı','Karanlık İzci, Obsidyen Bıçağı ve Hiçlik Savaşçısı ile uçurumun karanlık boğazı.',{islands:[[2550,650,200,'Magma Kapısı',1],[650,700,180,'Yanık Kıyı',0,true],[2550,2550,190,'Ateş Çukuru',0]],fleet:[1150,2100,'Gölge Filo Adası'],labels:[['MAGMA BOĞAZI',1900,1000]]}),
-  '8/1':sea('8/1','Şimşek Denizi','Kül Sandalı, Lav Yaran ve Cehennem Kalyonu kaynayan sularda gezer.',{islands:[[650,650,200,'Şimşek Kayalıkları',0],[2550,650,170,'Gök Kulesi',1],[650,2550,190,'Sessiz Mezar',1,true]],fleet:[2050,2100,'Alev Filo Adası'],labels:[['ŞİMŞEK DENİZİ',1300,1000]]}),
-  '8/2':sea('8/2','Kasırga Gözü','Kül Sandalı, Lav Yaran ve Cehennem Kalyonu ile lavın ölümcül suları.',{islands:[[2550,650,190,'Kasırga Burnu',1],[650,700,180,'Rüzgâr Kayası',0,true],[2550,2550,200,'Gürültü Adası',0]],fleet:[1150,2100,'Magma Filo Adası'],labels:[['KASIRGA GÖZÜ',1900,1000]]}),
+  '6/1':sea('6/1','Zehirli Mangrov','Yağmur Yaran ve Şimşek Lordu fırtınalı sularda gezer.',{islands:[[650,650,200,'Mangrov Kökü',0],[2550,650,170,'Çamur Kıyısı',1],[650,2550,190,'Sarmaşık Adası',1,true]],fleet:[2050,2100,'Fırtına Filo Adası'],labels:[['ZEHİRLİ MANGROV',1300,1000]]}),
+  '6/2':sea('6/2','Çürük Lagün','Yağmur Yaran ve Şimşek Lordu ile fırtınanın şimşekli lagünü.',{islands:[[2550,650,190,'Çürük Ada',0],[650,700,180,'Balçık Kayası',1,true],[2500,2550,200,'Veba Kıyısı',1]],fleet:[1150,2100,'Şimşek Filo Adası'],labels:[['ÇÜRÜK LAGÜN',1900,1000]]}),
+  '7/1':sea('7/1','Kül Adaları','Obsidyen Bıçağı ve Hiçlik Savaşçısı bu karanlık sularda gezer.',{islands:[[650,650,210,'Kül Dağı',0],[2550,650,180,'Duman Kayası',1],[650,2550,170,'Kor Adası',1,true]],fleet:[2050,2100,'Uçurum Filo Adası'],labels:[['KÜL ADALARI',1300,1000]]}),
+  '7/2':sea('7/2','Magma Boğazı','Obsidyen Bıçağı ve Hiçlik Savaşçısı ile uçurumun karanlık boğazı.',{islands:[[2550,650,200,'Magma Kapısı',1],[650,700,180,'Yanık Kıyı',0,true],[2550,2550,190,'Ateş Çukuru',0]],fleet:[1150,2100,'Gölge Filo Adası'],labels:[['MAGMA BOĞAZI',1900,1000]]}),
+  '8/1':sea('8/1','Şimşek Denizi','Lav Yaran ve Cehennem Kalyonu kaynayan sularda gezer.',{islands:[[650,650,200,'Şimşek Kayalıkları',0],[2550,650,170,'Gök Kulesi',1],[650,2550,190,'Sessiz Mezar',1,true]],fleet:[2050,2100,'Alev Filo Adası'],labels:[['ŞİMŞEK DENİZİ',1300,1000]]}),
+  '8/2':sea('8/2','Kasırga Gözü','Lav Yaran ve Cehennem Kalyonu ile lavın ölümcül suları.',{islands:[[2550,650,190,'Kasırga Burnu',1],[650,700,180,'Rüzgâr Kayası',0,true],[2550,2550,200,'Gürültü Adası',0]],fleet:[1150,2100,'Magma Filo Adası'],labels:[['KASIRGA GÖZÜ',1900,1000]]}),
 };
 export const MAP_KEYS=Object.keys(MAPS) as MapKey[];
 
