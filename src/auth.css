@@ -21,3 +21,4 @@
 .auth-home{position:fixed;top:14px;left:16px;color:#e0b04f;font:700 13px Cinzel,Georgia,serif;letter-spacing:.1em;text-decoration:none}
 #authGate{isolation:isolate}
 @media (max-width:760px){.auth-ships{display:none}}
+.auth-guest{padding:9px;border:1px dashed #9be37c88;border-radius:9px;background:#0005;color:#9be37c;font:700 13px Cinzel,Georgia,serif;letter-spacing:.08em;cursor:pointer}
