@@ -2,7 +2,7 @@
   "name": "Pirate Rage: Korsan Öfkesi",
   "short_name": "Pirate Rage",
   "description": "Online korsan gemi savaşı oyunu",
-  "start_url": "/",
+  "start_url": "/oyna/",
   "display": "fullscreen",
   "orientation": "landscape",
   "background_color": "#050608",
