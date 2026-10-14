@@ -1,0 +1,17 @@
+/* Giriş ekranı: açılış ekranının üstünde, oyun temasıyla */
+#authGate{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:16px;background:radial-gradient(circle at 50% 38%,#3a0d08 0%,#120506 48%,#050608 85%);font-family:Inter,system-ui,sans-serif;overflow:auto}
+.auth-card{width:min(380px,100%);display:flex;flex-direction:column;gap:12px;padding:22px 22px 18px;border:1px solid #c9973d88;border-radius:14px;background:linear-gradient(180deg,#24140bf2,#120a07f2);box-shadow:0 18px 50px #000a,inset 0 1px 0 #ffd27a22;color:#f3e2c0}
+.auth-card>img{width:72%;max-height:26vh;object-fit:contain;align-self:center;filter:drop-shadow(0 0 18px #ff4a1a55)}
+.auth-card h2{margin:0;text-align:center;font:700 20px Cinzel,Georgia,serif;letter-spacing:.18em;color:#f3d29a}
+.auth-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.auth-tabs button{padding:9px;border:1px solid #c9973d55;border-radius:8px;background:#0006;color:#cdb58a;font:700 13px Cinzel,Georgia,serif;cursor:pointer}
+.auth-tabs button.on{background:#c9973d33;color:#ffe2a8;border-color:#e0b04f}
+#authForm{display:flex;flex-direction:column;gap:9px}
+#authForm input{padding:11px 12px;border:1px solid #c9973d55;border-radius:8px;background:#0b0705;color:#fff3dc;font-size:15px;outline:none}
+#authForm input:focus{border-color:#ffd27a}
+.auth-main{padding:12px;border:1px solid #ffd27a;border-radius:9px;background:linear-gradient(180deg,#d9822b,#8f3a12);color:#fff6e0;font:700 15px Cinzel,Georgia,serif;letter-spacing:.1em;cursor:pointer}
+.auth-main:disabled{opacity:.6;cursor:wait}
+.auth-link{align-self:center;border:0;background:none;color:#e0b04f;text-decoration:underline;cursor:pointer;font-size:13px}
+.auth-info{margin:0;text-align:center;line-height:1.5;color:#e8d4ae}
+.auth-msg{margin:0;min-height:18px;text-align:center;font-size:13px;color:#ff8a6a}
+.auth-msg.ok{color:#9be37c}

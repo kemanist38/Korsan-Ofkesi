@@ -1,10 +1,9 @@
 // Çevrim içi deniz (Supabase Realtime). Aynı haritadaki oyuncular bir kanala katılır ve birbirine durum, atış ve batma
 // mesajı yayınlar. Sunucu tarafında hesap yoktur: her oyuncu kendisine gelen gülleyi kendi tarafında hesaplar
 // (yeterli: arkadaş grubuyla ilk sürüm). Kanal adı: sea-<harita>; sohbet için tek global kanal.
-import {createClient,type RealtimeChannel} from '@supabase/supabase-js';
+import {type RealtimeChannel} from '@supabase/supabase-js';
+import {supa} from './supabase';
 
-const URL='https://vidjvineafeiyoclioau.supabase.co';
-const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZGp2aW5lYWZlaXlvY2xpb2F1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE3Mjk2NjMsImV4cCI6MjEwNzMwNTY2M30.sKlmmfQRr-ZASkaSbax22ca80cyDCc8DNz4Idq19g5s';
 
 // Kalabalık haritada trafik az olsun diye kimlik bilgileri (nick, tag, gemi, can üst sınırı, rütbe) yalnızca ara sıra gelen tam
 // mesajda bulunur; sık gelen kısa mesaj sadece konum/yön/can taşır.
@@ -19,7 +18,7 @@ export type NetHandlers={state:(s:NetState)=>void;leave:(id:string)=>void;fire:(
 const ID_KEY='yedi-deniz-net-id';
 export const myNetId=(()=>{try{let v=sessionStorage.getItem(ID_KEY);if(!v){v=Math.random().toString(36).slice(2,10);sessionStorage.setItem(ID_KEY,v);}return v;}catch{return Math.random().toString(36).slice(2,10);}})();
 
-let client:ReturnType<typeof createClient>|null=null,sea:RealtimeChannel|null=null,chatCh:RealtimeChannel|null=null,auctionCh:RealtimeChannel|null=null,seaName='';
+let client:ReturnType<typeof supa>=null,sea:RealtimeChannel|null=null,chatCh:RealtimeChannel|null=null,auctionCh:RealtimeChannel|null=null,seaName='';
 let handlers:NetHandlers|null=null;
 // Bağlantı durumu (ekranda gösterilir): 'off' | 'connecting' | 'ok' | 'error'
 export let netStatus:'off'|'connecting'|'ok'|'error'='off',netError='';
@@ -27,7 +26,7 @@ export const netOnline=()=>netStatus==='ok';
 
 export function startNet(h:NetHandlers){
   handlers=h;
-  try{client=createClient(URL,ANON,{realtime:{params:{eventsPerSecond:40}}});}catch{client=null;return;}
+  client=supa();if(!client)return;
   chatCh=client.channel('chat-global',{config:{broadcast:{self:false}}});
   chatCh.on('broadcast',{event:'chat'},({payload})=>handlers?.chat(payload as NetChat)).subscribe();
   const ac=client.channel('auction-global',{config:{broadcast:{self:false}}});auctionCh=ac;
