@@ -848,3 +848,26 @@ body{touch-action:manipulation;-webkit-tap-highlight-color:transparent;overscrol
 .auction-mine{color:#6ff0a4}
 #auctionTimer{display:block;margin-top:6px;color:#ffd27a}
 .auction-lot .buy-box input{min-width:104px}
+/* Ortak filo: arama, başvuru, üye yönetimi */
+.guild-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}
+.guild-tabs button,.guild-search-row button,.guild-result button,.member-actions button,.guild-leave button{padding:7px 12px;border:1px solid #c9973d66;border-radius:6px;background:#0a1c21;color:#f3d29a;font:700 12px Inter;cursor:pointer}
+.guild-tabs button.on{background:#c9973d33;border-color:#e0b04f;color:#ffe2a8}
+.guild-search{display:flex;flex-direction:column;gap:8px}
+.guild-search-row{display:flex;gap:6px}
+.guild-search-row input{flex:1;padding:8px 10px;border:1px solid #c9973d55;border-radius:6px;background:#06120f;color:#f4f1ea}
+.guild-results{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow:auto}
+.guild-result{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;background:#0a1c21}
+.guild-result b{font:700 13px Inter;color:#f4f1ea}
+.guild-result small{margin-left:auto;color:#9fb8b0;font:600 11px Inter}
+.guild-result button.applied{color:#9be37c;border-color:#9be37c88}
+.guild-result button:disabled{opacity:.5;cursor:default}
+.member-row.me{outline:1px solid #e0b04f55}
+.member-actions{display:flex;gap:4px}
+.member-actions button{padding:4px 8px;font-size:11px}
+.member-actions .kick{color:#ff8a6a;border-color:#ff8a6a77}
+.member-actions .accept{color:#9be37c;border-color:#9be37c77}
+.guild-apps{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.guild-apps p{margin:0;color:#9fb8b0;font-size:12px}
+.guild-leave{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.guild-leave button{color:#ffb38a}
+.guild-leave .danger{background:#5a140c;color:#ffd0c0;border-color:#ff6a4a}
