@@ -9,6 +9,8 @@ import {nickError,saveProfile,NICK_MAX} from './profile';
 import type {SupabaseClient,User} from '@supabase/supabase-js';
 
 const startGame=()=>import('./main');
+// Açılış öncesi test dönemi: giriş ekranında hesapsız oynama butonu (kayıt yalnız bu tarayıcıda kalır). Yayında false yapılacak.
+const GUEST_TEST=true;
 const esc=(s:string)=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]!));
 
 function overlay(){let el=document.getElementById('authGate');if(!el){el=document.createElement('div');el.id='authGate';document.body.append(el);}if(!el.querySelector('.auth-ships'))el.insertAdjacentHTML('afterbegin','<a class="auth-home" href="/">← ANA SAYFA</a><div class="auth-ships"><img src="/assets/elite-crimson-art-v23.webp" alt=""/><img src="/assets/elite-kraken-art-v23.webp" alt=""/></div>');return el;}
@@ -25,7 +27,8 @@ function showLogin(sb:SupabaseClient,mode:'login'|'register'='login'){
   <input id="authPass" type="password" placeholder="Şifre (en az 6 karakter)" autocomplete="${reg?'new-password':'current-password'}" minlength="6" required/>
   ${reg?`<input id="authNick" placeholder="Kaptan adı" maxlength="${NICK_MAX}" autocomplete="off" spellcheck="false" required/>`:''}
   <button type="submit" class="auth-main">${reg?'HESAP OLUŞTUR':'DENİZE AÇIL'}</button></form>
-  ${reg?'':'<button class="auth-link" id="authForgot">Şifremi unuttum</button>'}`);
+  ${reg?'':'<button class="auth-link" id="authForgot">Şifremi unuttum</button>'}${GUEST_TEST?'<button class="auth-guest" id="authGuest">TEST: GİRİŞSİZ OYNA</button>':''}`);
+  const guest=document.getElementById('authGuest');if(guest)guest.onclick=()=>{overlay().remove();void startGame();};
   document.querySelectorAll<HTMLButtonElement>('.auth-tabs button').forEach(b=>b.onclick=()=>showLogin(sb,b.dataset.mode as 'login'|'register'));
   const forgot=document.getElementById('authForgot');if(forgot)forgot.onclick=async()=>{const email=val('authEmail');if(!email){msg('Önce e-posta adresini yaz');return;}
     const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+'/oyna/'});msg(error?trErr(error.message):'Şifre sıfırlama bağlantısı e-postana gönderildi',!error);};
