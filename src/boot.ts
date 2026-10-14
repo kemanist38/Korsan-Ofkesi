@@ -11,8 +11,8 @@ import type {SupabaseClient,User} from '@supabase/supabase-js';
 const startGame=()=>import('./main');
 const esc=(s:string)=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]!));
 
-function overlay(){let el=document.getElementById('authGate');if(!el){el=document.createElement('div');el.id='authGate';document.body.append(el);}return el;}
-function card(title:string,body:string,note=''){const el=overlay();el.innerHTML=`<section class="auth-card"><img src="/assets/logo-pirate-rage-v1.webp" alt="Pirate Rage" draggable="false"/><h2>${title}</h2>${body}<p class="auth-msg" id="authMsg">${note}</p></section>`;return el;}
+function overlay(){let el=document.getElementById('authGate');if(!el){el=document.createElement('div');el.id='authGate';document.body.append(el);}if(!el.querySelector('.auth-ships'))el.insertAdjacentHTML('afterbegin','<a class="auth-home" href="/">← ANA SAYFA</a><div class="auth-ships"><img src="/assets/elite-crimson-art-v23.webp" alt=""/><img src="/assets/elite-kraken-art-v23.webp" alt=""/></div>');return el;}
+function card(title:string,body:string,note=''){const el=overlay();el.querySelector('.auth-card')?.remove();el.insertAdjacentHTML('beforeend',`<section class="auth-card"><img src="/assets/logo-pirate-rage-v1.webp" alt="Pirate Rage" draggable="false"/><h2>${title}</h2>${body}<p class="auth-msg" id="authMsg">${note}</p></section>`);return el;}
 const msg=(t:string,ok=false)=>{const m=document.getElementById('authMsg');if(m){m.textContent=t;m.classList.toggle('ok',ok);}};
 const val=(id:string)=>(document.getElementById(id) as HTMLInputElement).value.trim();
 function busy(form:HTMLFormElement,on:boolean){form.querySelectorAll('button,input').forEach(b=>(b as HTMLButtonElement).disabled=on);}
@@ -28,7 +28,7 @@ function showLogin(sb:SupabaseClient,mode:'login'|'register'='login'){
   ${reg?'':'<button class="auth-link" id="authForgot">Şifremi unuttum</button>'}`);
   document.querySelectorAll<HTMLButtonElement>('.auth-tabs button').forEach(b=>b.onclick=()=>showLogin(sb,b.dataset.mode as 'login'|'register'));
   const forgot=document.getElementById('authForgot');if(forgot)forgot.onclick=async()=>{const email=val('authEmail');if(!email){msg('Önce e-posta adresini yaz');return;}
-    const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin});msg(error?trErr(error.message):'Şifre sıfırlama bağlantısı e-postana gönderildi',!error);};
+    const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+'/oyna/'});msg(error?trErr(error.message):'Şifre sıfırlama bağlantısı e-postana gönderildi',!error);};
   const form=document.getElementById('authForm') as HTMLFormElement;
   form.onsubmit=async e=>{e.preventDefault();const email=val('authEmail'),pass=(document.getElementById('authPass') as HTMLInputElement).value;
     if(reg){const nick=val('authNick'),err=nickError(nick);if(err){msg(err);return;}

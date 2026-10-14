@@ -2,32 +2,54 @@
 <html lang="tr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#07151b" />
-    <meta name="description" content="Pirate Rage: Korsan Öfkesi — tarayıcı tabanlı korsan deniz savaşı" />
-    <title>Pirate Rage: Korsan Öfkesi</title>
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/icon-app-32.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/icon-app-180.png" />
-    <link rel="manifest" href="/site.webmanifest" />
-    <link rel="preload" href="/fonts/cinzel-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/src/site.css" />
+    <title>Pirate Rage: Korsan Öfkesi — Online Korsan Savaşı</title>
+    <meta name="description" content="Tarayıcıda ücretsiz online korsan gemi savaşı. Gemini güçlendir, filo kur, adaları fethet, 15 elit gemiyi topla." />
     <meta property="og:title" content="Pirate Rage: Korsan Öfkesi" />
     <meta property="og:description" content="Online korsan gemi savaşı: gemini güçlendir, filo kur, adaları fethet." />
     <meta property="og:image" content="/assets/logo-pirate-rage-v1.webp" />
-    <style>
-      /* Açılış ekranı: oyun yüklenirken logo; JS hazır olunca söner (src/main.ts) */
-      #splash{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2vh;background:radial-gradient(circle at 50% 42%,#3a0d08 0%,#120506 45%,#050608 80%);transition:opacity .6s}
-      #splash.gone{opacity:0;pointer-events:none}
-      #splash img{width:min(56vh,70vw);height:auto;filter:drop-shadow(0 0 28px #ff4a1a55)}
-      #splash b{font:700 clamp(14px,3.2vh,26px) Georgia,serif;letter-spacing:.32em;color:#f3d29a;text-shadow:0 2px 8px #000}
-      #splash i{display:block;width:min(40vh,50vw);height:4px;border-radius:2px;background:#ffffff1a;overflow:hidden}
-      #splash i::after{content:"";display:block;width:40%;height:100%;background:linear-gradient(90deg,#ff7a1a,#ffd27a);animation:splashbar 1.1s ease-in-out infinite}
-      @keyframes splashbar{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
-    </style>
   </head>
   <body>
-    <div id="splash"><img src="/assets/logo-pirate-rage-v1.webp" alt="Pirate Rage: Korsan Öfkesi" /><b>KORSAN ÖFKESİ</b><i></i></div>
-    <div id="app"></div>
-    <script type="module" src="/src/boot.ts"></script>
+    <header class="nav"><a href="/" class="brand"><img src="/assets/logo-pirate-rage-v1.webp" alt="" />PIRATE RAGE</a><nav><a href="/#ozellikler">Özellikler</a><a href="/#gemiler">Gemiler</a><a href="/#nasil">Nasıl oynanır</a><a class="btn small" href="/oyna/">OYNA</a></nav></header>
+    <section class="hero">
+      <div class="hero-bg"></div>
+      <img class="hero-logo" src="/assets/logo-pirate-rage-v1.webp" alt="Pirate Rage: Korsan Öfkesi" />
+      <h1>DENİZLER SENİ BEKLİYOR, KAPTAN</h1>
+      <p>Tarayıcında, indirmeden oyna. Gemini güçlendir, filonu kur, boss'ları batır ve yedi denizin en korkulan korsanı ol.</p>
+      <a class="btn big" href="/oyna/">ÜCRETSİZ OYNA</a>
+      <small>Bilgisayar ve tablette çalışır · Kayıt 30 saniye</small>
+    </section>
+    <section id="ozellikler" class="block">
+      <h2>NEDEN PIRATE RAGE?</h2>
+      <div class="features">
+        <article><img src="/assets/icon-anvil-v2.webp" alt="" /><h3>Gemini geliştir</h3><p>Toplar, gülleler, donanım ve tayfa ile gemini adım adım güçlendir.</p></article>
+        <article><img src="/assets/icon-fleet-v1.webp" alt="" /><h3>Filo kur</h3><p>Arkadaşlarınla filo kur, ada kulelerini fethet, kuşatmalarda savaş.</p></article>
+        <article><img src="/assets/icon-flag-v1.webp" alt="" /><h3>Canlı PvP</h3><p>Diğer kaptanlarla gerçek zamanlı deniz savaşları, rütbeler ve sıralamalar.</p></article>
+        <article><img src="/assets/icon-treasure-map-v3.webp" alt="" /><h3>Sekiz deniz</h3><p>Lav, buz, fırtına, mercan… her denizin kendi canavarları ve boss'u var.</p></article>
+        <article><img src="/assets/icon-scroll-v2.webp" alt="" /><h3>Görevler ve hazine</h3><p>Yüzlerce görev, günlük ödüller, hazine avı ve saatlik altın ihalesi.</p></article>
+        <article><img src="/assets/icon-pearl-v1.webp" alt="" /><h3>Etkinlikler</h3><p>Açılış festivali, özel ödüller ve kupon kodlarıyla sürprizler.</p></article>
+      </div>
+    </section>
+    <section id="gemiler" class="block dark">
+      <h2>15 ELİT GEMİ</h2>
+      <p class="lead">Her elit geminin kendine özgü rolü ve gücü var. Hepsini topla, Korsan Öfkesi'ni serbest bırak.</p>
+      <div class="ships" id="ships"></div>
+    </section>
+    <section class="block">
+      <h2>DENİZLERİN EFENDİLERİ</h2>
+      <p class="lead">Her denizin sonunda dev bir boss seni bekliyor. Tek başına mı, filonla mı?</p>
+      <img class="bosses" src="/assets/boss-portraits-v2.webp" alt="Boss portreleri" loading="lazy" />
+    </section>
+    <section id="nasil" class="block dark">
+      <h2>NASIL BAŞLARIM?</h2>
+      <ol class="steps"><li><b>1</b><h3>Kayıt ol</h3><p>E-posta ve kaptan adınla 30 saniyede hesabını aç.</p></li><li><b>2</b><h3>Denize açıl</h3><p>İlk gemin hazır. Görevleri yap, altın ve tecrübe kazan.</p></li><li><b>3</b><h3>Efsane ol</h3><p>Elit gemileri topla, filona katıl, sıralamada zirveye çık.</p></li></ol>
+      <a class="btn big" href="/oyna/">HEMEN BAŞLA</a>
+    </section>
+    <footer class="foot"><img src="/assets/logo-pirate-rage-v1.webp" alt="" /><p>© 2026 Pirate Rage: Korsan Öfkesi</p><nav><a href="/gizlilik/">Gizlilik Politikası</a><a href="/sartlar/">Kullanım Şartları</a><a href="mailto:destek@piraterage.com">destek@piraterage.com</a></nav></footer>
+    <script type="module" src="/src/site.ts"></script>
   </body>
 </html>
