@@ -3786,8 +3786,19 @@ var httpServer = import_node_http.default.createServer(async (q, r) => {
     r.end(JSON.stringify([...flags].reverse().slice(0, 300)));
     return;
   }
+  if (q.url?.startsWith("/stats")) {
+    const token = String(q.headers.authorization || "").replace(/^Bearer /, "");
+    if (!token || !await isAdminToken(token).catch(() => false)) {
+      r.writeHead(403, cors);
+      r.end('{"error":"yetki yok"}');
+      return;
+    }
+    r.writeHead(200, cors);
+    r.end(JSON.stringify({ online: [...all].filter((c) => c.uid).length, seas: Object.fromEntries([...seas].map(([k, v]) => [k, v.size])), uptime: Math.round((Date.now() - started) / 1e3) }));
+    return;
+  }
   r.writeHead(200, cors);
-  r.end(JSON.stringify({ ok: true, name: "Pirate Rage oyun sunucusu", online: [...all].filter((c) => c.uid).length, seas: Object.fromEntries([...seas].map(([k, v]) => [k, v.size])), uptime: Math.round((Date.now() - started) / 1e3) }));
+  r.end(JSON.stringify({ ok: true, name: "Pirate Rage oyun sunucusu" }));
 });
 var wss = new import_websocket_server.default({ server: httpServer, path: "/ws", maxPayload: 16 * 1024 });
 wss.on("connection", (ws) => {

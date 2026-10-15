@@ -56,8 +56,11 @@ const httpServer=http.createServer(async(q,r)=>{const cors={'access-control-allo
   if(q.url?.startsWith('/flags')){const token=String(q.headers.authorization||'').replace(/^Bearer /,'');
     if(!token||!(await isAdminToken(token).catch(()=>false))){r.writeHead(403,cors);r.end('{"error":"yetki yok"}');return;}
     r.writeHead(200,cors);r.end(JSON.stringify([...flags].reverse().slice(0,300)));return;}
-  r.writeHead(200,cors);
-  r.end(JSON.stringify({ok:true,name:'Pirate Rage oyun sunucusu',online:[...all].filter(c=>c.uid).length,seas:Object.fromEntries([...seas].map(([k,v])=>[k,v.size])),uptime:Math.round((Date.now()-started)/1000)}));});
+  // Oyuncu sayıları herkese açık değil: yalnızca yönetici oturumuyla /stats
+  if(q.url?.startsWith('/stats')){const token=String(q.headers.authorization||'').replace(/^Bearer /,'');
+    if(!token||!(await isAdminToken(token).catch(()=>false))){r.writeHead(403,cors);r.end('{"error":"yetki yok"}');return;}
+    r.writeHead(200,cors);r.end(JSON.stringify({online:[...all].filter(c=>c.uid).length,seas:Object.fromEntries([...seas].map(([k,v])=>[k,v.size])),uptime:Math.round((Date.now()-started)/1000)}));return;}
+  r.writeHead(200,cors);r.end(JSON.stringify({ok:true,name:'Pirate Rage oyun sunucusu'}));});
 const wss=new WebSocketServer({server:httpServer,path:'/ws',maxPayload:16*1024});
 wss.on('connection',ws=>{
   const c={ws,uid:'',nick:'',playerNo:0,netId:'',sea:'',last:null,strikes:0,rState:new Rate(LIMITS.statesPerSec,1000),rFire:new Rate(LIMITS.firesPerSec,1000),rChat:new Rate(LIMITS.chatPerMin,60000),rMsg:new Rate(60,1000)};

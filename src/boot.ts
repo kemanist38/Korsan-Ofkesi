@@ -99,6 +99,7 @@ async function enter(sb:SupabaseClient,user:User,nick?:string){
     setInterval(()=>{push().catch(()=>{});},30000);
     document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')push().catch(()=>{});});
     addEventListener('pagehide',()=>{push().catch(()=>{});});
+    session.isAdmin=(await sb.rpc('is_admin')).data===true;
     overlay().remove();await startGame();
   }catch(e){entered=false;
     if(e instanceof Banned){card('HESAP KAPATILDI',`<p class="auth-info">Bu hesap oyun kurallarını ihlal ettiği için kapatıldı.${e.message?`<br><b>Sebep:</b> ${esc(e.message)}`:''}<br>İtiraz için: destek@piraterage.com</p><button class="auth-main" id="authOut">ÇIKIŞ YAP</button>`);document.getElementById('authOut')!.onclick=async()=>{await sb.auth.signOut();location.reload();};return;}
