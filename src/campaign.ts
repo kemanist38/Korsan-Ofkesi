@@ -78,14 +78,14 @@ const NPC_LIST:Omit<NpcDef,'portrait'>[]=[
   npc('n3-2-light','Kristal Yelkenli','light',3,'/assets/azur-sail-dir16-v1.webp'),npc('n3-2-heavy','Kadim Azur Gardiyanı','heavy',3,'/assets/azur-guardian-dir16-v1.webp'),
   npc('n4-1-light','Solgun Ruh','light',4,'/assets/haunt-boat-dir16-v1.webp'),npc('n4-1-heavy','Lanetli Yelken','heavy',4,'/assets/haunt-sail-dir16-v1.webp'),
   npc('n4-2-light','Lanetli Yelken','light',4,'/assets/haunt-sail-dir16-v1.webp'),npc('n4-2-heavy','Gece Dehşeti Fırkateyni','heavy',4,'/assets/haunt-frigate-dir16-v1.webp'),
-  npc('n5-1-light','Donuk Yelkenli','light',5,'/assets/frost-sail-dir16-v1.webp'),npc('n5-1-heavy','Donuk Yelkenli','heavy',5,'/assets/frost-sail-dir16-v1.webp'),
-  npc('n5-2-light','Donuk Yelkenli','light',5,'/assets/frost-sail-dir16-v1.webp'),npc('n5-2-heavy','Kış Zıpkını Kalyonu','heavy',5,'/assets/frost-galleon-dir16-v1.webp'),
-  npc('n6-1-light','Yağmur Yaran','light',6,'/assets/storm-sail-dir16-v1.webp'),npc('n6-1-heavy','Yağmur Yaran','heavy',6,'/assets/storm-sail-dir16-v1.webp'),
-  npc('n6-2-light','Yağmur Yaran','light',6,'/assets/storm-sail-dir16-v1.webp'),npc('n6-2-heavy','Şimşek Lordu','heavy',6,'/assets/storm-galleon-dir16-v1.webp'),
-  npc('n7-1-light','Obsidyen Bıçağı','light',7,'/assets/void-sail-dir16-v1.webp'),npc('n7-1-heavy','Obsidyen Bıçağı','heavy',7,'/assets/void-sail-dir16-v1.webp'),
-  npc('n7-2-light','Obsidyen Bıçağı','light',7,'/assets/void-sail-dir16-v1.webp'),npc('n7-2-heavy','Hiçlik Savaşçısı','heavy',7,'/assets/void-galleon-dir16-v1.webp'),
-  npc('n8-1-light','Lav Yaran','light',8,'/assets/lava-sail-dir16-v1.webp'),npc('n8-1-heavy','Lav Yaran','heavy',8,'/assets/lava-sail-dir16-v1.webp'),
-  npc('n8-2-light','Lav Yaran','light',8,'/assets/lava-sail-dir16-v1.webp'),npc('n8-2-heavy','Cehennem Kalyonu','heavy',8,'/assets/lava-galleon-dir16-v1.webp'),
+  npc('n5-1-light','Donuk Yelkenli','light',5,'/assets/frost-sail-dir16-v1.webp'),npc('n5-1-heavy','Buz Kesici','heavy',5,'/assets/frost-sail-dir16-v1.webp'),
+  npc('n5-2-light','Buz Kesici','light',5,'/assets/frost-sail-dir16-v1.webp'),npc('n5-2-heavy','Kış Zıpkını Kalyonu','heavy',5,'/assets/frost-galleon-dir16-v1.webp'),
+  npc('n6-1-light','Yağmur Yaran','light',6,'/assets/storm-sail-dir16-v1.webp'),npc('n6-1-heavy','Fırtına Kesici','heavy',6,'/assets/storm-sail-dir16-v1.webp'),
+  npc('n6-2-light','Fırtına Kesici','light',6,'/assets/storm-sail-dir16-v1.webp'),npc('n6-2-heavy','Şimşek Lordu','heavy',6,'/assets/storm-galleon-dir16-v1.webp'),
+  npc('n7-1-light','Obsidyen Bıçağı','light',7,'/assets/void-sail-dir16-v1.webp'),npc('n7-1-heavy','Obsidyen Akıncısı','heavy',7,'/assets/void-sail-dir16-v1.webp'),
+  npc('n7-2-light','Obsidyen Akıncısı','light',7,'/assets/void-sail-dir16-v1.webp'),npc('n7-2-heavy','Hiçlik Savaşçısı','heavy',7,'/assets/void-galleon-dir16-v1.webp'),
+  npc('n8-1-light','Lav Yaran','light',8,'/assets/lava-sail-dir16-v1.webp'),npc('n8-1-heavy','Lav Akıncısı','heavy',8,'/assets/lava-sail-dir16-v1.webp'),
+  npc('n8-2-light','Lav Akıncısı','light',8,'/assets/lava-sail-dir16-v1.webp'),npc('n8-2-heavy','Cehennem Kalyonu','heavy',8,'/assets/lava-galleon-dir16-v1.webp'),
 ];
 export const NPCS:Record<string,NpcDef>=Object.fromEntries(NPC_LIST.map((n,i)=>[n.id,{...n,portrait:i}]));
 
@@ -93,7 +93,7 @@ export const NPCS:Record<string,NpcDef>=Object.fromEntries(NPC_LIST.map((n,i)=>[
 export type MonsterDef={id:string;name:string;sprite:string;span:number;frame:number;anchorY:number;radius:number;tier:number;hp:number;damage:number;reload:number;gold:number;xp:number;portrait:number};
 // Canavar, aynı denizin ağır NPC'sinden yaklaşık 2,2 kat daha dayanıklıdır (Seafight'ta canavarlar ağır NPC'lerin 1,5–2 katı).
 const mon=(id:string,name:string,tier:number,radius=54,sprite='',span=140,anchorY=133.4):Omit<MonsterDef,'portrait'>=>{const t=tier-1,hp=PVE_HP[tier][3],r={xp:PVE_XP[tier][3],gold:killReward(Math.round(19500*hpScale(tier)),tier).gold};
-  return{id,name,sprite,span,frame:256,anchorY,radius,tier,hp,damage:Math.round(1500*dmgScale(tier)),reload:2.8-t*.08,gold:r.gold,xp:r.xp};};
+  return{id,name,sprite,span,frame:256,anchorY,radius,tier,hp,damage:Math.round(1500*dmgScale(tier)),reload:2.8-t*.04,gold:r.gold,xp:r.xp};};
 // Canavarlar oyundan kaldırıldı (görselleri silindi). Tanımlar yalnızca eski kayıt/sıralama alanları ve portre sıraları için duruyor.
 const MONSTER_LIST:(Omit<MonsterDef,'portrait'>&{slot:number})[]=[
   {...mon('m1-2','Dev Mavi Yılan',1,56),slot:1},
