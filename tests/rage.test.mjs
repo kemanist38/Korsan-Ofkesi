@@ -17,6 +17,6 @@ test('rage fills from hits and kills, then gives two stronger salvos',()=>{
   assert.equal(R.rageSalvo(r),1.25);assert.equal(R.rageSalvo(r),1.25);assert.equal(R.rageSalvo(r),1);
   assert.ok(!R.rageActive(r));
 });
-test('rage fades after five seconds even without firing',()=>{
-  const r=R.newRage();R.gainRage(r,100);R.startRage(r);R.tickRage(r,4.9);assert.ok(R.rageActive(r));R.tickRage(r,.2);assert.ok(!R.rageActive(r));assert.equal(R.rageSalvo(r),1);
+test('rage fades after four seconds even without firing',()=>{
+  const r=R.newRage();R.gainRage(r,100);R.startRage(r);R.tickRage(r,3.9);assert.ok(R.rageActive(r));R.tickRage(r,.2);assert.ok(!R.rageActive(r));assert.equal(R.rageSalvo(r),1);
 });

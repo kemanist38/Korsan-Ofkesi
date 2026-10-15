@@ -36,7 +36,7 @@ import {loadFleetOwners,saveFleetOwners,loadRuins,markRuin,ruinLeft,ruinLabel,cl
 import {RIVAL_SP,battleRank,loadRivalLog,claimRivalSp,dayKey,RANK_SHEET,RANK_COLS,RANK_ICONS,rankIcon,BATTLE_RANKS} from './battle';
 import {setupChat} from './chat';
 import {SIEGE_MS,HERO_DAMAGE,WALL_TOWERS,INNER_TOWERS,gateOf,gateLeft,siegeWindow,newSiege,loadSiege,saveSiege,siegePhase,siegeStats,siegeProgress,contribReward,earnsChest,victoryChest,ranking,loadTitle,grantTitle,HERO_TITLE,type SiegeSave} from './siege';
-import {dayEvent,spMult,xpMult,epMult,goldMult,sparkleMult,bossKillsNeeded,untilMidnight} from './events';
+import {dayEvent,spMult,xpMult,epMult,goldMult,sparkleMult,bossKillsNeeded} from './events';
 import {TALENTS,OFFICERS,OFFICER_MAX_RANK,officerCost,officerSlots,talentPoints,loadCrew,saveCrew,spentPoints,computeBonus,type TalentId,type OfficerId} from './crew';
 import {FLEET_MASK} from './fleetMask';
 import {drawVfx} from './vfx';
@@ -163,6 +163,9 @@ const mountedCannons:CannonStock={...defaultMountedCannons,...storedAccount?.mou
 // Donanım: depodaki parça sayıları ve gemideki yuvalar
 const equipOwned:Record<string,number>={...storedAccount?.equipOwned};
 const equipped:Partial<Record<EquipSlot,string|null>>={...storedAccount?.equipped};
+// Kaldırılan orta kademe (nadir) donanım: eski kayıtlarda kalan parçalar silinir, takılıysa çıkarılır
+for(const id of Object.keys(equipOwned))if(!equipById(id))delete equipOwned[id];
+for(const k of Object.keys(equipped) as EquipSlot[])if(equipped[k]&&!equipById(equipped[k]!))equipped[k]=null;
 const equipBonus=()=>equipTotals(equipped);
 // Başarımlar: sayaçlar ve açılan madalyaların kalıcı bonusları (altın, TP, hasar, can)
 const ach=loadAchievements();let achBonusCache=achievementBonus(ach);
@@ -383,15 +386,20 @@ let uiScale=1;
 const MOBILE_HUD=true;
 function fitHud(){const [vw,vh]=MOBILE_HUD?[880,480]:[1180,640];uiScale=Math.max(.5,Math.min(1,innerWidth/vw,innerHeight/vh));document.documentElement.style.setProperty('--ui',String(uiScale));document.documentElement.classList.toggle('touch',MOBILE_HUD);}
 fitHud();
-// Günün etkinliği: üst ortada, gece yarısına kalan süreyle
-const dayEventEl=document.createElement('div');dayEventEl.className='day-event';document.querySelector('.hud')!.append(dayEventEl);
+// Günün etkinliği: mini haritada dünya ikonunun yanında kısa rozet (ör. "İnci ×2"); tıklayınca haftalık takvim açılır
+const DAY_SHORT:Record<string,string>={sp:'SP ×2',tp:'TP +%50',ep:'EP +%50',boss:'Boss ×2',gold:'Altın +%50',pearl:'İnci ×2',siege:'Kuşatma'};
+const dayEventEl=document.createElement('button');dayEventEl.className='day-badge';dayEventEl.type='button';document.querySelector('.map-cluster')!.append(dayEventEl);
+const dayPop=document.createElement('div');dayPop.className='day-pop';document.querySelector('.map-cluster')!.append(dayPop);
+dayEventEl.onclick=e=>{e.stopPropagation();renderDayPop();dayPop.classList.toggle('open');};
+addEventListener('pointerdown',e=>{if(!dayPop.contains(e.target as Node)&&e.target!==dayEventEl)dayPop.classList.remove('open');});
 let dayEventText='';
-// Cuma: kuşatma açılınca "KATIL" düğmesi; test modunda her gün denemek için ayrıca açık
-function renderDayEvent(force=false){const ev=dayEvent(),w=siegeWindow(),join=w.open||ELITE_TEST_MODE;
-  const time=ev?.id==='siege'?(w.open?`bitimine ${Math.max(1,Math.ceil((w.end-Date.now())/60000))} dk`:w.upcoming?`20:00'de başlıyor`:'sona erdi'):untilMidnight();
-  const t=(ev?`<b>${ev.day.toLocaleUpperCase('tr')} · ${ev.name.toLocaleUpperCase('tr')}</b><span>${ev.desc}</span><em>${time}</em>`:'')+(join?`<button data-siege-join>${w.open?'KUŞATMAYA KATIL':'TEST · KUŞATMA'}</button>`:'');
-  if(t===dayEventText&&!force)return;dayEventText=t;dayEventEl.innerHTML=t;dayEventEl.classList.toggle('on',!!t);
-  const b=dayEventEl.querySelector('[data-siege-join]') as HTMLButtonElement|null;if(b)b.onclick=enterSiege;}
+function renderDayPop(){const today=dayEvent()?.id,w=siegeWindow(),join=w.open||ELITE_TEST_MODE;
+  dayPop.innerHTML=`<h4>HAFTALIK ETKİNLİKLER</h4><ul>${[1,2,3,4,5,6,0].map(d=>{const ev=dayEvent(new Date(2026,9,4+d));return ev?`<li class="${ev.id===today?'on':''}"><b>${ev.day}</b><span>${ev.name}</span><small>${ev.desc}</small></li>`:'';}).join('')}</ul>${join?`<button data-siege-join>${w.open?'KUŞATMAYA KATIL':'TEST · KUŞATMA'}</button>`:''}`;
+  const b=dayPop.querySelector('[data-siege-join]') as HTMLButtonElement|null;if(b)b.onclick=()=>{dayPop.classList.remove('open');enterSiege();};}
+function renderDayEvent(force=false){const ev=dayEvent(),w=siegeWindow();
+  const t=ev?`${DAY_SHORT[ev.id]}${ev.id==='siege'&&w.open?' · AÇIK':''}`:'Etkinlik';
+  if(t===dayEventText&&!force)return;dayEventText=t;dayEventEl.textContent=t;dayEventEl.classList.toggle('on',!!ev);dayEventEl.classList.toggle('live',ev?.id==='siege'&&w.open);
+  dayEventEl.title=ev?`${ev.day} · ${ev.name}: ${ev.desc}`:'Haftalık etkinlikler';}
 setInterval(renderDayEvent,15000);
 {const hint=document.createElement('div');hint.className='rotate-hint';hint.innerHTML=`<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="18.5" r=".9" fill="currentColor"/></svg>Telefonunu yatay çevir<small>Pirate Rage yatay ekranda oynanır</small>`;document.body.append(hint);}
 // HUD çerçeveleri: alt bar (CP/SP), gülle çerçevesi ve malzeme çerçevesi. Her biri kendi tutamağından tek başına taşınır.
@@ -1891,7 +1899,7 @@ function siegeWon(e:Enemy){if(!siege)return;stopBossMusic();siege.result='won';s
   enemies.splice(0,enemies.length,...enemies.filter(o=>!o.siege));finishSiege(true);}
 function finishSiege(won:boolean){if(!siege)return;const reward=payContribution(),dmg=siege.contrib[profile.nick]??0,order=ranking(siege.contrib),rank=order.findIndex(([n])=>n===profile.nick)+1;
   let chest:ReturnType<typeof victoryChest>|null=null,title=false;
-  if(won&&earnsChest(dmg,SIEGE_PARTICIPANTS)){chest=victoryChest(Math.random,EQUIPMENT.filter(q=>q.rarity===1).map(q=>q.id));state.pearls+=chest.pearls;
+  if(won&&earnsChest(dmg,SIEGE_PARTICIPANTS)){chest=victoryChest(Math.random,EQUIPMENT.filter(q=>q.rarity===0).map(q=>q.id));state.pearls+=chest.pearls;
     for(const [k,n] of Object.entries(chest.ammo))arsenal[k as keyof typeof chest.ammo]+=n!;arsenal.speed+=chest.speed;if(chest.equip)equipOwned[chest.equip]=(equipOwned[chest.equip]??0)+1;saveArsenal(arsenal);saveAccount();renderQuickSlots();}
   if(won&&rank>0&&rank<=3&&dmg>0){heroTitle=grantTitle();title=true;}
   playLevelUp();showSiegeResult(won,dmg,rank,order,reward,chest,title);renderSiegeHud();}
@@ -2022,14 +2030,18 @@ function later(t:number,fn:()=>void){abilityQueue.push({t,fn});}
 function activateRage(){
   if(rageActive(rage)){toast(`Korsan Öfkesi açık · ${rage.salvos} güçlü salvo kaldı`);return;}
   if(!startRage(rage)){toast(`Öfke barı dolmadı (%${Math.floor(rage.meter)}) — rakip oyuncu ve boss batırdıkça dolar`);return;}
-  spawnText(player,'KORSAN ÖFKESİ!','#ff7a2a');spawnRage(player,rage.time);screenTint(.35,'200,40,10');playRage();
-  for(let n=0;n<30;n++){const a=Math.random()*Math.PI*2,sp=60+Math.random()*90;particles.push({x:player.x,y:player.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp*.5,life:.6+Math.random()*.4,maxLife:1,kind:'ember',z:10+Math.random()*30,size:10+Math.random()*14,color:n%2?'#ff6a1a':'#ffd27a'});}
+  // Açılış efekti yalnızca 1 sn (kalabalıkta birçok oyuncu aynı anda basınca kasmasın); sonra 2 güçlü salvo boyunca kırmızı hız izi
+  spawnText(player,'KORSAN ÖFKESİ!','#ff7a2a');spawnRage(player,1);screenTint(.3,'200,40,10');playRage();
+  for(let n=0;n<14;n++){const a=Math.random()*Math.PI*2,sp=60+Math.random()*90;particles.push({x:player.x,y:player.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp*.5,life:.6+Math.random()*.4,maxLife:1,kind:'ember',z:10+Math.random()*30,size:10+Math.random()*14,color:n%2?'#ff6a1a':'#ffd27a'});}
 }
 function updateRage(dt:number){
   playerHitClock+=dt;
   for(let i=abilityQueue.length-1;i>=0;i--){const q=abilityQueue[i];q.t-=dt;if(q.t<=0){abilityQueue.splice(i,1);q.fn();}}
   const was=rageActive(rage);tickRage(rage,dt);
-  if(rageActive(rage)){rageEmber-=dt;while(rageEmber<=0){rageEmber+=1/18;const a=Math.random()*Math.PI*2;particles.push({x:player.x+Math.cos(a)*62,y:player.y+Math.sin(a)*32,vx:(Math.random()-.5)*20,vy:-30-Math.random()*40,life:.45+Math.random()*.3,maxLife:.75,kind:'ember',z:4+Math.random()*24,size:5+Math.random()*6,color:Math.random()<.5?'#ff5a14':'#ffb03a'});}}
+  // Öfke açıkken: Hız İksiri izinin kırmızı hali (gemi giderken)
+  if(rageActive(rage)&&Math.abs(player.speed)>15){rageEmber-=dt;while(rageEmber<=0){rageEmber+=1/60;
+    const fx=Math.sin(player.angle),fy=-Math.cos(player.angle),back=30+Math.random()*30,side=(Math.random()-.5)*36,r=Math.random();
+    particles.push({x:player.x-fx*back-fy*side,y:player.y-fy*back*.5+fx*side*.5,vx:-fx*12+(Math.random()-.5)*10,vy:-fy*6-6-Math.random()*8,life:.5+Math.random()*.4,maxLife:.9,kind:'glint',z:4+Math.random()*34,size:8+Math.random()*14,color:r<.62?'#ff3a2a':r<.86?'#ffd0b0':'#ffb03a',rot:Math.random()*Math.PI});}}
   else if(was)clearRageFx();
 }
 function toggleConsumable(id:ConsumableId){
@@ -2116,10 +2128,10 @@ let daily=loadDaily();
 // Günlük, festival ve kupon ödülleri için ortak yazı ve teslim
 type BundleReward={gold?:number;pearls?:number;chain?:number;fire?:number;breaker?:number;explosive?:number;leech?:number;heal?:number;powder?:number;shield?:number;speed?:number;mine?:number;equip?:string;design?:boolean};
 const BUNDLE_ITEMS=['fire','breaker','explosive','leech','heal','powder','shield','speed','mine'] as const;
-function dailyText(r:BundleReward){return[r.gold&&`${r.gold.toLocaleString('tr-TR')} Altın`,r.pearls&&`${fmt(r.pearls)} İnci`,r.chain&&`${fmt(r.chain)} Zincir Güllesi`,...BUNDLE_ITEMS.map(k=>r[k]&&`${fmt(r[k]!)} ${QUICK_ITEMS[k].name}`),r.equip&&(r.equip==='rare'?'Nadir Donanım':'Sıradan Donanım'),r.design&&'PIRATE RAGE özel gemi tasarımı'].filter(Boolean) as string[];}
+function dailyText(r:BundleReward){return[r.gold&&`${r.gold.toLocaleString('tr-TR')} Altın`,r.pearls&&`${fmt(r.pearls)} İnci`,r.chain&&`${fmt(r.chain)} Zincir Güllesi`,...BUNDLE_ITEMS.map(k=>r[k]&&`${fmt(r[k]!)} ${QUICK_ITEMS[k].name}`),r.equip&&(r.equip==='epic'?'Destansı Donanım':'Sıradan Donanım'),r.design&&'PIRATE RAGE özel gemi tasarımı'].filter(Boolean) as string[];}
 function giveBundle(r:BundleReward){if(r.gold)state.gold+=r.gold;if(r.pearls)state.pearls+=r.pearls;if(r.chain)state.chainAmmo+=r.chain;
   for(const k of BUNDLE_ITEMS)if(r[k])arsenal[k]+=r[k]!;
-  let eq='';if(r.equip){const pool=EQUIPMENT.filter(e=>e.rarity===(r.equip==='rare'?1:0)),e=pool[Math.floor(Math.random()*pool.length)];if(e){equipOwned[e.id]=(equipOwned[e.id]??0)+1;eq=e.name;}}
+  let eq='';if(r.equip){const pool=EQUIPMENT.filter(e=>e.rarity===(r.equip==='epic'?2:0)),e=pool[Math.floor(Math.random()*pool.length)];if(e){equipOwned[e.id]=(equipOwned[e.id]??0)+1;eq=e.name;}}
   if(r.design){designOwned=true;saveDesignOwned();}
   saveArsenal(arsenal);saveAccount();renderQuickSlots();updateUI();return eq;}
 const REWARD_ICONS:[string,string][]=[['Altın','icon-gold-v1'],['İnci','icon-pearl-v1'],['Zincir','ammo-chain-v2'],['Ateş','ammo-fire-v2'],['Alev','ammo-fire-v2'],['Patlayıcı','ammo-explosive-v2'],['Kule Kırıcı','ammo-breaker-v2'],['Barut','icon-powder-v4'],['Kalkan','icon-shield-v3'],['Hız','icon-speed-potion-v2'],['Can Emici','ammo-leech-v2'],['Şifa','ammo-heal-v1'],['Mayın','icon-mine-v2'],['Donanım','icon-anvil-v2']];
