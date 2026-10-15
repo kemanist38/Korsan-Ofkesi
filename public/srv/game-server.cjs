@@ -3694,11 +3694,19 @@ var import_websocket_server = __toESM(require_websocket_server(), 1);
 var BOSS_HP = [0, 165e3, 41e4, 98e4, 22e5, 3e6, 45e5, 58e5, 63e5];
 
 // src/fleetBalance.ts
+var PLAYER_LEVEL_HP = [0, 9e4, 18e4, 38e4, 9e5, 115e4, 13e5, 155e4, 175e4];
+var HULL_HP = 25e3;
+var playerBaseHp = (level, hull) => PLAYER_LEVEL_HP[Math.max(1, Math.min(8, Math.round(level)))] + hull * HULL_HP;
+var REF_HULL = [0, 0, 1, 2, 4, 6, 8, 10, 10];
+var damageScale = (tier) => {
+  const t = Math.max(1, Math.min(8, Math.round(tier)));
+  return playerBaseHp(t, REF_HULL[t]) / (75e3 + (t - 1) * 2500 + REF_HULL[t] * 2500);
+};
 function fleetTowerStats(tier) {
   const step = Math.max(0, Math.min(8, tier) - 2);
   return {
     hp: Math.round(378e5 * (1 + 0.025 * step)),
-    damage: Math.round(17600 * (1 + 0.015 * step)),
+    damage: Math.round(17600 * (1 + 0.015 * step) * damageScale(8)),
     reload: 3,
     range: 460,
     ownDamage: Math.round(117300 * (1 + 0.015 * step))
