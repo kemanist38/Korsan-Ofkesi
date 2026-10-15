@@ -1188,30 +1188,53 @@ function renderSupply(){
 }
 // ---------------------------------------------------------------- Altın ihalesi (src/auction.ts)
 let auction=loadAuction(Date.now());
+// Hesapla girişte ihale kimliği hesap kimliğidir; teklifler ve kazanan sunucuda belirlenir (supabase/migrations/004_auction.sql)
+const bidderId=session.account?.uid??auctionId;
 const esc=(t:string)=>t.replace(/[&<>"']/g,c=>`&#${c.charCodeAt(0)};`);
 const lotName=(l:LotDef)=>l.kind==='cannon'?`${CANNONS[l.item as CannonKind].name} Topu`:QUICK_ITEMS[l.item as QuickItemId].name;
 const lotArt=(l:LotDef)=>l.kind==='cannon'?`<img class="raster-item" src="/assets/cannon-${l.item}-v1.webp" alt="" draggable="false"/>`:itemAsset(l.item as QuickItemId);
 function giveLot(l:LotDef){if(l.kind==='cannon')cannonInventory[l.item as CannonKind]+=l.qty;else arsenal[l.item as SpecialAmmo|SupplyId]+=l.qty;}
 // Saat dolunca: kazanılan lotlar verilir, geçilmemiş ama kazanılmamış emanet (kaçırılmış mesaj) iade edilir, yeni ihale başlar
+let bidBusy=false;
+// İhale tabloları henüz kurulmadıysa (fonksiyon yok) eski yerel ihale sürer
+const noRpc=(e:{code?:string})=>e.code==='PGRST202'||e.code==='42883';
+// Sunucudaki güncel en yüksek teklifler (sayfa açılışı, ihale penceresi, saat başı)
+async function loadAuctionTops(){const sb=supa();if(!sb||!session.account)return;const h=auction.hour;
+  const {data}=await sb.from('auction_top').select('lot,user_id,nick,amount,at').eq('hour',h);if(!data||auction.hour!==h)return;
+  for(const r of data){const cur=auction.top[r.lot];if(cur&&cur.id===r.user_id&&cur.amount===r.amount)continue;
+    const mine=auction.mine[r.lot];if(cur?.id===bidderId&&r.user_id!==bidderId&&mine){state.gold+=mine;delete auction.mine[r.lot];saveAccount();updateUI();rewardNotice(`İhalede teklifin geçildi · ${fmt(mine)} altın iade edildi`,'shop');}
+    auction.top[r.lot]={hour:h,lot:r.lot,amount:Number(r.amount),id:r.user_id,nick:r.nick,at:Date.parse(r.at)};}
+  saveAuction(auction);if(ui('auctionOverlay').classList.contains('open'))renderAuction();}
+// Biten ihale: ödül sunucuda bir kez onaylanırsa verilir; onaylanmayan (geçilmiş) teklifin emaneti iade edilir
+async function claimAuction(a:typeof auction,won:LotDef[]){const sb=supa();if(!sb)return;let back=0;
+  for(const [k,v] of Object.entries(a.mine)){const l=won.find(x=>x.key===k);
+    if(l){const {data,error}=await sb.rpc('auction_claim',{p_hour:a.hour,p_lot:k});if(data===true||(error&&noRpc(error))){giveLot(l);rewardNotice(`İhaleyi kazandın · ${fmt(l.qty)} ${lotName(l)} · ${fmt(v)} altın`,'shop');continue;}}
+    back+=v;}
+  if(back){state.gold+=back;rewardNotice(`İhale bitti · ${fmt(back)} altın iade edildi`,'shop');}saveArsenal(arsenal);saveAccount();renderQuickSlots();updateUI();}
 function auctionTick(){const h=auctionHour(Date.now());if(auction.hour===h)return;
-  const won=wonLots(auction,auctionId);for(const l of won){giveLot(l);rewardNotice(`İhaleyi kazandın · ${fmt(l.qty)} ${lotName(l)} · ${fmt(auction.mine[l.key])} altın`,'shop');}
+  const won=wonLots(auction,bidderId);if(session.account){void claimAuction(auction,won);auction=emptyAuction(h);saveAuction(auction);void loadAuctionTops();if(ui('auctionOverlay').classList.contains('open'))renderAuction();return;}
+  for(const l of won){giveLot(l);rewardNotice(`İhaleyi kazandın · ${fmt(l.qty)} ${lotName(l)} · ${fmt(auction.mine[l.key])} altın`,'shop');}
   let back=0;for(const [k,v] of Object.entries(auction.mine))if(!won.some(l=>l.key===k))back+=v;if(back)state.gold+=back;
   if(won.length||back){saveArsenal(arsenal);saveAccount();renderQuickSlots();updateUI();}
   auction=emptyAuction(h);saveAuction(auction);if(ui('auctionOverlay').classList.contains('open'))renderAuction();}
-function receiveBid(b:NetBid){auctionTick();const r=applyBid(auction,b,auctionId);if(!r.accepted)return;
+function receiveBid(b:NetBid){auctionTick();const r=applyBid(auction,b,bidderId);if(!r.accepted)return;
   if(r.refund){state.gold+=r.refund;saveAccount();updateUI();rewardNotice(`İhalede teklifin geçildi · ${fmt(r.refund)} altın iade edildi`,'shop');}
   saveAuction(auction);if(ui('auctionOverlay').classList.contains('open'))renderAuction();}
 function placeBid(l:LotDef,amount:number){auctionTick();const top=auction.top[l.key],min=minNextBid(l,top);
   // Teklif tutarları gizli: düşük teklif reddedilir ama en yüksek tutar söylenmez
-  if(!(amount>=min)){toast(top?(top.id===auctionId?'Zaten öndesin; yükseltmek için daha yüksek bir tutar yaz':'Teklifin en yüksek tekliften düşük, daha yüksek bir tutar dene'):'Teklif tutarını yaz');return;}
-  const prev=top?.id===auctionId?auction.mine[l.key]??0:0,cost=amount-prev;if(state.gold<cost){toast('Yeterli altın yok');return;}
-  const b:Bid={hour:auction.hour,lot:l.key,amount,id:auctionId,nick:profile.nick,at:Date.now()};if(!applyBid(auction,b,auctionId).accepted){toast('Teklif geçersiz');return;}
+  if(!(amount>=min)){toast(top?(top.id===bidderId?'Zaten öndesin; yükseltmek için daha yüksek bir tutar yaz':'Teklifin en yüksek tekliften düşük, daha yüksek bir tutar dene'):'Teklif tutarını yaz');return;}
+  const prev=top?.id===bidderId?auction.mine[l.key]??0:0,cost=amount-prev;if(state.gold<cost){toast('Yeterli altın yok');return;}
+  if(session.account&&bidBusy)return;
+  if(session.account){const sb=supa();if(!sb)return;bidBusy=true;void sb.rpc('auction_bid',{p_hour:auction.hour,p_lot:l.key,p_amount:amount}).then(({error})=>{bidBusy=false;if(error&&!noRpc(error)){toast(error.message.replace(/^.*?: /,'')||'Teklif verilemedi');void loadAuctionTops();return;}commitBid(l,amount,cost);});return;}
+  commitBid(l,amount,cost);}
+function commitBid(l:LotDef,amount:number,cost:number){if(state.gold<cost){toast('Yeterli altın yok');return;}
+  const b:Bid={hour:auction.hour,lot:l.key,amount,id:bidderId,nick:profile.nick,at:Date.now()};if(!applyBid(auction,b,bidderId).accepted){toast('Teklif geçersiz');return;}
   state.gold-=cost;auction.mine[l.key]=amount;saveAuction(auction);saveAccount();sendBid(b);playCoins();updateUI();renderAuction();toast(`${fmt(amount)} altın teklif verdin · ${lotName(l)}`);}
-function openAuction(){auctionTick();renderAuction();ui('auctionOverlay').classList.add('open');}
+function openAuction(){auctionTick();void loadAuctionTops();renderAuction();ui('auctionOverlay').classList.add('open');}
 function closeAuction(){ui('auctionOverlay').classList.remove('open');}
 function renderAuctionTimer(){const left=Math.max(0,auctionEnds(auction.hour)-Date.now()),m=Math.floor(left/60000),sec=Math.floor(left/1000)%60;ui('auctionTimer').textContent=`Kalan süre: ${m}:${String(sec).padStart(2,'0')}`;}
 function renderAuction(){renderAuctionTimer();const list=ui('auctionList'),lots=lotsFor(auction.hour);
-  list.innerHTML=lots.map(l=>{const top=auction.top[l.key],mine=top?.id===auctionId;
+  list.innerHTML=lots.map(l=>{const top=auction.top[l.key],mine=top?.id===bidderId;
     return`<article class="market-item buy-row auction-lot${mine?' leading':''}" data-lot="${l.key}"><div class="ammo-icon">${lotArt(l)}<b>${fmt(l.qty)}</b></div><div><h4>${fmt(l.qty)} × ${lotName(l)}</h4>
       <small>${top?`En yüksek teklif: <b class="${mine?'auction-mine':''}">${esc(String(top.nick??''))}</b>`:'Henüz teklif yok · ilk teklifi sen ver'}</small>${mine?`<em class="gold">Senin teklifin: ${fmt(auction.mine[l.key]??top.amount)} altın</em>`:''}</div>
       <div class="buy-box"><input type="number" inputmode="numeric" min="1" step="1" placeholder="Altın" aria-label="${lotName(l)} teklifi"/><button>TEKLİF</button></div></article>`;}).join('');
