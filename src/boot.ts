@@ -9,8 +9,8 @@ import {nickError,saveProfile,NICK_MAX} from './profile';
 import type {SupabaseClient,User} from '@supabase/supabase-js';
 
 const startGame=()=>import('./main');
-// Açılış öncesi test dönemi: giriş ekranında hesapsız oynama butonu (kayıt yalnız bu tarayıcıda kalır). Yayında false yapılacak.
-const GUEST_TEST=true;
+// Açılış öncesi test dönemi: giriş ekranında hesapsız oynama butonu (kayıt yalnız bu tarayıcıda kalır). Kapalı beta: kapalı (yalnızca davetli hesaplar).
+const GUEST_TEST=false;
 const esc=(s:string)=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]!));
 
 function overlay(){let el=document.getElementById('authGate');if(!el){el=document.createElement('div');el.id='authGate';document.body.append(el);}if(!el.querySelector('.auth-ships'))el.insertAdjacentHTML('afterbegin','<a class="auth-home" href="/">← ANA SAYFA</a><div class="auth-ships"><img src="/assets/elite-crimson-art-v23.webp" alt=""/><img src="/assets/elite-kraken-art-v23.webp" alt=""/></div>');return el;}
@@ -18,7 +18,7 @@ function card(title:string,body:string,note=''){const el=overlay();el.querySelec
 const msg=(t:string,ok=false)=>{const m=document.getElementById('authMsg');if(m){m.textContent=t;m.classList.toggle('ok',ok);}};
 const val=(id:string)=>(document.getElementById(id) as HTMLInputElement).value.trim();
 function busy(form:HTMLFormElement,on:boolean){form.querySelectorAll('button,input').forEach(b=>(b as HTMLButtonElement).disabled=on);}
-const trErr=(m:string)=>/Invalid login/i.test(m)?'E-posta veya şifre hatalı':/already registered|already been registered/i.test(m)?'Bu e-posta ile zaten bir hesap var':/at least 6|Password should/i.test(m)?'Şifre en az 6 karakter olmalı':/rate limit|too many/i.test(m)?'Çok fazla deneme, biraz bekle':/valid email|invalid.*email/i.test(m)?'Geçerli bir e-posta yaz':/fetch|network/i.test(m)?'Sunucuya bağlanılamadı, internetini kontrol et':m;
+const trErr=(m:string)=>/signups? not allowed|signup.*disabled/i.test(m)?'Şu an kapalı test dönemindeyiz, sadece davetli kaptanlar girebilir':/Invalid login/i.test(m)?'E-posta veya şifre hatalı':/already registered|already been registered/i.test(m)?'Bu e-posta ile zaten bir hesap var':/at least 6|Password should/i.test(m)?'Şifre en az 6 karakter olmalı':/rate limit|too many/i.test(m)?'Çok fazla deneme, biraz bekle':/valid email|invalid.*email/i.test(m)?'Geçerli bir e-posta yaz':/fetch|network/i.test(m)?'Sunucuya bağlanılamadı, internetini kontrol et':m;
 
 function showLogin(sb:SupabaseClient,mode:'login'|'register'='login'){
   const reg=mode==='register';
