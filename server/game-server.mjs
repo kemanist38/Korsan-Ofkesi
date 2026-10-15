@@ -1,0 +1,79 @@
+// Pirate Rage oyun sunucusu (VPS). Oyuncular WebSocket ile bağlanır; deniz, sohbet ve ihale mesajları sunucudan geçer.
+// Sunucu her mesajı denetler: kimlik ve kaptan adı hesaptan gelir (taklit edilemez), mesaj sıklığı, hasar ve hız sınırlanır,
+// banlı hesaplar bağlanamaz. Şüpheli davranış günlüğe (pm2 logs) yazılır.
+// Çalıştırma: node game-server.cjs  (ortam: PORT=3000, SUPABASE_URL, SUPABASE_ANON)
+import http from 'node:http';
+import {WebSocketServer} from 'ws';
+
+const PORT=Number(process.env.PORT||3000);
+const SUPABASE_URL=process.env.SUPABASE_URL||'https://vidjvineafeiyoclioau.supabase.co';
+const SUPABASE_ANON=process.env.SUPABASE_ANON||'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZGp2aW5lYWZlaXlvY2xpb2F1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE3Mjk2NjMsImV4cCI6MjEwNzMwNTY2M30.sKlmmfQRr-ZASkaSbax22ca80cyDCc8DNz4Idq19g5s';
+// Sınırlar
+export const LIMITS={maxHit:400000,maxSpeed:900,firesPerSec:12,statesPerSec:15,chatPerMin:20,chatLen:200,maxPerSea:300};
+const started=Date.now();
+
+// ---------------------------------------------------------------- Kimlik doğrulama (Supabase oturum anahtarı)
+export async function verifyToken(token){
+  const u=await fetch(`${SUPABASE_URL}/auth/v1/user`,{headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${token}`}});
+  if(!u.ok)return null;const user=await u.json();
+  const p=await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}&select=nick,player_no,banned`,{headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${token}`}});
+  const rows=p.ok?await p.json():[];const prof=rows[0];if(!prof)return null;
+  return{uid:user.id,nick:prof.nick,playerNo:prof.player_no,banned:!!prof.banned};
+}
+
+// ---------------------------------------------------------------- Denetim (saf fonksiyonlar, testli)
+const num=v=>typeof v==='number'&&Number.isFinite(v);
+export function checkState(prev,s,now){
+  if(!s||!num(s.x)||!num(s.y)||!num(s.hp))return'bad';
+  if(prev&&prev.x!==undefined){const dt=Math.max(.05,(now-prev.at)/1000),d=Math.hypot(s.x-prev.x,s.y-prev.y);
+    // Harita içi ışınlanma (yeniden doğma, liman) 3000 birimden uzun olur; arada kalan aşırı hız şüphelidir
+    if(d<3000&&d/dt>LIMITS.maxSpeed*1.6+200)return'speed';}
+  return'ok';
+}
+export function checkFire(f){if(!f||!num(f.damage)||!num(f.x)||!num(f.y)||typeof f.to!=='string')return'bad';if(f.damage<0||f.damage>LIMITS.maxHit)return'damage';return'ok';}
+export class Rate{constructor(perWindow,windowMs){this.n=perWindow;this.w=windowMs;this.t=[];}hit(now){while(this.t.length&&now-this.t[0]>this.w)this.t.shift();if(this.t.length>=this.n)return false;this.t.push(now);return true;}}
+
+// ---------------------------------------------------------------- Sunucu
+const seas=new Map(); // ad → Set<Client>
+const all=new Set();
+const log=(...a)=>console.log(new Date().toISOString(),...a);
+const suspect=(c,why,extra='')=>{c.strikes++;log('ŞÜPHELİ',`#${c.playerNo}`,c.nick,why,extra,`(uyarı ${c.strikes})`);if(c.strikes>=30){log('ATILDI',`#${c.playerNo}`,c.nick);c.ws.close(4003,'hile');}};
+const send=(c,o)=>{if(c.ws.readyState===1)c.ws.send(typeof o==='string'?o:JSON.stringify(o));};
+const toSea=(c,o,self=false)=>{const room=seas.get(c.sea);if(!room)return;const s=JSON.stringify(o);for(const x of room)if(self||x!==c)send(x,s);};
+const toAll=(c,o)=>{const s=JSON.stringify(o);for(const x of all)if(x!==c&&x.uid)send(x,s);};
+function leaveSea(c){if(!c.sea)return;const room=seas.get(c.sea);if(room){room.delete(c);if(!room.size)seas.delete(c.sea);}if(c.netId)toSea(c,{t:'leave',id:c.netId});c.sea='';c.last=null;}
+
+const httpServer=http.createServer((q,r)=>{r.writeHead(200,{'content-type':'application/json','access-control-allow-origin':'*'});
+  r.end(JSON.stringify({ok:true,name:'Pirate Rage oyun sunucusu',online:[...all].filter(c=>c.uid).length,seas:Object.fromEntries([...seas].map(([k,v])=>[k,v.size])),uptime:Math.round((Date.now()-started)/1000)}));});
+const wss=new WebSocketServer({server:httpServer,path:'/ws',maxPayload:16*1024});
+wss.on('connection',ws=>{
+  const c={ws,uid:'',nick:'',playerNo:0,netId:'',sea:'',last:null,strikes:0,rState:new Rate(LIMITS.statesPerSec,1000),rFire:new Rate(LIMITS.firesPerSec,1000),rChat:new Rate(LIMITS.chatPerMin,60000),rMsg:new Rate(60,1000)};
+  all.add(c);const authTimer=setTimeout(()=>{if(!c.uid)ws.close(4001,'giriş yok');},10000);
+  ws.on('message',async raw=>{const now=Date.now();if(!c.rMsg.hit(now)){suspect(c,'mesaj seli');return;}
+    let m;try{m=JSON.parse(String(raw));}catch{return;}if(!m||typeof m.t!=='string')return;
+    if(m.t==='auth'){if(c.uid)return;const who=await verifyToken(String(m.token||'')).catch(()=>null);
+      if(!who){ws.close(4001,'giriş geçersiz');return;}if(who.banned){ws.close(4002,'hesap kapalı');return;}
+      for(const x of all)if(x.uid===who.uid&&x!==c)x.ws.close(4004,'başka yerden bağlanıldı');
+      Object.assign(c,who);c.netId=String(m.netId||'').slice(0,16)||Math.random().toString(36).slice(2,10);clearTimeout(authTimer);
+      send(c,{t:'hello',id:c.netId,nick:c.nick,playerNo:c.playerNo});log('GİRİŞ',`#${c.playerNo}`,c.nick);return;}
+    if(!c.uid)return;
+    switch(m.t){
+      case'join':{const name=String(m.sea||'').slice(0,40);if(name===c.sea)return;leaveSea(c);if(!name)return;
+        const room=seas.get(name)??new Set();if(room.size>=LIMITS.maxPerSea){send(c,{t:'full'});return;}room.add(c);seas.set(name,room);c.sea=name;send(c,{t:'joined',sea:name});return;}
+      case'state':{if(!c.sea||!c.rState.hit(now))return;const s=m.d;const v=checkState(c.last,s,now);if(v==='bad')return;if(v==='speed')suspect(c,'hız',`${Math.round(s.x)},${Math.round(s.y)}`);
+        c.last={x:s.x,y:s.y,at:now};s.id=c.netId;if('nick' in s)s.nick=c.nick;toSea(c,{t:'state',d:s});return;}
+      case'fire':{if(!c.sea||!c.rFire.hit(now)){suspect(c,'atış hızı');return;}const f=m.d;const v=checkFire(f);if(v!=='ok'){suspect(c,'hasar',String(f?.damage));return;}f.from=c.netId;toSea(c,{t:'fire',d:f});return;}
+      case'sunk':{if(!c.sea)return;const s=m.d||{};s.victim=c.netId;s.victimNick=c.nick;toSea(c,{t:'sunk',d:s});return;}
+      case'chat':{if(!c.rChat.hit(now))return;const text=String(m.d?.text||'').slice(0,LIMITS.chatLen).trim();if(!text)return;
+        toAll(c,{t:'chat',d:{nick:c.nick,tag:m.d?.tag??null,text,at:now}});return;}
+      case'bid':{const b=m.d||{};b.id=c.uid;b.nick=c.nick;toAll(c,{t:'bid',d:b});return;}
+      case'known':case'ask':{toAll(c,{t:m.t,d:m.d});return;}
+    }
+  });
+  ws.on('close',()=>{clearTimeout(authTimer);leaveSea(c);all.delete(c);if(c.uid)log('ÇIKIŞ',`#${c.playerNo}`,c.nick);});
+  ws.on('error',()=>{});
+});
+// Ölü bağlantıları temizle
+setInterval(()=>{for(const c of all){if(c.ws.isAlive===false){c.ws.terminate();continue;}c.ws.isAlive=false;try{c.ws.ping();}catch{}}},30000).unref();
+wss.on('connection',ws=>{ws.isAlive=true;ws.on('pong',()=>{ws.isAlive=true;});});
+if(process.env.NODE_ENV!=='test')httpServer.listen(PORT,'127.0.0.1',()=>log(`Oyun sunucusu ${PORT} portunda`));
