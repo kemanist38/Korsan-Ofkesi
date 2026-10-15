@@ -77,10 +77,12 @@ async function enter(sb:SupabaseClient,user:User,nick?:string){
     saveProfile({nick:prof.nick,changedAt:0,named:true});
     // İnci bakiyesi sunucudaki cüzdandan gelir; kayıttaki değer dikkate alınmaz
     const ACC='yedi-deniz-account-v1',readPearls=()=>{try{const a=JSON.parse(localStorage.getItem(ACC)||'null');return typeof a?.pearls==='number'?a.pearls:null;}catch{return null;}};
-    let pearlBase=Number((await sb.rpc('wallet_get')).data??0);
-    try{const a=JSON.parse(localStorage.getItem(ACC)||'null');if(a&&typeof a==='object'){a.pearls=pearlBase;localStorage.setItem(ACC,JSON.stringify(a));}}catch{}
+    const wallet=await sb.rpc('wallet_get');let pearlBase=Number(wallet.data??0);
+    // Cüzdan tablosu henüz kurulmadıysa eski davranış (kayıttaki inci) sürer
+    if(wallet.error)session.pearlSyncOff=true;else try{const a=JSON.parse(localStorage.getItem(ACC)||'null');if(a&&typeof a==='object'){a.pearls=pearlBase;localStorage.setItem(ACC,JSON.stringify(a));}}catch{}
     session.pearlServerAdd=n=>{pearlBase+=n;};
-    const syncPearls=async()=>{if(session.pearlSyncOff)return;const cur=readPearls();if(cur===null||cur===pearlBase)return;
+    const walletOk=!wallet.error;
+    const syncPearls=async()=>{if(!walletOk||session.pearlSyncOff)return;const cur=readPearls();if(cur===null||cur===pearlBase)return;
       const {data,error:e}=await sb.rpc('wallet_sync',{p_spent:Math.max(pearlBase-cur,0),p_earned:Math.max(cur-pearlBase,0)});if(e)return;
       const server=Number(data);const fix=server-cur;pearlBase=server;if(fix)session.onPearlFix?.(fix);};
     session.account={uid:user.id,playerNo:prof.player_no,email:user.email??''};
