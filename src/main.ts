@@ -18,7 +18,7 @@ import {ACHIEVEMENTS,loadAchievements,saveAchievements,unlockReached,achievement
 import {loadDaily,saveDaily,dailyStatus,claimDaily,dailyReward,type DailyReward} from './daily';
 import {TREASURE_PARTS,PART_CHANCE,DIG_RADIUS,DIG_SECONDS,TREASURE_ICON,loadTreasure,saveTreasure,treasureReward} from './treasure';
 import {EQUIPMENT,EQUIP_SLOTS,RARITY_NAMES,equipById,equipStatText,equipTotals,equipIconStyle,type EquipSlot} from './equipment';
-import {PEARL_PACKS,packTotal,priceText,VIP_PACKS,VIP_XP_BONUS,loadVipUntil,saveVipUntil,vipActive,vipDaysLeft,extendVip,VIP_DAY_MS} from './pearlShop';
+import {PEARL_PACKS,SHOPIER_LINKS,packTotal,priceText,VIP_PACKS,VIP_XP_BONUS,loadVipUntil,saveVipUntil,vipActive,vipDaysLeft,extendVip,VIP_DAY_MS} from './pearlShop';
 import {BOARDS,rankRows,rankPage,RANK_PAGE_SIZE,type BoardId,type RankPlayer,type RankFleet,type RankRow} from './leaderboard';
 import {redeem,loadRedeemed,saveRedeemed,rewardText,normalizeCode,type CouponReward} from './coupons';
 import {supa} from './supabase';
@@ -602,12 +602,16 @@ function renderPearlShop(){
   ui('vipStatus').textContent=isVip()?`AKTİF · ${vipDaysLeft(vipUntil)} gün kaldı`:'VİP değilsin';ui('vipStatus').classList.toggle('on',isVip());
   ui('vipPacks').innerHTML=VIP_PACKS.map(v=>`<article class="vip-pack" data-vip="${v.id}"><strong>${v.months} AY</strong><small>${v.months*30} gün VİP</small><button>${priceText(v.price)}</button></article>`).join('');
   ui('vipPacks').querySelectorAll<HTMLElement>('[data-vip]').forEach(el=>el.querySelector('button')!.onclick=()=>buyVip(el.dataset.vip!));
-  ui('pearlNote').textContent=ELITE_TEST_MODE?'Test modu: ödeme alınmaz, paket hemen hesabına eklenir.':'Ödemeler güvenli ödeme sağlayıcısı üzerinden alınır.';
+  ui('pearlNote').textContent=Object.values(SHOPIER_LINKS).some(Boolean)?`Ödemeler Shopier güvenli ödeme sayfasından alınır. Sipariş notuna oyuncu numaranı yaz: ${session.account?.playerNo??''}`:ELITE_TEST_MODE?'Test modu: ödeme alınmaz, paket hemen hesabına eklenir.':'Ödemeler güvenli ödeme sağlayıcısı üzerinden alınır.';
   ui('pearlPacks').querySelectorAll<HTMLElement>('[data-pack]').forEach(el=>el.querySelector('button')!.onclick=()=>buyPearlPack(el.dataset.pack!));}
 function buyVip(id:string){const v=VIP_PACKS.find(x=>x.id===id);if(!v)return;
   if(!ELITE_TEST_MODE){toast('Ödeme sistemi yakında açılacak');return;}
   vipUntil=extendVip(vipUntil,v.months);saveVipUntil(vipUntil);playCoins();rewardNotice(`VİP ${v.months} ay satın alındı · ${vipDaysLeft(vipUntil)} gün aktif`,'shop');renderPearlShop();}
 function buyPearlPack(id:string){const p=PEARL_PACKS.find(x=>x.id===id);if(!p)return;
+  const link=SHOPIER_LINKS[p.id];
+  if(link&&session.account){const no=session.account.playerNo;
+    if(!confirm(`${p.name} · ${priceText(p.price)}\n\nShopier güvenli ödeme sayfası açılacak.\nÖDEMEDE SİPARİŞ NOTUNA OYUNCU NUMARANI YAZ: ${no}\n(ya da oyundaki e-postanla öde)\n\nÖdeme tamamlanınca inci birkaç dakika içinde hesabına eklenir.`))return;
+    window.open(link,'_blank','noopener');return;}
   if(!ELITE_TEST_MODE){toast('Ödeme sistemi yakında açılacak');return;}
   state.pearls+=packTotal(p);saveAccount();updateUI();playCoins();rewardNotice(`${p.name} satın alındı · +${fmt(packTotal(p))} inci`,'shop');}
 ui('pearlResource').onclick=()=>showShop('pearlShopOverlay');

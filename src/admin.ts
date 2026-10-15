@@ -16,6 +16,7 @@ async function main(){
   <h2>Oyuncular</h2><div class="card"><div class="row"><input id="q" placeholder="Kaptan adı, e-posta veya oyuncu no" style="flex:1;min-width:220px"/><button id="find">ARA</button></div><p class="msg" id="msg"></p><div class="table-wrap"><table><thead><tr><th>No</th><th>Kaptan</th><th>E-posta</th><th>İnci</th><th>Durum</th><th>İşlem</th></tr></thead><tbody id="rows"></tbody></table></div></div>
   <h2>Sunucu durumu</h2><div class="card"><p id="stats" class="muted">Yükleniyor…</p></div>
   <h2>Şüpheli oyuncular <button id="fRefresh">YENİLE</button></h2><div class="card"><p class="muted">Oyun sunucusunun yakaladığı hız, hasar, atış ve mesaj seli denemeleri (son 300). Aynı oyuncu çok kez görünüyorsa incele.</p><p class="msg" id="fMsg"></p><div class="table-wrap"><table><thead><tr><th>Zaman</th><th>Oyuncu</th><th>Sebep</th><th>Ayrıntı</th><th>Tekrar</th></tr></thead><tbody id="fRows"></tbody></table></div></div>
+  <h2>Shopier siparişleri <button id="oRefresh">YENİLE</button></h2><div class="card"><p class="muted">"Eşleşmedi": oyuncu bulunamadı (not/e-posta yok). Oyuncu numarasını sorup YÜKLE ile inciyi elle ver.</p><p class="msg" id="oMsg"></p><div class="table-wrap"><table><thead><tr><th>Zaman</th><th>Sipariş</th><th>Tutar</th><th>Paket</th><th>E-posta / Not</th><th>Durum</th><th></th></tr></thead><tbody id="oRows"></tbody></table></div></div>
   <h2>Kupon oluştur</h2><div class="card"><div class="row"><input id="cCode" placeholder="KOD" style="text-transform:uppercase"/><input id="cPearls" type="number" min="0" placeholder="İnci"/><input id="cGold" type="number" min="0" placeholder="Altın"/><input id="cUntil" type="date" title="Son gün"/><input id="cMax" type="number" min="1" placeholder="Toplam kullanım (boş: sınırsız)"/><input id="cNote" placeholder="Not"/><button id="cAdd">KUPON EKLE</button></div><p class="msg" id="cMsg"></p></div>`;
   const msg=(id:string,t:string,bad=false)=>{const m=document.getElementById(id)!;m.textContent=t;m.classList.toggle('bad',bad);};
   const val=(id:string)=>(document.getElementById(id) as HTMLInputElement).value.trim();
@@ -47,6 +48,13 @@ async function main(){
       const d=await r.json() as {online:number;seas:Record<string,number>;uptime:number};
       el.innerHTML=`<b>${d.online}</b> kaptan çevrim içi · sunucu ${Math.floor(d.uptime/3600)} sa ${Math.floor(d.uptime%3600/60)} dk açık<br>${Object.entries(d.seas).map(([k,v])=>`${esc(k.replace(/^sea-/,''))}: ${v}`).join(' · ')||'Denizlerde kimse yok'}`;}
     catch(e){el.textContent=`Oyun sunucusuna ulaşılamadı (${(e as Error).message})`;}};
-  void find();void flagsLoad();void statsLoad();setInterval(()=>void statsLoad(),15000);
+  type Order={order_id:string;email:string|null;note:string|null;price:number;pack:string|null;pearls:number|null;status:string;at:string};
+  const ordersLoad=async()=>{const {data,error}=await sb.from('shopier_orders').select('order_id,email,note,price,pack,pearls,status,at').order('at',{ascending:false}).limit(100);
+    if(error){msg('oMsg',errText(error.message),true);return;}const rows=(data??[]) as Order[];msg('oMsg',rows.length?`${rows.length} sipariş`:'Henüz sipariş yok');
+    document.getElementById('oRows')!.innerHTML=rows.map(o=>`<tr><td>${new Date(o.at).toLocaleString('tr-TR')}</td><td>${esc(o.order_id)}</td><td>${fmt(o.price)} ₺</td><td>${esc(o.pack??'-')}${o.pearls?` · ${fmt(o.pearls)} inci`:''}</td><td>${esc(o.email??'')}<br><small>${esc(o.note??'')}</small></td><td>${o.status==='yüklendi'?'✔ yüklendi':`<span class="banned">${esc(o.status)}</span>`}</td><td>${o.status==='eşleşmedi'?`<button class="ok" data-assign="${esc(o.order_id)}">YÜKLE</button>`:''}</td></tr>`).join('');
+    document.querySelectorAll<HTMLButtonElement>('[data-assign]').forEach(b=>b.onclick=async()=>{const no=Number(prompt('İnci hangi oyuncu numarasına yüklensin?')||0);if(!no)return;
+      const {error:e}=await sb.rpc('admin_order_assign',{p_order:b.dataset.assign,p_player_no:no});if(e){msg('oMsg',errText(e.message),true);return;}msg('oMsg',`Sipariş #${no} oyuncusuna yüklendi`);void ordersLoad();});};
+  document.getElementById('oRefresh')!.onclick=()=>void ordersLoad();
+  void find();void flagsLoad();void statsLoad();void ordersLoad();setInterval(()=>void statsLoad(),15000);
 }
 void main();

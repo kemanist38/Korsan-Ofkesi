@@ -4,6 +4,7 @@
 // Çalıştırma: node game-server.cjs  (ortam: PORT=3000, SUPABASE_URL, SUPABASE_ANON)
 import http from 'node:http';
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import {WebSocketServer} from 'ws';
 
 const PORT=Number(process.env.PORT||3000);
@@ -12,6 +13,8 @@ const SUPABASE_ANON=process.env.SUPABASE_ANON||'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpX
 // Sınırlar
 export const LIMITS={maxHit:400000,maxSpeed:900,firesPerSec:12,statesPerSec:15,chatPerMin:20,chatLen:200,maxPerSea:300};
 const started=Date.now();
+// Shopier OSB bilgileri ve sunucu anahtarı yalnızca VPS'teki /opt/game/.env dosyasında durur
+const OSB_USER=process.env.SHOPIER_OSB_USER||'',OSB_PASS=process.env.SHOPIER_OSB_PASS||'',SERVER_SECRET=process.env.SERVER_SECRET||'';
 
 // ---------------------------------------------------------------- Kimlik doğrulama (Supabase oturum anahtarı)
 export async function verifyToken(token){
@@ -21,6 +24,22 @@ export async function verifyToken(token){
   const rows=p.ok?await p.json():[];const prof=rows[0];if(!prof)return null;
   return{uid:user.id,nick:prof.nick,playerNo:prof.player_no,banned:!!prof.banned};
 }
+
+// ---------------------------------------------------------------- Shopier Otomatik Sipariş Bildirimi
+// Shopier POST eder: res (base64 JSON) ve hash = HMAC-SHA256(res + kullanıcı, şifre). İmza tutarsa sipariş veritabanına işlenir.
+export function verifyOsb(res,hash,user,pass){if(!res||!hash||!user||!pass)return false;const raw=crypto.createHmac('sha256',pass).update(res+user).digest();
+  const hex=raw.toString('hex'),b64=raw.toString('base64'),h=String(hash);
+  const eq=(a,b)=>a.length===b.length&&crypto.timingSafeEqual(Buffer.from(a),Buffer.from(b));return eq(h.toLowerCase(),hex)||eq(h,b64);}
+export function parseOsb(res){const d=JSON.parse(Buffer.from(res,'base64').toString('utf8'));const pick=(...k)=>{for(const x of k)if(d[x]!==undefined&&d[x]!==null&&d[x]!=='')return d[x];return null;};
+  return{order:String(pick('orderid','order_id','platform_order_id','id')??''),email:pick('email','buyer_email','buyeremail'),note:pick('customernote','customer_note','note','buyernote'),
+    price:Number(String(pick('price','total','total_order_value','amount')??'0').replace(',','.')),test:['1','true',1,true].includes(pick('istest','is_test','test')),keys:Object.keys(d)};}
+async function handleOsb(body){const form=new URLSearchParams(body),res=form.get('res')||'',hash=form.get('hash')||'';
+  if(!verifyOsb(res,hash,OSB_USER,OSB_PASS)){log('SHOPIER imza geçersiz');return false;}
+  let o;try{o=parseOsb(res);}catch{log('SHOPIER veri okunamadı');return false;}
+  log('SHOPIER sipariş',o.order,o.price,'alanlar:',o.keys.join(','));
+  const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/shopier_credit`,{method:'POST',headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`,'content-type':'application/json'},
+    body:JSON.stringify({p_secret:SERVER_SECRET,p_order:o.order,p_email:o.email,p_note:o.note,p_price:o.price,p_test:o.test})});
+  const st=r.ok?await r.json():`hata ${r.status} ${await r.text()}`;log('SHOPIER sonuç',o.order,st);return r.ok;}
 
 // ---------------------------------------------------------------- Denetim (saf fonksiyonlar, testli)
 const num=v=>typeof v==='number'&&Number.isFinite(v);
@@ -53,6 +72,8 @@ function leaveSea(c){if(!c.sea)return;const room=seas.get(c.sea);if(room){room.d
 
 const httpServer=http.createServer(async(q,r)=>{const cors={'access-control-allow-origin':'*','access-control-allow-headers':'authorization','content-type':'application/json'};
   if(q.method==='OPTIONS'){r.writeHead(204,cors);r.end();return;}
+  if(q.method==='POST'&&q.url?.startsWith('/shopier/osb')){let body='';q.on('data',d=>{body+=d;if(body.length>100000)q.destroy();});
+    q.on('end',async()=>{const ok=await handleOsb(body).catch(e=>{log('SHOPIER hata',e?.message);return false;});r.writeHead(ok?200:400,{'content-type':'text/plain'});r.end(ok?'success':'fail');});return;}
   if(q.url?.startsWith('/flags')){const token=String(q.headers.authorization||'').replace(/^Bearer /,'');
     if(!token||!(await isAdminToken(token).catch(()=>false))){r.writeHead(403,cors);r.end('{"error":"yetki yok"}');return;}
     r.writeHead(200,cors);r.end(JSON.stringify([...flags].reverse().slice(0,300)));return;}
