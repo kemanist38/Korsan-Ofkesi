@@ -16,7 +16,6 @@ import {drawSeaSparkle,drawNpcShip,drawMonsterSheet,drawChestSprite,drawIslandSp
 import {MAPS,GRID,THEMES,NPCS,MONSTERS,QUESTS,QUEST_COOLDOWN_MS,FLEET,FLEET_SCALE,WORLD_WIDTH,WORLD_HEIGHT,MAX_LEVEL,xpNeed,neighbor,bossFor,BOSS_KILLS,BOSS_ATLAS,BOSS_ATLAS_COLS,MAP_KEYS,type BossDef,type MapDef,tierOf,fleetTower,fleetReward,PORTRAIT_COUNT,PORTRAIT_COLS,PORTRAIT_ATLAS,coordLabel,GRID_COLS,GRID_ROWS,CELL_W,CELL_H,colName,rowName,type MapKey,type WorldIsland,type NpcDef,type MonsterDef,type Dir,type QuestDef} from './campaign';
 import {ACHIEVEMENTS,loadAchievements,saveAchievements,unlockReached,achievementBonus,bonusText,badgeStyle,type AchStat} from './achievements';
 import {loadDaily,saveDaily,dailyStatus,claimDaily,dailyReward} from './daily';
-import {loadSparkleLimit,saveSparkleLimit,canCollect,collect as collectSparkle,resetsIn,SPARKLE_DAILY_LIMIT} from './sparkle-limit';
 import {TREASURE_PARTS,PART_CHANCE,DIG_RADIUS,DIG_SECONDS,TREASURE_ICON,loadTreasure,saveTreasure,treasureReward} from './treasure';
 import {EQUIPMENT,EQUIP_SLOTS,RARITY_NAMES,equipById,equipStatText,equipTotals,equipIconStyle,type EquipSlot} from './equipment';
 import {PEARL_PACKS,SHOPIER_LINKS,packTotal,priceText} from './pearlShop';
@@ -2307,11 +2306,10 @@ function updateLootChests(dt:number){
 }
 // Deniz pırıltıları (Seafight tarzı): denizde parlayan inciler; üzerinden geçince küçük ödül verir, yenisi rastgele yerde çıkar.
 function spawnSparkle(){const p=randomSeaPoint(200);sparkles.push({x:p.x,y:p.y,seed:Math.random(),born:performance.now()});}
-let sparkleLimit=loadSparkleLimit(),sparkleWarnAt=0;
 function updateSparkles(dt:number){
   for(let i=sparkles.length-1;i>=0;i--){const g=sparkles[i];if(dist(g,player)>SPARKLE_PICKUP)continue;
-    const now=Date.now();if(!canCollect(sparkleLimit,now)){if(now-sparkleWarnAt>8000){sparkleWarnAt=now;const left=resetsIn(sparkleLimit,now),h=Math.floor(left/3_600_000),m=Math.ceil(left%3_600_000/60000);toast(`Günlük pırıltı toplama limitine ulaştın (${SPARKLE_DAILY_LIMIT}) · ${h?`${h} sa `:''}${m} dk sonra yenilenir`);}continue;}
-    sparkleLimit=collectSparkle(sparkleLimit,now);saveSparkleLimit(sparkleLimit);sparkles.splice(i,1);playCoins();
+    // Pırıltı toplama sınırsız
+    sparkles.splice(i,1);playCoins();
     const loot=1,light=NPCS[mapDef().npcs[0]],gold=Math.max(1,Math.round(light.gold*(.1+Math.random()*.1)*loot*goldMult())),xp=Math.max(1,Math.round(light.xp*.15)),pearl=Math.random()<.2?1:0;
     state.gold+=gold;state.fame+=xp;state.pearls+=pearl;recordQuestProgress('sparkle',currentMap);saveAccount();playCoins();
     for(let n=0;n<8;n++){const a=Math.random()*Math.PI*2,sp=30+Math.random()*50;particles.push({x:g.x,y:g.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:.5,maxLife:.5,kind:'foam'});}
