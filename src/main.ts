@@ -20,7 +20,8 @@ import {TREASURE_PARTS,PART_CHANCE,DIG_RADIUS,DIG_SECONDS,TREASURE_ICON,loadTrea
 import {EQUIPMENT,EQUIP_SLOTS,RARITY_NAMES,equipById,equipStatText,equipTotals,equipIconStyle,type EquipSlot} from './equipment';
 import {PEARL_PACKS,packTotal,priceText,VIP_PACKS,VIP_XP_BONUS,loadVipUntil,saveVipUntil,vipActive,vipDaysLeft,extendVip,VIP_DAY_MS} from './pearlShop';
 import {BOARDS,rankRows,rankPage,RANK_PAGE_SIZE,type BoardId,type RankPlayer,type RankFleet,type RankRow} from './leaderboard';
-import {redeem,loadRedeemed,saveRedeemed,rewardText} from './coupons';
+import {redeem,loadRedeemed,saveRedeemed,rewardText,normalizeCode,type CouponReward} from './coupons';
+import {supa} from './supabase';
 import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
 import {loadLevelQuest,saveLevelQuest,levelQuestDone,levelQuestKill,levelQuestGoal,needsLevelQuest,levelQuestMap} from './level-quest';
 import {SPY_COST,SPY_SHIELD_PRICE,loadSpy,sendSpy,type SpyRival} from './spy';
@@ -1485,10 +1486,19 @@ function closeRanks(){ui('rankOverlay').classList.remove('open');}
 const redeemedCoupons=loadRedeemed();
 function openCoupon(){(ui('couponInput') as HTMLInputElement).value='';ui('couponResult').textContent='';ui('couponResult').className='coupon-result';ui('couponOverlay').classList.add('open');setTimeout(()=>(ui('couponInput') as HTMLInputElement).focus(),50);}
 function closeCoupon(){ui('couponOverlay').classList.remove('open');}
-async function redeemCoupon(){const input=ui('couponInput') as HTMLInputElement,out=ui('couponResult'),r=await redeem(input.value,redeemedCoupons,dayKey());
+// Hesapla girişte kupon sunucuda kontrol edilir (kullanım sınırı, hesap başına bir kez); inci doğrudan cüzdana eklenir
+// Test modunda her açılışta bol inci verildiği için cüzdan eşitlemesi kapalı
+session.pearlSyncOff=ELITE_TEST_MODE;
+session.onPearlFix=d=>{state.pearls=Math.max(0,state.pearls+d);saveAccount();updateUI();};
+async function redeemCoupon(){const input=ui('couponInput') as HTMLInputElement,out=ui('couponResult');
+  if(session.account){const sb=supa();if(!sb)return;if(normalizeCode(input.value).length<4){out.textContent='Kupon kodunu gir';out.className='coupon-result bad';return;}
+    const {data,error}=await sb.rpc('coupon_redeem',{p_code:input.value});if(error){out.textContent=error.message.replace(/^.*?: /,'')||'Kupon kullanılamadı';out.className='coupon-result bad';return;}
+    const w=(data??{}) as CouponReward;session.pearlServerAdd?.(w.pearls??0);applyCoupon(w);return;}
+  const r=await redeem(input.value,redeemedCoupons,dayKey());
   if(!r.ok){out.textContent=r.error;out.className='coupon-result bad';return;}
-  const w=r.coupon.reward;state.pearls+=w.pearls??0;state.gold+=w.gold??0;state.fame+=w.xp??0;state.elitePoints+=w.ep??0;if(w.vipDays){vipUntil=Math.max(vipUntil,Date.now())+w.vipDays*VIP_DAY_MS;saveVipUntil(vipUntil);}
-  saveRedeemed(redeemedCoupons);saveAccount();updateUI();playCoins();input.value='';out.textContent=`Kupon kullanıldı: ${rewardText(w)}`;out.className='coupon-result ok';rewardNotice(`Kupon kullanıldı · ${rewardText(w)}`);}
+  saveRedeemed(redeemedCoupons);applyCoupon(r.coupon.reward);}
+function applyCoupon(w:CouponReward){const input=ui('couponInput') as HTMLInputElement,out=ui('couponResult');state.pearls+=w.pearls??0;state.gold+=w.gold??0;state.fame+=w.xp??0;state.elitePoints+=w.ep??0;if(w.vipDays){vipUntil=Math.max(vipUntil,Date.now())+w.vipDays*VIP_DAY_MS;saveVipUntil(vipUntil);}
+  saveAccount();updateUI();playCoins();input.value='';out.textContent=`Kupon kullanıldı: ${rewardText(w)}`;out.className='coupon-result ok';rewardNotice(`Kupon kullanıldı · ${rewardText(w)}`);}
 function openSettings(){rebinding=null;renderSettings();ui('settingsOverlay').classList.add('open');}
 function closeSettings(){rebinding=null;ui('settingsOverlay').classList.remove('open');}
 function refreshBindHints(){document.querySelectorAll<HTMLElement>('[data-bind]').forEach(el=>{el.textContent=keyLabel(settings.binds[el.dataset.bind as ActionId]);});}
