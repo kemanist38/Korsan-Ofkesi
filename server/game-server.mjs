@@ -33,7 +33,13 @@ export function verifyOsb(res,hash,user,pass){if(!res||!hash||!user||!pass)retur
 export function parseOsb(res){const d=JSON.parse(Buffer.from(res,'base64').toString('utf8'));const pick=(...k)=>{for(const x of k)if(d[x]!==undefined&&d[x]!==null&&d[x]!=='')return d[x];return null;};
   return{order:String(pick('orderid','order_id','platform_order_id','id')??''),email:pick('email','buyer_email','buyeremail'),note:pick('customernote','customer_note','note','buyernote'),
     price:Number(String(pick('price','total','total_order_value','amount')??'0').replace(',','.')),test:['1','true',1,true].includes(pick('istest','is_test','test')),keys:Object.keys(d)};}
-async function handleOsb(body,ctype){const form=new URLSearchParams(body),res=form.get('res')||'',hash=form.get('hash')||'';
+// Shopier alanları multipart/form-data ya da urlencoded gönderebilir
+export function parseForm(body,ctype=''){const m=/boundary=(?:"([^"]+)"|([^;]+))/i.exec(ctype);if(!m)return new URLSearchParams(body);
+  const out=new URLSearchParams(),b='--'+(m[1]||m[2]).trim();
+  for(const part of body.split(b)){const i=part.indexOf('\r\n\r\n');if(i<0)continue;const head=part.slice(0,i),name=/name="([^"]+)"/i.exec(head)?.[1];if(!name)continue;
+    out.append(name,part.slice(i+4).replace(/\r\n$/,''));}
+  return out;}
+async function handleOsb(body,ctype){const form=parseForm(body,ctype),res=form.get('res')||'',hash=form.get('hash')||'';
   // Teşhis: gelen alanların adları ve uzunlukları (değerler yazılmaz)
   log('SHOPIER istek geldi',ctype||'-','alanlar:',[...form.keys()].map(k=>`${k}(${(form.get(k)||'').length})`).join(',')||`gövde ${body.length} bayt`,'ayar:',OSB_USER?'kullanıcı var':'KULLANICI YOK',OSB_PASS?'şifre var':'ŞİFRE YOK',SERVER_SECRET?'anahtar var':'ANAHTAR YOK');
   if(!verifyOsb(res,hash,OSB_USER,OSB_PASS)){log('SHOPIER imza geçersiz');return false;}

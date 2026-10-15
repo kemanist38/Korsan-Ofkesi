@@ -3650,6 +3650,7 @@ __export(game_server_exports, {
   checkFire: () => checkFire,
   checkState: () => checkState,
   isAdminToken: () => isAdminToken,
+  parseForm: () => parseForm,
   parseOsb: () => parseOsb,
   verifyOsb: () => verifyOsb,
   verifyToken: () => verifyToken
@@ -3707,8 +3708,21 @@ function parseOsb(res) {
     keys: Object.keys(d)
   };
 }
+function parseForm(body, ctype = "") {
+  const m = /boundary=(?:"([^"]+)"|([^;]+))/i.exec(ctype);
+  if (!m) return new URLSearchParams(body);
+  const out = new URLSearchParams(), b = "--" + (m[1] || m[2]).trim();
+  for (const part of body.split(b)) {
+    const i = part.indexOf("\r\n\r\n");
+    if (i < 0) continue;
+    const head = part.slice(0, i), name = /name="([^"]+)"/i.exec(head)?.[1];
+    if (!name) continue;
+    out.append(name, part.slice(i + 4).replace(/\r\n$/, ""));
+  }
+  return out;
+}
 async function handleOsb(body, ctype) {
-  const form = new URLSearchParams(body), res = form.get("res") || "", hash = form.get("hash") || "";
+  const form = parseForm(body, ctype), res = form.get("res") || "", hash = form.get("hash") || "";
   log("SHOPIER istek geldi", ctype || "-", "alanlar:", [...form.keys()].map((k) => `${k}(${(form.get(k) || "").length})`).join(",") || `g\xF6vde ${body.length} bayt`, "ayar:", OSB_USER ? "kullan\u0131c\u0131 var" : "KULLANICI YOK", OSB_PASS ? "\u015Fifre var" : "\u015E\u0130FRE YOK", SERVER_SECRET ? "anahtar var" : "ANAHTAR YOK");
   if (!verifyOsb(res, hash, OSB_USER, OSB_PASS)) {
     log("SHOPIER imza ge\xE7ersiz");
@@ -4017,6 +4031,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   checkFire,
   checkState,
   isAdminToken,
+  parseForm,
   parseOsb,
   verifyOsb,
   verifyToken
