@@ -4,7 +4,7 @@
 import {dayKey} from './daily';
 export const FESTIVAL_START='';
 export const FESTIVAL_DAYS=7;
-export type FestivalReward={gold?:number;pearls?:number;chain?:number;fire?:number;breaker?:number;explosive?:number;leech?:number;heal?:number;powder?:number;shield?:number;speed?:number;mine?:number;design?:boolean;equip?:'rare'};
+export type FestivalReward={gold?:number;pearls?:number;chain?:number;fire?:number;breaker?:number;explosive?:number;leech?:number;heal?:number;powder?:number;shield?:number;speed?:number;mine?:number;design?:boolean;equip?:'epic'};
 // Festival günlük ödülleri (tools/simulate-rewards.cjs: 7 gün ≈ 3.500 inci değeri + 900 bin altın).
 // Kaçırılan günün ödülü yanar; oyuncu sonraki günden devam eder.
 export const FESTIVAL_REWARDS:FestivalReward[]=[
@@ -16,8 +16,8 @@ export const FESTIVAL_REWARDS:FestivalReward[]=[
   {gold:600_000,leech:15_000,mine:30},
   {pearls:500,heal:20_000},
 ];
-// Büyük ödül: yalnızca 7 günün hepsine giren oyuncuya, 7. gün ödülüyle birlikte (≈ 3.100 inci değeri + tasarım + nadir donanım)
-export const FESTIVAL_GRAND:FestivalReward={pearls:2_500,explosive:30_000,design:true,equip:'rare'};
+// Büyük ödül: yalnızca 7 günün hepsine giren oyuncuya, 7. gün ödülüyle birlikte (≈ 3.100 inci değeri + tasarım + destansı donanım)
+export const FESTIVAL_GRAND:FestivalReward={pearls:2_500,explosive:30_000,design:true,equip:'epic'};
 export type FestivalState={start:string;claimed:number[]};
 const KEY='yedi-deniz-festival-v1';
 export function loadFestival(testMode:boolean,now=new Date()):FestivalState|null{

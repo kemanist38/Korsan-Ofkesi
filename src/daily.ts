@@ -1,6 +1,6 @@
-// Günlük giriş ödülü: 7 günlük takvim (7. gün rastgele bir nadir donanım parçası da verir). Her takvim günü bir kez toplanır; art arda gelindikçe sonraki güne geçilir,
+// Günlük giriş ödülü: 7 günlük takvim (7. gün rastgele bir sıradan donanım parçası da verir). Her takvim günü bir kez toplanır; art arda gelindikçe sonraki güne geçilir,
 // bir gün kaçırılırsa takvim 1. güne döner, 7. günden sonra yeniden başlar. Altın ödülü kaptan seviyesiyle büyür.
-export type DailyReward={gold?:number;pearls?:number;chain?:number;fire?:number;breaker?:number;explosive?:number;leech?:number;heal?:number;powder?:number;shield?:number;speed?:number;mine?:number;equip?:'common'|'rare'};
+export type DailyReward={gold?:number;pearls?:number;chain?:number;fire?:number;breaker?:number;explosive?:number;leech?:number;heal?:number;powder?:number;shield?:number;speed?:number;mine?:number;equip?:'common'|'epic'};
 export type DailyState={last:string|null;streak:number};
 const STORAGE='yedi-deniz-daily-v1';
 export const dayKey=(d:Date)=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -19,7 +19,7 @@ export function claimDaily(s:DailyState,now=new Date()):DailyState{
   return{last:dayKey(now),streak:st.day};
 }
 // Değerler tools/simulate-rewards.cjs ile ayarlandı: tam hafta ≈ 1.360 inci değeri + seviyeye göre altın (hafif oyuncunun haftalık
-// gülle harcamasının ~%7'si). 7. gün en büyük ödül ve nadir donanım.
+// gülle harcamasının ~%7'si). 7. gün en büyük ödül ve sıradan donanım.
 export function dailyReward(day:number,level:number):DailyReward{
   const G=Math.round(1500*Math.pow(1.6,level-1));
   const week:DailyReward[]=[
@@ -29,7 +29,7 @@ export function dailyReward(day:number,level:number):DailyReward{
     {gold:G*2,explosive:6000,speed:20},
     {pearls:100,leech:6000},
     {gold:G*3,powder:200,shield:200,mine:10},
-    {pearls:300,gold:G*5,explosive:9000,fire:9000,equip:'rare'},
+    {pearls:300,gold:G*5,explosive:9000,fire:9000,equip:'common'},
   ];
   return week[day-1];
 }

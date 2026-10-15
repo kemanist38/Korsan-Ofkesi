@@ -480,3 +480,22 @@ html.touch .spy-go input{width:96px}
 html.touch .coord-go>span{display:none}
 html.touch .spy-go input{width:72px!important}
 html.touch .info-strip{gap:10px}
+/* Günün etkinliği rozeti (mini harita, dünya ikonunun yanında) ve haftalık takvim */
+.day-badge{position:absolute;left:286px;top:24px;pointer-events:auto;padding:3px 9px;border:1px solid #d8b268;border-radius:999px;background:linear-gradient(#3a2414,#1a0d08);color:#ffd27a;font:800 11px Inter,sans-serif;letter-spacing:.03em;white-space:nowrap;cursor:pointer;box-shadow:0 2px 6px #000a}
+.day-badge:hover{border-color:#ffe2a0;color:#fff2cc}
+.day-badge.live{animation:dayLive 1.2s ease-in-out infinite;border-color:#ff7a4a}
+@keyframes dayLive{50%{box-shadow:0 0 12px #ff5a1aaa}}
+.day-pop{display:none;position:absolute;left:286px;top:54px;z-index:60;width:290px;pointer-events:auto;padding:12px;border:1px solid #c9973d;border-radius:10px;background:linear-gradient(180deg,#24140bf5,#120a07f5);box-shadow:0 10px 30px #000c;color:#e9dcc2}
+.day-pop.open{display:block}
+.day-pop h4{margin:0 0 8px;font:700 13px Cinzel,serif;color:#f3c56b;letter-spacing:.1em}
+.day-pop ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+.day-pop li{display:grid;grid-template-columns:76px 1fr;gap:0 8px;padding:5px 7px;border-radius:6px;background:#0006;font-size:12px}
+.day-pop li b{grid-row:span 2;color:#cdbb98}.day-pop li span{font-weight:700;color:#ffd27a}.day-pop li small{color:#bfae8f;font-size:11px}
+.day-pop li.on{outline:1px solid #ffd27a;background:#3a2410aa}
+.day-pop button{margin-top:9px;width:100%;padding:7px;border:1px solid #ffd27a;border-radius:6px;background:linear-gradient(#7a1e12,#3a0c06);color:#ffe2a0;font:800 11px Inter;cursor:pointer}
+/* Koordinat ve casus kutuları: küçük ve net */
+.coord-go input,html.touch .coord-go input{font-size:11px!important;width:26px!important;font-weight:700}
+.spy-go input,html.touch .spy-go input{width:82px!important;font-size:11px!important;text-align:left!important;padding:0 5px!important}
+.spy-go input::placeholder{font-size:11px}
+/* Üst durum paneli şeride yakın */
+.top-status{top:-8px!important}
