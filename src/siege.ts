@@ -41,18 +41,23 @@ export function siegeProgress(s:SiegeSave,participants=4){const st=siegeStats(pa
   const done=s.destroyed.reduce((a,i)=>a+(INNER_TOWERS.includes(i)?st.innerHp:st.wallHp),0)+(s.result==='won'?st.commanderHp:s.commanderHp!=null?st.commanderHp-s.commanderHp:0);
   return Math.min(1,done/siegeTotalHp(participants));}
 
-// Katkı ödülü: kalenin tamamını tek başına yıkmak 60.000 TP, 40.000 altın ve 500 inci eder; pay oranında verilir.
-export const CONTRIB_POOL={xp:60_000,gold:40_000,pearls:500};
-export function contribReward(damage:number,participants=4){const share=Math.max(0,damage)/siegeTotalHp(participants);
-  return{xp:Math.round(CONTRIB_POOL.xp*share),gold:Math.round(CONTRIB_POOL.gold*share),pearls:Math.round(CONTRIB_POOL.pearls*share)};}
-// Zafer sandığı: kale düşerse, kalenin en az %2'si kadar hasar veren herkes alır
+// Katkı ödülü (seviyeye göre): her kaptanın "adil payı" 1/katılımcı. Adil payın %25'ini veren tam katılım tabanını alır,
+// üstüne verdiği pay oranında artar (adil payın 3 katında tavan). Simülasyon: node tools/simulate-siege.cjs
+export const SIEGE_LEVEL_XP=[0,20000,200000,500000,1500000,3200000,5800000,11400000,11400000];
+export function contribBase(level:number){const l=Math.max(1,Math.min(8,Math.round(level)));
+  return{xp:Math.round(SIEGE_LEVEL_XP[l]*.05),gold:Math.round(1500*Math.pow(1.6,l-1)*4),pearls:500+250*l};}
+export const CONTRIB_MIN=.25,CONTRIB_CAP=3;
+export function contribMult(damage:number,participants=4){const fair=siegeTotalHp(participants)/Math.max(1,participants),rel=Math.max(0,damage)/fair;
+  return rel<CONTRIB_MIN?.4*rel/CONTRIB_MIN:.4+.6*Math.min(CONTRIB_CAP,rel);}
+export function contribReward(damage:number,participants=4,level=8){const b=contribBase(level),m=contribMult(damage,participants);
+  return{xp:Math.round(b.xp*m),gold:Math.round(b.gold*m),pearls:Math.round(b.pearls*m)};}
+// Zafer sandığı: kale düşerse, kalenin en az %2'si kadar hasar veren herkes alır. Donanım çıkmaz; seviyeye göre büyür.
 export const CHEST_SHARE=.02;
 export const earnsChest=(damage:number,participants=4)=>damage>=siegeTotalHp(participants)*CHEST_SHARE;
 export const CHEST_AMMO=['explosive','breaker','leech','fire'] as const;
-export function victoryChest(rand=Math.random,equipIds:string[]=[]){
-  const a=Math.floor(rand()*CHEST_AMMO.length),b=(a+1+Math.floor(rand()*(CHEST_AMMO.length-1)))%CHEST_AMMO.length;
-  const equip=equipIds.length&&rand()<.15?equipIds[Math.floor(rand()*equipIds.length)]:null;
-  return{pearls:150,ammo:{[CHEST_AMMO[a]]:300,[CHEST_AMMO[b]]:300} as Partial<Record<typeof CHEST_AMMO[number],number>>,speed:10,equip};}
+export function victoryChest(rand=Math.random,level=8){const l=Math.max(1,Math.min(8,Math.round(level)));
+  const a=Math.floor(rand()*CHEST_AMMO.length),b=(a+1+Math.floor(rand()*(CHEST_AMMO.length-1)))%CHEST_AMMO.length,q=1500+500*l;
+  return{pearls:300+100*l,ammo:{[CHEST_AMMO[a]]:q,[CHEST_AMMO[b]]:q} as Partial<Record<typeof CHEST_AMMO[number],number>>,speed:20,mine:5+l,powder:100*l,shield:100*l};}
 // Katkı sıralaması (en çok hasar veren önce)
 export const ranking=(contrib:Record<string,number>)=>Object.entries(contrib).sort((a,b)=>b[1]-a[1]);
 

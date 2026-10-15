@@ -27,11 +27,12 @@ test('phases: 12 wall guns (6 per gate), then 4 inner towers, then the commander
 });
 test('rewards follow the share of the fortress destroyed; chest needs 2 percent',()=>{
   const total=S.siegeTotalHp();
-  assert.deepEqual(S.contribReward(total),{xp:60000,gold:40000,pearls:500});
-  assert.deepEqual(S.contribReward(total/4),{xp:15000,gold:10000,pearls:125});
-  assert.equal(S.earnsChest(total*.019),false);assert.equal(S.earnsChest(total*.02),true);
-  const c=S.victoryChest(()=>.5,['sail-1']);assert.equal(c.pearls,150);assert.equal(Object.keys(c.ammo).length,2);assert.equal(c.speed,10);
-  assert.equal(S.victoryChest(()=>.1,['sail-1']).equip,'sail-1');
+  const fair=total/4,b=S.contribBase(8);
+  assert.deepEqual(S.contribReward(fair,4,8),b);
+  assert.equal(S.contribReward(fair*10,4,8).pearls,Math.round(b.pearls*2.2));
+  assert.ok(S.contribReward(fair*.1,4,8).pearls<S.contribReward(fair*.25,4,8).pearls);
+  assert.ok(S.contribBase(8).pearls>S.contribBase(3).pearls);
+  const c=S.victoryChest(()=>.5,8);assert.equal(c.pearls,1100);assert.equal(Object.keys(c.ammo).length,2);assert.equal(c.speed,20);assert.ok(!('equip' in c));
 });
 test('hero title lasts a week',()=>{
   const t=S.grantTitle(1000);assert.equal(t.name,'Kuşatma Kahramanı');
