@@ -2,7 +2,7 @@
 // Cihaza özgü ayarlar (pencere yerleri, kısayol çubuğu, sohbet, ağ kimliği) senkronlanmaz.
 const PREFIX='yedi-deniz-';
 export const OWNER_KEY='yedi-deniz-owner';
-const LOCAL_ONLY=['yedi-deniz-dock-pos','yedi-deniz-frame-links','yedi-deniz-net-id','yedi-deniz-chat-v1',OWNER_KEY];
+const LOCAL_ONLY=['yedi-deniz-dock-pos','yedi-deniz-frame-links','yedi-deniz-net-id','yedi-deniz-chat-v1','yedi-deniz-chat-pos',OWNER_KEY];
 export const isSyncedKey=(k:string)=>k.startsWith(PREFIX)&&!LOCAL_ONLY.includes(k)&&!k.startsWith('yedi-deniz-bar-');
 export type SaveData=Record<string,string>;
 export function collectSave(st:Storage=localStorage):SaveData{const out:SaveData={};for(let i=0;i<st.length;i++){const k=st.key(i);if(k&&isSyncedKey(k)){const v=st.getItem(k);if(v!==null)out[k]=v;}}return out;}
