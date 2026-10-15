@@ -19,7 +19,10 @@ export type NetBid={hour:number;lot:string;amount:number;id:string;nick:string;a
 // Paylaşılan boss (yalnızca VPS sunucusunda): ortaya çıkış, can güncellemesi, batış (pay) ve süre dolunca kayboluş
 export type NetBoss={sea:string;id:string;hp:number;maxHp:number;x:number;y:number;left:number};
 export type NetBossDown={id:string;n:number;share:number;dmg:number};
-export type NetHandlers={boss?:(b:NetBoss)=>void;bossHp?:(id:string,hp:number)=>void;bossDown?:(d:NetBossDown)=>void;bossGone?:(id:string)=>void;state:(s:NetState)=>void;leave:(id:string)=>void;fire:(f:NetFire)=>void;sunk:(s:NetSunk)=>void;chat:(c:NetChat)=>void;bid?:(b:NetBid)=>void;bidAsk?:(hour:number)=>void;bidKnown?:(bids:NetBid[])=>void};
+// Paylaşılan filo adası: sahibi filo, kule canları ([can, üst can] ya da null) ve yıkık kaideler
+export type NetIsland={key:string;guild:number;tag:string;towers:([number,number]|null)[];ruins:Record<string,number>};
+export type NetHandlers={island?:(i:NetIsland)=>void;towerHp?:(key:string,s:[number,number][])=>void;towerDown?:(key:string,slot:number,by:string)=>void;
+  islandCaptured?:(d:{key:string;tag:string;by:string;nick:string})=>void;islandAlert?:(key:string)=>void;boss?:(b:NetBoss)=>void;bossHp?:(id:string,hp:number)=>void;bossDown?:(d:NetBossDown)=>void;bossGone?:(id:string)=>void;state:(s:NetState)=>void;leave:(id:string)=>void;fire:(f:NetFire)=>void;sunk:(s:NetSunk)=>void;chat:(c:NetChat)=>void;bid?:(b:NetBid)=>void;bidAsk?:(hour:number)=>void;bidKnown?:(bids:NetBid[])=>void};
 
 const ID_KEY='yedi-deniz-net-id';
 export const myNetId=(()=>{try{let v=sessionStorage.getItem(ID_KEY);if(!v){v=Math.random().toString(36).slice(2,10);sessionStorage.setItem(ID_KEY,v);}return v;}catch{return Math.random().toString(36).slice(2,10);}})();
@@ -51,6 +54,11 @@ async function connectWs(){const sb=supa();if(!sb||!session.account){fallback();
       case'sunk':handlers?.sunk(m.d as NetSunk);break;
       case'chat':handlers?.chat(m.d as NetChat);break;
       case'boss':handlers?.boss?.(m.d as NetBoss);break;
+      case'isle':handlers?.island?.(m.d as NetIsland);break;
+      case'thp':{const d=m.d as {key:string;s:[number,number][]};handlers?.towerHp?.(d.key,d.s);break;}
+      case'tdown':{const d=m.d as {key:string;slot:number;by:string};handlers?.towerDown?.(d.key,d.slot,d.by);break;}
+      case'icap':handlers?.islandCaptured?.(m.d as {key:string;tag:string;by:string;nick:string});break;
+      case'ialert':handlers?.islandAlert?.((m.d as {key:string}).key);break;
       case'bhp':{const d=m.d as {id:string;hp:number};handlers?.bossHp?.(d.id,d.hp);break;}
       case'bdown':handlers?.bossDown?.(m.d as NetBossDown);break;
       case'bgone':handlers?.bossGone?.((m.d as {id:string}).id);break;
@@ -110,3 +118,6 @@ export const sendKnownBids=(bids:NetBid[])=>useWs()?wsSend('known',{bids}):send(
 export const sharedBosses=()=>useWs()&&wsReady;
 export const sendBossKill=(need:number)=>wsSend('bkill',{need});
 export const sendBossHit=(dmg:number)=>wsSend('bhit',{dmg:Math.round(dmg)});
+export const sendTowerHit=(slot:number,dmg:number,heal=false)=>wsSend('thit',{slot,dmg:Math.round(dmg),heal});
+export const sendTowerBuilt=(key:string)=>wsSend('tbuilt',{key});
+export const sendGuildRefresh=()=>wsSend('gref');

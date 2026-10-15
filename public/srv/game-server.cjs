@@ -3648,10 +3648,15 @@ __export(game_server_exports, {
   BOSS_HIT_CAP: () => BOSS_HIT_CAP,
   BOSS_LIFE_MS: () => BOSS_LIFE_MS,
   FAR_EVERY: () => FAR_EVERY,
+  ISLAND_KEYS: () => ISLAND_KEYS,
   LIMITS: () => LIMITS,
   NEAR: () => NEAR,
+  RUIN_MS: () => RUIN_MS,
   Rate: () => Rate,
   TICK_MS: () => TICK_MS,
+  TOWER_HEAL_CAP: () => TOWER_HEAL_CAP,
+  TOWER_HIT_CAP: () => TOWER_HIT_CAP,
+  TOWER_SLOTS: () => TOWER_SLOTS,
   bossHit: () => bossHit,
   bossInfo: () => bossInfo,
   bossKill: () => bossKill,
@@ -3659,11 +3664,17 @@ __export(game_server_exports, {
   buildBatch: () => buildBatch,
   checkFire: () => checkFire,
   checkState: () => checkState,
+  guildOf: () => guildOf,
   isAdminToken: () => isAdminToken,
+  islandFromRow: () => islandFromRow,
+  islandInfo: () => islandInfo,
+  islands: () => islands,
+  loadIslands: () => loadIslands,
   osbMatch: () => osbMatch,
   parseForm: () => parseForm,
   parseOsb: () => parseOsb,
   seaTier: () => seaTier,
+  towerHit: () => towerHit,
   verifyOsb: () => verifyOsb,
   verifyToken: () => verifyToken
 });
@@ -3682,6 +3693,18 @@ var import_websocket_server = __toESM(require_websocket_server(), 1);
 // src/pve-balance.ts
 var BOSS_HP = [0, 165e3, 41e4, 98e4, 22e5, 3e6, 45e5, 58e5, 63e5];
 
+// src/fleetBalance.ts
+function fleetTowerStats(tier) {
+  const step = Math.max(0, Math.min(8, tier) - 2);
+  return {
+    hp: Math.round(378e5 * (1 + 0.025 * step)),
+    damage: Math.round(17600 * (1 + 0.015 * step)),
+    reload: 3,
+    range: 460,
+    ownDamage: Math.round(117300 * (1 + 0.015 * step))
+  };
+}
+
 // server/game-server.mjs
 var PORT = Number(process.env.PORT || 3e3);
 var SUPABASE_URL = process.env.SUPABASE_URL || "https://vidjvineafeiyoclioau.supabase.co";
@@ -3693,8 +3716,8 @@ var OSB_PASS = process.env.SHOPIER_OSB_PASS || "";
 var SERVER_SECRET = process.env.SERVER_SECRET || "";
 async function verifyToken(token) {
   if (process.env.BENCH_AUTH === "1" && token.startsWith("bench:")) {
-    const n = Number(token.slice(6));
-    return { uid: "b" + n, nick: "Bot" + n, playerNo: 9e4 + n, banned: false };
+    const [n, g] = token.slice(6).split(":").map(Number);
+    return { uid: "b" + n, nick: "Bot" + n, playerNo: 9e4 + n, banned: false, guildId: g || 0 };
   }
   const u = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${token}` } });
   if (!u.ok) return null;
@@ -3703,7 +3726,12 @@ async function verifyToken(token) {
   const rows = p.ok ? await p.json() : [];
   const prof = rows[0];
   if (!prof) return null;
-  return { uid: user.id, nick: prof.nick, playerNo: prof.player_no, banned: !!prof.banned };
+  return { uid: user.id, nick: prof.nick, playerNo: prof.player_no, banned: !!prof.banned, guildId: await guildOf(user.id).catch(() => 0) };
+}
+async function guildOf(uid) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/guild_members?user_id=eq.${uid}&select=guild_id`, { headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${SUPABASE_ANON}` } });
+  const rows = r.ok ? await r.json() : [];
+  return Number(rows[0]?.guild_id || 0);
 }
 function osbMatch(res, hash, user, pass) {
   if (!res || !hash || !user || !pass) return "";
@@ -3930,6 +3958,143 @@ function bossTick(now) {
     }
   }
 }
+var ISLAND_KEYS = ["2/1", "2/2", "3/1", "3/2", "4/1", "4/2", "5/1", "5/2", "6/1", "6/2", "7/1", "7/2", "8/1", "8/2"];
+var TOWER_SLOTS = 16;
+var RUIN_MS = 36e5;
+var TOWER_HIT_CAP = 4e5;
+var TOWER_HEAL_CAP = 3e5;
+var islands = /* @__PURE__ */ new Map();
+var islandTier = (k) => Number(String(k)[0]);
+function islandFromRow(row, tag = "", now = Date.now()) {
+  const tier = islandTier(row.map_key), max = fleetTowerStats(tier).hp, ruins = { ...row.ruins || {} };
+  let towers;
+  if (!row.guild_id) towers = Array.from({ length: TOWER_SLOTS }, (_, i) => ruins[i] && now - ruins[i] < RUIN_MS ? null : { type: "npc", hp: max, maxHp: max });
+  else towers = Array.from({ length: TOWER_SLOTS }, (_, i) => {
+    const t = (row.towers || [])[i];
+    return t && typeof t === "object" ? { type: t.type || "cannon", hp: Math.max(1, Math.min(max, Number(t.hp) || max)), maxHp: max } : null;
+  });
+  return { key: row.map_key, guild: Number(row.guild_id || 0), tag, towers, ruins, hitAt: 0, hpDirty: false, dirty: /* @__PURE__ */ new Set(), emptySince: towers.some(Boolean) ? 0 : now };
+}
+var islandInfo = (i) => ({ key: i.key, guild: i.guild, tag: i.tag, towers: i.towers.map((t) => t ? [Math.round(t.hp), t.maxHp] : null), ruins: i.ruins });
+var seaOfIsland = (k) => `sea-${k.replace("/", "-")}`;
+var islandOfSea = (name) => {
+  const m = /^sea-(\d)-(\d)$/.exec(name);
+  return m && Number(m[1]) >= 2 ? `${m[1]}/${m[2]}` : null;
+};
+function towerHit(key, slot, guildId, dmg, heal, now = Date.now()) {
+  const i = islands.get(key), t = i?.towers[slot];
+  if (!t || !(dmg > 0)) return null;
+  if (heal) {
+    if (!guildId || guildId !== i.guild || t.hp >= t.maxHp) return null;
+    t.hp = Math.min(t.maxHp, t.hp + Math.min(TOWER_HEAL_CAP, dmg));
+    i.dirty.add(slot);
+    i.hpDirty = true;
+    return { healed: true };
+  }
+  if (i.guild && guildId === i.guild) return null;
+  t.hp -= Math.min(TOWER_HIT_CAP, dmg);
+  i.hitAt = now;
+  i.dirty.add(slot);
+  i.hpDirty = true;
+  if (t.hp > 0) return {};
+  i.towers[slot] = null;
+  i.ruins[slot] = now;
+  const res = { destroyed: true, captured: false };
+  if (i.towers.every((x) => !x)) {
+    i.emptySince = now;
+    if (guildId) {
+      i.guild = guildId;
+      i.ruins = {};
+      res.captured = true;
+    }
+  }
+  return res;
+}
+async function dbRpc(fn, args) {
+  if (!SERVER_SECRET) return;
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, { method: "POST", headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${SUPABASE_ANON}`, "content-type": "application/json" }, body: JSON.stringify({ p_secret: SERVER_SECRET, ...args }) });
+  if (!r.ok) log("ADA kay\u0131t hatas\u0131", fn, r.status, await r.text());
+}
+async function guildTag(id) {
+  if (!id) return "";
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/guilds?id=eq.${id}&select=tag`, { headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${SUPABASE_ANON}` } });
+  const rows = r.ok ? await r.json() : [];
+  return rows[0]?.tag || "";
+}
+async function loadIsland(key) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/islands?map_key=eq.${encodeURIComponent(key)}&select=*`, { headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${SUPABASE_ANON}` } });
+  const row = (r.ok ? await r.json() : [])[0] ?? { map_key: key };
+  const i = islandFromRow(row, await guildTag(row.guild_id).catch(() => ""));
+  islands.set(key, i);
+  return i;
+}
+async function loadIslands() {
+  for (const k of ISLAND_KEYS) await loadIsland(k).catch((e) => {
+    log("ADA okunamad\u0131", k, e?.message);
+    islands.set(k, islandFromRow({ map_key: k }));
+  });
+  log("ADALAR y\xFCklendi");
+}
+async function saveIslandHp(i) {
+  if (!i.guild || !i.hpDirty) return;
+  i.hpDirty = false;
+  await dbRpc("island_hp", { p_map: i.key, p_hps: i.towers.map((t) => t ? Math.round(t.hp) : null) }).catch(() => {
+  });
+}
+function sendRoom(key, o) {
+  const room = seas.get(seaOfIsland(key));
+  if (!room) return;
+  const m = JSON.stringify(o);
+  for (const x of room) send(x, m);
+}
+var islandTickNo = 0;
+function islandTick(now) {
+  islandTickNo++;
+  for (const i of islands.values()) {
+    if (i.dirty.size) {
+      sendRoom(i.key, { t: "thp", d: { key: i.key, s: [...i.dirty].map((n) => [n, Math.round(i.towers[n]?.hp ?? 0)]) } });
+      i.dirty.clear();
+    }
+    if (!i.guild && i.towers.some((t, n) => !t && now - (i.ruins[n] ?? 0) >= RUIN_MS)) {
+      const max = fleetTowerStats(islandTier(i.key)).hp;
+      i.towers = i.towers.map((t, n) => t || (now - (i.ruins[n] ?? 0) >= RUIN_MS ? { type: "npc", hp: max, maxHp: max } : null));
+      sendRoom(i.key, { t: "isle", d: islandInfo(i) });
+    }
+    if (i.guild && now - i.hitAt < 6e3 && islandTickNo % 17 === 0) {
+      const m = JSON.stringify({ t: "ialert", d: { key: i.key } });
+      for (const c of all) if (c.guildId === i.guild) send(c, m);
+    }
+    if (islandTickNo % 100 === 0) void saveIslandHp(i);
+    if (i.guild && i.towers.some(Boolean)) i.emptySince = 0;
+    else if (i.guild && i.emptySince && now - i.emptySince >= RUIN_MS) {
+      log("ADA SAH\u0130PS\u0130Z KALDI", i.key);
+      const n = islandFromRow({ map_key: i.key }, "", now);
+      Object.assign(i, { guild: 0, tag: "", towers: n.towers, ruins: {}, emptySince: 0 });
+      void dbRpc("island_capture", { p_map: i.key, p_guild: null }).catch(() => {
+      });
+      sendRoom(i.key, { t: "isle", d: islandInfo(i) });
+    }
+  }
+}
+async function onTowerHit(c, m, now) {
+  const key = islandOfSea(c.sea), d = m.d || {}, slot = Number(d.slot), dmg = Number(d.dmg), heal = !!d.heal;
+  if (!key || !Number.isInteger(slot) || slot < 0 || slot >= TOWER_SLOTS || !num(dmg) || dmg <= 0) return;
+  if (!heal && dmg > TOWER_HIT_CAP) suspect(c, "kule hasar\u0131", String(dmg));
+  const r = towerHit(key, slot, c.guildId, dmg, heal, now);
+  if (!r?.destroyed) return;
+  const i = islands.get(key);
+  sendRoom(key, { t: "tdown", d: { key, slot, by: c.netId } });
+  if (r.captured) {
+    log("ADA ELE GE\xC7\u0130R\u0130LD\u0130", key, c.nick);
+    i.tag = await guildTag(i.guild).catch(() => "");
+    await dbRpc("island_capture", { p_map: key, p_guild: i.guild }).catch(() => {
+    });
+    sendRoom(key, { t: "isle", d: islandInfo(i) });
+    const msg = JSON.stringify({ t: "icap", d: { key, tag: i.tag, by: c.netId, nick: c.nick } });
+    for (const x of all) if (x.uid) send(x, msg);
+  } else await dbRpc("island_destroy", { p_map: key, p_slot: slot, p_at: now }).catch(() => {
+  });
+}
 var NEAR = 1800;
 var TICK_MS = 100;
 var FAR_EVERY = 20;
@@ -3974,7 +4139,11 @@ function buildBatch(rec, room, tick) {
 }
 setInterval(() => {
   tickNo++;
-  if (tickNo % 3 === 0) bossTick(Date.now());
+  if (tickNo % 3 === 0) {
+    const now = Date.now();
+    bossTick(now);
+    islandTick(now);
+  }
   for (const room of seas.values()) {
     if (room.size < 2) continue;
     for (const rec of room) {
@@ -4033,7 +4202,7 @@ var httpServer = import_node_http.default.createServer(async (q, r) => {
 });
 var wss = new import_websocket_server.default({ server: httpServer, path: "/ws", maxPayload: 16 * 1024, perMessageDeflate: { threshold: 256, zlibDeflateOptions: { level: 3 }, serverNoContextTakeover: false, clientNoContextTakeover: true } });
 wss.on("connection", (ws) => {
-  const c = { ws, uid: "", nick: "", playerNo: 0, netId: "", sea: "", last: null, strikes: 0, rState: new Rate(LIMITS.statesPerSec, 1e3), rFire: new Rate(LIMITS.firesPerSec, 1e3), rChat: new Rate(LIMITS.chatPerMin, 6e4), rMsg: new Rate(60, 1e3), rBoss: new Rate(5, 1e3), rKill: new Rate(3, 1e3) };
+  const c = { ws, uid: "", nick: "", playerNo: 0, netId: "", sea: "", last: null, strikes: 0, rState: new Rate(LIMITS.statesPerSec, 1e3), rFire: new Rate(LIMITS.firesPerSec, 1e3), rChat: new Rate(LIMITS.chatPerMin, 6e4), rMsg: new Rate(60, 1e3), rBoss: new Rate(5, 1e3), rKill: new Rate(3, 1e3), rTower: new Rate(12, 1e3) };
   all.add(c);
   const authTimer = setTimeout(() => {
     if (!c.uid) ws.close(4001, "giri\u015F yok");
@@ -4089,6 +4258,8 @@ wss.on("connection", (ws) => {
         send(c, { t: "joined", sea: name });
         const b = bossSeas.get(name)?.boss;
         if (b) send(c, { t: "boss", d: bossInfo(name, b) });
+        const isle = islands.get(islandOfSea(name));
+        if (isle) send(c, { t: "isle", d: islandInfo(isle) });
         return;
       }
       case "state": {
@@ -4146,6 +4317,27 @@ wss.on("connection", (ws) => {
         for (const x of room || []) send(x, { t: "bdown", d: { id: r.id, n: r.n, ...r.shares[x.uid] ?? { share: 0, dmg: 0 } } });
         return;
       }
+      case "thit": {
+        if (!c.sea || !c.rTower.hit(now)) return;
+        await onTowerHit(c, m, now);
+        return;
+      }
+      // Kule dikildi (veritabanında): önce canlar yazılır, sonra ada yeniden okunup denize gönderilir
+      case "tbuilt": {
+        const key = String(m.d?.key || "");
+        const i = islands.get(key);
+        if (!i || !c.rKill.hit(now)) return;
+        await saveIslandHp({ ...i, hpDirty: true });
+        const n = await loadIsland(key).catch(() => null);
+        if (n) sendRoom(key, { t: "isle", d: islandInfo(n) });
+        return;
+      }
+      // Filoya girme/çıkma sonrası filo bilgisi yenilenir
+      case "gref": {
+        if (!c.rKill.hit(now)) return;
+        c.guildId = await guildOf(c.uid).catch(() => c.guildId);
+        return;
+      }
       case "chat": {
         if (!c.rChat.hit(now)) return;
         const text = String(m.d?.text || "").slice(0, LIMITS.chatLen).trim();
@@ -4195,16 +4387,22 @@ wss.on("connection", (ws) => {
     ws.isAlive = true;
   });
 });
+if (process.env.NODE_ENV !== "test") void loadIslands();
 if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => log(`Oyun sunucusu ${PORT} portunda`));
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   BOSS_HIT_CAP,
   BOSS_LIFE_MS,
   FAR_EVERY,
+  ISLAND_KEYS,
   LIMITS,
   NEAR,
+  RUIN_MS,
   Rate,
   TICK_MS,
+  TOWER_HEAL_CAP,
+  TOWER_HIT_CAP,
+  TOWER_SLOTS,
   bossHit,
   bossInfo,
   bossKill,
@@ -4212,11 +4410,17 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   buildBatch,
   checkFire,
   checkState,
+  guildOf,
   isAdminToken,
+  islandFromRow,
+  islandInfo,
+  islands,
+  loadIslands,
   osbMatch,
   parseForm,
   parseOsb,
   seaTier,
+  towerHit,
   verifyOsb,
   verifyToken
 });

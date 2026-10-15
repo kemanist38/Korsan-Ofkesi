@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import {WebSocketServer} from 'ws';
 import {BOSS_HP} from '../src/pve-balance.ts';
+import {fleetTowerStats} from '../src/fleetBalance.ts';
 
 const PORT=Number(process.env.PORT||3000);
 const SUPABASE_URL=process.env.SUPABASE_URL||'https://vidjvineafeiyoclioau.supabase.co';
@@ -20,13 +21,15 @@ const OSB_USER=process.env.SHOPIER_OSB_USER||'',OSB_PASS=process.env.SHOPIER_OSB
 // ---------------------------------------------------------------- Kimlik doğrulama (Supabase oturum anahtarı)
 export async function verifyToken(token){
   // Yalnızca yük testi (tools/bench-server.mjs): BENCH_AUTH=1 iken sahte hesaplar. Canlı sunucuda bu değişken yoktur.
-  if(process.env.BENCH_AUTH==='1'&&token.startsWith('bench:')){const n=Number(token.slice(6));return{uid:'b'+n,nick:'Bot'+n,playerNo:90000+n,banned:false};}
+  if(process.env.BENCH_AUTH==='1'&&token.startsWith('bench:')){const [n,g]=token.slice(6).split(':').map(Number);return{uid:'b'+n,nick:'Bot'+n,playerNo:90000+n,banned:false,guildId:g||0};}
   const u=await fetch(`${SUPABASE_URL}/auth/v1/user`,{headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${token}`}});
   if(!u.ok)return null;const user=await u.json();
   const p=await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}&select=nick,player_no,banned`,{headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${token}`}});
   const rows=p.ok?await p.json():[];const prof=rows[0];if(!prof)return null;
-  return{uid:user.id,nick:prof.nick,playerNo:prof.player_no,banned:!!prof.banned};
+  return{uid:user.id,nick:prof.nick,playerNo:prof.player_no,banned:!!prof.banned,guildId:await guildOf(user.id).catch(()=>0)};
 }
+export async function guildOf(uid){const r=await fetch(`${SUPABASE_URL}/rest/v1/guild_members?user_id=eq.${uid}&select=guild_id`,{headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`}});
+  const rows=r.ok?await r.json():[];return Number(rows[0]?.guild_id||0);}
 
 // ---------------------------------------------------------------- Shopier Otomatik Sipariş Bildirimi
 // Shopier POST eder: res (base64 JSON) ve hash = HMAC-SHA256(res + kullanıcı, şifre). İmza tutarsa sipariş veritabanına işlenir.
@@ -114,6 +117,57 @@ function bossTick(now){for(const [name,st] of bossSeas){const b=st.boss;if(!b)co
   if(now-b.at>BOSS_LIFE_MS){st.boss=null;if(room)for(const x of room)send(x,{t:'bgone',d:{id:b.id}});continue;}
   if(b.dirty&&room){b.dirty=false;const msg=JSON.stringify({t:'bhp',d:{id:b.id,hp:Math.round(b.hp)}});for(const x of room)send(x,msg);}}}
 
+// ---------------------------------------------------------------- Paylaşılan filo adaları
+// Ada sahibi, kuleler ve yıkık kaideler veritabanında (islands); kule canı burada canlı tutulur ve 30 sn'de bir yazılır.
+// Saldırı: sahibi olmayan filo/oyuncu vurur (thit). Şifa: yalnız sahibi filonun üyeleri (thit heal). Kendiliğinden onarım yok.
+// Son kuleyi yıkan oyuncunun filosu adayı alır. Sahipsiz (NPC) adanın yıkılan kulesi 1 saat sonra geri gelir.
+// Saldırı altındaki adanın sahibi filonun çevrim içi üyelerine 5 sn'de bir uyarı gider.
+export const ISLAND_KEYS=['2/1','2/2','3/1','3/2','4/1','4/2','5/1','5/2','6/1','6/2','7/1','7/2','8/1','8/2'];
+export const TOWER_SLOTS=16,RUIN_MS=3600_000,TOWER_HIT_CAP=400_000,TOWER_HEAL_CAP=300_000;
+export const islands=new Map();
+const islandTier=k=>Number(String(k)[0]);
+export function islandFromRow(row,tag='',now=Date.now()){const tier=islandTier(row.map_key),max=fleetTowerStats(tier).hp,ruins={...(row.ruins||{})};
+  let towers;if(!row.guild_id)towers=Array.from({length:TOWER_SLOTS},(_,i)=>ruins[i]&&now-ruins[i]<RUIN_MS?null:{type:'npc',hp:max,maxHp:max});
+  else towers=Array.from({length:TOWER_SLOTS},(_,i)=>{const t=(row.towers||[])[i];return t&&typeof t==='object'?{type:t.type||'cannon',hp:Math.max(1,Math.min(max,Number(t.hp)||max)),maxHp:max}:null;});
+  return{key:row.map_key,guild:Number(row.guild_id||0),tag,towers,ruins,hitAt:0,hpDirty:false,dirty:new Set(),emptySince:towers.some(Boolean)?0:now};}
+export const islandInfo=i=>({key:i.key,guild:i.guild,tag:i.tag,towers:i.towers.map(t=>t?[Math.round(t.hp),t.maxHp]:null),ruins:i.ruins});
+const seaOfIsland=k=>`sea-${k.replace('/','-')}`,islandOfSea=name=>{const m=/^sea-(\d)-(\d)$/.exec(name);return m&&Number(m[1])>=2?`${m[1]}/${m[2]}`:null;};
+// Vuruş ya da şifa; sonuç: {destroyed, captured} ya da null
+export function towerHit(key,slot,guildId,dmg,heal,now=Date.now()){const i=islands.get(key),t=i?.towers[slot];if(!t||!(dmg>0))return null;
+  if(heal){if(!guildId||guildId!==i.guild||t.hp>=t.maxHp)return null;t.hp=Math.min(t.maxHp,t.hp+Math.min(TOWER_HEAL_CAP,dmg));i.dirty.add(slot);i.hpDirty=true;return{healed:true};}
+  if(i.guild&&guildId===i.guild)return null;
+  t.hp-=Math.min(TOWER_HIT_CAP,dmg);i.hitAt=now;i.dirty.add(slot);i.hpDirty=true;if(t.hp>0)return{};
+  i.towers[slot]=null;i.ruins[slot]=now;const res={destroyed:true,captured:false};
+  if(i.towers.every(x=>!x)){i.emptySince=now;if(guildId){i.guild=guildId;i.ruins={};res.captured=true;}}
+  return res;}
+async function dbRpc(fn,args){if(!SERVER_SECRET)return;const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:'POST',headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`,'content-type':'application/json'},body:JSON.stringify({p_secret:SERVER_SECRET,...args})});
+  if(!r.ok)log('ADA kayıt hatası',fn,r.status,await r.text());}
+async function guildTag(id){if(!id)return'';const r=await fetch(`${SUPABASE_URL}/rest/v1/guilds?id=eq.${id}&select=tag`,{headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`}});const rows=r.ok?await r.json():[];return rows[0]?.tag||'';}
+async function loadIsland(key){const r=await fetch(`${SUPABASE_URL}/rest/v1/islands?map_key=eq.${encodeURIComponent(key)}&select=*`,{headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`}});
+  const row=(r.ok?await r.json():[])[0]??{map_key:key};const i=islandFromRow(row,await guildTag(row.guild_id).catch(()=>''));islands.set(key,i);return i;}
+export async function loadIslands(){for(const k of ISLAND_KEYS)await loadIsland(k).catch(e=>{log('ADA okunamadı',k,e?.message);islands.set(k,islandFromRow({map_key:k}));});log('ADALAR yüklendi');}
+async function saveIslandHp(i){if(!i.guild||!i.hpDirty)return;i.hpDirty=false;await dbRpc('island_hp',{p_map:i.key,p_hps:i.towers.map(t=>t?Math.round(t.hp):null)}).catch(()=>{});}
+function sendRoom(key,o){const room=seas.get(seaOfIsland(key));if(!room)return;const m=JSON.stringify(o);for(const x of room)send(x,m);}
+let islandTickNo=0;
+function islandTick(now){islandTickNo++;
+  for(const i of islands.values()){
+    if(i.dirty.size){sendRoom(i.key,{t:'thp',d:{key:i.key,s:[...i.dirty].map(n=>[n,Math.round(i.towers[n]?.hp??0)])}});i.dirty.clear();}
+    // Sahipsiz adada yıkılan kule 1 saat sonra geri gelir
+    if(!i.guild&&i.towers.some((t,n)=>!t&&now-(i.ruins[n]??0)>=RUIN_MS)){const max=fleetTowerStats(islandTier(i.key)).hp;i.towers=i.towers.map((t,n)=>t||(now-(i.ruins[n]??0)>=RUIN_MS?{type:'npc',hp:max,maxHp:max}:null));sendRoom(i.key,{t:'isle',d:islandInfo(i)});}
+    if(i.guild&&now-i.hitAt<6000&&islandTickNo%17===0){const m=JSON.stringify({t:'ialert',d:{key:i.key}});for(const c of all)if(c.guildId===i.guild)send(c,m);}
+    if(islandTickNo%100===0)void saveIslandHp(i);
+    // Kulesiz kalan filo adası 1 saat içinde kule dikilmezse sahipsiz (NPC) adaya döner
+    if(i.guild&&i.towers.some(Boolean))i.emptySince=0;
+    else if(i.guild&&i.emptySince&&now-i.emptySince>=RUIN_MS){log('ADA SAHİPSİZ KALDI',i.key);const n=islandFromRow({map_key:i.key},'',now);Object.assign(i,{guild:0,tag:'',towers:n.towers,ruins:{},emptySince:0});
+      void dbRpc('island_capture',{p_map:i.key,p_guild:null}).catch(()=>{});sendRoom(i.key,{t:'isle',d:islandInfo(i)});}}}
+async function onTowerHit(c,m,now){const key=islandOfSea(c.sea),d=m.d||{},slot=Number(d.slot),dmg=Number(d.dmg),heal=!!d.heal;
+  if(!key||!Number.isInteger(slot)||slot<0||slot>=TOWER_SLOTS||!num(dmg)||dmg<=0)return;if(!heal&&dmg>TOWER_HIT_CAP)suspect(c,'kule hasarı',String(dmg));
+  const r=towerHit(key,slot,c.guildId,dmg,heal,now);if(!r?.destroyed)return;const i=islands.get(key);
+  sendRoom(key,{t:'tdown',d:{key,slot,by:c.netId}});
+  if(r.captured){log('ADA ELE GEÇİRİLDİ',key,c.nick);i.tag=await guildTag(i.guild).catch(()=>'');await dbRpc('island_capture',{p_map:key,p_guild:i.guild}).catch(()=>{});
+    sendRoom(key,{t:'isle',d:islandInfo(i)});const msg=JSON.stringify({t:'icap',d:{key,tag:i.tag,by:c.netId,nick:c.nick}});for(const x of all)if(x.uid)send(x,msg);}
+  else await dbRpc('island_destroy',{p_map:key,p_slot:slot,p_at:now}).catch(()=>{});}
+
 // ---------------------------------------------------------------- Durum paketleme (trafik)
 // Hareket mesajları anında herkese iletilmez: her oyuncunun son durumu tutulur ve 10/sn'lik turda her alıcıya tek pakette gider.
 // Yakındakiler (NEAR birim) her turda, uzaktakiler saniyede bir güncellenir. Kimlik alanları (ad, gemi, rütbe…) yalnızca
@@ -128,7 +182,7 @@ export function buildBatch(rec,room,tick){const out=[];if(!rec.seen)rec.seen=new
     const near=!rec.last||!o.last||Math.abs(o.last.x-rec.last.x)+Math.abs(o.last.y-rec.last.y)<NEAR;if(!near&&!far)continue;
     const d={...o.state};if(seen.i!==o.identVer&&o.ident){Object.assign(d,o.ident);seen.i=o.identVer;}seen.s=o.stateVer;rec.seen.set(o,seen);out.push(d);}
   return out;}
-setInterval(()=>{tickNo++;if(tickNo%3===0)bossTick(Date.now());for(const room of seas.values()){if(room.size<2)continue;for(const rec of room){const b=buildBatch(rec,room,tickNo);if(b.length)send(rec,{t:'batch',d:b});}}},TICK_MS).unref();
+setInterval(()=>{tickNo++;if(tickNo%3===0){const now=Date.now();bossTick(now);islandTick(now);}for(const room of seas.values()){if(room.size<2)continue;for(const rec of room){const b=buildBatch(rec,room,tickNo);if(b.length)send(rec,{t:'batch',d:b});}}},TICK_MS).unref();
 
 const httpServer=http.createServer(async(q,r)=>{const cors={'access-control-allow-origin':'*','access-control-allow-headers':'authorization','content-type':'application/json'};
   if(q.method==='OPTIONS'){r.writeHead(204,cors);r.end();return;}
@@ -145,7 +199,7 @@ const httpServer=http.createServer(async(q,r)=>{const cors={'access-control-allo
 // Sıkıştırma: 256 bayttan büyük paketler (durum paketleri) deflate ile ~4–5 kat küçülür
 const wss=new WebSocketServer({server:httpServer,path:'/ws',maxPayload:16*1024,perMessageDeflate:{threshold:256,zlibDeflateOptions:{level:3},serverNoContextTakeover:false,clientNoContextTakeover:true}});
 wss.on('connection',ws=>{
-  const c={ws,uid:'',nick:'',playerNo:0,netId:'',sea:'',last:null,strikes:0,rState:new Rate(LIMITS.statesPerSec,1000),rFire:new Rate(LIMITS.firesPerSec,1000),rChat:new Rate(LIMITS.chatPerMin,60000),rMsg:new Rate(60,1000),rBoss:new Rate(5,1000),rKill:new Rate(3,1000)};
+  const c={ws,uid:'',nick:'',playerNo:0,netId:'',sea:'',last:null,strikes:0,rState:new Rate(LIMITS.statesPerSec,1000),rFire:new Rate(LIMITS.firesPerSec,1000),rChat:new Rate(LIMITS.chatPerMin,60000),rMsg:new Rate(60,1000),rBoss:new Rate(5,1000),rKill:new Rate(3,1000),rTower:new Rate(12,1000)};
   all.add(c);const authTimer=setTimeout(()=>{if(!c.uid)ws.close(4001,'giriş yok');},10000);
   ws.on('message',async raw=>{const now=Date.now();if(!c.rMsg.hit(now)){suspect(c,'mesaj seli');return;}
     let m;try{m=JSON.parse(String(raw));}catch{return;}if(!m||typeof m.t!=='string')return;
@@ -158,7 +212,8 @@ wss.on('connection',ws=>{
     switch(m.t){
       case'join':{const name=String(m.sea||'').slice(0,40);if(name===c.sea)return;leaveSea(c);if(!name)return;
         const room=seas.get(name)??new Set();if(room.size>=LIMITS.maxPerSea){send(c,{t:'full'});return;}room.add(c);seas.set(name,room);c.sea=name;c.seen=null;send(c,{t:'joined',sea:name});
-        const b=bossSeas.get(name)?.boss;if(b)send(c,{t:'boss',d:bossInfo(name,b)});return;}
+        const b=bossSeas.get(name)?.boss;if(b)send(c,{t:'boss',d:bossInfo(name,b)});
+        const isle=islands.get(islandOfSea(name));if(isle)send(c,{t:'isle',d:islandInfo(isle)});return;}
       case'state':{if(!c.sea||!c.rState.hit(now))return;const s=m.d;const v=checkState(c.last,s,now);if(v==='bad')return;if(v==='speed')suspect(c,'hız',`${Math.round(s.x)},${Math.round(s.y)}`);
         c.last={x:s.x,y:s.y,at:now};s.id=c.netId;queueState(c,s);return;}
       case'fire':{if(!c.sea||!c.rFire.hit(now)){suspect(c,'atış hızı');return;}const f=m.d;const v=checkFire(f);if(v!=='ok'){suspect(c,'hasar',String(f?.damage));return;}f.from=c.netId;toNear(c,{t:'fire',d:f},f.to);return;}
@@ -167,6 +222,11 @@ wss.on('connection',ws=>{
       case'bhit':{if(!c.sea||!c.rBoss.hit(now))return;const dmg=Number(m.d?.dmg);if(!num(dmg)||dmg<=0)return;if(dmg>BOSS_HIT_CAP)suspect(c,'boss hasarı',String(dmg));
         const r=bossHit(c.sea,c.uid,dmg);if(!r)return;const room=seas.get(c.sea);log('BOSS BATTI',c.sea,r.n,'kaptan');
         for(const x of room||[])send(x,{t:'bdown',d:{id:r.id,n:r.n,...(r.shares[x.uid]??{share:0,dmg:0})}});return;}
+      case'thit':{if(!c.sea||!c.rTower.hit(now))return;await onTowerHit(c,m,now);return;}
+      // Kule dikildi (veritabanında): önce canlar yazılır, sonra ada yeniden okunup denize gönderilir
+      case'tbuilt':{const key=String(m.d?.key||'');const i=islands.get(key);if(!i||!c.rKill.hit(now))return;await saveIslandHp({...i,hpDirty:true});const n=await loadIsland(key).catch(()=>null);if(n)sendRoom(key,{t:'isle',d:islandInfo(n)});return;}
+      // Filoya girme/çıkma sonrası filo bilgisi yenilenir
+      case'gref':{if(!c.rKill.hit(now))return;c.guildId=await guildOf(c.uid).catch(()=>c.guildId);return;}
       case'chat':{if(!c.rChat.hit(now))return;const text=String(m.d?.text||'').slice(0,LIMITS.chatLen).trim();if(!text)return;
         toAll(c,{t:'chat',d:{nick:c.nick,tag:m.d?.tag??null,text,at:now}});return;}
       case'bid':{const b=m.d||{};b.id=c.uid;b.nick=c.nick;toAll(c,{t:'bid',d:b});return;}
@@ -179,4 +239,5 @@ wss.on('connection',ws=>{
 // Ölü bağlantıları temizle
 setInterval(()=>{for(const c of all){if(c.ws.isAlive===false){c.ws.terminate();continue;}c.ws.isAlive=false;try{c.ws.ping();}catch{}}},30000).unref();
 wss.on('connection',ws=>{ws.isAlive=true;ws.on('pong',()=>{ws.isAlive=true;});});
+if(process.env.NODE_ENV!=='test')void loadIslands();
 if(process.env.NODE_ENV!=='test')httpServer.listen(PORT,'127.0.0.1',()=>log(`Oyun sunucusu ${PORT} portunda`));

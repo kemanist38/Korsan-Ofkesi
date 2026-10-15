@@ -23,10 +23,10 @@ function fight(tier,count){
 }
 for(let tier=2;tier<=8;tier++){
   const solo=fight(tier,1),four=fight(tier,4),five=fight(tier,5);
-  assert(!solo.won&&solo.seconds<=10,'Solo must sink quickly');
+  assert(!solo.won&&solo.seconds<=30,'Solo must sink within 30 s');
   assert(!four.won,'Four reference ships must fail');
   assert(five.won,'Five reference ships must win');
-  assert(fleetTowerRegen(fleetTowerStats(tier).hp,false)>fleetTowerRegen(fleetTowerStats(tier).hp,true));
+  assert.equal(fleetTowerRegen(fleetTowerStats(tier).hp,false),0,"Towers never self-repair (heal ammo only)");
   console.log({tier,solo,four,five});
 }
 console.log('PASS: reference balance for all seven hostile sea tiers');

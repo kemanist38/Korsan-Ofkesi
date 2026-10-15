@@ -37,3 +37,21 @@ test('shared boss: sea kill counter spawns once, damage is split by share',()=>{
   assert.equal(r.n,2);assert.ok(Math.abs(r.shares.a.share+r.shares.b.share-1)<1e-9);assert.ok(r.shares.a.share>.7);
   assert.equal(S.bossSeas.get(sea).boss,null);assert.equal(S.seaTier('sea-3-2'),3);assert.equal(S.seaTier('siege'),0);
 });
+test('shared islands: npc towers, capture by last hitter guild, heal only by owner',()=>{
+  S.islands.clear();const i=S.islandFromRow({map_key:'3/1'});S.islands.set('3/1',i);
+  assert.equal(i.towers.filter(Boolean).length,16);const max=i.towers[0].maxHp;assert.ok(max>=37_800_000);
+  assert.equal(S.towerHit('3/1',0,5,1e9,false).destroyed,undefined); // tek paket sınırı
+  for(let n=0;n<16;n++){i.towers[n].hp=1;}
+  for(let n=0;n<15;n++)assert.equal(S.towerHit('3/1',n,0,10,false).captured,false);
+  const r=S.towerHit('3/1',15,7,10,false);assert.ok(r.captured);assert.equal(i.guild,7);assert.deepEqual(i.ruins,{});
+  // sahibi filo kendi kulesine vuramaz, şifa yalnız sahibi filodan
+  i.towers[2]={type:'cannon',hp:1000,maxHp:max};
+  assert.equal(S.towerHit('3/1',2,7,500,false),null);assert.equal(S.towerHit('3/1',2,9,500,true),null);
+  assert.ok(S.towerHit('3/1',2,7,5000,true).healed);assert.equal(i.towers[2].hp,6000);
+  const own=S.islandFromRow({map_key:'5/2',guild_id:3,towers:[{type:'cannon',hp:5},null],ruins:{1:Date.now()}});assert.equal(own.towers[0].hp,5);assert.equal(own.towers[1],null);
+  const npc=S.islandFromRow({map_key:'5/2',ruins:{4:Date.now()}});assert.equal(npc.towers[4],null);assert.ok(npc.towers[5]);
+});
+test('captured island resets emptiness timer and builds clear it',()=>{
+  const i=S.islandFromRow({map_key:'4/1',guild_id:2,towers:[]});assert.ok(i.emptySince>0);
+  const j=S.islandFromRow({map_key:'4/1',guild_id:2,towers:[{type:'cannon',hp:9}]});assert.equal(j.emptySince,0);
+});
