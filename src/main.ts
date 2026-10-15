@@ -2310,10 +2310,11 @@ function updateSparkles(dt:number){
   for(let i=sparkles.length-1;i>=0;i--){const g=sparkles[i];if(dist(g,player)>SPARKLE_PICKUP)continue;
     // Pırıltı toplama sınırsız
     sparkles.splice(i,1);playCoins();
-    const loot=1,light=NPCS[mapDef().npcs[0]],gold=Math.max(1,Math.round(light.gold*(.1+Math.random()*.1)*loot*goldMult())),xp=Math.max(1,Math.round(light.xp*.15)),pearl=Math.random()<.2?1:0;
-    state.gold+=gold;state.fame+=xp;state.pearls+=pearl;recordQuestProgress('sparkle',currentMap);saveAccount();playCoins();
+    // Pırıltı ödülü: her zaman 1 inci + biraz barut, kalkan ve rastgele bir özel gülle (altın ve TP vermez)
+    const tier=mapDef().tier,powder=1+Math.floor(Math.random()*3),shield=1+Math.floor(Math.random()*3),kinds=['fire','explosive','breaker','leech'] as const,ammo=kinds[Math.floor(Math.random()*kinds.length)],ammoQty=20+10*tier;
+    state.pearls+=1;arsenal.powder+=powder;arsenal.shield+=shield;arsenal[ammo]+=ammoQty;saveArsenal(arsenal);renderQuickSlots();recordQuestProgress('sparkle',currentMap);saveAccount();playCoins();
     for(let n=0;n<8;n++){const a=Math.random()*Math.PI*2,sp=30+Math.random()*50;particles.push({x:g.x,y:g.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:.5,maxLife:.5,kind:'foam'});}
-    particles.push({x:g.x,y:g.y-10,vx:0,vy:-26,life:1.1,maxLife:1.1,kind:'damage',text:`+${fmt(gold)} Altın${pearl?' +1 İnci':''} +${fmt(xp)} TP`});
+    particles.push({x:g.x,y:g.y-10,vx:0,vy:-26,life:1.1,maxLife:1.1,kind:'damage',text:`+1 İnci +${powder} Barut +${shield} Kalkan +${ammoQty} ${SPECIAL_AMMO[ammo].name}`});
     if(routeTarget&&dist(routeTarget,g)<4){routeTarget=null;destination=null;}
     sparkleQueue.push(SPARKLE_RESPAWN/sparkleMult());}
   for(let i=sparkleQueue.length-1;i>=0;i--){sparkleQueue[i]-=dt;if(sparkleQueue[i]<=0){sparkleQueue.splice(i,1);spawnSparkle();}}

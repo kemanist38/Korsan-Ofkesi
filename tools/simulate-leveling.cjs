@@ -26,7 +26,7 @@ function ship(level,mode){const s=mode.max?{guns:315,gun:'heavy',up:10,elite:15,
  repair:(.035+s.up*.008)*(level>=6?2:1)*(1+b.repair),
  speed:(128+s.up*5)*(1+[0,.1,.16][s.gear]+b.speed),taken:(1-.03*Math.min(5,level-1))*(mode.max?.8*.9:1)*(1-b.defense)};}
 function action(target,level,mode,sparkle=false){const s=ship(level,mode),travel=(mode.travel??1)*(sparkle?700:1000)/s.speed+3;
- if(sparkle)return{seconds:travel,xp:Math.round(target.xp*.15)};
+ if(sparkle)return{seconds:travel,xp:0};
  const salvos=Math.ceil(target.hp/s.damage),combat=2+(salvos-1)*s.reload,loss=Math.max(0,Math.floor((combat-1)/target.reload))*target.damage*s.taken;
  // Time spent repairing damage, plus retreat/re-engagement overhead on lethal exchanges.
  const repair=loss/(s.hp*s.repair)+Math.floor(loss/s.hp)*45;
