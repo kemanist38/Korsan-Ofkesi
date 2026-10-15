@@ -42,6 +42,7 @@ async function connectWs(){const sb=supa();if(!sb||!session.account){fallback();
     switch(m.t){
       case'hello':wsReady=true;wsTries=0;netStatus='ok';netError='';if(wsSea){const s=wsSea;wsSea='';joinSea(s.replace(/^sea-/,''));}sock.send(JSON.stringify({t:'ask',d:{hour:Math.floor(Date.now()/3600000)}}));break;
       case'state':handlers?.state(m.d as NetState);break;
+      case'batch':for(const st of m.d as NetState[])handlers?.state(st);break;
       case'leave':handlers?.leave(String(m.id));break;
       case'fire':handlers?.fire(m.d as NetFire);break;
       case'sunk':handlers?.sunk(m.d as NetSunk);break;

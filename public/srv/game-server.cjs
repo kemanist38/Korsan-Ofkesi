@@ -3645,8 +3645,12 @@ var require_websocket_server = __commonJS({
 // server/game-server.mjs
 var game_server_exports = {};
 __export(game_server_exports, {
+  FAR_EVERY: () => FAR_EVERY,
   LIMITS: () => LIMITS,
+  NEAR: () => NEAR,
   Rate: () => Rate,
+  TICK_MS: () => TICK_MS,
+  buildBatch: () => buildBatch,
   checkFire: () => checkFire,
   checkState: () => checkState,
   isAdminToken: () => isAdminToken,
@@ -3678,6 +3682,10 @@ var OSB_USER = process.env.SHOPIER_OSB_USER || "";
 var OSB_PASS = process.env.SHOPIER_OSB_PASS || "";
 var SERVER_SECRET = process.env.SERVER_SECRET || "";
 async function verifyToken(token) {
+  if (process.env.BENCH_AUTH === "1" && token.startsWith("bench:")) {
+    const n = Number(token.slice(6));
+    return { uid: "b" + n, nick: "Bot" + n, playerNo: 9e4 + n, banned: false };
+  }
   const u = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${token}` } });
   if (!u.ok) return null;
   const user = await u.json();
@@ -3835,11 +3843,23 @@ var toSea = (c, o, self = false) => {
   const s = JSON.stringify(o);
   for (const x of room) if (self || x !== c) send(x, s);
 };
+var toNear = (c, o, target) => {
+  const room = seas.get(c.sea);
+  if (!room) return;
+  const s = JSON.stringify(o);
+  for (const x of room) {
+    if (x === c) continue;
+    if (x.netId === target || !c.last || !x.last || Math.abs(x.last.x - c.last.x) + Math.abs(x.last.y - c.last.y) < NEAR) send(x, s);
+  }
+};
 var toAll = (c, o) => {
   const s = JSON.stringify(o);
   for (const x of all) if (x !== c && x.uid) send(x, s);
 };
 function leaveSea(c) {
+  c.seen = null;
+  c.state = null;
+  for (const x of seas.get(c.sea) || []) x.seen?.delete(c);
   if (!c.sea) return;
   const room = seas.get(c.sea);
   if (room) {
@@ -3850,6 +3870,58 @@ function leaveSea(c) {
   c.sea = "";
   c.last = null;
 }
+var NEAR = 1800;
+var TICK_MS = 100;
+var FAR_EVERY = 20;
+var IDENT = ["nick", "tag", "ship", "maxHp", "sp", "level"];
+function queueState(c, s) {
+  const id = {};
+  let changed = false;
+  for (const k of IDENT) if (k in s) {
+    if (k === "nick") s.nick = c.nick;
+    if (JSON.stringify(c.ident?.[k]) !== JSON.stringify(s[k])) changed = true;
+    id[k] = s[k];
+    delete s[k];
+  }
+  if (changed) {
+    c.ident = { ...c.ident, ...id };
+    c.identVer = (c.identVer || 0) + 1;
+  }
+  c.state = s;
+  c.stateVer = (c.stateVer || 0) + 1;
+}
+var tickNo = 0;
+function buildBatch(rec, room, tick) {
+  const out = [];
+  if (!rec.seen) rec.seen = /* @__PURE__ */ new Map();
+  const far = tick % FAR_EVERY === 0;
+  for (const o of room) {
+    if (o === rec || !o.state) continue;
+    const seen = rec.seen.get(o) || { s: 0, i: 0 };
+    if (seen.s === o.stateVer) continue;
+    const near = !rec.last || !o.last || Math.abs(o.last.x - rec.last.x) + Math.abs(o.last.y - rec.last.y) < NEAR;
+    if (!near && !far) continue;
+    const d = { ...o.state };
+    if (seen.i !== o.identVer && o.ident) {
+      Object.assign(d, o.ident);
+      seen.i = o.identVer;
+    }
+    seen.s = o.stateVer;
+    rec.seen.set(o, seen);
+    out.push(d);
+  }
+  return out;
+}
+setInterval(() => {
+  tickNo++;
+  for (const room of seas.values()) {
+    if (room.size < 2) continue;
+    for (const rec of room) {
+      const b = buildBatch(rec, room, tickNo);
+      if (b.length) send(rec, { t: "batch", d: b });
+    }
+  }
+}, TICK_MS).unref();
 var httpServer = import_node_http.default.createServer(async (q, r) => {
   const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization", "content-type": "application/json" };
   if (q.method === "OPTIONS") {
@@ -3898,7 +3970,7 @@ var httpServer = import_node_http.default.createServer(async (q, r) => {
   r.writeHead(200, cors);
   r.end(JSON.stringify({ ok: true, name: "Pirate Rage oyun sunucusu" }));
 });
-var wss = new import_websocket_server.default({ server: httpServer, path: "/ws", maxPayload: 16 * 1024 });
+var wss = new import_websocket_server.default({ server: httpServer, path: "/ws", maxPayload: 16 * 1024, perMessageDeflate: { threshold: 256, zlibDeflateOptions: { level: 3 }, serverNoContextTakeover: false, clientNoContextTakeover: true } });
 wss.on("connection", (ws) => {
   const c = { ws, uid: "", nick: "", playerNo: 0, netId: "", sea: "", last: null, strikes: 0, rState: new Rate(LIMITS.statesPerSec, 1e3), rFire: new Rate(LIMITS.firesPerSec, 1e3), rChat: new Rate(LIMITS.chatPerMin, 6e4), rMsg: new Rate(60, 1e3) };
   all.add(c);
@@ -3952,6 +4024,7 @@ wss.on("connection", (ws) => {
         room.add(c);
         seas.set(name, room);
         c.sea = name;
+        c.seen = null;
         send(c, { t: "joined", sea: name });
         return;
       }
@@ -3963,8 +4036,7 @@ wss.on("connection", (ws) => {
         if (v === "speed") suspect(c, "h\u0131z", `${Math.round(s.x)},${Math.round(s.y)}`);
         c.last = { x: s.x, y: s.y, at: now };
         s.id = c.netId;
-        if ("nick" in s) s.nick = c.nick;
-        toSea(c, { t: "state", d: s });
+        queueState(c, s);
         return;
       }
       case "fire": {
@@ -3979,7 +4051,7 @@ wss.on("connection", (ws) => {
           return;
         }
         f.from = c.netId;
-        toSea(c, { t: "fire", d: f });
+        toNear(c, { t: "fire", d: f }, f.to);
         return;
       }
       case "sunk": {
@@ -4042,8 +4114,12 @@ wss.on("connection", (ws) => {
 if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => log(`Oyun sunucusu ${PORT} portunda`));
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  FAR_EVERY,
   LIMITS,
+  NEAR,
   Rate,
+  TICK_MS,
+  buildBatch,
   checkFire,
   checkState,
   isAdminToken,
