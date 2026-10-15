@@ -78,3 +78,23 @@ body.home .nav nav a.on,body.home .nav nav a:not(.btn):hover{color:#f3c56b;borde
   body.home .brand img{height:38px}
   .gallery{grid-template-columns:1fr}
 }
+/* Ana sayfa giriş paneli */
+.hero2-text{max-width:430px}
+.hero2 h1{font-size:clamp(30px,4.2vw,54px)}
+.login-frame{width:100%;padding:20px 22px 18px;border:2px solid #c9973d;border-radius:10px;background:linear-gradient(180deg,#141c2bee,#0b101aee);box-shadow:0 0 0 4px #00000066,0 16px 40px #000c,inset 0 0 30px #c9973d22;display:flex;flex-direction:column;gap:12px}
+.login-frame h2{font-size:17px;text-align:center;color:#f3c56b;letter-spacing:.14em}
+#siteLogin{display:flex;flex-direction:column;gap:10px}
+#siteLogin label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:#cdbb98}
+#siteLogin input:not([type=checkbox]){padding:10px 12px;border:1px solid #c9973d66;border-radius:6px;background:#05080e;color:#fff3dc;font-size:15px}
+#siteLogin input:focus{outline:none;border-color:#f3c56b}
+.lg-row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+#siteLogin .lg-check{flex-direction:row;align-items:center;gap:6px;cursor:pointer}
+.lg-link{border:0;background:none;color:#f3c56b;text-decoration:underline;cursor:pointer;font-size:13px;padding:0}
+.lg-go{width:100%;padding:11px;background:linear-gradient(180deg,#6b4a1c,#3a250c);border:1px solid #e0b04f;color:#ffe2a8!important;font-size:15px;box-shadow:none}
+.lg-msg{margin:0;min-height:18px;font-size:13px;color:#ff8a6a;text-align:center}
+.lg-msg.ok{color:#9be37c}
+.lg-sep{display:flex;align-items:center;gap:10px;color:#9c8c70;font-size:13px}
+.lg-sep::before,.lg-sep::after{content:"";flex:1;height:1px;background:#c9973d44}
+.lg-reg{width:100%;padding:13px;font-size:17px}
+.login-frame small{text-align:center;color:#9c8c70;font-size:12px}
+@media (max-width:760px){.hero2{padding-top:180px}.hero2-text{max-width:none;width:100%}}

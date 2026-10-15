@@ -3,6 +3,7 @@
 import './storageMigration';
 import './auth.css';
 import {supa} from './supabase';
+import {loginWithName,setRemember,enforceRemember,sendReset} from './login';
 import {session} from './session';
 import {applySave,claimOwner,collectSave} from './cloud-save';
 import {nickError,saveProfile,NICK_MAX} from './profile';
@@ -29,8 +30,7 @@ function showLogin(sb:SupabaseClient,mode:'login'|'register'='login'){
   ${reg?'':'<button class="auth-link" id="authForgot">Şifremi unuttum</button>'}${GUEST_TEST?'<button class="auth-guest" id="authGuest">TEST: GİRİŞSİZ OYNA</button>':''}`);
   const guest=document.getElementById('authGuest');if(guest)guest.onclick=()=>{overlay().remove();void startGame();};
   document.querySelectorAll<HTMLButtonElement>('.auth-tabs button').forEach(b=>b.onclick=()=>showLogin(sb,b.dataset.mode as 'login'|'register'));
-  const forgot=document.getElementById('authForgot');if(forgot)forgot.onclick=async()=>{const email=prompt('Hesabının e-posta adresini yaz, şifre sıfırlama bağlantısı gönderelim:')?.trim()??'';if(!email)return;
-    const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+'/oyna/'});msg(error?trErr(error.message):'Şifre sıfırlama bağlantısı e-postana gönderildi',!error);};
+  const forgot=document.getElementById('authForgot');if(forgot)forgot.onclick=async()=>{const email=prompt('Hesabının e-posta adresini yaz, yeni şifre belirleme bağlantısı gönderelim:')?.trim()??'';if(!email)return;const err=await sendReset(sb,email);msg(err??'Bağlantı e-postana gönderildi. Gelen kutunu (ve spam klasörünü) kontrol et.',!err);};
   const form=document.getElementById('authForm') as HTMLFormElement;
   form.onsubmit=async e=>{e.preventDefault();const email=val('authEmail'),pass=(document.getElementById('authPass') as HTMLInputElement).value;
     if(reg){const nick=val('authNick'),err=nickError(nick);if(err){msg(err);return;}
@@ -41,13 +41,8 @@ function showLogin(sb:SupabaseClient,mode:'login'|'register'='login'){
       if(error){msg(trErr(error.message));return;}
       if(!data.session){card('E-POSTANI ONAYLA',`<p class="auth-info">${esc(email)} adresine bir onay bağlantısı gönderdik. Bağlantıya tıkladıktan sonra buradan giriş yapabilirsin.</p><button class="auth-main" id="authBack">GİRİŞE DÖN</button>`);document.getElementById('authBack')!.onclick=()=>showLogin(sb);return;}
       enter(sb,data.session.user,nick);return;}
-    // Giriş kullanıcı adıyla: sunucu adı ve şifreyi doğrularsa hesabın e-postasını verir (e-posta ile giriş de çalışır)
-    busy(form,true);let loginEmail=email;
-    if(!email.includes('@')){const r=await sb.rpc('login_email',{p_nick:email,p_pass:pass});
-      if(r.error){busy(form,false);msg(r.error.message.replace(/^.*?: /,'')||'Giriş yapılamadı');return;}
-      if(!r.data){busy(form,false);msg('Kullanıcı adı veya şifre hatalı');return;}loginEmail=String(r.data);}
-    const {data,error}=await sb.auth.signInWithPassword({email:loginEmail,password:pass});busy(form,false);
-    if(error){msg(trErr(error.message));return;}enter(sb,data.user);};
+    busy(form,true);setRemember(true);const r=await loginWithName(sb,email,pass);busy(form,false);
+    if(r.error){msg(r.error);return;}enter(sb,r.user!);};
 }
 function showNewPassword(sb:SupabaseClient){
   card('YENİ ŞİFRE',`<form id="authForm"><input id="authPass" type="password" placeholder="Yeni şifre (en az 6 karakter)" autocomplete="new-password" minlength="6" required/><button type="submit" class="auth-main">ŞİFREYİ KAYDET</button></form>`);
@@ -115,6 +110,7 @@ async function boot(){
   const sb=supa();if(!sb){card('BAĞLANTI HATASI','<p class="auth-info">Oyun sunucusuna ulaşılamadı. Sayfayı yenile.</p>');return;}
   let recovering=false;
   sb.auth.onAuthStateChange((ev)=>{if(ev==='PASSWORD_RECOVERY'){recovering=true;showNewPassword(sb);}});
+  await enforceRemember(sb);
   const {data}=await sb.auth.getSession();
   if(recovering)return;
   if(data.session)enter(sb,data.session.user);else showLogin(sb,new URLSearchParams(location.search).has('kayit')?'register':'login');
