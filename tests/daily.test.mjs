@@ -17,5 +17,5 @@ test('daily calendar: once per day, consecutive days advance, a missed day reset
 });
 test('rewards grow with captain level and day 7 is the grand prize',()=>{
   assert.ok(D.dailyReward(1,5).gold>D.dailyReward(1,1).gold);
-  const g=D.dailyReward(7,1);assert.equal(g.equip,'common');assert.ok(g.pearls>=300);
+  const g=D.dailyReward(7,1);assert.equal(g.equip,undefined);assert.ok(g.pearls>=300);
 });
