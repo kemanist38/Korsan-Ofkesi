@@ -1,8 +1,11 @@
-// Çevrim içi deniz (Supabase Realtime). Aynı haritadaki oyuncular bir kanala katılır ve birbirine durum, atış ve batma
+// Çevrim içi deniz. Hesapla girişte önce VPS oyun sunucusuna (wss://game.piraterage.com/ws) bağlanılır: kimlik, kaptan adı,
+// mesaj sıklığı, hasar ve hız sunucuda denetlenir (server/game-server.mjs). Sunucuya ulaşılamazsa eski yol: Supabase Realtime. Aynı haritadaki oyuncular bir kanala katılır ve birbirine durum, atış ve batma
 // mesajı yayınlar. Sunucu tarafında hesap yoktur: her oyuncu kendisine gelen gülleyi kendi tarafında hesaplar
 // (yeterli: arkadaş grubuyla ilk sürüm). Kanal adı: sea-<harita>; sohbet için tek global kanal.
 import {type RealtimeChannel} from '@supabase/supabase-js';
 import {supa} from './supabase';
+import {session} from './session';
+const GAME_WS='wss://game.piraterage.com/ws';
 
 
 // Kalabalık haritada trafik az olsun diye kimlik bilgileri (nick, tag, gemi, can üst sınırı, rütbe) yalnızca ara sıra gelen tam
@@ -24,8 +27,42 @@ let handlers:NetHandlers|null=null;
 export let netStatus:'off'|'connecting'|'ok'|'error'='off',netError='';
 export const netOnline=()=>netStatus==='ok';
 
+// ---------------------------------------------------------------- VPS oyun sunucusu (WebSocket)
+let ws:WebSocket|null=null,wsReady=false,wsSea='',wsTries=0,wsFallback=false;
+const wsSend=(t:string,d?:unknown)=>{if(ws&&wsReady)ws.send(JSON.stringify({t,d}));};
+async function connectWs(){const sb=supa();if(!sb||!session.account){fallback();return;}
+  const {data}=await sb.auth.getSession();const token=data.session?.access_token;if(!token){fallback();return;}
+  let opened=false;const sock=new WebSocket(GAME_WS);ws=sock;netStatus='connecting';
+  const timer=setTimeout(()=>{if(!opened){sock.close();}},6000);
+  sock.onopen=()=>{opened=true;clearTimeout(timer);sock.send(JSON.stringify({t:'auth',token,netId:myNetId}));};
+  sock.onmessage=ev=>{let m:{t:string;d?:unknown;id?:string};try{m=JSON.parse(String(ev.data));}catch{return;}
+    switch(m.t){
+      case'hello':wsReady=true;wsTries=0;netStatus='ok';netError='';if(wsSea){const s=wsSea;wsSea='';joinSea(s.replace(/^sea-/,''));}sock.send(JSON.stringify({t:'ask',d:{hour:Math.floor(Date.now()/3600000)}}));break;
+      case'state':handlers?.state(m.d as NetState);break;
+      case'leave':handlers?.leave(String(m.id));break;
+      case'fire':handlers?.fire(m.d as NetFire);break;
+      case'sunk':handlers?.sunk(m.d as NetSunk);break;
+      case'chat':handlers?.chat(m.d as NetChat);break;
+      case'bid':handlers?.bid?.(m.d as NetBid);break;
+      case'ask':handlers?.bidAsk?.((m.d as {hour:number}).hour);break;
+      case'known':handlers?.bidKnown?.((m.d as {bids:NetBid[]}).bids);break;
+    }};
+  sock.onclose=ev=>{clearTimeout(timer);const was=wsReady;wsReady=false;if(ws!==sock)return;ws=null;
+    if(ev.code===4002){netStatus='error';netError='Hesap kapalı';return;}
+    if(ev.code===4004){netStatus='error';netError='Hesabına başka bir yerden bağlanıldı';return;}
+    // İlk bağlantı hiç kurulamadıysa eski yola geç; kurulduysa yeniden dene
+    if(!was&&!opened&&++wsTries>=2){fallback();return;}
+    netStatus='connecting';setTimeout(()=>{void connectWs();},Math.min(15000,1000*2**wsTries++));};
+}
+function fallback(){if(wsFallback)return;wsFallback=true;ws=null;startSupabase();const s=wsSea;seaName='';if(s)joinSea(s.replace(/^sea-/,''));}
+const useWs=()=>!wsFallback;
+
 export function startNet(h:NetHandlers){
   handlers=h;
+  if(session.account&&!new URLSearchParams(location.search).has('eskiag')){void connectWs();return;}
+  wsFallback=true;startSupabase();
+}
+function startSupabase(){
   client=supa();if(!client)return;
   chatCh=client.channel('chat-global',{config:{broadcast:{self:false}}});
   chatCh.on('broadcast',{event:'chat'},({payload})=>handlers?.chat(payload as NetChat)).subscribe();
@@ -37,7 +74,9 @@ export function startNet(h:NetHandlers){
 }
 // Haritaya katıl (harita değişince eski kanaldan çıkılır). Siege gibi özel alanlarda null verilir.
 export function joinSea(map:string|null){
-  const name=map?`sea-${map.replace('/','-')}`:'';if(name===seaName)return;seaName=name;
+  const name=map?`sea-${map.replace('/','-')}`:'';
+  if(useWs()){if(name===wsSea)return;wsSea=name;if(ws&&wsReady)ws.send(JSON.stringify({t:'join',sea:name}));return;}
+  if(name===seaName)return;seaName=name;
   if(sea){void sea.unsubscribe();sea=null;}
   if(!client||!name)return;
   const ch=client.channel(name,{config:{broadcast:{self:false},presence:{key:myNetId}}});
@@ -50,9 +89,9 @@ export function joinSea(map:string|null){
   sea=ch;
 }
 const send=(ch:RealtimeChannel|null,event:string,payload:unknown)=>{if(ch)void ch.send({type:'broadcast',event,payload});};
-export const sendState=(s:NetState)=>send(sea,'state',s);
-export const sendFire=(f:NetFire)=>send(sea,'fire',f);
-export const sendSunk=(s:NetSunk)=>send(sea,'sunk',s);
-export const sendChat=(c:NetChat)=>send(chatCh,'chat',c);
-export const sendBid=(b:NetBid)=>send(auctionCh,'bid',b);
-export const sendKnownBids=(bids:NetBid[])=>send(auctionCh,'known',{bids});
+export const sendState=(s:NetState)=>useWs()?wsSend('state',s):send(sea,'state',s);
+export const sendFire=(f:NetFire)=>useWs()?wsSend('fire',f):send(sea,'fire',f);
+export const sendSunk=(s:NetSunk)=>useWs()?wsSend('sunk',s):send(sea,'sunk',s);
+export const sendChat=(c:NetChat)=>useWs()?wsSend('chat',c):send(chatCh,'chat',c);
+export const sendBid=(b:NetBid)=>useWs()?wsSend('bid',b):send(auctionCh,'bid',b);
+export const sendKnownBids=(bids:NetBid[])=>useWs()?wsSend('known',{bids}):send(auctionCh,'known',{bids});
