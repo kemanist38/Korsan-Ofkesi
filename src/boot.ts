@@ -60,11 +60,14 @@ function askNick(sb:SupabaseClient,user:User):Promise<{player_no:number;nick:str
       if(error){msg(error.code==='23505'?'Bu kaptan adı alınmış':trErr(error.message));return;}resolve(data);};});
 }
 async function loadProfileRow(sb:SupabaseClient,user:User,nick?:string){
-  const {data,error}=await sb.from('profiles').select('player_no,nick').eq('id',user.id).maybeSingle();if(error)throw error;if(data)return data;
+  const {data,error}=await sb.from('profiles').select('player_no,nick,banned').eq('id',user.id).maybeSingle();if(error)throw error;
+  if(data?.banned){const r=await sb.from('profiles').select('ban_reason').eq('id',user.id).maybeSingle();throw new Banned(String((r.data as {ban_reason?:string}|null)?.ban_reason??''));}
+  if(data)return data;
   const wanted=nick??(typeof user.user_metadata?.nick==='string'?user.user_metadata.nick:'');
   if(wanted&&!nickError(wanted)){const r=await sb.from('profiles').insert({id:user.id,nick:wanted}).select('player_no,nick').single();if(!r.error)return r.data;}
   return askNick(sb,user);
 }
+class Banned extends Error{}
 let entered=false;
 async function enter(sb:SupabaseClient,user:User,nick?:string){
   if(entered)return;entered=true;
@@ -97,7 +100,9 @@ async function enter(sb:SupabaseClient,user:User,nick?:string){
     document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')push().catch(()=>{});});
     addEventListener('pagehide',()=>{push().catch(()=>{});});
     overlay().remove();await startGame();
-  }catch(e){entered=false;card('BAĞLANTI HATASI',`<p class="auth-info">Hesabın yüklenemedi. İnternet bağlantını kontrol edip tekrar dene.</p><button class="auth-main" id="authRetry">TEKRAR DENE</button>`,esc(String((e as Error)?.message??e)));
+  }catch(e){entered=false;
+    if(e instanceof Banned){card('HESAP KAPATILDI',`<p class="auth-info">Bu hesap oyun kurallarını ihlal ettiği için kapatıldı.${e.message?`<br><b>Sebep:</b> ${esc(e.message)}`:''}<br>İtiraz için: destek@piraterage.com</p><button class="auth-main" id="authOut">ÇIKIŞ YAP</button>`);document.getElementById('authOut')!.onclick=async()=>{await sb.auth.signOut();location.reload();};return;}
+    card('BAĞLANTI HATASI',`<p class="auth-info">Hesabın yüklenemedi. İnternet bağlantını kontrol edip tekrar dene.</p><button class="auth-main" id="authRetry">TEKRAR DENE</button>`,esc(String((e as Error)?.message??e)));
     document.getElementById('authRetry')!.onclick=()=>enter(sb,user,nick);}
 }
 async function boot(){

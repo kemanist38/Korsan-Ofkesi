@@ -1,0 +1,17 @@
+.admin{max-width:1100px;margin:0 auto;padding:24px 16px 60px}
+.admin h1{font-size:24px;margin-bottom:4px}
+.admin h2{font-size:17px;margin:28px 0 10px}
+.admin .card{background:linear-gradient(180deg,#24140b,#120a07);border:1px solid #c9973d44;border-radius:12px;padding:16px}
+.admin input,.admin select{padding:8px 10px;border:1px solid #c9973d55;border-radius:8px;background:#0b0705;color:#fff3dc;font-size:14px}
+.admin button{padding:8px 14px;border:1px solid #e0b04f;border-radius:8px;background:#3a2410;color:#ffe2a8;font:700 13px Inter,sans-serif;cursor:pointer}
+.admin button.danger{background:#5a140c;border-color:#ff6a4a;color:#ffd0c0}
+.admin button.ok{background:#173d1c;border-color:#7fd88a;color:#c9f5cf}
+.admin .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.admin table{width:100%;border-collapse:collapse;font-size:14px;margin-top:12px}
+.admin th,.admin td{padding:8px 6px;border-bottom:1px solid #c9973d22;text-align:left;vertical-align:middle}
+.admin th{color:#cdb58a;font-weight:600}
+.admin td.actions{display:flex;flex-wrap:wrap;gap:6px}
+.admin .banned{color:#ff8a6a;font-weight:700}
+.admin .msg{min-height:20px;margin:10px 0 0;color:#9be37c}
+.admin .msg.bad{color:#ff8a6a}
+.admin .table-wrap{overflow-x:auto}
