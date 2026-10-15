@@ -9,9 +9,7 @@ globalThis.__EQ=E.EQUIPMENT;
 const T=await import(`data:text/javascript;base64,${Buffer.from(ts.transpile(src,{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022})).toString('base64')}`);
 test('treasure reward scales with the sea and may carry equipment by rarity odds',()=>{
   const seq=v=>{let i=0;return()=>v[i++%v.length];};
-  const none=T.treasureReward(3,69,seq([.9]));assert.equal(none.gold,69*30);assert.equal(none.pearls,20);assert.equal(none.equip,null);
-  assert.equal(E.equipById(T.treasureReward(1,27,seq([.01,0])).equip).rarity,2);
-  assert.equal(E.equipById(T.treasureReward(1,27,seq([.05,0])).equip).rarity,1);
-  assert.equal(E.equipById(T.treasureReward(1,27,seq([.2,0])).equip).rarity,0);
+  const r=T.treasureReward(3,69,seq([.3]));assert.equal(r.gold,69*30);assert.equal(r.pearls,20);assert.equal(r.ammo,'fire');assert.equal(r.ammoQty,300);assert.equal(r.powder,35);assert.equal(r.shield,35);
+  assert.equal(T.treasureReward(1,27,seq([.95])).ammo,'leech');
   assert.equal(T.TREASURE_PARTS,4);
 });

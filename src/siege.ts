@@ -56,8 +56,8 @@ export function victoryChest(rand=Math.random,equipIds:string[]=[]){
 // Katkı sıralaması (en çok hasar veren önce)
 export const ranking=(contrib:Record<string,number>)=>Object.entries(contrib).sort((a,b)=>b[1]-a[1]);
 
-// Unvan: ilk 3'e bir hafta "Kuşatma Kahramanı"
-export const HERO_TITLE='Kuşatma Kahramanı',HERO_DAYS=7;
+// Kuşatma Kahramanı ödülü: ilk 3'e bir sonraki kuşatmaya kadar (7 gün) %3 ek hasar. Ad altında unvan gösterilmez.
+export const HERO_TITLE='Kuşatma Kahramanı',HERO_DAYS=7,HERO_DAMAGE=.03;
 const TITLE='yedi-deniz-title-v1';
 export function loadTitle(now=Date.now()):{name:string;until:number}|null{try{const t=JSON.parse(localStorage.getItem(TITLE)||'null');if(t&&t.until>now)return t;}catch{}return null;}
 export function grantTitle(now=Date.now()){const t={name:HERO_TITLE,until:now+HERO_DAYS*86_400_000};try{localStorage.setItem(TITLE,JSON.stringify(t));}catch{}return t;}

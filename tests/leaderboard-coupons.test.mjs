@@ -43,5 +43,5 @@ test('coupon codes are checked by hash, once, and until their last day',async()=
   const r=await C.redeem('  etkinlik1 ',used,'2026-10-10',list);assert.ok(r.ok,'case and spaces are ignored, last day counts');
   assert.equal((await C.redeem('ETKINLIK1',used,'2026-10-10',list)).error,'Bu kuponu zaten kullandın');
   assert.equal((await C.redeem('ETKINLIK1',[],'2026-10-11',list)).error,'Bu kuponun süresi dolmuş');
-  assert.equal(C.rewardText({pearls:100,gold:50000,vipDays:3}),'100 İnci · 50.000 Altın · 3 gün VİP');
+  assert.equal(C.rewardText({pearls:100,gold:50000,items:{fire:1000},design:'pirate-rage'}),'100 İnci · 50.000 Altın · 1.000 Ateş Güllesi · Pirate Rage tasarımı');
 });

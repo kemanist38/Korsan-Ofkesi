@@ -1,7 +1,10 @@
 // Kupon kodları: etkinliklerde dağıtılan kodlar menüdeki KUPON KODU penceresinden girilir. Kodun kendisi kaynakta durmaz,
 // yalnızca SHA-256 özeti tutulur (yeni kod: node tools/coupon.mjs). Her kod hesap başına bir kez kullanılır.
 // Not: sunucu gelene kadar kontrol tarayıcıdadır; kullanım sayısı sınırı ve iptal sunucu tarafında yapılacak.
-export type CouponReward={pearls?:number;gold?:number;xp?:number;ep?:number;vipDays?:number};
+// Ödül: inci, altın, gülle/malzeme (tür → adet) ve özel gemi tasarımı (tasarım kimliği)
+export type CouponReward={pearls?:number;gold?:number;xp?:number;ep?:number;items?:Record<string,number>;design?:string};
+export const COUPON_ITEMS:Record<string,string>={iron:'Demir Gülle',chain:'Zincir Gülle',fire:'Ateş Güllesi',explosive:'Patlayıcı Gülle',breaker:'Kule Kırıcı',leech:'Can Emici',heal:'Şifa Güllesi',powder:'Kara Barut',shield:'Kalkan',speed:'Hız İksiri',mine:'Mayın'};
+export const COUPON_DESIGNS:Record<string,string>={'pirate-rage':'Pirate Rage tasarımı'};
 export type Coupon={hash:string;reward:CouponReward;until?:string;note:string};
 export const COUPONS:Coupon[]=[
   // PIRATERAGE: beta hoş geldin kodu
@@ -24,4 +27,4 @@ export async function redeem(code:string,redeemed:string[],today:string,list=COU
   redeemed.push(h);return{ok:true,coupon:c};
 }
 export function rewardText(r:CouponReward){const f=(n:number)=>n.toLocaleString('tr-TR');
-  return[r.pearls&&`${f(r.pearls)} İnci`,r.gold&&`${f(r.gold)} Altın`,r.xp&&`${f(r.xp)} TP`,r.ep&&`${f(r.ep)} EP`,r.vipDays&&`${r.vipDays} gün VİP`].filter(Boolean).join(' · ');}
+  return[r.pearls&&`${f(r.pearls)} İnci`,r.gold&&`${f(r.gold)} Altın`,r.xp&&`${f(r.xp)} TP`,r.ep&&`${f(r.ep)} EP`,...Object.entries(r.items??{}).map(([k,n])=>n>0&&`${f(n)} ${COUPON_ITEMS[k]??k}`),r.design&&(COUPON_DESIGNS[r.design]??r.design)].filter(Boolean).join(' · ');}
