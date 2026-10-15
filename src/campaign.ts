@@ -1,4 +1,4 @@
-import {PVE_HP,PVE_XP} from './pve-balance';
+import {PVE_HP,PVE_XP,BOSS_HP} from './pve-balance';
 // Pirate Rage: Korsan Öfkesi kampanyası: 8 seviye, 16 deniz. Her denizin kendi NPC gemileri, canavarı ve filo adası vardır.
 // Güç ve ödüller denizin seviyesiyle birlikte artar.
 export type MapKey='1/1'|'1/2'|'2/1'|'2/2'|'3/1'|'3/2'|'4/1'|'4/2'|'5/1'|'5/2'|'6/1'|'6/2'|'7/1'|'7/2'|'8/1'|'8/2';
@@ -128,7 +128,7 @@ const BOSS_NAMES:Record<MapKey,string>={
   '7/1':'Hiçlik İmparatoru','7/2':'Hiçlik İmparatoru','8/1':'Cehennem Lordu','8/2':'Cehennem Lordu'};
 // Boss canı: kendi seviyesindeki tek oyuncu ateş güllesiyle ~2 dakikada batırır (boss'lar oyuncular arasında paylaşılmaz).
 // Hasarı büyük NPC'nin %25'i: ateş güllesiyle 2 dakikalık savaşta oyuncu canının yaklaşık %35-80'i gider.
-export const BOSS_HP=[0,165000,410000,980000,2200000,3000000,4500000,5800000,6300000],BOSS_DAMAGE=.25;
+export {BOSS_HP};export const BOSS_DAMAGE=.25;
 export const bossFor=(key:MapKey):BossDef=>{const m=MAPS[key],h=NPCS[`n${m.tier}-2-heavy`],hp=BOSS_HP[m.tier],i=MAP_KEYS.indexOf(key);
   return{key,id:`boss-${key.replace('/','-')}`,name:BOSS_NAMES[key],sprite:`/assets/boss-t${m.tier}-dir16-v2.webp`,span:260,role:'heavy',tier:m.tier,hp,damage:Math.round(h.damage*BOSS_DAMAGE),reload:2.2,speed:Math.round(h.speed*.8),gold:0,
     xp:h.xp*20,pearls:50*m.tier,portrait:i,trigger:h.id};};

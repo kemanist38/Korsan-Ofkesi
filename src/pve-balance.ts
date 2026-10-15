@@ -11,3 +11,5 @@ export const PVE_XP=[[],
   [400,700,1200,2000],[600,1050,1800,3000],[900,1575,2700,4500],
   [1300,2275,3900,6500],[1800,3150,5400,9000]
 ];
+// Boss canı (tek oyuncu ateş güllesiyle ~2 dk); oyun sunucusu da paylaşılan boss için bunu kullanır.
+export const BOSS_HP=[0,165000,410000,980000,2200000,3000000,4500000,5800000,6300000];

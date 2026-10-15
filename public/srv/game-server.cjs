@@ -3645,11 +3645,17 @@ var require_websocket_server = __commonJS({
 // server/game-server.mjs
 var game_server_exports = {};
 __export(game_server_exports, {
+  BOSS_HIT_CAP: () => BOSS_HIT_CAP,
+  BOSS_LIFE_MS: () => BOSS_LIFE_MS,
   FAR_EVERY: () => FAR_EVERY,
   LIMITS: () => LIMITS,
   NEAR: () => NEAR,
   Rate: () => Rate,
   TICK_MS: () => TICK_MS,
+  bossHit: () => bossHit,
+  bossInfo: () => bossInfo,
+  bossKill: () => bossKill,
+  bossSeas: () => bossSeas,
   buildBatch: () => buildBatch,
   checkFire: () => checkFire,
   checkState: () => checkState,
@@ -3657,6 +3663,7 @@ __export(game_server_exports, {
   osbMatch: () => osbMatch,
   parseForm: () => parseForm,
   parseOsb: () => parseOsb,
+  seaTier: () => seaTier,
   verifyOsb: () => verifyOsb,
   verifyToken: () => verifyToken
 });
@@ -3671,6 +3678,9 @@ var import_receiver = __toESM(require_receiver(), 1);
 var import_sender = __toESM(require_sender(), 1);
 var import_websocket = __toESM(require_websocket(), 1);
 var import_websocket_server = __toESM(require_websocket_server(), 1);
+
+// src/pve-balance.ts
+var BOSS_HP = [0, 165e3, 41e4, 98e4, 22e5, 3e6, 45e5, 58e5, 63e5];
 
 // server/game-server.mjs
 var PORT = Number(process.env.PORT || 3e3);
@@ -3870,6 +3880,56 @@ function leaveSea(c) {
   c.sea = "";
   c.last = null;
 }
+var BOSS_LIFE_MS = 20 * 6e4;
+var BOSS_HIT_CAP = 8e4;
+var bossSeas = /* @__PURE__ */ new Map();
+var seaTier = (name) => {
+  const m = /^sea-(\d)-\d$/.exec(name);
+  return m ? Number(m[1]) : 0;
+};
+function bossKill(name, need, now = Date.now(), rand = Math.random) {
+  const tier = seaTier(name);
+  if (!tier) return null;
+  const st = bossSeas.get(name) ?? { kills: 0, boss: null };
+  bossSeas.set(name, st);
+  if (st.boss) return null;
+  need = Math.max(50, Math.min(200, Math.round(Number(need) || 200)));
+  if (++st.kills < need) return null;
+  st.kills = 0;
+  st.boss = { id: Math.random().toString(36).slice(2, 9), hp: BOSS_HP[tier], maxHp: BOSS_HP[tier], x: Math.round(700 + rand() * 4600), y: Math.round(600 + rand() * 2800), at: now, dmg: /* @__PURE__ */ new Map(), dirty: false };
+  return st.boss;
+}
+var bossInfo = (name, b) => ({ sea: name, id: b.id, hp: b.hp, maxHp: b.maxHp, x: b.x, y: b.y, left: Math.max(0, BOSS_LIFE_MS - (Date.now() - b.at)) });
+function bossHit(name, uid, dmg) {
+  const b = bossSeas.get(name)?.boss;
+  if (!b || !(dmg > 0)) return null;
+  dmg = Math.min(BOSS_HIT_CAP, dmg, b.hp);
+  b.hp -= dmg;
+  b.dmg.set(uid, (b.dmg.get(uid) || 0) + dmg);
+  b.dirty = true;
+  if (b.hp > 0) return null;
+  const total = [...b.dmg.values()].reduce((a, v) => a + v, 0) || 1, shares = {};
+  for (const [u, d] of b.dmg) shares[u] = { share: d / total, dmg: Math.round(d) };
+  bossSeas.get(name).boss = null;
+  return { id: b.id, shares, n: b.dmg.size };
+}
+function bossTick(now) {
+  for (const [name, st] of bossSeas) {
+    const b = st.boss;
+    if (!b) continue;
+    const room = seas.get(name);
+    if (now - b.at > BOSS_LIFE_MS) {
+      st.boss = null;
+      if (room) for (const x of room) send(x, { t: "bgone", d: { id: b.id } });
+      continue;
+    }
+    if (b.dirty && room) {
+      b.dirty = false;
+      const msg = JSON.stringify({ t: "bhp", d: { id: b.id, hp: Math.round(b.hp) } });
+      for (const x of room) send(x, msg);
+    }
+  }
+}
 var NEAR = 1800;
 var TICK_MS = 100;
 var FAR_EVERY = 20;
@@ -3914,6 +3974,7 @@ function buildBatch(rec, room, tick) {
 }
 setInterval(() => {
   tickNo++;
+  if (tickNo % 3 === 0) bossTick(Date.now());
   for (const room of seas.values()) {
     if (room.size < 2) continue;
     for (const rec of room) {
@@ -3972,7 +4033,7 @@ var httpServer = import_node_http.default.createServer(async (q, r) => {
 });
 var wss = new import_websocket_server.default({ server: httpServer, path: "/ws", maxPayload: 16 * 1024, perMessageDeflate: { threshold: 256, zlibDeflateOptions: { level: 3 }, serverNoContextTakeover: false, clientNoContextTakeover: true } });
 wss.on("connection", (ws) => {
-  const c = { ws, uid: "", nick: "", playerNo: 0, netId: "", sea: "", last: null, strikes: 0, rState: new Rate(LIMITS.statesPerSec, 1e3), rFire: new Rate(LIMITS.firesPerSec, 1e3), rChat: new Rate(LIMITS.chatPerMin, 6e4), rMsg: new Rate(60, 1e3) };
+  const c = { ws, uid: "", nick: "", playerNo: 0, netId: "", sea: "", last: null, strikes: 0, rState: new Rate(LIMITS.statesPerSec, 1e3), rFire: new Rate(LIMITS.firesPerSec, 1e3), rChat: new Rate(LIMITS.chatPerMin, 6e4), rMsg: new Rate(60, 1e3), rBoss: new Rate(5, 1e3), rKill: new Rate(3, 1e3) };
   all.add(c);
   const authTimer = setTimeout(() => {
     if (!c.uid) ws.close(4001, "giri\u015F yok");
@@ -4026,6 +4087,8 @@ wss.on("connection", (ws) => {
         c.sea = name;
         c.seen = null;
         send(c, { t: "joined", sea: name });
+        const b = bossSeas.get(name)?.boss;
+        if (b) send(c, { t: "boss", d: bossInfo(name, b) });
         return;
       }
       case "state": {
@@ -4060,6 +4123,27 @@ wss.on("connection", (ws) => {
         s.victim = c.netId;
         s.victimNick = c.nick;
         toSea(c, { t: "sunk", d: s });
+        return;
+      }
+      case "bkill": {
+        if (!c.sea || !c.rKill.hit(now)) return;
+        const b = bossKill(c.sea, m.d?.need, now);
+        if (b) {
+          log("BOSS", c.sea);
+          toSea(c, { t: "boss", d: bossInfo(c.sea, b) }, true);
+        }
+        return;
+      }
+      case "bhit": {
+        if (!c.sea || !c.rBoss.hit(now)) return;
+        const dmg = Number(m.d?.dmg);
+        if (!num(dmg) || dmg <= 0) return;
+        if (dmg > BOSS_HIT_CAP) suspect(c, "boss hasar\u0131", String(dmg));
+        const r = bossHit(c.sea, c.uid, dmg);
+        if (!r) return;
+        const room = seas.get(c.sea);
+        log("BOSS BATTI", c.sea, r.n, "kaptan");
+        for (const x of room || []) send(x, { t: "bdown", d: { id: r.id, n: r.n, ...r.shares[x.uid] ?? { share: 0, dmg: 0 } } });
         return;
       }
       case "chat": {
@@ -4114,11 +4198,17 @@ wss.on("connection", (ws) => {
 if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => log(`Oyun sunucusu ${PORT} portunda`));
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  BOSS_HIT_CAP,
+  BOSS_LIFE_MS,
   FAR_EVERY,
   LIMITS,
   NEAR,
   Rate,
   TICK_MS,
+  bossHit,
+  bossInfo,
+  bossKill,
+  bossSeas,
   buildBatch,
   checkFire,
   checkState,
@@ -4126,6 +4216,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   osbMatch,
   parseForm,
   parseOsb,
+  seaTier,
   verifyOsb,
   verifyToken
 });
