@@ -1,6 +1,6 @@
 // Altın ihalesi: her saat başı yeni ihale açılır. Lotlar saatin numarasından üretilir, böylece bütün oyuncular aynı lotları görür.
-// Teklifler canlı kanaldan yayılır; en yüksek teklif kazanır (eşitse önce veren). Teklif verilen altın emanete alınır,
-// teklif geçilirse hemen geri verilir; saat dolunca kazanan eşyayı alır ve ihale sıfırlanır.
+// Teklifler canlı kanaldan yayılır; en yüksek teklif kazanır (eşitse önce veren). Teklif verilen altın harcanır,
+// teklif geçilirse geri verilmez (refund yalnızca kaybedilen tutarı bildirir); saat dolunca kazanan eşyayı alır.
 export const AUCTION_MS=3600000;
 export type LotKind='cannon'|'ammo'|'supply';
 export type LotDef={key:string;kind:LotKind;item:string;qty:number};
