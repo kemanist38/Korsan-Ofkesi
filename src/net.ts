@@ -16,7 +16,10 @@ export type NetSunk={victim:string;by:string;victimNick:string;byNick:string};
 export type NetChat={nick:string;text:string;at:number};
 // İhale: tekliflerin kendisi (bid), yeni katılanın mevcut teklifleri istemesi (ask) ve buna verilen cevap (known)
 export type NetBid={hour:number;lot:string;amount:number;id:string;nick:string;at:number};
-export type NetHandlers={state:(s:NetState)=>void;leave:(id:string)=>void;fire:(f:NetFire)=>void;sunk:(s:NetSunk)=>void;chat:(c:NetChat)=>void;bid?:(b:NetBid)=>void;bidAsk?:(hour:number)=>void;bidKnown?:(bids:NetBid[])=>void};
+// Paylaşılan boss (yalnızca VPS sunucusunda): ortaya çıkış, can güncellemesi, batış (pay) ve süre dolunca kayboluş
+export type NetBoss={sea:string;id:string;hp:number;maxHp:number;x:number;y:number;left:number};
+export type NetBossDown={id:string;n:number;share:number;dmg:number};
+export type NetHandlers={boss?:(b:NetBoss)=>void;bossHp?:(id:string,hp:number)=>void;bossDown?:(d:NetBossDown)=>void;bossGone?:(id:string)=>void;state:(s:NetState)=>void;leave:(id:string)=>void;fire:(f:NetFire)=>void;sunk:(s:NetSunk)=>void;chat:(c:NetChat)=>void;bid?:(b:NetBid)=>void;bidAsk?:(hour:number)=>void;bidKnown?:(bids:NetBid[])=>void};
 
 const ID_KEY='yedi-deniz-net-id';
 export const myNetId=(()=>{try{let v=sessionStorage.getItem(ID_KEY);if(!v){v=Math.random().toString(36).slice(2,10);sessionStorage.setItem(ID_KEY,v);}return v;}catch{return Math.random().toString(36).slice(2,10);}})();
@@ -47,6 +50,10 @@ async function connectWs(){const sb=supa();if(!sb||!session.account){fallback();
       case'fire':handlers?.fire(m.d as NetFire);break;
       case'sunk':handlers?.sunk(m.d as NetSunk);break;
       case'chat':handlers?.chat(m.d as NetChat);break;
+      case'boss':handlers?.boss?.(m.d as NetBoss);break;
+      case'bhp':{const d=m.d as {id:string;hp:number};handlers?.bossHp?.(d.id,d.hp);break;}
+      case'bdown':handlers?.bossDown?.(m.d as NetBossDown);break;
+      case'bgone':handlers?.bossGone?.((m.d as {id:string}).id);break;
       case'bid':handlers?.bid?.(m.d as NetBid);break;
       case'ask':handlers?.bidAsk?.((m.d as {hour:number}).hour);break;
       case'known':handlers?.bidKnown?.((m.d as {bids:NetBid[]}).bids);break;
@@ -99,3 +106,7 @@ export const sendSunk=(s:NetSunk)=>useWs()?wsSend('sunk',s):send(sea,'sunk',s);
 export const sendChat=(c:NetChat)=>useWs()?wsSend('chat',c):send(chatCh,'chat',c);
 export const sendBid=(b:NetBid)=>useWs()?wsSend('bid',b):send(auctionCh,'bid',b);
 export const sendKnownBids=(bids:NetBid[])=>useWs()?wsSend('known',{bids}):send(auctionCh,'known',{bids});
+// Boss'lar VPS bağlantısı varken paylaşılır; yedek yolda (Supabase) her oyuncu kendi boss'unu keser
+export const sharedBosses=()=>useWs()&&wsReady;
+export const sendBossKill=(need:number)=>wsSend('bkill',{need});
+export const sendBossHit=(dmg:number)=>wsSend('bhit',{dmg:Math.round(dmg)});

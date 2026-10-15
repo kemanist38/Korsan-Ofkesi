@@ -6,6 +6,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import {WebSocketServer} from 'ws';
+import {BOSS_HP} from '../src/pve-balance.ts';
 
 const PORT=Number(process.env.PORT||3000);
 const SUPABASE_URL=process.env.SUPABASE_URL||'https://vidjvineafeiyoclioau.supabase.co';
@@ -91,6 +92,28 @@ const toNear=(c,o,target)=>{const room=seas.get(c.sea);if(!room)return;const s=J
 const toAll=(c,o)=>{const s=JSON.stringify(o);for(const x of all)if(x!==c&&x.uid)send(x,s);};
 function leaveSea(c){c.seen=null;c.state=null;for(const x of seas.get(c.sea)||[])x.seen?.delete(c);if(!c.sea)return;const room=seas.get(c.sea);if(room){room.delete(c);if(!room.size)seas.delete(c.sea);}if(c.netId)toSea(c,{t:'leave',id:c.netId});c.sea='';c.last=null;}
 
+// ---------------------------------------------------------------- Paylaşılan boss
+// Boss'un canı ve katkılar sunucuda tutulur: denizdeki herkes aynı boss'a vurur. Tetikleyici NPC batırmaları deniz için ortak
+// sayılır (bkill). Oyuncular verdikleri hasarı toplu bildirir (bhit; tek pakette en çok BOSS_HIT_CAP, saniyede 5 paket).
+// Boss batınca o denizde bulunan her katılımcıya payı (hasar / toplam) ve katılımcı sayısı gönderilir. 20 dakikada batmazsa kaybolur.
+export const BOSS_LIFE_MS=20*60_000,BOSS_HIT_CAP=80_000;
+export const bossSeas=new Map(); // deniz adı → {kills, boss}
+export const seaTier=name=>{const m=/^sea-(\d)-\d$/.exec(name);return m?Number(m[1]):0;};
+export function bossKill(name,need,now=Date.now(),rand=Math.random){const tier=seaTier(name);if(!tier)return null;
+  const st=bossSeas.get(name)??{kills:0,boss:null};bossSeas.set(name,st);if(st.boss)return null;
+  need=Math.max(50,Math.min(200,Math.round(Number(need)||200)));if(++st.kills<need)return null;st.kills=0;
+  st.boss={id:Math.random().toString(36).slice(2,9),hp:BOSS_HP[tier],maxHp:BOSS_HP[tier],x:Math.round(700+rand()*4600),y:Math.round(600+rand()*2800),at:now,dmg:new Map(),dirty:false};
+  return st.boss;}
+export const bossInfo=(name,b)=>({sea:name,id:b.id,hp:b.hp,maxHp:b.maxHp,x:b.x,y:b.y,left:Math.max(0,BOSS_LIFE_MS-(Date.now()-b.at))});
+// Hasar işlenir; boss batarsa {uid: {share,dmg}} ve katılımcı sayısı döner
+export function bossHit(name,uid,dmg){const b=bossSeas.get(name)?.boss;if(!b||!(dmg>0))return null;dmg=Math.min(BOSS_HIT_CAP,dmg,b.hp);
+  b.hp-=dmg;b.dmg.set(uid,(b.dmg.get(uid)||0)+dmg);b.dirty=true;if(b.hp>0)return null;
+  const total=[...b.dmg.values()].reduce((a,v)=>a+v,0)||1,shares={};for(const [u,d] of b.dmg)shares[u]={share:d/total,dmg:Math.round(d)};
+  bossSeas.get(name).boss=null;return{id:b.id,shares,n:b.dmg.size};}
+function bossTick(now){for(const [name,st] of bossSeas){const b=st.boss;if(!b)continue;const room=seas.get(name);
+  if(now-b.at>BOSS_LIFE_MS){st.boss=null;if(room)for(const x of room)send(x,{t:'bgone',d:{id:b.id}});continue;}
+  if(b.dirty&&room){b.dirty=false;const msg=JSON.stringify({t:'bhp',d:{id:b.id,hp:Math.round(b.hp)}});for(const x of room)send(x,msg);}}}
+
 // ---------------------------------------------------------------- Durum paketleme (trafik)
 // Hareket mesajları anında herkese iletilmez: her oyuncunun son durumu tutulur ve 10/sn'lik turda her alıcıya tek pakette gider.
 // Yakındakiler (NEAR birim) her turda, uzaktakiler saniyede bir güncellenir. Kimlik alanları (ad, gemi, rütbe…) yalnızca
@@ -105,7 +128,7 @@ export function buildBatch(rec,room,tick){const out=[];if(!rec.seen)rec.seen=new
     const near=!rec.last||!o.last||Math.abs(o.last.x-rec.last.x)+Math.abs(o.last.y-rec.last.y)<NEAR;if(!near&&!far)continue;
     const d={...o.state};if(seen.i!==o.identVer&&o.ident){Object.assign(d,o.ident);seen.i=o.identVer;}seen.s=o.stateVer;rec.seen.set(o,seen);out.push(d);}
   return out;}
-setInterval(()=>{tickNo++;for(const room of seas.values()){if(room.size<2)continue;for(const rec of room){const b=buildBatch(rec,room,tickNo);if(b.length)send(rec,{t:'batch',d:b});}}},TICK_MS).unref();
+setInterval(()=>{tickNo++;if(tickNo%3===0)bossTick(Date.now());for(const room of seas.values()){if(room.size<2)continue;for(const rec of room){const b=buildBatch(rec,room,tickNo);if(b.length)send(rec,{t:'batch',d:b});}}},TICK_MS).unref();
 
 const httpServer=http.createServer(async(q,r)=>{const cors={'access-control-allow-origin':'*','access-control-allow-headers':'authorization','content-type':'application/json'};
   if(q.method==='OPTIONS'){r.writeHead(204,cors);r.end();return;}
@@ -122,7 +145,7 @@ const httpServer=http.createServer(async(q,r)=>{const cors={'access-control-allo
 // Sıkıştırma: 256 bayttan büyük paketler (durum paketleri) deflate ile ~4–5 kat küçülür
 const wss=new WebSocketServer({server:httpServer,path:'/ws',maxPayload:16*1024,perMessageDeflate:{threshold:256,zlibDeflateOptions:{level:3},serverNoContextTakeover:false,clientNoContextTakeover:true}});
 wss.on('connection',ws=>{
-  const c={ws,uid:'',nick:'',playerNo:0,netId:'',sea:'',last:null,strikes:0,rState:new Rate(LIMITS.statesPerSec,1000),rFire:new Rate(LIMITS.firesPerSec,1000),rChat:new Rate(LIMITS.chatPerMin,60000),rMsg:new Rate(60,1000)};
+  const c={ws,uid:'',nick:'',playerNo:0,netId:'',sea:'',last:null,strikes:0,rState:new Rate(LIMITS.statesPerSec,1000),rFire:new Rate(LIMITS.firesPerSec,1000),rChat:new Rate(LIMITS.chatPerMin,60000),rMsg:new Rate(60,1000),rBoss:new Rate(5,1000),rKill:new Rate(3,1000)};
   all.add(c);const authTimer=setTimeout(()=>{if(!c.uid)ws.close(4001,'giriş yok');},10000);
   ws.on('message',async raw=>{const now=Date.now();if(!c.rMsg.hit(now)){suspect(c,'mesaj seli');return;}
     let m;try{m=JSON.parse(String(raw));}catch{return;}if(!m||typeof m.t!=='string')return;
@@ -134,11 +157,16 @@ wss.on('connection',ws=>{
     if(!c.uid)return;
     switch(m.t){
       case'join':{const name=String(m.sea||'').slice(0,40);if(name===c.sea)return;leaveSea(c);if(!name)return;
-        const room=seas.get(name)??new Set();if(room.size>=LIMITS.maxPerSea){send(c,{t:'full'});return;}room.add(c);seas.set(name,room);c.sea=name;c.seen=null;send(c,{t:'joined',sea:name});return;}
+        const room=seas.get(name)??new Set();if(room.size>=LIMITS.maxPerSea){send(c,{t:'full'});return;}room.add(c);seas.set(name,room);c.sea=name;c.seen=null;send(c,{t:'joined',sea:name});
+        const b=bossSeas.get(name)?.boss;if(b)send(c,{t:'boss',d:bossInfo(name,b)});return;}
       case'state':{if(!c.sea||!c.rState.hit(now))return;const s=m.d;const v=checkState(c.last,s,now);if(v==='bad')return;if(v==='speed')suspect(c,'hız',`${Math.round(s.x)},${Math.round(s.y)}`);
         c.last={x:s.x,y:s.y,at:now};s.id=c.netId;queueState(c,s);return;}
       case'fire':{if(!c.sea||!c.rFire.hit(now)){suspect(c,'atış hızı');return;}const f=m.d;const v=checkFire(f);if(v!=='ok'){suspect(c,'hasar',String(f?.damage));return;}f.from=c.netId;toNear(c,{t:'fire',d:f},f.to);return;}
       case'sunk':{if(!c.sea)return;const s=m.d||{};s.victim=c.netId;s.victimNick=c.nick;toSea(c,{t:'sunk',d:s});return;}
+      case'bkill':{if(!c.sea||!c.rKill.hit(now))return;const b=bossKill(c.sea,m.d?.need,now);if(b){log('BOSS',c.sea);toSea(c,{t:'boss',d:bossInfo(c.sea,b)},true);}return;}
+      case'bhit':{if(!c.sea||!c.rBoss.hit(now))return;const dmg=Number(m.d?.dmg);if(!num(dmg)||dmg<=0)return;if(dmg>BOSS_HIT_CAP)suspect(c,'boss hasarı',String(dmg));
+        const r=bossHit(c.sea,c.uid,dmg);if(!r)return;const room=seas.get(c.sea);log('BOSS BATTI',c.sea,r.n,'kaptan');
+        for(const x of room||[])send(x,{t:'bdown',d:{id:r.id,n:r.n,...(r.shares[x.uid]??{share:0,dmg:0})}});return;}
       case'chat':{if(!c.rChat.hit(now))return;const text=String(m.d?.text||'').slice(0,LIMITS.chatLen).trim();if(!text)return;
         toAll(c,{t:'chat',d:{nick:c.nick,tag:m.d?.tag??null,text,at:now}});return;}
       case'bid':{const b=m.d||{};b.id=c.uid;b.nick=c.nick;toAll(c,{t:'bid',d:b});return;}
