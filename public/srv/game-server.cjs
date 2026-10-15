@@ -3650,6 +3650,7 @@ __export(game_server_exports, {
   checkFire: () => checkFire,
   checkState: () => checkState,
   isAdminToken: () => isAdminToken,
+  osbMatch: () => osbMatch,
   parseForm: () => parseForm,
   parseOsb: () => parseOsb,
   verifyOsb: () => verifyOsb,
@@ -3686,13 +3687,20 @@ async function verifyToken(token) {
   if (!prof) return null;
   return { uid: user.id, nick: prof.nick, playerNo: prof.player_no, banned: !!prof.banned };
 }
-function verifyOsb(res, hash, user, pass) {
-  if (!res || !hash || !user || !pass) return false;
-  const raw = import_node_crypto.default.createHmac("sha256", pass).update(res + user).digest();
-  const hex = raw.toString("hex"), b64 = raw.toString("base64"), h = String(hash);
+function osbMatch(res, hash, user, pass) {
+  if (!res || !hash || !user || !pass) return "";
+  user = user.trim();
+  pass = pass.trim();
+  const h = String(hash).trim();
   const eq = (a, b) => a.length === b.length && import_node_crypto.default.timingSafeEqual(Buffer.from(a), Buffer.from(b));
-  return eq(h.toLowerCase(), hex) || eq(h, b64);
+  const tries = [["res+kullan\u0131c\u0131", pass, res + user], ["kullan\u0131c\u0131+res", pass, user + res], ["res (anahtar=\u015Fifre)", pass, res], ["ters anahtar", user, res + pass]];
+  for (const [name, key, data] of tries) {
+    const raw = import_node_crypto.default.createHmac("sha256", key).update(data).digest();
+    if (eq(h.toLowerCase(), raw.toString("hex")) || eq(h, raw.toString("base64"))) return name;
+  }
+  return "";
 }
+var verifyOsb = (res, hash, user, pass) => !!osbMatch(res, hash, user, pass);
 function parseOsb(res) {
   const d = JSON.parse(Buffer.from(res, "base64").toString("utf8"));
   const pick = (...k) => {
@@ -3724,10 +3732,18 @@ function parseForm(body, ctype = "") {
 async function handleOsb(body, ctype) {
   const form = parseForm(body, ctype), res = form.get("res") || "", hash = form.get("hash") || "";
   log("SHOPIER istek geldi", ctype || "-", "alanlar:", [...form.keys()].map((k) => `${k}(${(form.get(k) || "").length})`).join(",") || `g\xF6vde ${body.length} bayt`, "ayar:", OSB_USER ? "kullan\u0131c\u0131 var" : "KULLANICI YOK", OSB_PASS ? "\u015Fifre var" : "\u015E\u0130FRE YOK", SERVER_SECRET ? "anahtar var" : "ANAHTAR YOK");
-  if (!verifyOsb(res, hash, OSB_USER, OSB_PASS)) {
-    log("SHOPIER imza ge\xE7ersiz");
+  const how = osbMatch(res, hash, OSB_USER, OSB_PASS);
+  if (!how) {
+    let json = "hay\u0131r";
+    try {
+      JSON.parse(Buffer.from(res, "base64").toString("utf8"));
+      json = "evet";
+    } catch {
+    }
+    log("SHOPIER imza ge\xE7ersiz", "res uzunluk", res.length, "json okunuyor", json, "hash uzunluk", hash.length, "kullan\u0131c\u0131 uzunluk", OSB_USER.length, "\u015Fifre uzunluk", OSB_PASS.length);
     return false;
   }
+  log("SHOPIER imza do\u011Fru:", how);
   let o;
   try {
     o = parseOsb(res);
@@ -4031,6 +4047,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   checkFire,
   checkState,
   isAdminToken,
+  osbMatch,
   parseForm,
   parseOsb,
   verifyOsb,

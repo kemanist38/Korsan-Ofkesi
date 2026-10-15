@@ -27,9 +27,13 @@ export async function verifyToken(token){
 
 // ---------------------------------------------------------------- Shopier Otomatik Sipariş Bildirimi
 // Shopier POST eder: res (base64 JSON) ve hash = HMAC-SHA256(res + kullanıcı, şifre). İmza tutarsa sipariş veritabanına işlenir.
-export function verifyOsb(res,hash,user,pass){if(!res||!hash||!user||!pass)return false;const raw=crypto.createHmac('sha256',pass).update(res+user).digest();
-  const hex=raw.toString('hex'),b64=raw.toString('base64'),h=String(hash);
-  const eq=(a,b)=>a.length===b.length&&crypto.timingSafeEqual(Buffer.from(a),Buffer.from(b));return eq(h.toLowerCase(),hex)||eq(h,b64);}
+// Hangi hesaplama tuttuysa adı döner (teşhis için); hiçbiri tutmazsa ''
+export function osbMatch(res,hash,user,pass){if(!res||!hash||!user||!pass)return'';user=user.trim();pass=pass.trim();const h=String(hash).trim();
+  const eq=(a,b)=>a.length===b.length&&crypto.timingSafeEqual(Buffer.from(a),Buffer.from(b));
+  const tries=[['res+kullanıcı',pass,res+user],['kullanıcı+res',pass,user+res],['res (anahtar=şifre)',pass,res],['ters anahtar',user,res+pass]];
+  for(const [name,key,data] of tries){const raw=crypto.createHmac('sha256',key).update(data).digest();if(eq(h.toLowerCase(),raw.toString('hex'))||eq(h,raw.toString('base64')))return name;}
+  return'';}
+export const verifyOsb=(res,hash,user,pass)=>!!osbMatch(res,hash,user,pass);
 export function parseOsb(res){const d=JSON.parse(Buffer.from(res,'base64').toString('utf8'));const pick=(...k)=>{for(const x of k)if(d[x]!==undefined&&d[x]!==null&&d[x]!=='')return d[x];return null;};
   return{order:String(pick('orderid','order_id','platform_order_id','id')??''),email:pick('email','buyer_email','buyeremail'),note:pick('customernote','customer_note','note','buyernote'),
     price:Number(String(pick('price','total','total_order_value','amount')??'0').replace(',','.')),test:['1','true',1,true].includes(pick('istest','is_test','test')),keys:Object.keys(d)};}
@@ -42,7 +46,10 @@ export function parseForm(body,ctype=''){const m=/boundary=(?:"([^"]+)"|([^;]+))
 async function handleOsb(body,ctype){const form=parseForm(body,ctype),res=form.get('res')||'',hash=form.get('hash')||'';
   // Teşhis: gelen alanların adları ve uzunlukları (değerler yazılmaz)
   log('SHOPIER istek geldi',ctype||'-','alanlar:',[...form.keys()].map(k=>`${k}(${(form.get(k)||'').length})`).join(',')||`gövde ${body.length} bayt`,'ayar:',OSB_USER?'kullanıcı var':'KULLANICI YOK',OSB_PASS?'şifre var':'ŞİFRE YOK',SERVER_SECRET?'anahtar var':'ANAHTAR YOK');
-  if(!verifyOsb(res,hash,OSB_USER,OSB_PASS)){log('SHOPIER imza geçersiz');return false;}
+  const how=osbMatch(res,hash,OSB_USER,OSB_PASS);
+  if(!how){let json='hayır';try{JSON.parse(Buffer.from(res,'base64').toString('utf8'));json='evet';}catch{}
+    log('SHOPIER imza geçersiz','res uzunluk',res.length,'json okunuyor',json,'hash uzunluk',hash.length,'kullanıcı uzunluk',OSB_USER.length,'şifre uzunluk',OSB_PASS.length);return false;}
+  log('SHOPIER imza doğru:',how);
   let o;try{o=parseOsb(res);}catch{log('SHOPIER veri okunamadı');return false;}
   log('SHOPIER sipariş',o.order,o.price,'alanlar:',o.keys.join(','));
   const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/shopier_credit`,{method:'POST',headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`,'content-type':'application/json'},
