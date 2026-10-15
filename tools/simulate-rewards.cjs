@@ -13,7 +13,7 @@ const DAILY=lvl=>{const G=dailyGold(lvl);return[
   {gold:G*2,explosive:6000,speed:20},
   {pearls:100,leech:6000},
   {gold:G*3,powder:200,shield:200,mine:10},
-  {pearls:300,gold:G*5,explosive:9000,fire:9000,equip:'common'},
+  {pearls:300,gold:G*5,explosive:9000,fire:9000},
 ];};
 const FESTIVAL=[
   {pearls:200,fire:15000},
@@ -24,7 +24,7 @@ const FESTIVAL=[
   {gold:600000,leech:15000,mine:30},
   {pearls:500,heal:20000},
 ];
-const GRAND={pearls:2500,explosive:30000,design:true,equip:'common'};
+const GRAND={pearls:2500,explosive:30000,design:true};
 const pearlValue=r=>Object.entries(r).reduce((s,[k,v])=>s+(k==='pearls'?v:PRICE[k]?v*PRICE[k]:0),0);
 const goldValue=r=>(r.gold||0)+Object.entries(GOLD_PRICE).reduce((s,[k,p])=>s+(r[k]||0)*p,0);
 const fmt=n=>Math.round(n).toLocaleString('tr-TR');
@@ -41,7 +41,7 @@ for(const p of [1,.9,.7,.5]){const w=weekly(p,5);console.log(`Giriş olasılığ
 console.log('\n=== AÇILIŞ FESTİVALİ ===');
 let fp=0,fg=0;FESTIVAL.forEach((r,i)=>{fp+=pearlValue(r);fg+=goldValue(r);console.log(`${i+1}. gün: ${fmt(pearlValue(r))} inci değeri · ${fmt(goldValue(r))} altın değeri`);});
 console.log(`7 günlük ödüller: ${fmt(fp)} inci değeri (~${fmt(fp*TL_PER_PEARL)} ₺) + ${fmt(fg)} altın`);
-console.log(`Büyük ödül (7/7): ${fmt(pearlValue(GRAND))} inci değeri (~${fmt(pearlValue(GRAND)*TL_PER_PEARL)} ₺) + Pirate Rage tasarımı + destansı donanım`);
+console.log(`Büyük ödül (7/7): ${fmt(pearlValue(GRAND))} inci değeri (~${fmt(pearlValue(GRAND)*TL_PER_PEARL)} ₺) + Pirate Rage tasarımı`);
 console.log(`7/7 giren oyuncunun toplamı: ${fmt(fp+pearlValue(GRAND))} inci değeri (~${fmt((fp+pearlValue(GRAND))*TL_PER_PEARL)} ₺) — normal oyuncunun ${((fp+pearlValue(GRAND))/(PEARL_PER_HOUR*3)).toFixed(1)} günlük gülle harcaması`);
 const missOne=fp-pearlValue(FESTIVAL[4]);console.log(`5. günü kaçıran: ${fmt(missOne)} inci değeri (büyük ödül ve tasarım yok)`);
 module.exports={DAILY,FESTIVAL,GRAND};

@@ -16,8 +16,8 @@ export const FESTIVAL_REWARDS:FestivalReward[]=[
   {gold:600_000,leech:15_000,mine:30},
   {pearls:500,heal:20_000},
 ];
-// Büyük ödül: yalnızca 7 günün hepsine giren oyuncuya, 7. gün ödülüyle birlikte (≈ 3.100 inci değeri + tasarım + destansı donanım)
-export const FESTIVAL_GRAND:FestivalReward={pearls:2_500,explosive:30_000,design:true,equip:'epic'};
+// Büyük ödül: yalnızca 7 günün hepsine giren oyuncuya, 7. gün ödülüyle birlikte (≈ 3.100 inci değeri + tasarım)
+export const FESTIVAL_GRAND:FestivalReward={pearls:2_500,explosive:30_000,design:true};
 export type FestivalState={start:string;claimed:number[]};
 const KEY='yedi-deniz-festival-v1';
 export function loadFestival(testMode:boolean,now=new Date()):FestivalState|null{
