@@ -55,7 +55,7 @@ test('every map has its own boss, summoned by 200 of the sea\'s largest NPC',()=
   const {bossFor,BOSS_KILLS,MAP_KEYS:keys,MAPS:maps,NPCS}=world;assert.equal(BOSS_KILLS,200);
   const names=new Set();
   keys.forEach((key,i)=>{const b=bossFor(key),heavy=NPCS[`n${maps[key].tier}-2-heavy`];
-    assert.equal(b.trigger,heavy.id);assert.equal(b.hp,heavy.hp*10);assert.equal(b.xp,heavy.xp*20);assert.equal(b.gold,0);
+    assert.equal(b.trigger,heavy.id);assert.equal(b.hp,world.BOSS_HP[maps[key].tier]);assert.equal(b.xp,heavy.xp*20);assert.equal(b.gold,0);
     assert.equal(b.pearls,50*maps[key].tier);assert.ok(b.xp>0);assert.equal(b.portrait,i);names.add(b.name);
     assert.equal(b.sprite,`/assets/boss-t${maps[key].tier}-dir16-v2.webp`);});
   // Her denizin iki haritası aynı bossu paylaşır; denizler arasında isimler benzersizdir.
