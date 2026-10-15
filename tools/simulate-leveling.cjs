@@ -3,7 +3,7 @@
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),ts=require('typescript'),assert=require('node:assert/strict');
 const cache={};function load(file){file=path.resolve(file);if(cache[file])return cache[file];const exports={};cache[file]=exports;
  vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports,require:id=>load(path.resolve(path.dirname(file),id+'.ts'))});return exports;}
-const c=load('src/campaign.ts'),p=load('src/elite-progression.ts'),a=load('src/arsenal.ts');
+const fb=load('src/fleetBalance.ts'),c=load('src/campaign.ts'),p=load('src/elite-progression.ts'),a=load('src/arsenal.ts');
 const main=fs.readFileSync('src/main.ts','utf8');
 const cannonText=main.slice(main.indexOf('const CANNONS:'),main.indexOf('\nconst ',main.indexOf('const CANNONS:')+1));
 const cannonContext={};vm.createContext(cannonContext);vm.runInContext(ts.transpileModule(cannonText+'\nglobalThis.cannons=CANNONS;',{}).outputText,cannonContext);
@@ -22,7 +22,7 @@ const modes={normal:{},vip:{vip:1.1},fast:{max:true,vip:1.1,travel:.5,ammo:'expl
 function ship(level,mode){const s=mode.max?{guns:315,gun:'heavy',up:10,elite:15,off:5,gear:2}:profiles[level],b=p.cumulativeEliteBonus(s.elite),gun=cannons[s.gun],ammo=mode.ammo?a.SPECIAL_AMMO[mode.ammo]:{damage:1,reload:1};
  return{damage:s.guns*a.BALL_DAMAGE*(1+s.up*.11)*gun.damage*(1+.05*s.off)*(1+[0,.08,.13][s.gear]+b.damage+(mode.max?.05:0))*ammo.damage*(mode.max?1.1:1),
  reload:(1-[0,.09,.14][s.gear])*gun.reload*Math.max(.6,1-s.up*.04)/(1+b.reload)*ammo.reload,
- hp:(75000+(level-1)*2500+s.up*2500)*(1+[0,.12,.20][s.gear]+b.hp+(mode.max?.05:0)),
+ hp:fb.playerBaseHp(level,s.up)*(1+[0,.12,.20][s.gear]+b.hp+(mode.max?.05:0)),
  repair:(.035+s.up*.008)*(level>=6?2:1)*(1+b.repair),
  speed:(128+s.up*5)*(1+[0,.1,.16][s.gear]+b.speed),taken:(1-.03*Math.min(5,level-1))*(mode.max?.8*.9:1)*(1-b.defense)};}
 function action(target,level,mode,sparkle=false){const s=ship(level,mode),travel=(mode.travel??1)*(sparkle?700:1000)/s.speed+3;

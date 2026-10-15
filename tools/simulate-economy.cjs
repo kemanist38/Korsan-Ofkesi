@@ -15,19 +15,19 @@ const setup=e.ELITE_ENTRY_PRICE+a.priceOf(e.CANNON_COSTS.heavy,315)+Object.value
 // Encounter-driven calibration: actual target HP, damage, reload, fire DOT and leech.
 // Navigation distances and captain/loadout milestones are explicit assumptions, not measured telemetry.
 {
- const c=load('src/campaign.ts');let time=0,ep=0,index=0,gold=0,pearls=0;const balls={chain:0,fire:0,breaker:0,explosive:0,leech:0},stats={},bossCount={};
+ const fb=load('src/fleetBalance.ts'),c=load('src/campaign.ts');let time=0,ep=0,index=0,gold=0,pearls=0;const balls={chain:0,fire:0,breaker:0,explosive:0,leech:0},stats={},bossCount={};
  const milestones=[4,12.7,26.4,46.3,72.7,104.5,140.8,Infinity];
  while(ep<a.eliteLevelEp(15)){
   const hours=time/3600,tier=1+milestones.findIndex(h=>hours<h),up=Math.min(10,Math.floor(hours/8)),gun=hours<12?cannons.cast:cannons.heavy,b=p.cumulativeEliteBonus(a.eliteLevelFromEp(ep));
   const gearFactor=hours<20?0:hours<60?.08:.13,armor=hours<20?0:hours<60?.12:.20,carriage=hours<20?0:hours<60?.09:.14;
-  const guns=hours<4?50:hours<12?100:315,speed=(128+up*5)*(1+(hours>=60?.16:0)+b.speed),hpMax=(75000+(tier-1)*2500+up*2500)*(1+armor+b.hp);
+  const guns=hours<4?50:hours<12?100:315,speed=(128+up*5)*(1+(hours>=60?.16:0)+b.speed),hpMax=fb.playerBaseHp(tier,up)*(1+armor+b.hp);
   // Every fifth action is a 20-sparkle quest/collection route, not a firing window.
   if(index%5===4){time+=20*(700/speed+2);index++;continue;}
   const slot=[0,1,0,2,0,1,3,0,2,1,0,3,1,2,0,1][index%16],monster=slot===3;
   let target=monster?c.MONSTERS[c.MONSTER_OF_TIER[tier]]:c.NPCS[`n${tier}-${slot===2?'2-heavy':slot===1?'1-heavy':'1-light'}`],kind=monster?'monster':'npc';
   // One PvP exchange per 25 encounters; outgoing damage reduced by armor/shield.
   const pvp=index>0&&index%25===0;
-  if(pvp){target={hp:170375,damage:25000,reload:2.5,gold:0,xp:0};kind='pvp';}
+  if(pvp){target={hp:2700000,damage:400000,reload:2.5,gold:0,xp:0};kind='pvp';}
   if(!pvp&&slot===2){bossCount[tier]=(bossCount[tier]??0)+1;if(bossCount[tier]%200===0){target=c.bossFor(`${tier}/1`);kind='boss';}}
   const ammo=process.argv.includes('--all-leech')?'leech':pvp?'leech':monster?'explosive':slot===2?'breaker':'fire',def=a.SPECIAL_AMMO[ammo];
   const damage=guns*a.BALL_DAMAGE*(1+up*.11)*gun.damage*(1+.05*Math.min(5,Math.floor(hours/10)))*(1+gearFactor+b.damage)*def.damage*1.1*(pvp?.65:1);

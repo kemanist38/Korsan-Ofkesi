@@ -4,7 +4,7 @@
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),ts=require('typescript');
 const cache={};function load(file){file=path.resolve(file);if(cache[file])return cache[file];const exports={};cache[file]=exports;
  vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports,require:id=>load(path.resolve(path.dirname(file),id+'.ts'))});return exports;}
-const c=load('src/campaign.ts'),p=load('src/elite-progression.ts'),a=load('src/arsenal.ts');
+const fb=load('src/fleetBalance.ts'),c=load('src/campaign.ts'),p=load('src/elite-progression.ts'),a=load('src/arsenal.ts');
 const main=fs.readFileSync('src/main.ts','utf8');
 const cannonText=main.slice(main.indexOf('const CANNONS:'),main.indexOf('\nconst ',main.indexOf('const CANNONS:')+1));
 const ctx={};vm.createContext(ctx);vm.runInContext(ts.transpileModule(cannonText+'\nglobalThis.cannons=CANNONS;',{}).outputText,ctx);const cannons=ctx.cannons;
@@ -13,7 +13,7 @@ const profiles=[null,{guns:50,gun:'cast',up:0,elite:0,off:0,gear:0},{guns:100,gu
 function ship(level,ammo){const s=profiles[level],b=p.cumulativeEliteBonus(s.elite),gun=cannons[s.gun],am=ammo?a.SPECIAL_AMMO[ammo]:{damage:1,reload:1};
  return{damage:s.guns*a.BALL_DAMAGE*(1+s.up*.11)*gun.damage*(1+.05*s.off)*(1+[0,.08,.13][s.gear]+b.damage)*am.damage,
  reload:(1-[0,.09,.14][s.gear])*gun.reload*Math.max(.6,1-s.up*.04)/(1+b.reload)*am.reload,
- hp:(75000+(level-1)*2500+s.up*2500)*(1+[0,.12,.20][s.gear]+b.hp),taken:(1-.03*Math.min(5,level-1))*(1-b.defense),repair:(.035+s.up*.008)*(level>=6?2:1)*(1+b.repair)};}
+ hp:fb.playerBaseHp(level,s.up)*(1+[0,.12,.20][s.gear]+b.hp),taken:(1-.03*Math.min(5,level-1))*(1-b.defense),repair:(.035+s.up*.008)*(level>=6?2:1)*(1+b.repair)};}
 const fmt=n=>Math.round(n).toLocaleString('tr-TR'),warn=[];
 function fight(s,t){const salvos=Math.ceil(t.hp/s.damage),sec=2+(salvos-1)*s.reload,hits=Math.max(0,Math.floor((sec-1)/t.reload)),taken=hits*t.damage*s.taken;return{salvos,sec,taken,pct:taken/s.hp*100};}
 const TRAVEL=12;

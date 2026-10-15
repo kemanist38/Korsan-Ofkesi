@@ -47,7 +47,8 @@ export function leechHeal(hit:number,vsPlayer:boolean,ownMaxHp:number,roll=Math.
   if(!vsPlayer||roll>=LEECH.chance)return 0;return Math.round(Math.min(hit*LEECH.share,ownMaxHp*LEECH.capPct));}
 // Tamir: saniyede bir kez, sabit miktar (hasar sayıları gibi görünür). Geliştirme/tayfa/elit bonusları en çok %70 artırır.
 export const REPAIR_PER_SEC=4000,REPAIR_BONUS_CAP=1.7;
-export const repairAmount=(mult:number)=>Math.round(REPAIR_PER_SEC*Math.min(REPAIR_BONUS_CAP,Math.max(1,mult)));
+// Tamir canla ölçeklenir: eski 8. seviye gemide (~163 bin can) saniyede 4.000 olan oran (~%2,45) korunur, en az 4.000
+export const repairAmount=(mult:number,maxHp=163_000)=>Math.round(Math.max(REPAIR_PER_SEC,maxHp*REPAIR_PER_SEC/163_000)*Math.min(REPAIR_BONUS_CAP,Math.max(1,mult)));
 // Elit sınıf (1–15) yalnızca elit puanla (EP) yükselir. Eşikler toplam EP'dir ve her basamak bir öncekinden pahalıdır.
 // Toplam EP eşikleri. Elit 15: 3,6 milyon EP; hedef bazlı tüketim modeli tools/simulate-economy.cjs içinde.
 export const ELITE_EP=[0,0,7000,30000,80000,200000,360000,530000,750000,1020000,1360000,1780000,2300000,2950000,3850000,5000000].map(n=>Math.round(n*ELITE_THRESHOLD_SCALE));
