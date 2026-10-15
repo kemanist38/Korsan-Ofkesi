@@ -18,6 +18,8 @@ const OSB_USER=process.env.SHOPIER_OSB_USER||'',OSB_PASS=process.env.SHOPIER_OSB
 
 // ---------------------------------------------------------------- Kimlik doğrulama (Supabase oturum anahtarı)
 export async function verifyToken(token){
+  // Yalnızca yük testi (tools/bench-server.mjs): BENCH_AUTH=1 iken sahte hesaplar. Canlı sunucuda bu değişken yoktur.
+  if(process.env.BENCH_AUTH==='1'&&token.startsWith('bench:')){const n=Number(token.slice(6));return{uid:'b'+n,nick:'Bot'+n,playerNo:90000+n,banned:false};}
   const u=await fetch(`${SUPABASE_URL}/auth/v1/user`,{headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${token}`}});
   if(!u.ok)return null;const user=await u.json();
   const p=await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}&select=nick,player_no,banned`,{headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${token}`}});
@@ -84,8 +86,26 @@ export async function isAdminToken(token){const r=await fetch(`${SUPABASE_URL}/r
 const suspect=(c,why,extra='')=>{c.strikes++;addFlag(c,why,String(extra));log('ŞÜPHELİ',`#${c.playerNo}`,c.nick,why,extra,`(uyarı ${c.strikes})`);if(c.strikes>=30){log('ATILDI',`#${c.playerNo}`,c.nick);c.ws.close(4003,'hile');}};
 const send=(c,o)=>{if(c.ws.readyState===1)c.ws.send(typeof o==='string'?o:JSON.stringify(o));};
 const toSea=(c,o,self=false)=>{const room=seas.get(c.sea);if(!room)return;const s=JSON.stringify(o);for(const x of room)if(self||x!==c)send(x,s);};
+// Atış: yalnızca atan oyuncuya yakın olanlara ve hedefe (uzaktakiler görmez)
+const toNear=(c,o,target)=>{const room=seas.get(c.sea);if(!room)return;const s=JSON.stringify(o);for(const x of room){if(x===c)continue;if(x.netId===target||!c.last||!x.last||Math.abs(x.last.x-c.last.x)+Math.abs(x.last.y-c.last.y)<NEAR)send(x,s);}};
 const toAll=(c,o)=>{const s=JSON.stringify(o);for(const x of all)if(x!==c&&x.uid)send(x,s);};
-function leaveSea(c){if(!c.sea)return;const room=seas.get(c.sea);if(room){room.delete(c);if(!room.size)seas.delete(c.sea);}if(c.netId)toSea(c,{t:'leave',id:c.netId});c.sea='';c.last=null;}
+function leaveSea(c){c.seen=null;c.state=null;for(const x of seas.get(c.sea)||[])x.seen?.delete(c);if(!c.sea)return;const room=seas.get(c.sea);if(room){room.delete(c);if(!room.size)seas.delete(c.sea);}if(c.netId)toSea(c,{t:'leave',id:c.netId});c.sea='';c.last=null;}
+
+// ---------------------------------------------------------------- Durum paketleme (trafik)
+// Hareket mesajları anında herkese iletilmez: her oyuncunun son durumu tutulur ve 10/sn'lik turda her alıcıya tek pakette gider.
+// Yakındakiler (NEAR birim) her turda, uzaktakiler saniyede bir güncellenir. Kimlik alanları (ad, gemi, rütbe…) yalnızca
+// değiştiğinde ya da alıcı ilk kez gördüğünde gönderilir.
+export const NEAR=1800,TICK_MS=100,FAR_EVERY=20;
+const IDENT=['nick','tag','ship','maxHp','sp','level'];
+function queueState(c,s){const id={};let changed=false;for(const k of IDENT)if(k in s){if(k==='nick')s.nick=c.nick;if(JSON.stringify(c.ident?.[k])!==JSON.stringify(s[k]))changed=true;id[k]=s[k];delete s[k];}
+  if(changed){c.ident={...c.ident,...id};c.identVer=(c.identVer||0)+1;}c.state=s;c.stateVer=(c.stateVer||0)+1;}
+let tickNo=0;
+export function buildBatch(rec,room,tick){const out=[];if(!rec.seen)rec.seen=new Map();const far=tick%FAR_EVERY===0;
+  for(const o of room){if(o===rec||!o.state)continue;const seen=rec.seen.get(o)||{s:0,i:0};if(seen.s===o.stateVer)continue;
+    const near=!rec.last||!o.last||Math.abs(o.last.x-rec.last.x)+Math.abs(o.last.y-rec.last.y)<NEAR;if(!near&&!far)continue;
+    const d={...o.state};if(seen.i!==o.identVer&&o.ident){Object.assign(d,o.ident);seen.i=o.identVer;}seen.s=o.stateVer;rec.seen.set(o,seen);out.push(d);}
+  return out;}
+setInterval(()=>{tickNo++;for(const room of seas.values()){if(room.size<2)continue;for(const rec of room){const b=buildBatch(rec,room,tickNo);if(b.length)send(rec,{t:'batch',d:b});}}},TICK_MS).unref();
 
 const httpServer=http.createServer(async(q,r)=>{const cors={'access-control-allow-origin':'*','access-control-allow-headers':'authorization','content-type':'application/json'};
   if(q.method==='OPTIONS'){r.writeHead(204,cors);r.end();return;}
@@ -99,7 +119,8 @@ const httpServer=http.createServer(async(q,r)=>{const cors={'access-control-allo
     if(!token||!(await isAdminToken(token).catch(()=>false))){r.writeHead(403,cors);r.end('{"error":"yetki yok"}');return;}
     r.writeHead(200,cors);r.end(JSON.stringify({online:[...all].filter(c=>c.uid).length,seas:Object.fromEntries([...seas].map(([k,v])=>[k,v.size])),uptime:Math.round((Date.now()-started)/1000)}));return;}
   r.writeHead(200,cors);r.end(JSON.stringify({ok:true,name:'Pirate Rage oyun sunucusu'}));});
-const wss=new WebSocketServer({server:httpServer,path:'/ws',maxPayload:16*1024});
+// Sıkıştırma: 256 bayttan büyük paketler (durum paketleri) deflate ile ~4–5 kat küçülür
+const wss=new WebSocketServer({server:httpServer,path:'/ws',maxPayload:16*1024,perMessageDeflate:{threshold:256,zlibDeflateOptions:{level:3},serverNoContextTakeover:false,clientNoContextTakeover:true}});
 wss.on('connection',ws=>{
   const c={ws,uid:'',nick:'',playerNo:0,netId:'',sea:'',last:null,strikes:0,rState:new Rate(LIMITS.statesPerSec,1000),rFire:new Rate(LIMITS.firesPerSec,1000),rChat:new Rate(LIMITS.chatPerMin,60000),rMsg:new Rate(60,1000)};
   all.add(c);const authTimer=setTimeout(()=>{if(!c.uid)ws.close(4001,'giriş yok');},10000);
@@ -113,10 +134,10 @@ wss.on('connection',ws=>{
     if(!c.uid)return;
     switch(m.t){
       case'join':{const name=String(m.sea||'').slice(0,40);if(name===c.sea)return;leaveSea(c);if(!name)return;
-        const room=seas.get(name)??new Set();if(room.size>=LIMITS.maxPerSea){send(c,{t:'full'});return;}room.add(c);seas.set(name,room);c.sea=name;send(c,{t:'joined',sea:name});return;}
+        const room=seas.get(name)??new Set();if(room.size>=LIMITS.maxPerSea){send(c,{t:'full'});return;}room.add(c);seas.set(name,room);c.sea=name;c.seen=null;send(c,{t:'joined',sea:name});return;}
       case'state':{if(!c.sea||!c.rState.hit(now))return;const s=m.d;const v=checkState(c.last,s,now);if(v==='bad')return;if(v==='speed')suspect(c,'hız',`${Math.round(s.x)},${Math.round(s.y)}`);
-        c.last={x:s.x,y:s.y,at:now};s.id=c.netId;if('nick' in s)s.nick=c.nick;toSea(c,{t:'state',d:s});return;}
-      case'fire':{if(!c.sea||!c.rFire.hit(now)){suspect(c,'atış hızı');return;}const f=m.d;const v=checkFire(f);if(v!=='ok'){suspect(c,'hasar',String(f?.damage));return;}f.from=c.netId;toSea(c,{t:'fire',d:f});return;}
+        c.last={x:s.x,y:s.y,at:now};s.id=c.netId;queueState(c,s);return;}
+      case'fire':{if(!c.sea||!c.rFire.hit(now)){suspect(c,'atış hızı');return;}const f=m.d;const v=checkFire(f);if(v!=='ok'){suspect(c,'hasar',String(f?.damage));return;}f.from=c.netId;toNear(c,{t:'fire',d:f},f.to);return;}
       case'sunk':{if(!c.sea)return;const s=m.d||{};s.victim=c.netId;s.victimNick=c.nick;toSea(c,{t:'sunk',d:s});return;}
       case'chat':{if(!c.rChat.hit(now))return;const text=String(m.d?.text||'').slice(0,LIMITS.chatLen).trim();if(!text)return;
         toAll(c,{t:'chat',d:{nick:c.nick,tag:m.d?.tag??null,text,at:now}});return;}
