@@ -126,8 +126,11 @@ const BOSS_NAMES:Record<MapKey,string>={
   '3/1':'Kadim Azur İmparatoru','3/2':'Kadim Azur İmparatoru','4/1':'Gece Dehşet İmparatoru','4/2':'Gece Dehşet İmparatoru',
   '5/1':'Kış Zıpkın İmparatoru','5/2':'Kış Zıpkın İmparatoru','6/1':'Şimşek İmparatoru','6/2':'Şimşek İmparatoru',
   '7/1':'Hiçlik İmparatoru','7/2':'Hiçlik İmparatoru','8/1':'Cehennem Lordu','8/2':'Cehennem Lordu'};
-export const bossFor=(key:MapKey):BossDef=>{const m=MAPS[key],h=NPCS[`n${m.tier}-2-heavy`],hp=h.hp*10,i=MAP_KEYS.indexOf(key);
-  return{key,id:`boss-${key.replace('/','-')}`,name:BOSS_NAMES[key],sprite:`/assets/boss-t${m.tier}-dir16-v2.webp`,span:260,role:'heavy',tier:m.tier,hp,damage:h.damage*2,reload:2.2,speed:Math.round(h.speed*.8),gold:0,
+// Boss canı: kendi seviyesindeki tek oyuncu ateş güllesiyle ~2 dakikada batırır (boss'lar oyuncular arasında paylaşılmaz).
+// Hasarı büyük NPC'nin %25'i: ateş güllesiyle 2 dakikalık savaşta oyuncu canının yaklaşık %35-80'i gider.
+export const BOSS_HP=[0,165000,410000,980000,2200000,3000000,4500000,5800000,6300000],BOSS_DAMAGE=.25;
+export const bossFor=(key:MapKey):BossDef=>{const m=MAPS[key],h=NPCS[`n${m.tier}-2-heavy`],hp=BOSS_HP[m.tier],i=MAP_KEYS.indexOf(key);
+  return{key,id:`boss-${key.replace('/','-')}`,name:BOSS_NAMES[key],sprite:`/assets/boss-t${m.tier}-dir16-v2.webp`,span:260,role:'heavy',tier:m.tier,hp,damage:Math.round(h.damage*BOSS_DAMAGE),reload:2.2,speed:Math.round(h.speed*.8),gold:0,
     xp:h.xp*20,pearls:50*m.tier,portrait:i,trigger:h.id};};
 
 // ---------------------------------------------------------------- Koordinat ızgarası
