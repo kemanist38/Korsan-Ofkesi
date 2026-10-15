@@ -1,6 +1,9 @@
 // İnci Hazinesi: gerçek parayla inci paketleri. Fiyatlar benzer oyunların yaklaşık yarısıdır; büyük paketlerde bonus inci artar.
-// Ödeme altyapısı henüz yok: test modunda paket ödeme alınmadan verilir, değilse "yakında" uyarısı gösterilir.
-export type PearlPack={id:string;name:string;pearls:number;bonus:number;price:number;tag?:string};
+// Ödeme Shopier'dan: her paket Shopier'da aynı fiyatlı bir ürün. url doluysa satın al butonu o ürün sayfasını açar; ödeme gelince
+// oyun sunucusu inciyi cüzdana yükler (server/game-server.mjs, supabase/migrations/006_shopier.sql). url boşsa test modunda hemen verilir.
+export type PearlPack={id:string;name:string;pearls:number;bonus:number;price:number;tag?:string;url?:string};
+// Shopier ürün bağlantıları (Shopier panelinde ürün oluşturulunca buraya yazılır)
+export const SHOPIER_LINKS:Record<string,string>={pouch:'',chest:'',crate:'',hold:'',vault:'',fleet:''};
 export const PEARL_PACKS:PearlPack[]=[
   {id:'pouch',name:'İnci Kesesi',pearls:3500,bonus:0,price:49.99},
   {id:'chest',name:'İnci Sandığı',pearls:8500,bonus:700,price:119.99},

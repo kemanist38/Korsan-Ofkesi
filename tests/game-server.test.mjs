@@ -15,3 +15,11 @@ test('fire damage above the cap is rejected',()=>{
   assert.equal(S.checkFire({damage:-5,x:0,y:0,to:'a'}),'damage');
 });
 test('rate limiter allows N per window',()=>{const r=new S.Rate(3,1000);assert.ok(r.hit(0)&&r.hit(1)&&r.hit(2));assert.ok(!r.hit(3));assert.ok(r.hit(1001));});
+test('Shopier OSB signature is verified and order fields are read',async()=>{
+  const {createHmac}=await import('node:crypto');
+  const res=Buffer.from(JSON.stringify({orderid:'123',email:'a@b.c',price:'49.99',customernote:'#10001',istest:0})).toString('base64');
+  const hash=createHmac('sha256','sifre').update(res+'kullanici').digest('hex');
+  assert.ok(S.verifyOsb(res,hash,'kullanici','sifre'));
+  assert.ok(!S.verifyOsb(res,hash,'kullanici','yanlis'));
+  const o=S.parseOsb(res);assert.equal(o.order,'123');assert.equal(o.price,49.99);assert.equal(o.note,'#10001');assert.equal(o.test,false);
+});

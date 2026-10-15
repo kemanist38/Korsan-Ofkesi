@@ -3650,11 +3650,14 @@ __export(game_server_exports, {
   checkFire: () => checkFire,
   checkState: () => checkState,
   isAdminToken: () => isAdminToken,
+  parseOsb: () => parseOsb,
+  verifyOsb: () => verifyOsb,
   verifyToken: () => verifyToken
 });
 module.exports = __toCommonJS(game_server_exports);
 var import_node_http = __toESM(require("node:http"), 1);
 var import_node_fs = __toESM(require("node:fs"), 1);
+var import_node_crypto = __toESM(require("node:crypto"), 1);
 
 // node_modules/ws/wrapper.mjs
 var import_stream = __toESM(require_stream(), 1);
@@ -3669,6 +3672,9 @@ var SUPABASE_URL = process.env.SUPABASE_URL || "https://vidjvineafeiyoclioau.sup
 var SUPABASE_ANON = process.env.SUPABASE_ANON || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZGp2aW5lYWZlaXlvY2xpb2F1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE3Mjk2NjMsImV4cCI6MjEwNzMwNTY2M30.sKlmmfQRr-ZASkaSbax22ca80cyDCc8DNz4Idq19g5s";
 var LIMITS = { maxHit: 4e5, maxSpeed: 900, firesPerSec: 12, statesPerSec: 15, chatPerMin: 20, chatLen: 200, maxPerSea: 300 };
 var started = Date.now();
+var OSB_USER = process.env.SHOPIER_OSB_USER || "";
+var OSB_PASS = process.env.SHOPIER_OSB_PASS || "";
+var SERVER_SECRET = process.env.SERVER_SECRET || "";
 async function verifyToken(token) {
   const u = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${token}` } });
   if (!u.ok) return null;
@@ -3678,6 +3684,51 @@ async function verifyToken(token) {
   const prof = rows[0];
   if (!prof) return null;
   return { uid: user.id, nick: prof.nick, playerNo: prof.player_no, banned: !!prof.banned };
+}
+function verifyOsb(res, hash, user, pass) {
+  if (!res || !hash || !user || !pass) return false;
+  const raw = import_node_crypto.default.createHmac("sha256", pass).update(res + user).digest();
+  const hex = raw.toString("hex"), b64 = raw.toString("base64"), h = String(hash);
+  const eq = (a, b) => a.length === b.length && import_node_crypto.default.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  return eq(h.toLowerCase(), hex) || eq(h, b64);
+}
+function parseOsb(res) {
+  const d = JSON.parse(Buffer.from(res, "base64").toString("utf8"));
+  const pick = (...k) => {
+    for (const x of k) if (d[x] !== void 0 && d[x] !== null && d[x] !== "") return d[x];
+    return null;
+  };
+  return {
+    order: String(pick("orderid", "order_id", "platform_order_id", "id") ?? ""),
+    email: pick("email", "buyer_email", "buyeremail"),
+    note: pick("customernote", "customer_note", "note", "buyernote"),
+    price: Number(String(pick("price", "total", "total_order_value", "amount") ?? "0").replace(",", ".")),
+    test: ["1", "true", 1, true].includes(pick("istest", "is_test", "test")),
+    keys: Object.keys(d)
+  };
+}
+async function handleOsb(body) {
+  const form = new URLSearchParams(body), res = form.get("res") || "", hash = form.get("hash") || "";
+  if (!verifyOsb(res, hash, OSB_USER, OSB_PASS)) {
+    log("SHOPIER imza ge\xE7ersiz");
+    return false;
+  }
+  let o;
+  try {
+    o = parseOsb(res);
+  } catch {
+    log("SHOPIER veri okunamad\u0131");
+    return false;
+  }
+  log("SHOPIER sipari\u015F", o.order, o.price, "alanlar:", o.keys.join(","));
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/shopier_credit`, {
+    method: "POST",
+    headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${SUPABASE_ANON}`, "content-type": "application/json" },
+    body: JSON.stringify({ p_secret: SERVER_SECRET, p_order: o.order, p_email: o.email, p_note: o.note, p_price: o.price, p_test: o.test })
+  });
+  const st = r.ok ? await r.json() : `hata ${r.status} ${await r.text()}`;
+  log("SHOPIER sonu\xE7", o.order, st);
+  return r.ok;
 }
 var num = (v) => typeof v === "number" && Number.isFinite(v);
 function checkState(prev, s, now) {
@@ -3773,6 +3824,22 @@ var httpServer = import_node_http.default.createServer(async (q, r) => {
   if (q.method === "OPTIONS") {
     r.writeHead(204, cors);
     r.end();
+    return;
+  }
+  if (q.method === "POST" && q.url?.startsWith("/shopier/osb")) {
+    let body = "";
+    q.on("data", (d) => {
+      body += d;
+      if (body.length > 1e5) q.destroy();
+    });
+    q.on("end", async () => {
+      const ok = await handleOsb(body).catch((e) => {
+        log("SHOPIER hata", e?.message);
+        return false;
+      });
+      r.writeHead(ok ? 200 : 400, { "content-type": "text/plain" });
+      r.end(ok ? "success" : "fail");
+    });
     return;
   }
   if (q.url?.startsWith("/flags")) {
@@ -3949,5 +4016,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   checkFire,
   checkState,
   isAdminToken,
+  parseOsb,
+  verifyOsb,
   verifyToken
 });
