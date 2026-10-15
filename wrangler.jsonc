@@ -1,0 +1,11 @@
+// Cloudflare Workers ile yayın: build çıktısı (dist) statik site olarak sunulur.
+// / tanıtım sitesi, /oyna/ oyun, /gizlilik/ ve /sartlar/ yasal sayfalar.
+{
+  "name": "korsan-ofkesi",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  }
+}
