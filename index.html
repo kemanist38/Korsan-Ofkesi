@@ -30,9 +30,12 @@
             <button class="btn lg-go" type="submit">GİRİŞ</button>
             <p class="lg-msg" id="lgMsg"></p>
           </form>
-          <div class="lg-sep"><span>Hesabın yok mu?</span></div>
-          <a class="btn fire lg-reg" href="/oyna/?kayit">ÜCRETSİZ KAYIT OL</a>
-          <small>Kayıt olarak <a href="/sartlar/">kullanım şartlarını</a> kabul etmiş olursun.</small>
+          <div class="lg-closed" id="regClosed"><b>KAPALI TEST DÖNEMİ</b><span>Oyun şu an test aşamasında; yeni kayıt alınmıyor. Kayıtlar açılışla birlikte açılacak.</span></div>
+          <div id="regOpen" hidden>
+            <div class="lg-sep"><span>Hesabın yok mu?</span></div>
+            <a class="btn fire lg-reg" href="/oyna/?kayit">ÜCRETSİZ KAYIT OL</a>
+            <small>Kayıt olarak <a href="/sartlar/">kullanım şartlarını</a> kabul etmiş olursun.</small>
+          </div>
         </div>
       </div>
     </section>

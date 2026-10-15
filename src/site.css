@@ -98,3 +98,5 @@ body.home .nav nav a.on,body.home .nav nav a:not(.btn):hover{color:#f3c56b;borde
 .lg-reg{width:100%;padding:13px;font-size:17px}
 .login-frame small{text-align:center;color:#9c8c70;font-size:12px}
 @media (max-width:760px){.hero2{padding-top:180px}.hero2-text{max-width:none;width:100%}}
+.lg-closed{display:flex;flex-direction:column;gap:4px;margin-top:6px;padding:10px 12px;border:1px solid #b8904e88;border-radius:8px;background:#2a1a10cc;text-align:center}
+.lg-closed b{color:#f1c662;font-size:13px;letter-spacing:.08em}.lg-closed span{color:#d8c6a4;font-size:12px;line-height:1.4}
