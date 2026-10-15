@@ -146,7 +146,7 @@ const keys = new Set<string>();
 const QUEST_STORAGE='yedi-deniz-quests-v2';
 const ACCOUNT_STORAGE='yedi-deniz-account-v1';
 let storedQuests:SavedQuests|null=null;
-let storedAccount:{pearls?:number;gold:number;wood?:number;fame:number;level:number;maxHp:number;hp:number;chainAmmo:number;ironAmmo?:number;elitePoints?:number;eliteEconomyVersion?:number;battlePoints?:number;cannonType?:CannonKind;cannonInventory?:CannonStock;mountedCannons?:CannonStock;equipOwned?:Record<string,number>;equipped?:Partial<Record<EquipSlot,string|null>>;quickSlots?:Array<QuickItemId|null>;upgrades:Record<UpgradeKind,number>;eliteShip?:EliteShipId;activeShip?:ShipSelection;elitePurchased?:boolean;currentMap?:MapKey}|null=null;
+let storedAccount:{pearls?:number;gold:number;wood?:number;fame:number;level:number;maxHp:number;hp:number;chainAmmo:number;ironAmmo?:number;elitePoints?:number;eliteEconomyVersion?:number;battlePoints?:number;cannonType?:CannonKind;cannonInventory?:CannonStock;mountedCannons?:CannonStock;equipOwned?:Record<string,number>;equipped?:Partial<Record<EquipSlot,string|null>>;quickSlots?:Array<QuickItemId|null>;quickKnown?:QuickItemId[];upgrades:Record<UpgradeKind,number>;eliteShip?:EliteShipId;activeShip?:ShipSelection;elitePurchased?:boolean;currentMap?:MapKey}|null=null;
 try{storedQuests=migrateQuestRules(JSON.parse(localStorage.getItem(QUEST_STORAGE)||'null'));if(storedQuests)localStorage.setItem(QUEST_STORAGE,JSON.stringify(storedQuests));}catch{storedQuests=null;}
 try{storedAccount=JSON.parse(localStorage.getItem(ACCOUNT_STORAGE)||'null');if(storedAccount){storedAccount.elitePoints=migrateElitePoints(storedAccount.elitePoints??0,storedAccount.eliteEconomyVersion);storedAccount.eliteEconomyVersion=ELITE_ECONOMY_VERSION;}}catch{storedAccount=null;}
 const storedActive=storedQuests?.active&&QUESTS.some(q=>q.id===storedQuests!.active)?storedQuests.active:null;
@@ -203,7 +203,10 @@ let previewShip:ShipSelection|SpecialDesignId=activeSpecialDesign??activeShip;
 const quickSlots:Array<QuickItemId|null>=Array(12).fill(null);
 {const stored=(storedAccount?.quickSlots??['iron','chain','fire','breaker','speed','powder','shield','mine']).filter((id):id is QuickItemId=>!!id&&id!=='repairkit'&&id in QUICK_ITEMS);
   const place=(id:QuickItemId)=>{if(quickSlots.includes(id))return;const row=QUICK_ITEMS[id].category==='ammo'?0:AMMO_ROW;for(let i=row;i<row+AMMO_ROW;i++)if(!quickSlots[i]){quickSlots[i]=id;return;}};
-  stored.forEach(place);place('compass');(['iron','chain','fire','breaker','speed','powder','shield','mine'] as QuickItemId[]).forEach(id=>{if(!storedAccount?.quickSlots)place(id);});}
+  stored.forEach(place);place('compass');(['iron','chain','fire','breaker','speed','powder','shield','mine'] as QuickItemId[]).forEach(id=>{if(!storedAccount?.quickSlots)place(id);});
+  // Oyuna yeni eklenen malzeme bara bir kez kendiliğinden yerleşir; oyuncu sonra kaldırırsa geri gelmez
+  const known=new Set(storedAccount?.quickKnown??[]);for(const id of Object.keys(QUICK_ITEMS) as QuickItemId[])if(id!=='repairkit'&&!known.has(id)&&!quickSlots.includes(id)){place(id);if(!quickSlots.includes(id)){const free=quickSlots.indexOf(null);if(free>=0)quickSlots[free]=id;}}}
+const quickKnown=(Object.keys(QUICK_ITEMS) as QuickItemId[]);
 const arsenal=loadArsenal();
 // Eski kayıtlarda gülle stoğu salvo sayısıydı; artık her top 1 gülle harcar. Stoklar bir kez 50 topluk salvoya göre çevrilir.
 if(!arsenal.ballsV1){for(const k of ['fire','explosive','breaker','leech'] as const)arsenal[k]*=50;state.chainAmmo*=50;arsenal.ballsV1=true;saveArsenal(arsenal);}
@@ -959,7 +962,7 @@ function sinkNotice(name:string,sp:number){
   rewardNotice(sp>0?`${name} batırıldı · +${fmt(sp)} SP kazanıldı`:`${name} batırıldı · günlük SP sınırına ulaşıldı`,'battle',{sp,sink:true});
 }
 function saveQuestState(){localStorage.setItem(QUEST_STORAGE,JSON.stringify({rulesVersion:2,active:state.activeQuest,progress:questProgress,cooldowns:questCooldownUntil}));}
-function saveAccount(){localStorage.setItem(ACCOUNT_STORAGE,JSON.stringify({pearls:state.pearls,gold:state.gold,fame:state.fame,level:state.level,maxHp:state.maxHp,hp:state.hp,chainAmmo:state.chainAmmo,ironAmmo:state.ironAmmo,elitePoints:state.elitePoints,eliteEconomyVersion:ELITE_ECONOMY_VERSION,battlePoints:state.battlePoints,cannonType:state.cannonType,cannonInventory,mountedCannons,equipOwned,equipped,quickSlots,upgrades,eliteShip:activeEliteShip,activeShip,elitePurchased,currentMap}));try{localStorage.setItem(WORLD_STORAGE,currentMap);}catch{}}
+function saveAccount(){localStorage.setItem(ACCOUNT_STORAGE,JSON.stringify({pearls:state.pearls,gold:state.gold,fame:state.fame,level:state.level,maxHp:state.maxHp,hp:state.hp,chainAmmo:state.chainAmmo,ironAmmo:state.ironAmmo,elitePoints:state.elitePoints,eliteEconomyVersion:ELITE_ECONOMY_VERSION,battlePoints:state.battlePoints,cannonType:state.cannonType,cannonInventory,mountedCannons,equipOwned,equipped,quickSlots,quickKnown,upgrades,eliteShip:activeEliteShip,activeShip,elitePurchased,currentMap}));try{localStorage.setItem(WORLD_STORAGE,currentMap);}catch{}}
 function effectiveRange(){return(CANNONS[state.cannonType].range+upgrades.range*18+bonus.range+equipBonus().range);}
 function effectiveSpeed(){return(128+upgrades.speed*5)*bonus.speed*(1+equipBonus().speed+eliteBonus().speed)*(abilityActive('speed')?SPEED_BOOST:1)*(rageActive(rage)?RAGE_SPEED:1)*(playerSlow>0?CHAIN_SLOW.factor:1);}
 function cannonCapacity(){return earnedEliteLevel()>0?ELITE_CANNON_CAPACITY:BASE_CANNONS;}
@@ -1147,6 +1150,8 @@ const CURRENCY_NAME={gold:'altın',pearls:'inci'} as const;
 const wallet=(c:Price['currency'])=>c==='gold'?state.gold:state.pearls;
 const BUY_MAX=100000;
 const fmt=(n:number)=>n.toLocaleString('tr-TR');
+// Malzeme barında kısa sayı: 950 · 5k · 12,5k · 5m · 1,2b
+const short=(n:number)=>{const a=Math.abs(n),u:[number,string][]=[[1e9,'b'],[1e6,'m'],[1e3,'k']];for(const [v,s] of u)if(a>=v){const x=Math.floor(n/v*10)/10;return`${x.toLocaleString('tr-TR',{maximumFractionDigits:x>=100?0:1})}${s}`;}return String(Math.floor(n));};
 let pendingBuy:{row:BuyRow;qty:number}|null=null;
 function renderBuyRows(listId:string,rows:BuyRow[]){
   const list=ui(listId);
@@ -1214,7 +1219,7 @@ function renderAuction(){renderAuctionTimer();const list=ui('auctionList'),lots=
 setInterval(()=>{auctionTick();if(ui('auctionOverlay').classList.contains('open'))renderAuctionTimer();},1000);
 let loadoutTab:'ammo'|'consumable'='ammo';
 let pendingQuickItem:QuickItemId|null=null;
-function quickCount(item:QuickItemId){if(item==='iron')return fmt(state.ironAmmo);if(item==='chain')return fmt(state.chainAmmo);if(isSpecial(item)||item==='mine'||item==='powder'||item==='shield'||item==='speed'||item==='compass')return fmt(arsenal[item]);return'';}
+function quickCount(item:QuickItemId){if(item==='iron')return short(state.ironAmmo);if(item==='chain')return short(state.chainAmmo);if(isSpecial(item)||item==='mine'||item==='powder'||item==='shield'||item==='speed'||item==='compass')return short(arsenal[item]);return'';}
 function slotKey(index:number){return keyLabel(settings.binds[(index<AMMO_ROW?`ammo${index+1}`:`item${index-AMMO_ROW+1}`) as ActionId]);}
 function itemAsset(item:QuickItemId){return rasterItemAssets[item]?`<img class="raster-item" src="${rasterItemAssets[item]}" alt="${QUICK_ITEMS[item].name}" draggable="false"/>`:`<i class="sprite icon-${QUICK_ITEMS[item].icon}"></i>`;}
 function quickSlotHtml(item:QuickItemId|null,index:number){const row=index<AMMO_ROW?'ammo-row':'item-row',key=slotKey(index),k=key==='—'?'':key;
