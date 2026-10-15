@@ -3707,8 +3707,9 @@ function parseOsb(res) {
     keys: Object.keys(d)
   };
 }
-async function handleOsb(body) {
+async function handleOsb(body, ctype) {
   const form = new URLSearchParams(body), res = form.get("res") || "", hash = form.get("hash") || "";
+  log("SHOPIER istek geldi", ctype || "-", "alanlar:", [...form.keys()].map((k) => `${k}(${(form.get(k) || "").length})`).join(",") || `g\xF6vde ${body.length} bayt`, "ayar:", OSB_USER ? "kullan\u0131c\u0131 var" : "KULLANICI YOK", OSB_PASS ? "\u015Fifre var" : "\u015E\u0130FRE YOK", SERVER_SECRET ? "anahtar var" : "ANAHTAR YOK");
   if (!verifyOsb(res, hash, OSB_USER, OSB_PASS)) {
     log("SHOPIER imza ge\xE7ersiz");
     return false;
@@ -3728,7 +3729,7 @@ async function handleOsb(body) {
   });
   const st = r.ok ? await r.json() : `hata ${r.status} ${await r.text()}`;
   log("SHOPIER sonu\xE7", o.order, st);
-  return r.ok;
+  return true;
 }
 var num = (v) => typeof v === "number" && Number.isFinite(v);
 function checkState(prev, s, now) {
@@ -3833,7 +3834,7 @@ var httpServer = import_node_http.default.createServer(async (q, r) => {
       if (body.length > 1e5) q.destroy();
     });
     q.on("end", async () => {
-      const ok = await handleOsb(body).catch((e) => {
+      const ok = await handleOsb(body, q.headers["content-type"]).catch((e) => {
         log("SHOPIER hata", e?.message);
         return false;
       });
