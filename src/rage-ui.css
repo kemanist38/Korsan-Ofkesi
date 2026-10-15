@@ -376,7 +376,7 @@ body.touch-ui .slot-bar,body.touch-ui #ammoPicker{display:none!important}
 .ammo-icon,.shop-window .ammo-icon{background:radial-gradient(circle at 50% 38%,#3b2a24,#1a1214 75%)!important;border-color:#8a5a3c88!important}
 .ammo-icon.equip-shop-art,.ammo-icon.cannon-shop-art{background:radial-gradient(circle at 50% 38%,#3b2a24,#1a1214 75%)!important}
 .inv-panel>header,.inv-window .inv-info>header,.inv-info>header{background:linear-gradient(#3a2620,#1c1315)!important}
-.vip-pack,.pearl-pack{background:radial-gradient(circle at 50% 25%,#3e2a22,#171215 72%)!important;border-color:#8a5a3c88!important}
+.pearl-pack{background:radial-gradient(circle at 50% 25%,#3e2a22,#171215 72%)!important;border-color:#8a5a3c88!important}
 .pearl-pack.tagged{border-color:#e3b85e!important}
 .pearl-pack strong{color:#ffe7b0!important;border-color:transparent!important}
 h3.pearl-title{color:#f3d496!important;border-color:#9e513b66!important}

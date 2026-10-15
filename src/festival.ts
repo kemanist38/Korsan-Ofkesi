@@ -4,17 +4,20 @@
 import {dayKey} from './daily';
 export const FESTIVAL_START='';
 export const FESTIVAL_DAYS=7;
-export type FestivalReward={gold?:number;pearls?:number;chain?:number;fire?:number;explosive?:number;speed?:number;design?:boolean};
-// Sadece festivalde verilen ödüller; 7. gün özel tasarım
+export type FestivalReward={gold?:number;pearls?:number;chain?:number;fire?:number;breaker?:number;explosive?:number;leech?:number;heal?:number;powder?:number;shield?:number;speed?:number;mine?:number;design?:boolean;equip?:'rare'};
+// Festival günlük ödülleri (tools/simulate-rewards.cjs: 7 gün ≈ 3.500 inci değeri + 900 bin altın).
+// Kaçırılan günün ödülü yanar; oyuncu sonraki günden devam eder.
 export const FESTIVAL_REWARDS:FestivalReward[]=[
-  {gold:500_000,pearls:100},
-  {chain:2_000,fire:1_000},
-  {pearls:250,speed:30},
-  {gold:1_000_000,explosive:1_000},
-  {pearls:400,chain:3_000},
-  {gold:2_000_000,fire:2_000,speed:50},
-  {pearls:1_000,design:true},
+  {pearls:200,fire:15_000},
+  {chain:30_000,powder:300,shield:300},
+  {pearls:300,speed:50},
+  {gold:300_000,explosive:15_000},
+  {pearls:400,breaker:15_000},
+  {gold:600_000,leech:15_000,mine:30},
+  {pearls:500,heal:20_000},
 ];
+// Büyük ödül: yalnızca 7 günün hepsine giren oyuncuya, 7. gün ödülüyle birlikte (≈ 3.100 inci değeri + tasarım + nadir donanım)
+export const FESTIVAL_GRAND:FestivalReward={pearls:2_500,explosive:30_000,design:true,equip:'rare'};
 export type FestivalState={start:string;claimed:number[]};
 const KEY='yedi-deniz-festival-v1';
 export function loadFestival(testMode:boolean,now=new Date()):FestivalState|null{
@@ -38,8 +41,8 @@ export function festivalStatus(s:FestivalState,now=new Date()){
 // Bugünün ödülünü işaretler; verilecek ödülü döner (alınamıyorsa null)
 export function claimFestival(s:FestivalState,now=new Date()):FestivalReward|null{
   const st=festivalStatus(s,now);if(!st.canClaim)return null;
-  s.claimed.push(st.day);const r={...FESTIVAL_REWARDS[st.day-1]};
-  // Son ödül yalnızca 7 günün hepsine gelenlere
-  if(r.design&&s.claimed.length<FESTIVAL_DAYS)delete r.design;
+  s.claimed.push(st.day);const r:FestivalReward={...FESTIVAL_REWARDS[st.day-1]};
+  // Büyük ödül yalnızca 7 günün hepsine gelenlere
+  if(st.day===FESTIVAL_DAYS&&s.claimed.length>=FESTIVAL_DAYS)for(const [k,v] of Object.entries(FESTIVAL_GRAND))(r as Record<string,unknown>)[k]=typeof v==='number'?((r as Record<string,number>)[k]??0)+v:v;
   return r;
 }

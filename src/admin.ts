@@ -1,6 +1,7 @@
 // Yönetici paneli: oyuncu ara, inci hediye et, banla / ban kaldır, kupon oluştur.
 // Yetki veritabanında (admins tablosu) kontrol edilir; bu sayfa yetkisiz hesaba hiçbir şey göstermez.
 import {supa} from './supabase';
+import {COUPON_ITEMS,COUPON_DESIGNS} from './coupons';
 type Row={player_no:number;nick:string;email:string;banned:boolean;ban_reason:string|null;pearls:number;created_at:string};
 const root=document.getElementById('admin')!;
 const esc=(s:unknown)=>String(s??'').replace(/[&<>"']/g,c=>`&#${c.charCodeAt(0)};`);
@@ -17,7 +18,7 @@ async function main(){
   <h2>Sunucu durumu</h2><div class="card"><p id="stats" class="muted">Yükleniyor…</p></div>
   <h2>Şüpheli oyuncular <button id="fRefresh">YENİLE</button></h2><div class="card"><p class="muted">Oyun sunucusunun yakaladığı hız, hasar, atış ve mesaj seli denemeleri (son 300). Aynı oyuncu çok kez görünüyorsa incele.</p><p class="msg" id="fMsg"></p><div class="table-wrap"><table><thead><tr><th>Zaman</th><th>Oyuncu</th><th>Sebep</th><th>Ayrıntı</th><th>Tekrar</th></tr></thead><tbody id="fRows"></tbody></table></div></div>
   <h2>Shopier siparişleri <button id="oRefresh">YENİLE</button></h2><div class="card"><p class="muted">"Eşleşmedi": oyuncu bulunamadı (not/e-posta yok). Oyuncu numarasını sorup YÜKLE ile inciyi elle ver.</p><p class="msg" id="oMsg"></p><div class="table-wrap"><table><thead><tr><th>Zaman</th><th>Sipariş</th><th>Tutar</th><th>Paket</th><th>E-posta / Not</th><th>Durum</th><th></th></tr></thead><tbody id="oRows"></tbody></table></div></div>
-  <h2>Kupon oluştur</h2><div class="card"><div class="row"><input id="cCode" placeholder="KOD" style="text-transform:uppercase"/><input id="cPearls" type="number" min="0" placeholder="İnci"/><input id="cGold" type="number" min="0" placeholder="Altın"/><input id="cUntil" type="date" title="Son gün"/><input id="cMax" type="number" min="1" placeholder="Toplam kullanım (boş: sınırsız)"/><input id="cNote" placeholder="Not"/><button id="cAdd">KUPON EKLE</button></div><p class="msg" id="cMsg"></p></div>`;
+  <h2>Kupon oluştur</h2><div class="card coupon-form"><div class="row"><input id="cCode" placeholder="KOD" style="text-transform:uppercase"/><input id="cNote" placeholder="Not (ör. açılış)"/></div><div class="row"><input id="cPearls" type="number" min="0" placeholder="İnci"/><input id="cGold" type="number" min="0" placeholder="Altın"/></div><div class="row"><select id="cItem1"><option value="">— Gülle / malzeme yok —</option>${Object.entries(COUPON_ITEMS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select><input id="cQty1" type="number" min="1" placeholder="Adet"/></div><div class="row"><select id="cItem2"><option value="">— Gülle / malzeme yok —</option>${Object.entries(COUPON_ITEMS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select><input id="cQty2" type="number" min="1" placeholder="Adet"/></div><div class="row"><select id="cItem3"><option value="">— Gülle / malzeme yok —</option>${Object.entries(COUPON_ITEMS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select><input id="cQty3" type="number" min="1" placeholder="Adet"/></div><div class="row"><select id="cDesign"><option value="">— Tasarım yok —</option>${Object.entries(COUPON_DESIGNS).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div><div class="row"><label>Son gün <input id="cUntil" type="date"/></label><input id="cMax" type="number" min="1" placeholder="Toplam kullanım (boş: sınırsız)"/><button id="cAdd">KUPON EKLE</button></div><p class="msg" id="cMsg"></p></div>`;
   const msg=(id:string,t:string,bad=false)=>{const m=document.getElementById(id)!;m.textContent=t;m.classList.toggle('bad',bad);};
   const val=(id:string)=>(document.getElementById(id) as HTMLInputElement).value.trim();
   const find=async()=>{msg('msg','Aranıyor…');const {data,error}=await sb.rpc('admin_find',{p_q:val('q')});if(error){msg('msg',errText(error.message),true);return;}
@@ -33,7 +34,10 @@ async function main(){
       const {error:e}=await sb.rpc('admin_ban',{p_player_no:no,p_banned:false,p_reason:''});if(e){msg('msg',errText(e.message),true);return;}msg('msg',`#${no} banı kaldırıldı`);void find();});};
   document.getElementById('find')!.onclick=()=>void find();(document.getElementById('q') as HTMLInputElement).onkeydown=e=>{if(e.key==='Enter')void find();};
   document.getElementById('cAdd')!.onclick=async()=>{const code=val('cCode');if(code.length<4){msg('cMsg','Kod en az 4 karakter olmalı',true);return;}
-    const reward:Record<string,number>={};const p=Number(val('cPearls')),g=Number(val('cGold'));if(p>0)reward.pearls=p;if(g>0)reward.gold=g;if(!Object.keys(reward).length){msg('cMsg','İnci ya da altın ödülü gir',true);return;}
+    const reward:{pearls?:number;gold?:number;items?:Record<string,number>;design?:string}={};const p=Number(val('cPearls')),g=Number(val('cGold'));if(p>0)reward.pearls=p;if(g>0)reward.gold=g;
+    for(const n of [1,2,3]){const k=(document.getElementById(`cItem${n}`) as HTMLSelectElement).value,q=Number(val(`cQty${n}`));if(k&&q>0)(reward.items??={})[k]=(reward.items?.[k]??0)+q;}
+    const d=(document.getElementById('cDesign') as HTMLSelectElement).value;if(d)reward.design=d;
+    if(!Object.keys(reward).length){msg('cMsg','En az bir ödül seç (inci, altın, gülle ya da tasarım)',true);return;}
     const {error}=await sb.rpc('admin_coupon',{p_code:code,p_reward:reward,p_until:val('cUntil')||null,p_max_uses:val('cMax')?Number(val('cMax')):null,p_note:val('cNote')||null});
     if(error){msg('cMsg',errText(error.message),true);return;}msg('cMsg',`Kupon eklendi: ${code.toUpperCase()}`);};
   const REASONS:Record<string,string>={'hız':'Aşırı hız','hasar':'İmkânsız hasar','atış hızı':'Çok hızlı atış','mesaj seli':'Mesaj seli'};
