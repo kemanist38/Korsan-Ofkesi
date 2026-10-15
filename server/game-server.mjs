@@ -3,6 +3,7 @@
 // banlı hesaplar bağlanamaz. Şüpheli davranış günlüğe (pm2 logs) yazılır.
 // Çalıştırma: node game-server.cjs  (ortam: PORT=3000, SUPABASE_URL, SUPABASE_ANON)
 import http from 'node:http';
+import fs from 'node:fs';
 import {WebSocketServer} from 'ws';
 
 const PORT=Number(process.env.PORT||3000);
@@ -37,13 +38,25 @@ export class Rate{constructor(perWindow,windowMs){this.n=perWindow;this.w=window
 const seas=new Map(); // ad → Set<Client>
 const all=new Set();
 const log=(...a)=>console.log(new Date().toISOString(),...a);
-const suspect=(c,why,extra='')=>{c.strikes++;log('ŞÜPHELİ',`#${c.playerNo}`,c.nick,why,extra,`(uyarı ${c.strikes})`);if(c.strikes>=30){log('ATILDI',`#${c.playerNo}`,c.nick);c.ws.close(4003,'hile');}};
+// Şüpheli kayıtları: bellekte son 500, ayrıca dosyaya (yönetici paneli /flags ile okur)
+const FLAG_FILE=process.env.FLAG_FILE||'/opt/game/flags.jsonl';const flags=[];
+try{for(const l of fs.readFileSync(FLAG_FILE,'utf8').trim().split('\n').slice(-500))if(l)flags.push(JSON.parse(l));}catch{}
+function addFlag(c,why,extra){const now=Date.now(),f=flags.findLast?.(x=>x.playerNo===c.playerNo&&x.reason===why&&now-x.last<60000);
+  if(f){f.count++;f.last=now;f.detail=extra;return;}const n={playerNo:c.playerNo,nick:c.nick,reason:why,detail:extra,count:1,at:now,last:now};flags.push(n);if(flags.length>500)flags.shift();
+  try{fs.appendFileSync(FLAG_FILE,JSON.stringify(n)+'\n');}catch{}}
+export async function isAdminToken(token){const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/is_admin`,{method:'POST',headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${token}`,'content-type':'application/json'},body:'{}'});return r.ok&&(await r.json())===true;}
+const suspect=(c,why,extra='')=>{c.strikes++;addFlag(c,why,String(extra));log('ŞÜPHELİ',`#${c.playerNo}`,c.nick,why,extra,`(uyarı ${c.strikes})`);if(c.strikes>=30){log('ATILDI',`#${c.playerNo}`,c.nick);c.ws.close(4003,'hile');}};
 const send=(c,o)=>{if(c.ws.readyState===1)c.ws.send(typeof o==='string'?o:JSON.stringify(o));};
 const toSea=(c,o,self=false)=>{const room=seas.get(c.sea);if(!room)return;const s=JSON.stringify(o);for(const x of room)if(self||x!==c)send(x,s);};
 const toAll=(c,o)=>{const s=JSON.stringify(o);for(const x of all)if(x!==c&&x.uid)send(x,s);};
 function leaveSea(c){if(!c.sea)return;const room=seas.get(c.sea);if(room){room.delete(c);if(!room.size)seas.delete(c.sea);}if(c.netId)toSea(c,{t:'leave',id:c.netId});c.sea='';c.last=null;}
 
-const httpServer=http.createServer((q,r)=>{r.writeHead(200,{'content-type':'application/json','access-control-allow-origin':'*'});
+const httpServer=http.createServer(async(q,r)=>{const cors={'access-control-allow-origin':'*','access-control-allow-headers':'authorization','content-type':'application/json'};
+  if(q.method==='OPTIONS'){r.writeHead(204,cors);r.end();return;}
+  if(q.url?.startsWith('/flags')){const token=String(q.headers.authorization||'').replace(/^Bearer /,'');
+    if(!token||!(await isAdminToken(token).catch(()=>false))){r.writeHead(403,cors);r.end('{"error":"yetki yok"}');return;}
+    r.writeHead(200,cors);r.end(JSON.stringify([...flags].reverse().slice(0,300)));return;}
+  r.writeHead(200,cors);
   r.end(JSON.stringify({ok:true,name:'Pirate Rage oyun sunucusu',online:[...all].filter(c=>c.uid).length,seas:Object.fromEntries([...seas].map(([k,v])=>[k,v.size])),uptime:Math.round((Date.now()-started)/1000)}));});
 const wss=new WebSocketServer({server:httpServer,path:'/ws',maxPayload:16*1024});
 wss.on('connection',ws=>{

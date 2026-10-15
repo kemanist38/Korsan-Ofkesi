@@ -3649,10 +3649,12 @@ __export(game_server_exports, {
   Rate: () => Rate,
   checkFire: () => checkFire,
   checkState: () => checkState,
+  isAdminToken: () => isAdminToken,
   verifyToken: () => verifyToken
 });
 module.exports = __toCommonJS(game_server_exports);
 var import_node_http = __toESM(require("node:http"), 1);
+var import_node_fs = __toESM(require("node:fs"), 1);
 
 // node_modules/ws/wrapper.mjs
 var import_stream = __toESM(require_stream(), 1);
@@ -3707,8 +3709,35 @@ var Rate = class {
 var seas = /* @__PURE__ */ new Map();
 var all = /* @__PURE__ */ new Set();
 var log = (...a) => console.log((/* @__PURE__ */ new Date()).toISOString(), ...a);
+var FLAG_FILE = process.env.FLAG_FILE || "/opt/game/flags.jsonl";
+var flags = [];
+try {
+  for (const l of import_node_fs.default.readFileSync(FLAG_FILE, "utf8").trim().split("\n").slice(-500)) if (l) flags.push(JSON.parse(l));
+} catch {
+}
+function addFlag(c, why, extra) {
+  const now = Date.now(), f = flags.findLast?.((x) => x.playerNo === c.playerNo && x.reason === why && now - x.last < 6e4);
+  if (f) {
+    f.count++;
+    f.last = now;
+    f.detail = extra;
+    return;
+  }
+  const n = { playerNo: c.playerNo, nick: c.nick, reason: why, detail: extra, count: 1, at: now, last: now };
+  flags.push(n);
+  if (flags.length > 500) flags.shift();
+  try {
+    import_node_fs.default.appendFileSync(FLAG_FILE, JSON.stringify(n) + "\n");
+  } catch {
+  }
+}
+async function isAdminToken(token) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/is_admin`, { method: "POST", headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${token}`, "content-type": "application/json" }, body: "{}" });
+  return r.ok && await r.json() === true;
+}
 var suspect = (c, why, extra = "") => {
   c.strikes++;
+  addFlag(c, why, String(extra));
   log("\u015E\xDCPHEL\u0130", `#${c.playerNo}`, c.nick, why, extra, `(uyar\u0131 ${c.strikes})`);
   if (c.strikes >= 30) {
     log("ATILDI", `#${c.playerNo}`, c.nick);
@@ -3739,8 +3768,25 @@ function leaveSea(c) {
   c.sea = "";
   c.last = null;
 }
-var httpServer = import_node_http.default.createServer((q, r) => {
-  r.writeHead(200, { "content-type": "application/json", "access-control-allow-origin": "*" });
+var httpServer = import_node_http.default.createServer(async (q, r) => {
+  const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization", "content-type": "application/json" };
+  if (q.method === "OPTIONS") {
+    r.writeHead(204, cors);
+    r.end();
+    return;
+  }
+  if (q.url?.startsWith("/flags")) {
+    const token = String(q.headers.authorization || "").replace(/^Bearer /, "");
+    if (!token || !await isAdminToken(token).catch(() => false)) {
+      r.writeHead(403, cors);
+      r.end('{"error":"yetki yok"}');
+      return;
+    }
+    r.writeHead(200, cors);
+    r.end(JSON.stringify([...flags].reverse().slice(0, 300)));
+    return;
+  }
+  r.writeHead(200, cors);
   r.end(JSON.stringify({ ok: true, name: "Pirate Rage oyun sunucusu", online: [...all].filter((c) => c.uid).length, seas: Object.fromEntries([...seas].map(([k, v]) => [k, v.size])), uptime: Math.round((Date.now() - started) / 1e3) }));
 });
 var wss = new import_websocket_server.default({ server: httpServer, path: "/ws", maxPayload: 16 * 1024 });
@@ -3891,5 +3937,6 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   Rate,
   checkFire,
   checkState,
+  isAdminToken,
   verifyToken
 });
