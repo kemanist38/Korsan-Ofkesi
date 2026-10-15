@@ -7,7 +7,7 @@ import {loadFestival,saveFestival,festivalStatus,claimFestival,FESTIVAL_REWARDS,
 import {drawFlare,drawShotSprite,drawPuff,drawGlint} from './shotArt';
 import './storageMigration';
 import {session} from './session';
-import {guildOnline,loadMyGuild,searchGuilds,myApplications,createGuild,applyGuild,cancelApply,answerApplication,kickMember,setMemberRole,leaveGuild,disbandGuild,canManage,canKick,canDisband,type MyGuild,type GuildInfo} from './guild-net';
+import {guildOnline,loadMyGuild,searchGuilds,myApplications,createGuild,applyGuild,cancelApply,answerApplication,kickMember,setMemberRole,leaveGuild,disbandGuild,canManage,canKick,canDisband,type MyGuild,type GuildInfo,loadGuildIslands,buildIslandTower} from './guild-net';
 import './style.css';
 import './rage-ui.css';
 import {ACTIONS,loadSettings,saveSettings,keyLabel,normalizeKey,DEFAULT_BINDS,type ActionId} from './settings';
@@ -26,7 +26,7 @@ import {supa} from './supabase';
 import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
 import {loadLevelQuest,saveLevelQuest,levelQuestDone,levelQuestKill,levelQuestGoal,needsLevelQuest,levelQuestMap} from './level-quest';
 import {SPY_COST,SPY_SHIELD_PRICE,loadSpy,sendSpy,type SpyRival} from './spy';
-import {netStatus,netError,netMode,vpsError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,type NetState,type NetHandlers,type NetBoss,type NetBid} from './net';
+import {netStatus,netError,netMode,vpsError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetBid} from './net';
 import {loadAuction,saveAuction,emptyAuction,auctionHour,auctionEnds,lotsFor,minNextBid,applyBid,wonLots,auctionId,type LotDef,type Bid} from './auction';
 import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,claimReward,GRADUATE_LEVEL,MAX_APPRENTICES,TOGETHER_XP_BONUS} from './mentorship';
 import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
@@ -289,7 +289,11 @@ let collisionNotice=0;
 const islands:WorldIsland[]=[];
 let jumpPrompt:{dir:Dir;to:MapKey}|null=null;
 const fleetOwners=loadFleetOwners();
-const fleetOwner=(key?:MapKey)=>!key&&siege?'npc':fleetOwners[key??currentMap]??'npc';
+// Çevrim içi (VPS) adalar paylaşılır: sahibi sunucudan gelir. Bağlantı yoksa eski yerel kayıt kullanılır.
+const islandNet:Partial<Record<MapKey,NetIsland>>={};
+const myGuildId=()=>cloudGuild?.info.id??0;
+const netIsland=(key:MapKey)=>sharedBosses()?islandNet[key]:undefined;
+const fleetOwner=(key?:MapKey)=>{if(!key&&siege)return'npc';const k=key??currentMap,n=netIsland(k);if(n)return n.guild&&n.guild===myGuildId()?'player':'npc';return fleetOwners[k]??'npc';};
 const ownTowers:{x:number;y:number;cooldown:number;slot:number;type:TowerType}[]=[];
 let guild:Guild|null=loadGuild();
 let buildType:TowerType='cannon';
@@ -349,6 +353,7 @@ function worldClick(e:{clientX:number;clientY:number}){
   if(hasFleetIsland()&&fleetOwner()==='player'&&guild){
     const f=mapDef().fleet,slots=islandSlots(guild,currentMap);
     const slot=FLEET.towers.map(([dx,dy],i)=>({x:f.x+dx,y:f.y+dy,i})).sort((a,b)=>b.y-a.y).find(t=>towerContains(world,t,!!slots[t.i]))?.i;
+    if(slot!==undefined&&state.ammo==='heal'&&slots[slot]&&netIsland(currentMap)){towerHealSlot=slot;towerHealClock=0;toast(`Kaide ${slot+1}: şifa güllesiyle onarılıyor · menzilde kal`);return;}
     if(slot!==undefined){focusedFoundation=`${currentMap}:${slot}`;openGuild();document.querySelector(`[data-foundation="${focusedFoundation}"]`)?.scrollIntoView({block:'center'});toast(slots[slot]?`${TOWER_TYPES[slots[slot]!.type].name} · Kaide ${slot+1}`:`Kaide ${slot+1}: kule tipini seçip DİK düğmesine bas`);return;}
   }
   const towerHit=enemies.filter(n=>n.tower&&towerContains(world,n)).sort((a,b)=>b.y-a.y)[0];
@@ -529,7 +534,27 @@ document.querySelectorAll<HTMLButtonElement>('#shopTabs [data-shop]').forEach(b=
 // ---------------------------------------------------------------- Çevrim içi deniz
 const NET_ELITES=new Set(Object.keys(ELITE_DIR16));
 function remoteOf(id:string){return enemies.find(e=>e.remote?.id===id);}
+function applyIslandSlots(k:MapKey){const n=islandNet[k];if(n&&guild&&n.guild===myGuildId())applyIsland(n);}
+// Ada bilgisi gelince kendi filonun adasıysa filo paneline (kule canları, yıkık kaideler) işlenir
+function applyIsland(n:NetIsland){const k=n.key as MapKey;islandNet[k]=n;
+  if(guild&&n.guild&&n.guild===myGuildId()){guild.towers[k]=n.towers.map(t=>t?{type:'cannon' as TowerType,hp:t[0],maxHp:t[1]}:null);towerRuins[k]=Object.fromEntries(Object.entries(n.ruins).map(([a,b])=>[Number(a),b]));}
+  else if(guild&&guild.towers[k])delete guild.towers[k];
+  if(k===currentMap&&!siege){enemies.splice(0,enemies.length,...enemies.filter(e=>!e.tower));if(selected&&(selected as Enemy).tower){selected=null;state.attacking=false;}setupFleetIsland();}
+  if(ui('guildOverlay').classList.contains('open'))renderGuild();}
 const netHandlers:NetHandlers={
+  island:n=>applyIsland(n),
+  towerHp:(key,list)=>{const n=islandNet[key as MapKey];if(!n)return;for(const [slot,hp] of list){const t=n.towers[slot];if(t)t[0]=hp;
+    const gs=guild?.towers[key as MapKey]?.[slot];if(gs&&n.guild===myGuildId())gs.hp=hp;
+    if(key===currentMap){const e=enemies.find(x=>x.tower&&!x.siege&&x.towerIndex===slot);if(e){e.hp=Math.max(1,hp);e.lastHp=e.hp;}}}},
+  towerDown:(key,slot)=>{const n=islandNet[key as MapKey];if(n){n.towers[slot]=null;n.ruins[slot]=Date.now();applyIslandSlots(key as MapKey);}
+    if(key!==currentMap)return;const e=enemies.find(x=>x.tower&&!x.siege&&x.towerIndex===slot);
+    if(e){e.serverDown=true;const j=enemies.indexOf(e);enemies.splice(j,1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}burst(e.x,e.y,true);playExplosion();splashAt(e.x,e.y,190);
+      const left=enemies.filter(x=>x.tower&&!x.siege).length;toast(left?`${mapDef().fleet.name}: ${left} kule kaldı`:`${mapDef().fleet.name} düştü!`);}
+    else if(fleetOwner()==='player'){toast(`${mapDef().fleet.name}: ${slot+1}. kaidedeki kulen yıkıldı!`);setupFleetIsland();}},
+  islandCaptured:d=>{const name=MAPS[d.key as MapKey]?.fleet.name??d.key;
+    if(d.by===myNetId){const r=fleetReward(MAPS[d.key as MapKey].tier);state.gold+=r.gold;state.fame+=r.xp;saveAccount();rewardNotice(`${name} filona katıldı · +${fmt(r.gold)} altın · +${fmt(r.xp)} TP kazanıldı`,'battle',{xp:r.xp,gold:r.gold});}
+    else rewardNotice(`[${d.tag}] filosu ${d.key} ${name} adasını ele geçirdi`,'battle');},
+  islandAlert:key=>{toast(`⚠ ${key} ${MAPS[key as MapKey]?.fleet.name??''} adana saldırı var!`);},
   boss:b=>{if(siege||b.sea!==seaKey())return;spawnBoss(b);},
   bossHp:(id,hp)=>{const e=activeBoss();if(e?.shared!==id||hp>=e.hp)return;e.hp=Math.max(1,hp);e.lastHp=e.hp;},
   bossDown:d=>{const e=activeBoss();if(e?.shared!==d.id)return;e.share=d.share;e.shareN=d.n;e.serverDown=true;e.hp=0;sinkEnemy(e);},
@@ -554,7 +579,7 @@ const netHandlers:NetHandlers={
   bidAsk:hour=>{auctionTick();const bids=Object.values(auction.top);if(hour===auction.hour&&bids.length)sendKnownBids(bids);},
   bidKnown:bids=>{for(const b of bids)receiveBid(b);},
 };
-startNet(netHandlers);
+startNet(netHandlers);if(session.account)setTimeout(()=>{void refreshCloudGuild();},2000);
 let netClock=0,netFullClock=0,netHp=0,netIdent='',shipDir16=8;const netPrev={x:0,y:0},netVel={x:0,y:0};
 function netTick(dt:number){joinSea(siege?null:currentMap);{const ix=(player.x-netPrev.x)/Math.max(dt,1e-3),iy=(player.y-netPrev.y)/Math.max(dt,1e-3),ok=Math.hypot(ix,iy)<600;netVel.x=netVel.x*.8+(ok?ix:0)*.2;netVel.y=netVel.y*.8+(ok?iy:0)*.2;}netPrev.x=player.x;netPrev.y=player.y;
   // 16 yönlü tasarımlar: görünüş ortalama gidiş yönünden (çapraz adımlar yumuşatılmış hız). Ekranda dikey hız yarı ölçekli → ×2
@@ -663,13 +688,14 @@ function setupFleetIsland(){
   // Kendi adanda yalnızca filonun diktiği kuleler vardır; boş kaideler FİLO sekmesinden inciyle doldurulur.
   if(fleetOwner()==='player'){if(guild){const slots=islandSlots(guild,currentMap);FLEET.towers.forEach(([dx,dy],i)=>{const t=slots[i];if(t)ownTowers.push({x:f.x+dx,y:f.y+dy,cooldown:Math.random()*2,slot:i,type:t.type});});}return;}
   if(siege){spawnSiegeTowers();return;}
+  const n=netIsland(currentMap);if(n){n.towers.forEach((t,i)=>{if(t)spawnRivalTower(i,t[0],n.tag);});return;}
   FLEET.towers.forEach((_,i)=>{if(!ruinLeft(towerRuins,currentMap,i))spawnRivalTower(i);});
 }
 // Rakip filo kulesi; yıkılan kaidedeki kule 1 saat dolmadan geri gelmez (reviveRivalTowers)
-function spawnRivalTower(i:number){const map=mapDef(),f=map.fleet,t=fleetTower(map.tier),[dx,dy]=FLEET.towers[i];
-  const tower:Enemy={kind:'ship',role:'heavy',tower:true,towerIndex:i,x:f.x+dx,y:f.y+dy,angle:0,hp:t.hp,maxHp:t.hp,cooldown:Math.random()*2,speed:0,damage:t.damage,reload:t.reload,rewardGold:0,rewardFame:0,color:'#555',name:'ADM Kulesi',tier:map.tier,aggro:false,wander:0,slowTimer:0,homeX:f.x+dx,homeY:f.y+dy,combatTimer:0,hitRadius:34,fireRange:t.range};enemies.push(tower);
+function spawnRivalTower(i:number,hp?:number,tag=''){const map=mapDef(),f=map.fleet,t=fleetTower(map.tier),[dx,dy]=FLEET.towers[i];
+  const tower:Enemy={kind:'ship',role:'heavy',tower:true,towerIndex:i,x:f.x+dx,y:f.y+dy,angle:0,hp:hp??t.hp,maxHp:t.hp,cooldown:Math.random()*2,speed:0,damage:t.damage,reload:t.reload,rewardGold:0,rewardFame:0,color:'#555',name:tag?`[${tag}] Kulesi`:'ADM Kulesi',tier:map.tier,aggro:false,wander:0,slowTimer:0,homeX:f.x+dx,homeY:f.y+dy,combatTimer:0,hitRadius:34,fireRange:t.range};enemies.push(tower);
 }
-function reviveRivalTowers(){if(siege||!hasFleetIsland()||fleetOwner()==='player')return;
+function reviveRivalTowers(){if(siege||!hasFleetIsland()||fleetOwner()==='player'||netIsland(currentMap))return;
   FLEET.towers.forEach((_,i)=>{if(!ruinLeft(towerRuins,currentMap,i)&&!enemies.some(e=>e.tower&&e.towerIndex===i))spawnRivalTower(i);});}
 // ---------------------------------------------------------------- Harita bossları
 // Sayaç haritaya özeldir ve kalıcıdır; yalnızca o haritanın en güçlü NPC'si (ağır gemi) sayılır.
@@ -723,6 +749,26 @@ function sharedBossTick(dt:number){const e=activeBoss();if(!e?.shared){bossHitPe
   if(e.lastHp!==undefined&&e.hp<e.lastHp)bossHitPending+=e.lastHp-e.hp;e.lastHp=e.hp;
   bossHitClock-=dt;if(bossHitClock<=0&&bossHitPending>0){bossHitClock=.3;const d=Math.min(80000,bossHitPending);bossHitPending-=d;sendBossHit(d);}}
 const seaKey=()=>`sea-${currentMap.replace('/','-')}`;
+// Paylaşılan ada kuleleri: yerelde verilen hasar kaide kaide biriktirilip sunucuya gönderilir
+const towerPending=new Map<number,number>();let towerSendClock=0;
+function sharedTowerTick(dt:number){if(siege||!netIsland(currentMap)){towerPending.clear();return;}
+  for(const e of enemies){if(!e.tower||e.siege||e.towerIndex===undefined)continue;if(e.lastHp!==undefined&&e.hp<e.lastHp)towerPending.set(e.towerIndex,(towerPending.get(e.towerIndex)??0)+e.lastHp-e.hp);e.lastHp=e.hp;}
+  towerSendClock-=dt;if(towerSendClock>0||!towerPending.size)return;towerSendClock=.3;
+  for(const [slot,d] of towerPending){const n=Math.min(400000,d);sendTowerHit(slot,n);if(d>n)towerPending.set(slot,d-n);else towerPending.delete(slot);}}
+// Şifa ile kule tamiri: kendi adanda şifa güllesi seçiliyken kuleye tıklanınca menzilde kaldıkça salvo salvo doldurulur.
+// Kuleye şifa, salvonun gücünün 2,6 katıdır (kule kırıcı gibi); oyuncu şifasındaki 15 bin sınırı kuleler için yoktur.
+let towerHealSlot:number|null=null,towerHealClock=0;
+function stopTowerHeal(msg?:string){if(towerHealSlot===null)return;towerHealSlot=null;if(msg)toast(msg);}
+function towerHealTick(dt:number){if(towerHealSlot===null)return;const slot=towerHealSlot,n=netIsland(currentMap),f=mapDef().fleet;
+  if(!n||fleetOwner()!=='player'||!n.towers[slot]){stopTowerHeal();return;}
+  const [hp,max]=n.towers[slot]!,[dx,dy]=FLEET.towers[slot],at={x:f.x+dx,y:f.y+dy};
+  if(state.ammo!=='heal'){stopTowerHeal();return;}if(hp>=max){stopTowerHeal('Kule tam canında');return;}
+  if(dist(player,at)>effectiveRange()+80){return;}
+  towerHealClock-=dt;if(towerHealClock>0)return;const cannon=CANNONS[state.cannonType];towerHealClock=cannon.reload;
+  const loaded=Math.min(state.cannon,arsenal.heal);if(loaded<=0){stopTowerHeal('Şifa güllesi tükendi');renderQuickSlots();return;}
+  arsenal.heal-=loaded;saveArsenal(arsenal);renderQuickSlots();
+  const amount=Math.round(loaded*BALL_DAMAGE*(1+upgrades.damage*.11)*cannon.damage*bonus.damage*(1+equipBonus().damage+achBonus().damage+eliteBonus().damage)*2.6);
+  sendTowerHit(slot,amount,true);healText(at.x,at.y-40,amount);playHeal();}
 function populateMap(){
   stopBossMusic();abilityQueue.length=0;
   const map=mapDef();islands.splice(0,islands.length,...map.islands.map(i=>({...i})));
@@ -1434,6 +1480,11 @@ async function refreshCloudGuild(){if(!guildOnline())return;
   if(cloudGuild){const c=cloudGuild.info;if(!guild||guild.tag!==c.tag||guild.name!==c.name){guild={name:c.name,tag:c.tag,role:cloudGuild.role,treasury:0,donated:0,created:Date.now(),towers:{}};for(const k of ownedFleetIslands())islandSlots(guild,k);}else guild.role=cloudGuild.role;saveGuild(guild);}
   else if(guild){guild=null;saveGuild(null);}
   else{guildApplied=await myApplications().catch(()=>[]);if(guildTab==='search'&&!guildResults)guildResults=await searchGuilds('').catch(()=>[]);}
+  sendGuildRefresh();
+  // Filonun adaları (ziyaret edilmemiş olsa da panelde görünsün); güncel deniz sunucudan zaten canlı gelir
+  if(cloudGuild){const rows=await loadGuildIslands(cloudGuild.info.id).catch(()=>[]);for(const r of rows){const k=r.map_key as MapKey;if(!MAPS[k]||(k===currentMap&&islandNet[k]))continue;const max=fleetTower(MAPS[k].tier).hp;
+    islandNet[k]={key:k,guild:Number(r.guild_id),tag:cloudGuild.info.tag,towers:Array.from({length:TOWER_SLOTS},(_,i)=>{const t=r.towers?.[i];return t?[Math.min(max,t.hp),max] as [number,number]:null;}),ruins:r.ruins??{}};}}
+  for(const n of Object.values(islandNet))if(n)applyIsland(n);
   if(ui('guildOverlay').classList.contains('open'))renderGuild();}
 async function guildAction(run:()=>Promise<string|null>,ok:string){if(guildBusy)return;guildBusy=true;const err=await run().catch(e=>String(e?.message??e));guildBusy=false;if(err){toast(err);return;}if(ok)rewardNotice(ok,'other');await refreshCloudGuild();renderGuild();}
 function dropGuild(msg:string){guild=null;cloudGuild=null;saveGuild(null);setupFleetIsland();rewardNotice(msg,'other');renderGuild();}
@@ -1458,9 +1509,9 @@ function renderGuild(){
   // Kule resmi: tek tip filo kulesi
   const art=(_slot:number,_type:TowerType,ghost=false)=>`<i class="tower-art ${ghost?'ghost':''}"></i>`;
   const islandHtml=islands.length?islands.map(k=>{const m=MAPS[k],slots=islandSlots(g,k),cost=towerTypeCost(m.tier,buildType),built=slots.filter(Boolean).length;
-    return`<article class="guild-island"><header><div><span class="eyebrow">${m.key} · Seviye ${m.tier}</span><h4>${m.fleet.name}</h4></div><b>${built} / ${TOWER_SLOTS} kule</b></header><div class="tower-slots">${slots.map((t,i)=>t?`<div class="tower-slot built">${art(i,t.type)}<small>${TOWER_TYPES[t.type].name}</small><em><span style="width:${Math.round(t.hp/t.maxHp*100)}%"></span></em></div>`:(ruin=>ruin?`<button class="tower-slot empty ruined" disabled title="Yıkılan kule 1 saat dolmadan yeniden dikilemez">${art(i,buildType,true)}<small>Kaide ${i+1} · yıkık</small><b>${ruinLabel(ruin)} sonra</b></button>`:`<button class="tower-slot empty" data-build="${k}:${i}" ${!allowed||g.treasury<cost?'disabled':''}>${art(i,buildType,true)}<small>Kaide ${i+1}</small><b>${allowed?`DİK · ${fmt(cost)} İnci`:'YETKİ YOK'}</b></button>`)(ruinLeft(towerRuins,k,i))).join('')}</div></article>`;}).join('')
-    :`<p class="guild-empty">Filonun henüz bir adası yok. Adalar 5. seviye ve üstü denizlerdedir. Bir adanın bütün kulelerini yıkınca ada filona katılır ve kaideleri boşalır.</p>`;
-  const testClaim=FLEET_TEST_ENTRY&&hasFleetIsland()&&fleetOwner()!=='player'?`<button class="guild-test" id="guildClaim">TEST: ${here} adasını filona kat</button>`:'';
+    return`<article class="guild-island"><header><div><span class="eyebrow">${m.key} · Seviye ${m.tier}</span><h4>${m.fleet.name}</h4></div><b>${built} / ${TOWER_SLOTS} kule</b></header><div class="tower-slots">${slots.map((t,i)=>t?`<div class="tower-slot built">${art(i,t.type)}<small>${TOWER_TYPES[t.type].name}</small><em><span style="width:${Math.round(t.hp/t.maxHp*100)}%"></span></em></div>`:(ruin=>ruin?`<button class="tower-slot empty ruined" disabled title="Yıkılan kule 1 saat dolmadan yeniden dikilemez">${art(i,buildType,true)}<small>Kaide ${i+1} · yıkık</small><b>${ruinLabel(ruin)} sonra</b></button>`:`<button class="tower-slot empty" data-build="${k}:${i}" ${!allowed||(netIsland(k)?state.pearls:g.treasury)<cost?'disabled':''}>${art(i,buildType,true)}<small>Kaide ${i+1}</small><b>${allowed?`DİK · ${fmt(cost)} İnci`:'YETKİ YOK'}</b></button>`)(ruinLeft(towerRuins,k,i))).join('')}</div></article>`;}).join('')
+    :`<p class="guild-empty">Filonun henüz bir adası yok. Filo adaları 2. seviye ve üstü denizlerdedir. Bir adanın son kulesini yıkan kaptanın filosu adayı alır; kaideler boşalır ve başkan ile yardımcı inciyle kule diker. Kulesiz kalan ada 1 saat içinde kule dikilmezse sahipsiz kalır. Hasarlı kuleler yalnızca şifa güllesiyle onarılır: şifa güllesini seçip kuleye tıkla.</p>`;
+  const testClaim=FLEET_TEST_ENTRY&&!netIsland(currentMap)&&hasFleetIsland()&&fleetOwner()!=='player'?`<button class="guild-test" id="guildClaim">TEST: ${here} adasını filona kat</button>`:'';
   const testRole=FLEET_TEST_ENTRY&&!cloudGuild?`<label class="guild-test-role">TEST · rolün <select id="guildRole">${(Object.keys(ROLE_NAMES) as GuildRole[]).map(r=>`<option value="${r}" ${g.role===r?'selected':''}>${ROLE_NAMES[r]}</option>`).join('')}</select></label>`:'';
   panel.innerHTML=`<div class="guild-head"><div><span class="eyebrow">Filo</span><h3><em class="guild-tag">[${escapeHtml(g.tag)}]</em> ${escapeHtml(g.name)}</h3><small>${ROLE_NAMES[g.role]}: ${escapeHtml(profile.nick)} (sen) · Üye: ${cloudGuild?cloudGuild.members.length:1}</small></div><div class="guild-treasury"><span>FİLO HAZİNESİ</span><strong><i class="sprite icon-pearl"></i>${fmt(g.treasury)} İnci</strong><small>Senin bağışın: ${fmt(g.donated)} İnci</small></div></div>
     <div class="guild-members"><span class="eyebrow">Filo üyeleri ve yetkiler</span>${cloudGuild?cloudGuild.members.map(m=>{const me=m.uid===session.account?.uid;return`<div class="member-row ${me?'me':''}"><b>[${escapeHtml(g.tag)}]${escapeHtml(m.nick)}${me?' (sen)':''}</b><em class="role ${m.role}">${ROLE_NAMES[m.role]}</em><small>#${m.playerNo}</small><span class="member-actions">${g.role==='leader'&&!me&&m.role!=='leader'?`<button data-role="${m.uid}:${m.role==='deputy'?'member':'deputy'}" title="${m.role==='deputy'?'Üye yap':'Başkan yardımcısı yap'}">${m.role==='deputy'?'▼ ÜYE YAP':'▲ YARDIMCI YAP'}</button>`:''}${!me&&canKick(g.role,m.role)?`<button class="kick" data-kick="${m.uid}" title="Filodan at">✕</button>`:''}</span></div>`;}).join(''):`<div class="member-row"><b>[${escapeHtml(g.tag)}]${escapeHtml(profile.nick)}</b><em class="role ${g.role}">${ROLE_NAMES[g.role]}</em><small>Bağış: ${fmt(g.donated)} İnci</small></div>`}<p>Kule dikme yetkisi yalnızca <b>Filo Başkanı</b> ve <b>Başkan Yardımcısı</b>ndadır. Başkan, üyelerden birini yardımcı atar. Diğer üyeler hazineye inci bağışlar.</p>${testRole}</div>
@@ -1489,6 +1540,8 @@ function renderGuild(){
     const [k,i]=b.dataset.build!.split(':') as [MapKey,string],m=MAPS[k],type=buildType,cost=towerTypeCost(m.tier,type),slots=islandSlots(g,k);
     if(slots[+i]){toast('Bu kaidede zaten bir kule var');renderGuild();return;}
     const ruin=ruinLeft(towerRuins,k,+i);if(ruin){toast(`Bu kaidedeki kule yıkıldı; ${ruinLabel(ruin)} sonra yeniden dikilebilir`);renderGuild();return;}
+    if(netIsland(k)){if(state.pearls<cost){toast(`${fmt(cost)} inci gerekli`);return;}b.disabled=true;void buildIslandTower(k,+i).then(r=>{if('error' in r){toast(r.error);renderGuild();return;}
+      state.pearls-=r.cost;session.pearlServerAdd?.(-r.cost);saveAccount();updateUI();sendTowerBuilt(k);playCoins();rewardNotice(`${m.fleet.name}: ${+i+1}. kaideye ${TOWER_TYPES[type].name} dikildi · −${fmt(r.cost)} inci`,'shop');});return;}
     if(g.treasury<cost){toast(`Filo hazinesinde ${fmt(cost)} inci gerekli`);return;}g.treasury-=cost;const hp=fleetTower(m.tier).hp;slots[+i]={hp,maxHp:hp,type};saveGuild(g);if(k===currentMap)setupFleetIsland();playCoins();rewardNotice(`${m.fleet.name}: ${+i+1}. kaideye ${TOWER_TYPES[type].name} dikildi · −${fmt(cost)} inci`,'shop');renderGuild();});
   const role=document.getElementById('guildRole') as HTMLSelectElement|null;if(role)role.onchange=()=>{g.role=role.value as GuildRole;saveGuild(g);renderGuild();toast(`Test: rolün ${ROLE_NAMES[g.role]}`);};
   const claim=document.getElementById('guildClaim');if(claim)claim.onclick=()=>{fleetOwners[currentMap]='player';saveFleetOwners(fleetOwners);clearRuins(towerRuins,currentMap);g.towers[currentMap]=Array(TOWER_SLOTS).fill(null);saveGuild(g);enemies.splice(0,enemies.length,...enemies.filter(e=>!e.tower));setupFleetIsland();rewardNotice(`Test · ${map.fleet.name} filona katıldı`,'other');renderGuild();};
@@ -1982,6 +2035,8 @@ function leaveSiege(){if(!siege)return;const r=siege.result?null:payContribution
   mapFade=1;playMapJump();eventPanelHtml='';renderSiegeHud();renderDayEvent(true);if(r)rewardNotice(`Kuşatma katkısı · +${fmt(r.xp)} TP · +${fmt(r.gold)} altın · +${fmt(r.pearls)} inci kazanıldı`,'battle',{xp:r.xp,gold:r.gold});}
 function sinkEnemy(e:Enemy){
   const j=enemies.indexOf(e);if(j<0)return;
+  // Paylaşılan boss ve ada kulesi: batışı sunucu bildirir; o zamana kadar 1 canla ayakta kalır
+  if(((e.boss&&e.shared)||(e.tower&&!e.siege&&netIsland(currentMap)))&&!e.serverDown){e.hp=1;e.lastHp=1;return;}
   if(!e.tower)spawnWreck(e);
   if(e.captain){enemies.splice(j,1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}burst(e.x,e.y,true);playExplosion();playSink(earGain(e));splashAt(e.x,e.y,190);if(e.lastHitBy!=='captain'){gainRage(rage,RAGE_PER_RIVAL);const sp=claimRivalSp(rivalLog,e.name)?gainSp(RIVAL_SP*spMult()):0;sinkNotice(e.name,sp);rivalSinks++;saveRivalSinks(rivalSinks);saveAccount();}e.lastHitBy=undefined;
     const map=currentMap,inst=siege;later(5,()=>{if(currentMap!==map||siege!==inst)return;const a=Math.random()*Math.PI*2,p={x:clamp(e.homeX+Math.cos(a)*450,80,WORLD_WIDTH-80),y:clamp(e.homeY+Math.sin(a)*260,80,WORLD_HEIGHT-80)};Object.assign(e,{x:p.x,y:p.y,hp:e.maxHp,frozen:0,burnTimer:0,slowTimer:0});e.captain!.foe=null;enemies.push(e);spawnText(e,`${e.name} YENİDEN DENİZDE`,'#f1d08a');});return;}
@@ -1989,7 +2044,7 @@ function sinkEnemy(e:Enemy){
   burst(e.x,e.y,true);playExplosion();playSink(earGain(e));splashAt(e.x,e.y,190);
   if(e.tower){destroyTower(e);return;}
   if(e.commander){siegeWon(e);return;}
-  if(e.boss){if(e.shared&&!e.serverDown){e.hp=1;e.lastHp=1;return;}defeatBoss(e);return;}
+  if(e.boss){defeatBoss(e);return;}
   // NPC tecrübe puanı ve altın verir; savaş puanı (SP) yalnızca rakip oyuncu batırınca gelir (src/battle.ts).
     const goldGain=goldGainAch(e.rewardGold*(1+bonus.bounty)),fame=xpGain(e.rewardFame);state.gold+=goldGain;state.fame+=fame;saveAccount();bumpAch('npc');if(e.role==='heavy')bumpAch('heavy');
   rewardNotice(`${e.name} batırıldı · +${fmt(goldGain)} altın · +${fmt(fame)} TP kazanıldı`,'battle',{xp:fame,gold:goldGain,sink:true});if(e.def){recordQuestProgress('npc',e.def.id);levelQuestHit('npc',e.def.id,e.def.tier);}countBossKill(e);if(!e.summoned)setTimeout(spawnEnemy,1800);
@@ -2070,7 +2125,7 @@ function activateRage(){
   for(let n=0;n<14;n++){const a=Math.random()*Math.PI*2,sp=60+Math.random()*90;particles.push({x:player.x,y:player.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp*.5,life:.6+Math.random()*.4,maxLife:1,kind:'ember',z:10+Math.random()*30,size:10+Math.random()*14,color:n%2?'#ff6a1a':'#ffd27a'});}
 }
 function updateRage(dt:number){
-  playerHitClock+=dt;tickLogout();sharedBossTick(dt);
+  playerHitClock+=dt;tickLogout();sharedBossTick(dt);sharedTowerTick(dt);towerHealTick(dt);
   for(let i=abilityQueue.length-1;i>=0;i--){const q=abilityQueue[i];q.t-=dt;if(q.t<=0){abilityQueue.splice(i,1);q.fn();}}
   const was=rageActive(rage);tickRage(rage,dt);
   // Öfke açıkken: Hız İksiri izinin kırmızı hali (gemi giderken)

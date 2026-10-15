@@ -15,7 +15,8 @@ export const TOWER_TYPES:Record<TowerType,{name:string;desc:string;cost:number;d
 export const towerTypeCost=(tier:number,t:TowerType)=>Math.round(towerCost(tier)*TOWER_TYPES[t].cost);
 export type Guild={name:string;tag:string;role:GuildRole;treasury:number;donated:number;created:number;towers:Partial<Record<MapKey,(TowerSlot|null)[]>>};
 export const TOWER_SLOTS=16;
-export const towerCost=(tier:number)=>20+10*tier;
+// Kule bedeli (inci); veritabanındaki island_tower_cost ile aynı
+export const towerCost=(tier:number)=>200+100*tier;
 export const GUILD_NAME_MAX=24,GUILD_TAG_MIN=2,GUILD_TAG_MAX=4;
 // Filo kısaltması (tag): 2–4 büyük harf, rakam ya da ★; eski kayıtlarda filo adının baş harflerinden türetilir.
 export const tagError=(t:string)=>t.length<GUILD_TAG_MIN||t.length>GUILD_TAG_MAX?`Kısaltma ${GUILD_TAG_MIN}–${GUILD_TAG_MAX} karakter olmalı`:!/^[\p{Lu}\p{N}★]+$/u.test(t)?'Kısaltma büyük harf, rakam ya da ★ olabilir':'';

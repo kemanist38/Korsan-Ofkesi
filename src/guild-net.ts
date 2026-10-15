@@ -49,3 +49,8 @@ export const disbandGuild=()=>rpc('guild_disband');
 export const canManage=(r:GuildRole)=>r==='leader'||r==='deputy';
 export const canKick=(me:GuildRole,target:GuildRole)=>me==='leader'?target!=='leader':me==='deputy'&&target==='member';
 export const canDisband=(r:GuildRole)=>r==='leader';
+// Filonun sahip olduğu paylaşılan adalar ve kule dikme (bedel kendi inci cüzdanından; yetki ve 1 saat kuralı veritabanında)
+export type IslandRow={map_key:string;guild_id:number|null;towers:({type:string;hp:number}|null)[];ruins:Record<string,number>};
+export async function loadGuildIslands(id:number):Promise<IslandRow[]>{const sb=supa();if(!sb||!id)return[];const {data}=await sb.from('islands').select('map_key,guild_id,towers,ruins').eq('guild_id',id);return(data??[]) as IslandRow[];}
+export async function buildIslandTower(map:string,slot:number):Promise<{cost:number}|{error:string}>{const sb=supa();if(!sb)return{error:'Sunucuya bağlanılamadı'};
+  const {data,error}=await sb.rpc('island_build',{p_map:map,p_slot:slot});return error?{error:fail(error)??'İşlem yapılamadı'}:{cost:Number(data)};}
