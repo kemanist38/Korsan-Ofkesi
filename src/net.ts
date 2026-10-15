@@ -26,6 +26,9 @@ let handlers:NetHandlers|null=null;
 // Bağlantı durumu (ekranda gösterilir): 'off' | 'connecting' | 'ok' | 'error'
 export let netStatus:'off'|'connecting'|'ok'|'error'='off',netError='';
 export const netOnline=()=>netStatus==='ok';
+// Hangi yoldan bağlı: VPS oyun sunucusu ya da yedek (Supabase)
+export let vpsError='';
+export const netMode=()=>wsFallback?'yedek':'VPS';
 
 // ---------------------------------------------------------------- VPS oyun sunucusu (WebSocket)
 let ws:WebSocket|null=null,wsReady=false,wsSea='',wsTries=0,wsFallback=false;
@@ -51,7 +54,7 @@ async function connectWs(){const sb=supa();if(!sb||!session.account){fallback();
     if(ev.code===4002){netStatus='error';netError='Hesap kapalı';return;}
     if(ev.code===4004){netStatus='error';netError='Hesabına başka bir yerden bağlanıldı';return;}
     // İlk bağlantı hiç kurulamadıysa eski yola geç; kurulduysa yeniden dene
-    if(!was&&!opened&&++wsTries>=2){fallback();return;}
+    if(!was&&++wsTries>=2){vpsError=netError=`VPS: ${ev.code}${ev.reason?' '+ev.reason:''}`;console.warn('Oyun sunucusuna bağlanılamadı',ev.code,ev.reason);fallback();return;}
     netStatus='connecting';setTimeout(()=>{void connectWs();},Math.min(15000,1000*2**wsTries++));};
 }
 function fallback(){if(wsFallback)return;wsFallback=true;ws=null;startSupabase();const s=wsSea;seaName='';if(s)joinSea(s.replace(/^sea-/,''));}
