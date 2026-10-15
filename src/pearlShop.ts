@@ -3,7 +3,7 @@
 // oyun sunucusu inciyi cüzdana yükler (server/game-server.mjs, supabase/migrations/006_shopier.sql). url boşsa test modunda hemen verilir.
 export type PearlPack={id:string;name:string;pearls:number;bonus:number;price:number;tag?:string;url?:string};
 // Shopier ürün bağlantıları (Shopier panelinde ürün oluşturulunca buraya yazılır)
-export const SHOPIER_LINKS:Record<string,string>={pouch:'https://www.shopier.com/piraterage/51864655',chest:'',crate:'',hold:'',vault:'',fleet:''};
+export const SHOPIER_LINKS:Record<string,string>={pouch:'https://www.shopier.com/piraterage/51864655',chest:'https://www.shopier.com/piraterage/51865696',crate:'https://www.shopier.com/piraterage/51865732',hold:'https://www.shopier.com/piraterage/51865773',vault:'https://www.shopier.com/piraterage/51865794',fleet:'https://www.shopier.com/piraterage/51865817'};
 export const PEARL_PACKS:PearlPack[]=[
   {id:'pouch',name:'İnci Kesesi',pearls:3500,bonus:0,price:49.99},
   {id:'chest',name:'İnci Sandığı',pearls:8500,bonus:700,price:119.99},
