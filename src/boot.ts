@@ -3,7 +3,7 @@
 import './storageMigration';
 import './auth.css';
 import {supa} from './supabase';
-import {loginWithName,setRemember,enforceRemember,sendReset} from './login';
+import {loginWithName,setRemember,enforceRemember,sendReset,SIGNUPS_OPEN} from './login';
 import {session} from './session';
 import {applySave,claimOwner,collectSave} from './cloud-save';
 import {nickError,saveProfile,NICK_MAX} from './profile';
@@ -22,8 +22,8 @@ function busy(form:HTMLFormElement,on:boolean){form.querySelectorAll('button,inp
 const trErr=(m:string)=>/signups? not allowed|signup.*disabled/i.test(m)?'Şu an kapalı test dönemindeyiz, sadece davetli kaptanlar girebilir':/Invalid login/i.test(m)?'Kullanıcı adı veya şifre hatalı':/already registered|already been registered/i.test(m)?'Bu e-posta ile zaten bir hesap var':/at least 6|Password should/i.test(m)?'Şifre en az 6 karakter olmalı':/rate limit|too many/i.test(m)?'Çok fazla deneme, biraz bekle':/valid email|invalid.*email/i.test(m)?'Geçerli bir e-posta yaz':/fetch|network/i.test(m)?'Sunucuya bağlanılamadı, internetini kontrol et':m;
 
 function showLogin(sb:SupabaseClient,mode:'login'|'register'='login'){
-  const reg=mode==='register';
-  card(reg?'YENİ KAPTAN':'GİRİŞ',`<div class="auth-tabs"><button data-mode="login" class="${reg?'':'on'}">GİRİŞ</button><button data-mode="register" class="${reg?'on':''}">KAYIT OL</button></div>
+  if(!SIGNUPS_OPEN)mode='login';const reg=mode==='register';
+  card(reg?'YENİ KAPTAN':'GİRİŞ',`<div class="auth-tabs"><button data-mode="login" class="${reg?'':'on'}">GİRİŞ</button>${SIGNUPS_OPEN?`<button data-mode="register" class="${reg?'on':''}">KAYIT OL</button>`:''}</div>${SIGNUPS_OPEN?'':'<p class="auth-closed">Kapalı test dönemi · yeni kayıt alınmıyor. Kayıtlar açılışla birlikte açılacak.</p>'}
   <form id="authForm">${reg?`<input id="authNick" placeholder="Kullanıcı adı (oyunda kaptan adın olur)" maxlength="${NICK_MAX}" autocomplete="username" spellcheck="false" required/><input id="authEmail" type="email" placeholder="E-posta (şifre sıfırlama için)" autocomplete="email" required/>`:`<input id="authEmail" placeholder="Kullanıcı adı" autocomplete="username" spellcheck="false" autocapitalize="off" required/>`}
   <input id="authPass" type="password" placeholder="Şifre (en az 6 karakter)" autocomplete="${reg?'new-password':'current-password'}" minlength="6" required/>
   <button type="submit" class="auth-main">${reg?'HESAP OLUŞTUR':'DENİZE AÇIL'}</button></form>

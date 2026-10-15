@@ -13,3 +13,6 @@ export function setRemember(on:boolean){try{localStorage.setItem(REMEMBER,on?'1'
 export async function enforceRemember(sb:SupabaseClient){try{if(localStorage.getItem(REMEMBER)==='0'&&!sessionStorage.getItem(LIVE)){await sb.auth.signOut();return true;}sessionStorage.setItem(LIVE,'1');}catch{}return false;}
 // Şifre sıfırlama: e-postaya yeni şifre belirleme bağlantısı gider (şifrenin kendisi gönderilmez)
 export async function sendReset(sb:SupabaseClient,email:string){const {error}=await sb.auth.resetPasswordForEmail(email.trim(),{redirectTo:location.origin+'/oyna/'});return error?trErr(error.message):null;}
+
+// Kayıtlar: kapalı test döneminde false. Açılış günü true yapılır (Supabase'de yeni kayıtlar da açılmalı).
+export const SIGNUPS_OPEN=false;

@@ -1,6 +1,7 @@
 // Ana sayfa giriş paneli: kullanıcı adı + şifre ile girer, oyuna (/oyna/) yönlendirir. Oturum açıksa doğrudan "Oyna" gösterilir.
 import {supa} from './supabase';
-import {loginWithName,setRemember,enforceRemember,sendReset} from './login';
+import {loginWithName,setRemember,enforceRemember,sendReset,SIGNUPS_OPEN} from './login';
+if(SIGNUPS_OPEN){document.getElementById('regOpen')?.removeAttribute('hidden');document.getElementById('regClosed')?.remove();}
 const $=(id:string)=>document.getElementById(id) as HTMLInputElement;
 const form=document.getElementById('siteLogin') as HTMLFormElement|null,msg=(t:string,ok=false)=>{const m=$('lgMsg');m.textContent=t;m.classList.toggle('ok',ok);};
 const sb=supa();
