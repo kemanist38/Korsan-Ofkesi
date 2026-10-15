@@ -14,6 +14,7 @@ async function main(){
   if(ok!==true){root.innerHTML='<h1>Yönetim</h1><p>Bu sayfaya erişim yetkin yok.</p>';return;}
   root.innerHTML=`<h1>YÖNETİM</h1><p class="muted">${esc(s.session.user.email)}</p>
   <h2>Oyuncular</h2><div class="card"><div class="row"><input id="q" placeholder="Kaptan adı, e-posta veya oyuncu no" style="flex:1;min-width:220px"/><button id="find">ARA</button></div><p class="msg" id="msg"></p><div class="table-wrap"><table><thead><tr><th>No</th><th>Kaptan</th><th>E-posta</th><th>İnci</th><th>Durum</th><th>İşlem</th></tr></thead><tbody id="rows"></tbody></table></div></div>
+  <h2>Sunucu durumu</h2><div class="card"><p id="stats" class="muted">Yükleniyor…</p></div>
   <h2>Şüpheli oyuncular <button id="fRefresh">YENİLE</button></h2><div class="card"><p class="muted">Oyun sunucusunun yakaladığı hız, hasar, atış ve mesaj seli denemeleri (son 300). Aynı oyuncu çok kez görünüyorsa incele.</p><p class="msg" id="fMsg"></p><div class="table-wrap"><table><thead><tr><th>Zaman</th><th>Oyuncu</th><th>Sebep</th><th>Ayrıntı</th><th>Tekrar</th></tr></thead><tbody id="fRows"></tbody></table></div></div>
   <h2>Kupon oluştur</h2><div class="card"><div class="row"><input id="cCode" placeholder="KOD" style="text-transform:uppercase"/><input id="cPearls" type="number" min="0" placeholder="İnci"/><input id="cGold" type="number" min="0" placeholder="Altın"/><input id="cUntil" type="date" title="Son gün"/><input id="cMax" type="number" min="1" placeholder="Toplam kullanım (boş: sınırsız)"/><input id="cNote" placeholder="Not"/><button id="cAdd">KUPON EKLE</button></div><p class="msg" id="cMsg"></p></div>`;
   const msg=(id:string,t:string,bad=false)=>{const m=document.getElementById(id)!;m.textContent=t;m.classList.toggle('bad',bad);};
@@ -41,6 +42,11 @@ async function main(){
       document.getElementById('fRows')!.innerHTML=rows.map(f=>`<tr><td>${new Date(f.last).toLocaleString('tr-TR')}</td><td>#${f.playerNo} ${esc(f.nick)}</td><td>${esc(REASONS[f.reason]??f.reason)}</td><td>${esc(f.detail)}</td><td>${f.count}</td></tr>`).join('');}
     catch(e){msg('fMsg',`Oyun sunucusuna ulaşılamadı: ${(e as Error).message}`,true);}};
   document.getElementById('fRefresh')!.onclick=()=>void flagsLoad();
-  void find();void flagsLoad();
+  const statsLoad=async()=>{const {data:ss}=await sb.auth.getSession();const el=document.getElementById('stats')!;
+    try{const r=await fetch('https://game.piraterage.com/stats',{headers:{authorization:`Bearer ${ss.session?.access_token??''}`}});if(!r.ok)throw new Error(String(r.status));
+      const d=await r.json() as {online:number;seas:Record<string,number>;uptime:number};
+      el.innerHTML=`<b>${d.online}</b> kaptan çevrim içi · sunucu ${Math.floor(d.uptime/3600)} sa ${Math.floor(d.uptime%3600/60)} dk açık<br>${Object.entries(d.seas).map(([k,v])=>`${esc(k.replace(/^sea-/,''))}: ${v}`).join(' · ')||'Denizlerde kimse yok'}`;}
+    catch(e){el.textContent=`Oyun sunucusuna ulaşılamadı (${(e as Error).message})`;}};
+  void find();void flagsLoad();void statsLoad();setInterval(()=>void statsLoad(),15000);
 }
 void main();
