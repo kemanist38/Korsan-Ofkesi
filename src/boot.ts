@@ -18,19 +18,18 @@ function card(title:string,body:string,note=''){const el=overlay();el.querySelec
 const msg=(t:string,ok=false)=>{const m=document.getElementById('authMsg');if(m){m.textContent=t;m.classList.toggle('ok',ok);}};
 const val=(id:string)=>(document.getElementById(id) as HTMLInputElement).value.trim();
 function busy(form:HTMLFormElement,on:boolean){form.querySelectorAll('button,input').forEach(b=>(b as HTMLButtonElement).disabled=on);}
-const trErr=(m:string)=>/signups? not allowed|signup.*disabled/i.test(m)?'Şu an kapalı test dönemindeyiz, sadece davetli kaptanlar girebilir':/Invalid login/i.test(m)?'E-posta veya şifre hatalı':/already registered|already been registered/i.test(m)?'Bu e-posta ile zaten bir hesap var':/at least 6|Password should/i.test(m)?'Şifre en az 6 karakter olmalı':/rate limit|too many/i.test(m)?'Çok fazla deneme, biraz bekle':/valid email|invalid.*email/i.test(m)?'Geçerli bir e-posta yaz':/fetch|network/i.test(m)?'Sunucuya bağlanılamadı, internetini kontrol et':m;
+const trErr=(m:string)=>/signups? not allowed|signup.*disabled/i.test(m)?'Şu an kapalı test dönemindeyiz, sadece davetli kaptanlar girebilir':/Invalid login/i.test(m)?'Kullanıcı adı veya şifre hatalı':/already registered|already been registered/i.test(m)?'Bu e-posta ile zaten bir hesap var':/at least 6|Password should/i.test(m)?'Şifre en az 6 karakter olmalı':/rate limit|too many/i.test(m)?'Çok fazla deneme, biraz bekle':/valid email|invalid.*email/i.test(m)?'Geçerli bir e-posta yaz':/fetch|network/i.test(m)?'Sunucuya bağlanılamadı, internetini kontrol et':m;
 
 function showLogin(sb:SupabaseClient,mode:'login'|'register'='login'){
   const reg=mode==='register';
   card(reg?'YENİ KAPTAN':'GİRİŞ',`<div class="auth-tabs"><button data-mode="login" class="${reg?'':'on'}">GİRİŞ</button><button data-mode="register" class="${reg?'on':''}">KAYIT OL</button></div>
-  <form id="authForm"><input id="authEmail" type="email" placeholder="E-posta" autocomplete="email" required/>
+  <form id="authForm">${reg?`<input id="authNick" placeholder="Kullanıcı adı (oyunda kaptan adın olur)" maxlength="${NICK_MAX}" autocomplete="username" spellcheck="false" required/><input id="authEmail" type="email" placeholder="E-posta (şifre sıfırlama için)" autocomplete="email" required/>`:`<input id="authEmail" placeholder="Kullanıcı adı" autocomplete="username" spellcheck="false" autocapitalize="off" required/>`}
   <input id="authPass" type="password" placeholder="Şifre (en az 6 karakter)" autocomplete="${reg?'new-password':'current-password'}" minlength="6" required/>
-  ${reg?`<input id="authNick" placeholder="Kaptan adı" maxlength="${NICK_MAX}" autocomplete="off" spellcheck="false" required/>`:''}
   <button type="submit" class="auth-main">${reg?'HESAP OLUŞTUR':'DENİZE AÇIL'}</button></form>
   ${reg?'':'<button class="auth-link" id="authForgot">Şifremi unuttum</button>'}${GUEST_TEST?'<button class="auth-guest" id="authGuest">TEST: GİRİŞSİZ OYNA</button>':''}`);
   const guest=document.getElementById('authGuest');if(guest)guest.onclick=()=>{overlay().remove();void startGame();};
   document.querySelectorAll<HTMLButtonElement>('.auth-tabs button').forEach(b=>b.onclick=()=>showLogin(sb,b.dataset.mode as 'login'|'register'));
-  const forgot=document.getElementById('authForgot');if(forgot)forgot.onclick=async()=>{const email=val('authEmail');if(!email){msg('Önce e-posta adresini yaz');return;}
+  const forgot=document.getElementById('authForgot');if(forgot)forgot.onclick=async()=>{const email=prompt('Hesabının e-posta adresini yaz, şifre sıfırlama bağlantısı gönderelim:')?.trim()??'';if(!email)return;
     const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.origin+'/oyna/'});msg(error?trErr(error.message):'Şifre sıfırlama bağlantısı e-postana gönderildi',!error);};
   const form=document.getElementById('authForm') as HTMLFormElement;
   form.onsubmit=async e=>{e.preventDefault();const email=val('authEmail'),pass=(document.getElementById('authPass') as HTMLInputElement).value;
@@ -42,7 +41,12 @@ function showLogin(sb:SupabaseClient,mode:'login'|'register'='login'){
       if(error){msg(trErr(error.message));return;}
       if(!data.session){card('E-POSTANI ONAYLA',`<p class="auth-info">${esc(email)} adresine bir onay bağlantısı gönderdik. Bağlantıya tıkladıktan sonra buradan giriş yapabilirsin.</p><button class="auth-main" id="authBack">GİRİŞE DÖN</button>`);document.getElementById('authBack')!.onclick=()=>showLogin(sb);return;}
       enter(sb,data.session.user,nick);return;}
-    busy(form,true);const {data,error}=await sb.auth.signInWithPassword({email,password:pass});busy(form,false);
+    // Giriş kullanıcı adıyla: sunucu adı ve şifreyi doğrularsa hesabın e-postasını verir (e-posta ile giriş de çalışır)
+    busy(form,true);let loginEmail=email;
+    if(!email.includes('@')){const r=await sb.rpc('login_email',{p_nick:email,p_pass:pass});
+      if(r.error){busy(form,false);msg(r.error.message.replace(/^.*?: /,'')||'Giriş yapılamadı');return;}
+      if(!r.data){busy(form,false);msg('Kullanıcı adı veya şifre hatalı');return;}loginEmail=String(r.data);}
+    const {data,error}=await sb.auth.signInWithPassword({email:loginEmail,password:pass});busy(form,false);
     if(error){msg(trErr(error.message));return;}enter(sb,data.user);};
 }
 function showNewPassword(sb:SupabaseClient){
@@ -113,6 +117,6 @@ async function boot(){
   sb.auth.onAuthStateChange((ev)=>{if(ev==='PASSWORD_RECOVERY'){recovering=true;showNewPassword(sb);}});
   const {data}=await sb.auth.getSession();
   if(recovering)return;
-  if(data.session)enter(sb,data.session.user);else showLogin(sb);
+  if(data.session)enter(sb,data.session.user);else showLogin(sb,new URLSearchParams(location.search).has('kayit')?'register':'login');
 }
 boot();
