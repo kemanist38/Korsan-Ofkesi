@@ -75,10 +75,18 @@ async function enter(sb:SupabaseClient,user:User,nick?:string){
     claimOwner(user.id);
     if(save?.data&&typeof save.data==='object')applySave(save.data as Record<string,string>);
     saveProfile({nick:prof.nick,changedAt:0,named:true});
+    // İnci bakiyesi sunucudaki cüzdandan gelir; kayıttaki değer dikkate alınmaz
+    const ACC='yedi-deniz-account-v1',readPearls=()=>{try{const a=JSON.parse(localStorage.getItem(ACC)||'null');return typeof a?.pearls==='number'?a.pearls:null;}catch{return null;}};
+    let pearlBase=Number((await sb.rpc('wallet_get')).data??0);
+    try{const a=JSON.parse(localStorage.getItem(ACC)||'null');if(a&&typeof a==='object'){a.pearls=pearlBase;localStorage.setItem(ACC,JSON.stringify(a));}}catch{}
+    session.pearlServerAdd=n=>{pearlBase+=n;};
+    const syncPearls=async()=>{if(session.pearlSyncOff)return;const cur=readPearls();if(cur===null||cur===pearlBase)return;
+      const {data,error:e}=await sb.rpc('wallet_sync',{p_spent:Math.max(pearlBase-cur,0),p_earned:Math.max(cur-pearlBase,0)});if(e)return;
+      const server=Number(data);const fix=server-cur;pearlBase=server;if(fix)session.onPearlFix?.(fix);};
     session.account={uid:user.id,playerNo:prof.player_no,email:user.email??''};
     session.rename=async n=>{const {error:e}=await sb.from('profiles').update({nick:n}).eq('id',user.id);return e?(e.code==='23505'?'Bu kaptan adı alınmış':trErr(e.message)):null;};
     let last=JSON.stringify(collectSave());
-    const push=async(force=false)=>{const data=collectSave(),s=JSON.stringify(data);if(!force&&s===last)return;
+    const push=async(force=false)=>{await syncPearls().catch(()=>{});const data=collectSave(),s=JSON.stringify(data);if(!force&&s===last)return;
       const {error:e}=await sb.from('saves').upsert({user_id:user.id,data,updated_at:new Date().toISOString()});if(!e)last=s;};
     session.flush=()=>push(true);
     session.logout=async()=>{await push(true).catch(()=>{});await sb.auth.signOut();location.reload();};
