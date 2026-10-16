@@ -20,8 +20,9 @@ export function claimDaily(s:DailyState,now=new Date()):DailyState{
 }
 // Değerler tools/simulate-rewards.cjs ile ayarlandı: tam hafta ≈ 1.360 inci değeri + seviyeye göre altın (hafif oyuncunun haftalık
 // gülle harcamasının ~%7'si). 7. gün en büyük ödül.
-export function dailyReward(day:number,level:number):DailyReward{
-  const G=Math.round(1500*Math.pow(1.6,level-1));
+// Herkese aynı ödül (seviyeden bağımsız)
+export function dailyReward(day:number,_level=1):DailyReward{
+  const G=10000;
   const week:DailyReward[]=[
     {gold:G,fire:6000},
     {chain:6000,powder:100,shield:100},
