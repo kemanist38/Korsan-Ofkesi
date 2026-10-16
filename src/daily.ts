@@ -22,7 +22,7 @@ export function claimDaily(s:DailyState,now=new Date()):DailyState{
 // gülle harcamasının ~%7'si). 7. gün en büyük ödül.
 // Herkese aynı ödül (seviyeden bağımsız)
 export function dailyReward(day:number,_level=1):DailyReward{
-  const G=10000;
+  const G=5000;
   const week:DailyReward[]=[
     {gold:G,fire:6000},
     {chain:6000,powder:100,shield:100},
@@ -32,6 +32,5 @@ export function dailyReward(day:number,_level=1):DailyReward{
     {gold:G*3,powder:200,shield:200,mine:10},
     {pearls:300,gold:G*5,explosive:9000,fire:9000},
   ];
-  // Günlük ödüller 2 katına çıkarıldı (023)
-  return Object.fromEntries(Object.entries(week[day-1]).map(([k,v])=>[k,(v as number)*2])) as DailyReward;
+  return week[day-1];
 }
