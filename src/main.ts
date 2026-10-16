@@ -2748,10 +2748,11 @@ function draw(){
   // Deniz: referanstan çıkarılmış kesintisiz doku, dünyaya sabitli tek katman
   const pattern=seaTilePattern(ctx);if(pattern){const vw=w/camera.zoom,vh=h/camera.zoom;pattern.setTransform(new DOMMatrix().translateSelf(-camera.x+w/2,-camera.y+h/2).scaleSelf(1.5,1.5));ctx.fillStyle=pattern;ctx.fillRect(w/2-vw/2,h/2-vh/2,vw,vh);}
   ctx.globalAlpha=.12;ctx.fillStyle=th.label;ctx.font='700 42px Cinzel';ctx.textAlign='center';for(const label of map.labels){const p=worldToScreen(label);ctx.fillText(label.text,p.x,p.y);}ctx.globalAlpha=1;
-  drawMapEdges();islands.forEach(i=>{if(onScreen(i,i.r+260))drawIsland(i);});drawFleetIsland();lootChests.forEach(drawLootChest);drawTreasureMark();sparkles.forEach(drawSparkle);mines.forEach(m=>{const p=worldToScreen(m);drawMineSprite(ctx,p.x,p.y,performance.now(),m.arm>0,m.life<5);});
+  drawMapEdges();islands.forEach(i=>{if(onScreen(i,i.r+260))drawIsland(i);});drawFleetIsland();lootChests.forEach(c=>{if(seenOnMap(c))drawLootChest(c);});drawTreasureMark();sparkles.forEach(g=>{if(seenOnMap(g))drawSparkle(g);});mines.forEach(m=>{if(!seenOnMap(m))return;const p=worldToScreen(m);drawMineSprite(ctx,p.x,p.y,performance.now(),m.arm>0,m.life<5);});
   particles.forEach(p=>{if(UNDER.has(p.kind))drawParticle(p);});wrecks.forEach(w=>atShipScale(w,()=>drawWreck(w)));shots.forEach(drawShotShadow);
-  if(selected&&targetExists(selected))drawTargetMarker(selected);
-  {const vis=enemies.filter(e=>onScreen(e,e.boss?420:300));crowdedSea=vis.reduce((n,e)=>n+(e.captain?1:0),0)>30;
+  if(selected&&targetExists(selected)&&seenOnMap(selected))drawTargetMarker(selected);
+  // Görüş sisi: gemiden uzaktaki NPC, kaptan, sandık ve pırıltı çizilmez (mini haritadan kamera kaydırılsa da)
+  {const vis=enemies.filter(e=>onScreen(e,e.boss?420:300)&&(e.tower||e.boss||seenOnMap(e)));crowdedSea=vis.reduce((n,e)=>n+(e.captain?1:0),0)>30;
   vis.sort((a,b)=>a.y-b.y).forEach(e=>atShipScale(e.tower?null:e,()=>{const s=worldToScreen(e);if(e.captain){drawCaptain(e,s);return;}if(e.boss)drawBossAura(e,s);if(!e.tower)drawHullWater(e,hullLength(e));const raster=e.tower?drawBastion(ctx,e.towerIndex??0,s.x,s.y):e.def?drawNpcShip(ctx,e.def.sprite,e.def.span,s.x,s.y,npcFaceAngle(e),performance.now(),e.dir16):false;if(!raster)return;const top=raster?(e.tower?TOWER_LABEL_OFFSET:shipLabelOffset(e.def!.span)):-42;if(e.boss){drawBossFlag(s,top);drawBossPlate(e,s,shipBottom(e.def!.span)+34);return;}
     // Can çubuğu ve ad görselin altında: önce çubuk, altında ad
     const bottom=e.tower?TOWER_LABEL_BOTTOM:shipBottom(e.def!.span),bw=e.tower||e.role==='heavy'?72:56;drawHealthBar(s.x,s.y+bottom,bw,e.hp/e.maxHp,e.tower?'#f09a4f':e.role==='heavy'?'#f0584a':'#4fd0da');ctx.fillStyle='#e6dccb';ctx.font='700 13px Inter';ctx.textAlign='center';ctx.shadowColor='#000';ctx.shadowBlur=3;ctx.fillText(e.name,s.x,s.y+bottom+22);ctx.shadowBlur=0;}));}
@@ -2760,11 +2761,16 @@ function draw(){
   drawFleetOccluders();atShipScale(player,drawPlayerLabel);
   particles.forEach(p=>{if(!UNDER.has(p.kind)&&p.kind!=='damage')drawParticle(p);});shots.forEach(drawShotBall);for(const h of healFlights){const p=worldToScreen(h);drawHealBall(p.x,p.y-10,h.age*2.4);}
   drawAbilityFx(ctx,worldToScreen,innerWidth,innerHeight);
+  drawVisionFog(w,h);
   particles.forEach(p=>{if(p.kind==='damage')drawParticle(p);});
   ctx.restore();
   if(mapFade>0){ctx.fillStyle=`rgba(2,10,14,${Math.min(1,mapFade)})`;ctx.fillRect(0,0,w,h);}
   drawMinimap();
 }
+// Ana ekranda görüş sisi: gemi çevresi açık, görüş sınırının dışı koyu (pusula açıkken kalkar)
+function drawVisionFog(w:number,h:number){if(compassReveal>0)return;const p=worldToScreen(player),vw=w/camera.zoom,vh=h/camera.zoom;
+  const g=ctx.createRadialGradient(p.x,p.y,VISION_RADIUS*.8,p.x,p.y,VISION_RADIUS*1.02);g.addColorStop(0,'rgba(4,10,14,0)');g.addColorStop(1,'rgba(4,10,14,.78)');
+  ctx.fillStyle=g;ctx.fillRect(w/2-vw/2,h/2-vh/2,vw,vh);}
 let lastCoord='';
 function updateCoordBadge(){const text=`${siege?'KALE':currentMap} - ${coordLabel(player)}`;if(text!==lastCoord){lastCoord=text;ui('mapCoord').textContent=text;}}
 // Mini harita renkleri: rakip oyuncu kırmızı, dost (aynı lonca ya da kuşatmada müttefik) koyu yeşil, NPC sarı, canavar lila, boss turuncu
