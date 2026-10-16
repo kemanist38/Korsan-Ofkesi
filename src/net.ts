@@ -93,6 +93,9 @@ export const sendFire=(f:NetFire)=>wsSend('fire',f);
 export const sendSunk=(s:NetSunk)=>wsSend('sunk',s);
 export const sendSpyNet=(nick:string)=>wsSend('spy',{nick});
 export const sendKill=(id:string)=>wsSend('nkill',{id});
+// Salvo ve malzeme kullanımı: sunucu sayar, hasarı buna göre sınırlar, harcanmayanı envanterden düşer
+export const sendSalvo=(a:string,n:number,i:number,p:number)=>wsSend('salvo',{a,n,i,p});
+export const sendUse=(id:string)=>wsSend('use',{id});
 export const sendChat=(c:NetChat)=>wsSend('chat',c);
 export const sendBid=(b:NetBid)=>wsSend('bid',b);
 export const sendKnownBids=(bids:NetBid[])=>wsSend('known',{bids});
