@@ -27,7 +27,7 @@ export type NetTreasure={parts:number;spot:{map:string;x:number;y:number;label:s
 export type NetDig={ok:boolean;err?:string;reward?:{gold:number;pearls:number;ammo:string;ammoQty:number;powder:number;shield:number}};
 export type NetLoot={kind?:string;pearls?:number;powder?:number;shield?:number;ammo?:string;ammoQty?:number;speed?:number;mine?:number};
 export type NetNpc={id:string;d:string;x:number;y:number;hp:number;max:number};
-export type NetHandlers={npcList?:(l:NetNpc[])=>void;npcSpawn?:(n:NetNpc)=>void;npcPos?:(d:{p:[string,number,number][];h:[string,number][]})=>void;npcShare?:(d:{id:string;share:number})=>void;npcDie?:(id:string)=>void;chestReward?:(r:NetLoot)=>void;sparkleReward?:(r:NetLoot)=>void;treasure?:(t:NetTreasure)=>void;dig?:(d:NetDig)=>void;spy?:(r:NetSpy)=>void;pos?:(p:{x:number;y:number})=>void;forceSink?:(d:{by:string;byNick:string})=>void;siegeState?:(s:NetSiege)=>void;siegeHp?:(l:[number,number,number][])=>void;siegeDown?:(i:number)=>void;siegeRank?:(d:{n:number;top:[string,number][];mine:number})=>void;siegeEnd?:(d:NetSiegeEnd)=>void;island?:(i:NetIsland)=>void;towerHp?:(key:string,s:[number,number][])=>void;towerDown?:(key:string,slot:number,by:string)=>void;
+export type NetHandlers={npcList?:(l:NetNpc[])=>void;npcSpawn?:(n:NetNpc)=>void;npcPos?:(d:{p:[string,number,number][];h:[string,number][];f?:[string,string,number][]})=>void;npcShare?:(d:{id:string;share:number})=>void;npcDie?:(id:string)=>void;chestReward?:(r:NetLoot)=>void;sparkleReward?:(r:NetLoot)=>void;treasure?:(t:NetTreasure)=>void;dig?:(d:NetDig)=>void;spy?:(r:NetSpy)=>void;pos?:(p:{x:number;y:number})=>void;forceSink?:(d:{by:string;byNick:string})=>void;siegeState?:(s:NetSiege)=>void;siegeHp?:(l:[number,number,number][])=>void;siegeDown?:(i:number)=>void;siegeRank?:(d:{n:number;top:[string,number][];mine:number})=>void;siegeEnd?:(d:NetSiegeEnd)=>void;island?:(i:NetIsland)=>void;towerHp?:(key:string,s:[number,number][])=>void;towerDown?:(key:string,slot:number,by:string)=>void;
   islandCaptured?:(d:{key:string;tag:string;by:string;nick:string})=>void;islandAlert?:(key:string)=>void;boss?:(b:NetBoss)=>void;bossHp?:(id:string,hp:number)=>void;bossDown?:(d:NetBossDown)=>void;bossGone?:(id:string)=>void;state:(s:NetState)=>void;leave:(id:string)=>void;fire:(f:NetFire)=>void;sunk:(s:NetSunk)=>void;chat:(c:NetChat)=>void;bid?:(b:NetBid)=>void;bidAsk?:(hour:number)=>void;bidKnown?:(bids:NetBid[])=>void};
 
 const ID_KEY='yedi-deniz-net-id';
@@ -58,7 +58,7 @@ async function connectWs(){const sb=supa();if(!sb||!session.account){netStatus='
       case'sunk':handlers?.sunk(m.d as NetSunk);break;
       case'nlist':handlers?.npcList?.(m.d as NetNpc[]);break;
       case'nspawn':handlers?.npcSpawn?.(m.d as NetNpc);break;
-      case'npos':handlers?.npcPos?.(m.d as {p:[string,number,number][];h:[string,number][]});break;
+      case'npos':handlers?.npcPos?.(m.d as {p:[string,number,number][];h:[string,number][];f?:[string,string,number][]});break;
       case'nkilled':handlers?.npcShare?.(m.d as {id:string;share:number});break;
       case'ndie':handlers?.npcDie?.((m.d as {id:string}).id);break;
       case'chestr':handlers?.chestReward?.(m.d as NetLoot);break;

@@ -3647,6 +3647,8 @@ var game_server_exports = {};
 __export(game_server_exports, {
   BOSS_HIT_CAP: () => BOSS_HIT_CAP,
   BOSS_LIFE_MS: () => BOSS_LIFE_MS,
+  COMBAT_HEAL_SECONDS: () => COMBAT_HEAL_SECONDS,
+  COMBAT_MS: () => COMBAT_MS,
   FAR_EVERY: () => FAR_EVERY,
   GOD_MARGIN: () => GOD_MARGIN,
   HEAL_SECONDS: () => HEAL_SECONDS,
@@ -3655,10 +3657,13 @@ __export(game_server_exports, {
   KILL_CREDIT_MULT: () => KILL_CREDIT_MULT,
   LIMITS: () => LIMITS,
   NEAR: () => NEAR,
+  NPC_DMG_MODEL: () => NPC_DMG_MODEL,
+  NPC_FIRE_RANGE: () => NPC_FIRE_RANGE,
   NPC_KILL_SHARE: () => NPC_KILL_SHARE,
   NPC_LEASH: () => NPC_LEASH,
   NPC_RANGE: () => NPC_RANGE,
   NPC_RESPAWN_MS: () => NPC_RESPAWN_MS,
+  NPC_SPAWN_GRACE: () => NPC_SPAWN_GRACE,
   PVP_RANGE: () => PVP_RANGE,
   RUIN_MS: () => RUIN_MS,
   Rate: () => Rate,
@@ -3701,6 +3706,7 @@ __export(game_server_exports, {
   noteUse: () => noteUse,
   npcDeathCredit: () => npcDeathCredit,
   npcFill: () => npcFill,
+  npcFire: () => npcFire,
   npcHit: () => npcHit,
   npcInfo: () => npcInfo,
   npcMove: () => npcMove,
@@ -4277,6 +4283,7 @@ function pvpGuard(t, dmg, now) {
   p.budget ??= newPvpBudget(max, now / 1e3);
   const dealt = pvpClamp(p.budget, max, Math.max(0, dmg), now / 1e3);
   if (p.hp !== null) p.hp -= dealt;
+  p.hitAt = now;
   return Math.round(dealt);
 }
 function pvpHeal(t, amt, now) {
@@ -4286,9 +4293,11 @@ function pvpHeal(t, amt, now) {
   if (p.hp !== null) p.hp = Math.min(max, p.hp + got);
   return Math.round(got);
 }
+var COMBAT_HEAL_SECONDS = 200;
+var COMBAT_MS = 1e4;
 function noteHp(t, hp, now) {
-  const p = pvpOf(t), max = t.maxHp || hp;
-  p.hp = p.hp === null ? hp : Math.min(hp, Math.min(max, p.hp + Math.max(0, now - p.at) * max / HEAL_SECONDS / 1e3));
+  const p = pvpOf(t), max = t.maxHp || hp, secs = now - (p.hitAt ?? -1e12) < COMBAT_MS ? COMBAT_HEAL_SECONDS : HEAL_SECONDS;
+  p.hp = p.hp === null ? hp : Math.min(hp, Math.min(max, p.hp + Math.max(0, now - p.at) * max / secs / 1e3));
   p.at = now;
 }
 function godCheck(t) {
@@ -4641,6 +4650,32 @@ function npcMove(n, dt, players, now) {
   n.x += (tx - n.x) / d * st;
   n.y += (ty - n.y) / d * st;
   n.moved = true;
+}
+var NPC_FIRE_RANGE = 360;
+var NPC_SPAWN_GRACE = 3e3;
+var NPC_DMG_MODEL = 0.7;
+function npcFire(n, players, now, safe, rand = Math.random) {
+  if (safe || now < (n.cdUntil ?? 0)) return null;
+  let t = n.aggro && now < n.aggroUntil ? players.find((p) => p.uid === n.aggro && p.last) : null;
+  if (!t || Math.hypot(t.last.x - n.x, t.last.y - n.y) > NPC_FIRE_RANGE) {
+    t = null;
+    let bd = NPC_FIRE_RANGE;
+    for (const p of players) {
+      if (!p.last || now - (p.tpAt || 0) < NPC_SPAWN_GRACE) continue;
+      const d = Math.hypot(p.last.x - n.x, p.last.y - n.y);
+      if (d < bd) {
+        bd = d;
+        t = p;
+      }
+    }
+  }
+  if (!t) return null;
+  if (!n.aggro) {
+    n.aggro = t.uid;
+    n.aggroUntil = now + 4e3;
+  }
+  n.cdUntil = now + (n.def.reload + rand() * 0.55) * 1e3;
+  return { to: t, dmg: Math.round(n.def.damage * (0.85 + rand() * 0.3)) };
 }
 function npcHit(c, sea2, id, dmg, now) {
   const n = seaNpcs.get(sea2)?.list.get(String(id));
@@ -5230,9 +5265,15 @@ function npcTick(now) {
       }
       return false;
     });
+    const safe = !!MAPS[seaMap(sea2)]?.safe, fires = [];
     const pos = [], hp = [];
     for (const n of st.list.values()) {
       npcMove(n, 0.2, players, now);
+      const f = npcFire(n, players, now, safe);
+      if (f) {
+        fires.push([n.id, f.to.netId, f.dmg]);
+        npcDamage(f.to, f.dmg, n, now);
+      }
       if (n.moved) {
         n.moved = false;
         pos.push([n.id, Math.round(n.x), Math.round(n.y)]);
@@ -5242,10 +5283,21 @@ function npcTick(now) {
         hp.push([n.id, Math.round(n.hp)]);
       }
     }
-    if (pos.length || hp.length) {
-      const m = JSON.stringify({ t: "npos", d: { p: pos, h: hp } });
+    if (pos.length || hp.length || fires.length) {
+      const m = JSON.stringify({ t: "npos", d: { p: pos, h: hp, f: fires } });
       for (const x of room) send(x, m);
     }
+  }
+}
+function npcDamage(t, dmg, n, now) {
+  const p = pvpOf(t);
+  p.hitAt = now;
+  if (p.hp === null) return;
+  p.hp -= dmg * NPC_DMG_MODEL;
+  if (godCheck(t)) {
+    suspect(t, "\xF6l\xFCms\xFCz", "npc");
+    pvpReset(t);
+    send(t, { t: "forceSink", d: { by: "", byNick: n.def.name } });
   }
 }
 function onNpcHit(c, list, now) {
@@ -5764,6 +5816,8 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
 0 && (module.exports = {
   BOSS_HIT_CAP,
   BOSS_LIFE_MS,
+  COMBAT_HEAL_SECONDS,
+  COMBAT_MS,
   FAR_EVERY,
   GOD_MARGIN,
   HEAL_SECONDS,
@@ -5772,10 +5826,13 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   KILL_CREDIT_MULT,
   LIMITS,
   NEAR,
+  NPC_DMG_MODEL,
+  NPC_FIRE_RANGE,
   NPC_KILL_SHARE,
   NPC_LEASH,
   NPC_RANGE,
   NPC_RESPAWN_MS,
+  NPC_SPAWN_GRACE,
   PVP_RANGE,
   RUIN_MS,
   Rate,
@@ -5818,6 +5875,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   noteUse,
   npcDeathCredit,
   npcFill,
+  npcFire,
   npcHit,
   npcInfo,
   npcMove,
