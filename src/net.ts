@@ -102,6 +102,7 @@ export const sendSalvo=(a:string,n:number,i:number,p:number)=>wsSend('salvo',{a,
 export const sendUse=(id:string)=>wsSend('use',{id});
 export const sendQuestDone=(id:string)=>wsSend('qdone',{id});
 export const sendChest=()=>wsSend('chest');
+export const sendSparkle=()=>wsSend('spk');
 export const sendDig=()=>wsSend('tdig');
 export const sendChat=(c:NetChat)=>wsSend('chat',c);
 export const sendBid=(b:NetBid)=>wsSend('bid',b);

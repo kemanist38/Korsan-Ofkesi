@@ -3716,6 +3716,7 @@ __export(game_server_exports, {
   siegeJoin: () => siegeJoin,
   siegeRun: () => siegeRun,
   siegeWindowAt: () => siegeWindowAt,
+  sparklePicked: () => sparklePicked,
   towerHit: () => towerHit,
   treasureDig: () => treasureDig,
   treasures: () => treasures,
@@ -4214,7 +4215,7 @@ function checkState(prev, s, now) {
   if (s.x < 0 || s.x > WORLD_WIDTH || s.y < 0 || s.y > WORLD_HEIGHT) return "bad";
   if (prev && prev.x !== void 0) {
     const dt = Math.max(0.05, (now - prev.at) / 1e3), d = Math.hypot(s.x - prev.x, s.y - prev.y);
-    if (d < 3e3 && d / dt > LIMITS.maxSpeed * 1.6 + 200) return "speed";
+    if (d / dt > LIMITS.maxSpeed * 1.6 + 200) return "speed";
   }
   return "ok";
 }
@@ -4372,6 +4373,12 @@ function questCredit(c, id, now) {
   const cd = questCooldowns.get(c.uid) ?? /* @__PURE__ */ new Map();
   questCooldowns.set(c.uid, cd);
   if (now - (cd.get(id) ?? -1e15) < QUEST_COOLDOWN_MS * 0.95) return { err: "bekleme" };
+  if (q.kind === "sparkle") {
+    c.qk ??= {};
+    const k = "spk:" + q.map;
+    if ((c.qk[k] || 0) < q.required) return { err: "say\u0131", have: c.qk[k] || 0 };
+    c.qk[k] -= q.required;
+  }
   if (q.kind === "npc" || q.kind === "monster") {
     c.qk ??= {};
     const have = q.ids.reduce((a, k) => a + (c.qk[k] || 0), 0);
@@ -4436,6 +4443,19 @@ function chestPicked(c, now, rand = Math.random) {
     return { parts: t.parts, spot: t.spot, found: true };
   }
   return { parts: t.parts, found: true };
+}
+function sparklePicked(c, now) {
+  const map = seaMap(c.sea);
+  if (!map || !MAPS[map]) return { err: "deniz" };
+  c.spb ??= { pool: 12, t: now };
+  c.spb.pool = Math.min(12, c.spb.pool + Math.max(0, now - c.spb.t) / 1500);
+  c.spb.t = now;
+  if (c.spb.pool < 1) return { err: "h\u0131z" };
+  c.spb.pool -= 1;
+  c.qk ??= {};
+  const k = "spk:" + map;
+  c.qk[k] = Math.min(200, (c.qk[k] || 0) + 1);
+  return { ok: true };
 }
 function treasureDig(c) {
   const t = treOf(c.uid);
@@ -5142,6 +5162,7 @@ wss.on("connection", (ws) => {
           return;
         }
         leaveSea(c);
+        c.last = null;
         if (!name) return;
         const room = seas.get(name) ?? /* @__PURE__ */ new Set();
         if (room.size >= LIMITS.maxPerSea) {
@@ -5344,6 +5365,12 @@ wss.on("connection", (ws) => {
         send(c, { t: "qres", d: { id, ok: true } });
         return;
       }
+      case "spk": {
+        if (!c.sea || !c.rUse.hit(now)) return;
+        const r = sparklePicked(c, now);
+        if (r.err === "h\u0131z") suspect(c, "p\u0131r\u0131lt\u0131 h\u0131z\u0131");
+        return;
+      }
       case "chest": {
         if (!c.sea || !c.rKill.hit(now)) return;
         const r = chestPicked(c, now);
@@ -5534,6 +5561,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   siegeJoin,
   siegeRun,
   siegeWindowAt,
+  sparklePicked,
   towerHit,
   treasureDig,
   treasures,

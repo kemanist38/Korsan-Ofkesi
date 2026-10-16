@@ -76,8 +76,8 @@ export function checkState(prev,s,now){
   if(!s||typeof s!=='object'||Array.isArray(s)||!num(s.x)||!num(s.y)||!num(s.hp)||s.hp<0)return'bad';
   if(s.x<0||s.x>WORLD_WIDTH||s.y<0||s.y>WORLD_HEIGHT)return'bad';
   if(prev&&prev.x!==undefined){const dt=Math.max(.05,(now-prev.at)/1000),d=Math.hypot(s.x-prev.x,s.y-prev.y);
-    // Harita içi ışınlanma (yeniden doğma, liman) 3000 birimden uzun olur; arada kalan aşırı hız şüphelidir
-    if(d<3000&&d/dt>LIMITS.maxSpeed*1.6+200)return'speed';}
+    // Her aşırı hız şüphelidir; yeniden doğma ve liman gibi ışınlanmalar istemcinin tp işaretiyle 8 sn'de bir kabul edilir
+    if(d/dt>LIMITS.maxSpeed*1.6+200)return'speed';}
   return'ok';
 }
 export function checkFire(f){if(!f||!num(f.damage)||!num(f.x)||!num(f.y)||typeof f.to!=='string')return'bad';if(f.damage<0||f.damage>LIMITS.maxHit)return'damage';return'ok';}
@@ -152,6 +152,7 @@ export const questCooldowns=new Map(); // uid → Map(görev → zaman)
 export function questCredit(c,id,now){const q=QUESTS.find(x=>x.id===id);if(!q)return{err:'görev'};
   if(!c.econ||Number(c.econ.level)<q.tier||seaMap(c.sea)!==q.map)return{err:'deniz'};
   const cd=questCooldowns.get(c.uid)??new Map();questCooldowns.set(c.uid,cd);if(now-(cd.get(id)??-1e15)<QUEST_COOLDOWN_MS*.95)return{err:'bekleme'};
+  if(q.kind==='sparkle'){c.qk??={};const k='spk:'+q.map;if((c.qk[k]||0)<q.required)return{err:'sayı',have:c.qk[k]||0};c.qk[k]-=q.required;}
   if(q.kind==='npc'||q.kind==='monster'){c.qk??={};const have=q.ids.reduce((a,k)=>a+(c.qk[k]||0),0);if(have<q.required)return{err:'sayı',have};
     let need=q.required;for(const k of q.ids){const t=Math.min(need,c.qk[k]||0);c.qk[k]-=t;need-=t;}}
   cd.set(id,now);return{add:{gold:Math.round(q.gold*KILL_CREDIT_MULT),xp:Math.round(q.xp*KILL_CREDIT_MULT),ep:Math.round(questEp(q.tier)*1.5),st_quest:1}};}
@@ -177,6 +178,10 @@ export function chestPicked(c,now,rand=Math.random){const map=seaMap(c.sea);if(!
   if(rand()>=PART_CHANCE)return{parts:t.parts};t.parts++;
   if(t.parts>=TREASURE_PARTS&&!t.spot){t.parts-=TREASURE_PARTS;t.spot=pickSpot(map,rand);return{parts:t.parts,spot:t.spot,found:true};}
   return{parts:t.parts,found:true};}
+// Pırıltı: denizde en çok 12 tane, birkaç saniyede bir yenisi → kova 12, 1,5 sn'de bir dolar. Görev sayacına yazılır.
+export function sparklePicked(c,now){const map=seaMap(c.sea);if(!map||!MAPS[map])return{err:'deniz'};c.spb??={pool:12,t:now};
+  c.spb.pool=Math.min(12,c.spb.pool+Math.max(0,now-c.spb.t)/1500);c.spb.t=now;if(c.spb.pool<1)return{err:'hız'};c.spb.pool-=1;
+  c.qk??={};const k='spk:'+map;c.qk[k]=Math.min(200,(c.qk[k]||0)+1);return{ok:true};}
 export function treasureDig(c){const t=treOf(c.uid);if(!t.spot)return{err:'harita'};const map=seaMap(c.sea);
   if(map!==t.spot.map||!c.last||Math.hypot(c.last.x-t.spot.x,c.last.y-t.spot.y)>DIG_RADIUS+60)return{err:'yer'};
   const m=MAPS[map],r=treasureReward(m.tier,NPCS[m.npcs[0]].gold);t.spot=null;
@@ -408,7 +413,7 @@ wss.on('connection',ws=>{
       send(c,{t:'hello',id:c.netId,nick:c.nick,playerNo:c.playerNo});log('GİRİŞ',`#${c.playerNo}`,c.nick);if(!qkByUid.has(c.uid))qkByUid.set(c.uid,{});c.qk=qkByUid.get(c.uid);{const t=treasures.get(c.uid);if(t)send(c,{t:'tstate',d:{parts:t.parts,spot:t.spot}});}return;}
     if(!c.uid||!c.econ)return;
     switch(m.t){
-      case'join':{const name=String(m.sea||'').slice(0,40);if(name===c.sea)return;if(!canJoin(c,name,now)){send(c,{t:'denied',reason:'harita kilitli'});return;}leaveSea(c);if(!name)return;
+      case'join':{const name=String(m.sea||'').slice(0,40);if(name===c.sea)return;if(!canJoin(c,name,now)){send(c,{t:'denied',reason:'harita kilitli'});return;}leaveSea(c);c.last=null;if(!name)return;
         const room=seas.get(name)??new Set();if(room.size>=LIMITS.maxPerSea){send(c,{t:'full'});return;}room.add(c);seas.set(name,room);c.sea=name;c.seen=null;send(c,{t:'joined',sea:name});
         const b=bossSeas.get(name)?.boss;if(b)send(c,{t:'boss',d:bossInfo(name,b)});
         const isle=islands.get(islandOfSea(name));if(isle)send(c,{t:'isle',d:islandInfo(isle)});
@@ -444,6 +449,7 @@ wss.on('connection',ws=>{
       case'use':{if(!c.rUse.hit(now))return;await applyUsage(c,null,String(m.d?.id||''),now);return;}
       case'qdone':{if(!c.uid||!c.rKill.hit(now))return;const id=String(m.d?.id||'');const r=questCredit(c,id,now);
         if(r.err){if(r.err==='bekleme')suspect(c,'görev bekleme',id);send(c,{t:'qres',d:{id,ok:false,err:r.err}});return;}addCredit(c,r.add);send(c,{t:'qres',d:{id,ok:true}});return;}
+      case'spk':{if(!c.sea||!c.rUse.hit(now))return;const r=sparklePicked(c,now);if(r.err==='hız')suspect(c,'pırıltı hızı');return;}
       case'chest':{if(!c.sea||!c.rKill.hit(now))return;const r=chestPicked(c,now);if(r.err){if(r.err==='hız')suspect(c,'sandık hızı');return;}if(r.found)send(c,{t:'tstate',d:{parts:r.parts,spot:treOf(c.uid).spot,part:true}});return;}
       case'tdig':{if(!c.sea||!c.rKill.hit(now))return;const r=treasureDig(c);if(r.err){send(c,{t:'tdig',d:{ok:false,err:r.err}});return;}addCredit(c,r.add);send(c,{t:'tdig',d:{ok:true,reward:r.reward}});return;}
       case'spy':{if(!c.rKill.hit(now))return;await onSpy(c,m.d?.nick);return;}
