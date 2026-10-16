@@ -1266,9 +1266,9 @@ function renderEliteShips(){
 function openDevelopment(){pendingUpgrade=null;renderUpgrades();ui('developmentOverlay').classList.add('open');}
 function closeDevelopment(){pendingUpgrade=null;ui('developmentOverlay').classList.remove('open');}
 const DEV_BRANCHES:{name:string;icon:string;nodes:({kind:'pearl';id:UpgradeKind}|{kind:'point';id:TalentId})[]}[]=[
-  {name:'Topçuluk',icon:'/assets/cannon-heavy-v1.webp',nodes:[{kind:'pearl',id:'damage'},{kind:'pearl',id:'range'},{kind:'pearl',id:'reload'},{kind:'point',id:'firemaster'},{kind:'point',id:'sapper'}]},
+  {name:'Topçuluk',icon:'/assets/cannon-heavy-v1.webp',nodes:[{kind:'pearl',id:'damage'},{kind:'pearl',id:'range'},{kind:'pearl',id:'reload'},{kind:'point',id:'sapper'}]},
   {name:'Denizcilik',icon:'/assets/icon-ship-nav-v2.webp',nodes:[{kind:'pearl',id:'hull'},{kind:'pearl',id:'speed'},{kind:'pearl',id:'repair'},{kind:'point',id:'tough'},{kind:'point',id:'windcaller'}]},
-  {name:'Yağma',icon:'/assets/icon-chest-v2.webp',nodes:[{kind:'point',id:'plunder'},{kind:'point',id:'scavenger'},{kind:'point',id:'bounty'}]},
+  {name:'Yağma',icon:'/assets/icon-chest-v2.webp',nodes:[{kind:'point',id:'scavenger'},{kind:'point',id:'bounty'}]},
 ];
 function renderUpgrades(){
   const free=talentPoints(state.level)-spentPoints(crew);
@@ -2337,8 +2337,6 @@ function updateArsenal(dt:number){
     particles.push({x:player.x-fx*back-fy*side,y:player.y-fy*back*.5+fx*side*.5,vx:-fx*12+(Math.random()-.5)*10,vy:-fy*6-6-Math.random()*8,life:.55+Math.random()*.45,maxLife:1,kind:'glint',z:4+Math.random()*34,size:8+Math.random()*14,color:r<.62?'#5ff3ff':r<.86?'#ffffff':'#ffe08a',rot:Math.random()*Math.PI});}}
   for(let i=mines.length-1;i>=0;i--){const m=mines[i];m.life-=dt;m.arm=Math.max(0,m.arm-dt);if(m.life<=0){mines.splice(i,1);continue;}
     if(!session.account&&m.arm<=0&&(enemies.some(e=>dist(e,m)<MINE.triggerRadius)))detonateMine(i);}
-  const burnDps=(SPECIAL_AMMO.fire.burnDps+state.level*30)*bonus.burn;
-  for(const e of [...enemies])if(e.burnTimer&&e.burnTimer>0){e.burnTimer-=dt;e.hp-=(e.burnDps||burnDps)*dt;if(e.burnTimer<=0)e.burnDps=0;if(e.hp<=0)sinkEnemy(e);}
   for(const id of ['speed','mine'] as AbilityId[]){const t=abilityTimers[id],button=document.getElementById(`ability-${id}`);if(!button)continue;
     const cd=Math.min(1,t.cooldown/(ABILITIES[id].cooldown*(id==='speed'?1:bonus.cooldown))),label=t.active>0&&id!=='mine'?`${Math.ceil(t.active)} SN`:t.cooldown>0?`${Math.ceil(t.cooldown)}`:'';// hazırken rozet boş kalır (miktar ve kısayol yazılmaz); yalnızca etkin süre ve bekleme sayılır
     button.style.setProperty('--cd',cd.toFixed(3));button.classList.toggle('active',t.active>0&&id!=='mine');const small=button.querySelector('small');if(small&&small.textContent!==label)small.textContent=label;}

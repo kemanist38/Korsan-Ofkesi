@@ -3914,7 +3914,7 @@ var BOSS_NAMES = {
   "8/1": "Cehennem Lordu",
   "8/2": "Cehennem Lordu"
 };
-var BOSS_DAMAGE = 0.25;
+var BOSS_DAMAGE = 0.17;
 var bossFor = (key) => {
   const m = MAPS[key], h = NPCS[`n${m.tier}-2-heavy`], hp = BOSS_HP[m.tier], i = MAP_KEYS.indexOf(key);
   return {
@@ -4209,9 +4209,6 @@ var MAIN_COLLECTION = ["npc-100", "npc-1000", "npc-10000", "heavy-200", "boss-1"
 
 // src/crew.ts
 var TALENTS = {
-  firemaster: { name: "Ate\u015F Ustas\u0131", max: 3, per: "+%25 yanma hasar\u0131", icon: "/assets/ammo-fire-v2.webp", apply: (b, r) => {
-    b.burn *= 1 + 0.25 * r;
-  } },
   sapper: { name: "May\u0131n Uzman\u0131", max: 4, per: "+%15 may\u0131n hasar\u0131", icon: "/assets/icon-mine-v2.webp", apply: (b, r) => {
     b.mine *= 1 + 0.15 * r;
   } },
@@ -4220,9 +4217,6 @@ var TALENTS = {
   } },
   windcaller: { name: "F\u0131rt\u0131na Bilgesi", max: 3, per: "-%10 may\u0131n bekleme", icon: "/assets/icon-speed-v2.webp", apply: (b, r) => {
     b.cooldown *= 1 - 0.1 * r;
-  } },
-  plunder: { name: "Ya\u011Fma Ustas\u0131", max: 5, per: "+%10 sand\u0131k alt\u0131n\u0131", icon: "/assets/icon-market-v2.webp", apply: (b, r) => {
-    b.chestGold *= 1 + 0.1 * r;
   } },
   scavenger: { name: "Enkaz Avc\u0131s\u0131", max: 3, per: "+%8 yald\u0131zl\u0131 sand\u0131k \u015Fans\u0131", icon: "/assets/icon-chest-v2.webp", apply: (b, r) => {
     b.gilded += 0.08 * r;
