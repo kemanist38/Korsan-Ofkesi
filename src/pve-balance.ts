@@ -13,3 +13,5 @@ export const PVE_XP=[[],
 ];
 // Boss canı (tek oyuncu ateş güllesiyle ~2 dk); oyun sunucusu da paylaşılan boss için bunu kullanır.
 export const BOSS_HP=[0,165000,410000,980000,2200000,3000000,4500000,5800000,6300000];
+// Ortak kuşatma: katılan her kaptan için kale canı (12 sur, 4 iç kule, komutan). Ortalama katılımla kale ~1,5 saatte düşer.
+export const SIEGE_HP_PER_CAPTAIN={wall:7_800_000,inner:19_600_000,commander:78_000_000};

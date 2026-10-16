@@ -55,3 +55,13 @@ test('captured island resets emptiness timer and builds clear it',()=>{
   const i=S.islandFromRow({map_key:'4/1',guild_id:2,towers:[]});assert.ok(i.emptySince>0);
   const j=S.islandFromRow({map_key:'4/1',guild_id:2,towers:[{type:'cannon',hp:9}]});assert.equal(j.emptySince,0);
 });
+test('shared siege: hp scales with captains, order enforced, win by commander',()=>{
+  S.resetSiege();const now=Date.UTC(2026,9,13,9);// Salı: deneme kuşatması
+  const r=S.siegeJoin('a','A',now);assert.equal(r.max[0],7_800_000);S.siegeJoin('b','B',now);assert.equal(r.max[0],15_600_000);assert.equal(r.hp[0],15_600_000);
+  assert.equal(S.siegeHitPiece('a','A',12,1000),null);// iç kule surlar düşmeden vurulamaz
+  for(let i=0;i<12;i++){r.hp[i]=10;assert.equal(S.siegeHitPiece('a','A',i,50).down,i);}
+  for(let i=12;i<16;i++){r.hp[i]=10;S.siegeHitPiece('b','B',i,50);}
+  r.hp[16]=100;assert.ok(S.siegeHitPiece('b','B',16,500).won);assert.equal(r.result,'won');
+  const info=S.siegeInfo(r,'a');assert.equal(info.n,2);assert.equal(info.mine,120);
+  assert.equal(S.siegeWindowAt(Date.UTC(2026,9,16,17,30)).open,true);// Cuma 20:30 TR
+});
