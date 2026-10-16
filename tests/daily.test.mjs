@@ -15,7 +15,7 @@ test('daily calendar: once per day, consecutive days advance, a missed day reset
   let t={last:'2026-09-30',streak:7};assert.equal(D.dailyStatus(t,day(2026,10,1)).day,1,'after 7 starts over');
   t={last:'2026-09-30',streak:3};assert.equal(D.dailyStatus(t,day(2026,10,1)).day,4,'month boundary counts as consecutive');
 });
-test('rewards grow with captain level and day 7 is the grand prize',()=>{
-  assert.ok(D.dailyReward(1,5).gold>D.dailyReward(1,1).gold);
+test('rewards are the same for every level and day 7 is the grand prize',()=>{
+  assert.deepEqual(D.dailyReward(1,5),D.dailyReward(1,1));
   const g=D.dailyReward(7,1);assert.equal(g.equip,undefined);assert.ok(g.pearls>=300);
 });
