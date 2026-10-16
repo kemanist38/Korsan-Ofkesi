@@ -31,5 +31,6 @@ export function dailyReward(day:number,level:number):DailyReward{
     {gold:G*3,powder:200,shield:200,mine:10},
     {pearls:300,gold:G*5,explosive:9000,fire:9000},
   ];
-  return week[day-1];
+  // Günlük ödüller 2 katına çıkarıldı (023)
+  return Object.fromEntries(Object.entries(week[day-1]).map(([k,v])=>[k,(v as number)*2])) as DailyReward;
 }

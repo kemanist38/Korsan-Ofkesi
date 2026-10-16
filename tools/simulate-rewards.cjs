@@ -5,7 +5,7 @@
 const PRICE={chain:3/300,fire:4/300,breaker:5/300,explosive:6/300,leech:8/300,heal:6/300,speed:2,mine:5}; // inci/adet
 const GOLD_PRICE={powder:10,shield:10}; // altın/adet
 const PEARL_PER_HOUR=2800,GOLD_PER_HOUR=53000,TL_PER_PEARL=49.99/3500;
-const dailyGold=lvl=>Math.round(1500*Math.pow(1.6,lvl-1));
+const dailyGold=lvl=>Math.round(1500*Math.pow(1.6,lvl-1));const X2=o=>Object.fromEntries(Object.entries(o).map(([k,v])=>[k,v*2]));
 const DAILY=lvl=>{const G=dailyGold(lvl);return[
   {gold:G,fire:6000},
   {chain:6000,powder:100,shield:100},
@@ -14,7 +14,7 @@ const DAILY=lvl=>{const G=dailyGold(lvl);return[
   {pearls:100,leech:6000},
   {gold:G*3,powder:200,shield:200,mine:10},
   {pearls:300,gold:G*5,explosive:9000,fire:9000},
-];};
+].map(X2);};
 const FESTIVAL=[
   {pearls:200,fire:15000},
   {chain:30000,powder:300,shield:300},
