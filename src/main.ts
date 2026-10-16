@@ -2314,11 +2314,11 @@ function updateSparkles(dt:number){
     // Pırıltı toplama sınırsız
     sparkles.splice(i,1);playCoins();
     // Pırıltı ödülü şansa bağlı, tek ödül (altın ve TP vermez):
-    // %35 inci (1–2) · %20 kara barut · %20 kalkan · %20 özel gülle · %4 hız iksiri · %1 büyük ödül (5 inci + mayın)
+    // %50 inci (1–2) · %15 kara barut · %15 kalkan · %15 özel gülle · %4 hız iksiri · %1 büyük ödül (5 inci + mayın)
     const tier=mapDef().tier,roll=Math.random(),kinds=['fire','explosive','breaker','leech'] as const,r=(a:number,b:number)=>a+Math.floor(Math.random()*(b-a+1));let label='';
-    if(roll<.35){const n=r(1,2);state.pearls+=n;label=`+${n} İnci`;}
-    else if(roll<.55){const n=r(2,5);arsenal.powder+=n;label=`+${n} Kara Barut`;}
-    else if(roll<.75){const n=r(2,5);arsenal.shield+=n;label=`+${n} Kalkan`;}
+    if(roll<.5){const n=r(1,2);state.pearls+=n;label=`+${n} İnci`;}
+    else if(roll<.65){const n=r(2,5);arsenal.powder+=n;label=`+${n} Kara Barut`;}
+    else if(roll<.8){const n=r(2,5);arsenal.shield+=n;label=`+${n} Kalkan`;}
     else if(roll<.95){const k=kinds[Math.floor(Math.random()*kinds.length)],n=30+15*tier;arsenal[k]+=n;label=`+${n} ${SPECIAL_AMMO[k].name}`;}
     else if(roll<.99){arsenal.speed+=1;label='+1 Hız İksiri';}
     else{state.pearls+=5;arsenal.mine+=1;label='BÜYÜK ÖDÜL · +5 İnci +1 Mayın';}
