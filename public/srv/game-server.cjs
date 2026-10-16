@@ -3652,6 +3652,7 @@ __export(game_server_exports, {
   HEAL_SECONDS: () => HEAL_SECONDS,
   HP_BONUS_MAX: () => HP_BONUS_MAX,
   ISLAND_KEYS: () => ISLAND_KEYS,
+  KILL_CREDIT_MULT: () => KILL_CREDIT_MULT,
   LIMITS: () => LIMITS,
   NEAR: () => NEAR,
   PVP_RANGE: () => PVP_RANGE,
@@ -3664,6 +3665,7 @@ __export(game_server_exports, {
   TOWER_HEAL_CAP: () => TOWER_HEAL_CAP,
   TOWER_HIT_CAP: () => TOWER_HIT_CAP,
   TOWER_SLOTS: () => TOWER_SLOTS,
+  addCredit: () => addCredit,
   bossHit: () => bossHit,
   bossInfo: () => bossInfo,
   bossKill: () => bossKill,
@@ -3680,6 +3682,7 @@ __export(game_server_exports, {
   islandFromRow: () => islandFromRow,
   islandInfo: () => islandInfo,
   islands: () => islands,
+  killCredit: () => killCredit,
   loadIslands: () => loadIslands,
   noteHp: () => noteHp,
   osbMatch: () => osbMatch,
@@ -3713,6 +3716,28 @@ var import_websocket = __toESM(require_websocket(), 1);
 var import_websocket_server = __toESM(require_websocket_server(), 1);
 
 // src/pve-balance.ts
+var PVE_HP = [
+  [],
+  [8e3, 18e3, 35e3, 6e4],
+  [2e4, 45e3, 85e3, 14e4],
+  [45e3, 9e4, 17e4, 28e4],
+  [8e4, 16e4, 3e5, 5e5],
+  [13e4, 26e4, 48e4, 8e5],
+  [2e5, 4e5, 75e4, 125e4],
+  [3e5, 6e5, 11e5, 18e5],
+  [45e4, 9e5, 165e4, 26e5]
+];
+var PVE_XP = [
+  [],
+  [100, 175, 300, 500],
+  [160, 280, 480, 800],
+  [250, 440, 750, 1250],
+  [400, 700, 1200, 2e3],
+  [600, 1050, 1800, 3e3],
+  [900, 1575, 2700, 4500],
+  [1300, 2275, 3900, 6500],
+  [1800, 3150, 5400, 9e3]
+];
 var BOSS_HP = [0, 165e3, 41e4, 98e4, 22e5, 3e6, 45e5, 58e5, 63e5];
 var SIEGE_HP_PER_CAPTAIN = { wall: 78e5, inner: 196e5, commander: 78e6 };
 
@@ -3748,6 +3773,219 @@ function pvpClamp(b, maxHp, hit, now) {
   b.pool -= dealt;
   return dealt;
 }
+
+// src/campaign.ts
+var WORLD_WIDTH = 6e3;
+var WORLD_HEIGHT = 4e3;
+var tierOf = (key) => Number(key.split("/")[0]);
+var THEMES = {
+  1: { name: "G\xFCvenli Harita", sea: ["#09304a", "#082b43"], tint: "#6fd6c4", look: "haven", fleet: "verdant", label: "#b7d9d1" },
+  2: { name: "\u0130nciyolu Denizi", sea: ["#09304a", "#082b43"], tint: "#8ff0dc", look: "coral", fleet: "coral", label: "#c8f4ea" },
+  3: { name: "Azurya Denizi", sea: ["#09304a", "#082b43"], tint: "#82cbdc", look: "verdant", fleet: "verdant", label: "#c8eaf0" },
+  4: { name: "Hayalet Denizi", sea: ["#09304a", "#082b43"], tint: "#9fb8b4", look: "misty", fleet: "misty", label: "#c8d4ce" },
+  5: { name: "Buzmahzen Denizi", sea: ["#09304a", "#082b43"], tint: "#bfe6ff", look: "ice", fleet: "ice", label: "#e8f6ff" },
+  6: { name: "F\u0131rt\u0131na Denizi", sea: ["#09304a", "#082b43"], tint: "#9fb4e0", look: "storm", fleet: "storm", label: "#c8d4f0" },
+  7: { name: "Karanl\u0131k U\xE7urum Denizi", sea: ["#09304a", "#082b43"], tint: "#a79bdb", look: "abyss", fleet: "abyss", label: "#d8c0ff" },
+  8: { name: "Alev Denizi", sea: ["#09304a", "#082b43"], tint: "#ff8a3a", look: "lava", fleet: "lava", label: "#ffc090" }
+};
+var XP_PER_HP = (_tier) => 1 / 120;
+var GOLD_PER_HP = 0.65 / 90;
+var killReward = (hp, tier) => ({ xp: Math.round(hp * XP_PER_HP(tier)), gold: Math.round(hp * GOLD_PER_HP) });
+var hpScale = (tier) => Math.pow(1.6, tier - 1);
+var dmgScale = (tier) => Math.min(4, 1 + 0.5 * (tier - 1));
+var NPC_SPAN = { small: 84, medium: 112, large: 144 };
+var npcSize = (id) => id.endsWith("-1-light") ? "small" : id.endsWith("-2-heavy") ? "large" : "medium";
+var npc = (id, name, role, tier, sprite = "") => {
+  const span = NPC_SPAN[npcSize(id)];
+  const dmg = role === "light" ? 750 : 1650, t = tier - 1, size = npcSize(id) === "small" ? 0 : npcSize(id) === "medium" ? 1 : 2, hp = PVE_HP[tier][size], r = { xp: PVE_XP[tier][size], gold: killReward(Math.round((size === 0 ? 3750 : 9e3) * hpScale(tier)), tier).gold };
+  const soft = role === "heavy" && tier <= 3 ? 0.8 : 1;
+  return { id, name, sprite, span, role, tier, hp, damage: Math.round(dmg * dmgScale(tier) * soft * damageScale(tier)), reload: role === "light" ? 2.6 : 2.7, speed: (role === "light" ? 50 : 34) + t * 1.5, gold: r.gold, xp: r.xp };
+};
+var NPC_LIST = [
+  npc("n1-1-light", "K\u0131y\u0131 Sandal\u0131", "light", 1, "/assets/trial-coast-boat-dir16-v1.webp"),
+  npc("n1-1-heavy", "T\xFCccar Yelkenlisi", "heavy", 1, "/assets/trial-coast-merchant-dir16-v1.webp"),
+  npc("n1-2-light", "T\xFCccar Yelkenlisi", "light", 1, "/assets/trial-coast-merchant-dir16-v1.webp"),
+  npc("n1-2-heavy", "Kraliyet Firkateyni", "heavy", 1, "/assets/trial-coast-frigate-dir16-v1.webp"),
+  npc("n2-1-light", "Sedef Kay\u0131\u011F\u0131", "light", 2, "/assets/pearl-boat-dir16-v1.webp"),
+  npc("n2-1-heavy", "Mercan Kesici", "heavy", 2, "/assets/pearl-cutter-dir16-v1.webp"),
+  npc("n2-2-light", "Mercan Kesici", "light", 2, "/assets/pearl-cutter-dir16-v1.webp"),
+  npc("n2-2-heavy", "\u0130nci Krali\xE7e Kalyonu", "heavy", 2, "/assets/pearl-galleon-dir16-v1.webp"),
+  npc("n3-1-light", "Ye\u015Fim S\xFCr\xFCklenen", "light", 3, "/assets/azur-boat-dir16-v1.webp"),
+  npc("n3-1-heavy", "Kristal Yelkenli", "heavy", 3, "/assets/azur-sail-dir16-v1.webp"),
+  npc("n3-2-light", "Kristal Yelkenli", "light", 3, "/assets/azur-sail-dir16-v1.webp"),
+  npc("n3-2-heavy", "Kadim Azur Gardiyan\u0131", "heavy", 3, "/assets/azur-guardian-dir16-v1.webp"),
+  npc("n4-1-light", "Solgun Ruh", "light", 4, "/assets/haunt-boat-dir16-v1.webp"),
+  npc("n4-1-heavy", "Lanetli Yelken", "heavy", 4, "/assets/haunt-sail-dir16-v1.webp"),
+  npc("n4-2-light", "Lanetli Yelken", "light", 4, "/assets/haunt-sail-dir16-v1.webp"),
+  npc("n4-2-heavy", "Gece Deh\u015Feti F\u0131rkateyni", "heavy", 4, "/assets/haunt-frigate-dir16-v1.webp"),
+  npc("n5-1-light", "Donuk Yelkenli", "light", 5, "/assets/frost-sail-dir16-v1.webp"),
+  npc("n5-1-heavy", "Buz Kesici", "heavy", 5, "/assets/frost-sail-dir16-v1.webp"),
+  npc("n5-2-light", "Buz Kesici", "light", 5, "/assets/frost-sail-dir16-v1.webp"),
+  npc("n5-2-heavy", "K\u0131\u015F Z\u0131pk\u0131n\u0131 Kalyonu", "heavy", 5, "/assets/frost-galleon-dir16-v1.webp"),
+  npc("n6-1-light", "Ya\u011Fmur Yaran", "light", 6, "/assets/storm-sail-dir16-v1.webp"),
+  npc("n6-1-heavy", "F\u0131rt\u0131na Kesici", "heavy", 6, "/assets/storm-sail-dir16-v1.webp"),
+  npc("n6-2-light", "F\u0131rt\u0131na Kesici", "light", 6, "/assets/storm-sail-dir16-v1.webp"),
+  npc("n6-2-heavy", "\u015Eim\u015Fek Lordu", "heavy", 6, "/assets/storm-galleon-dir16-v1.webp"),
+  npc("n7-1-light", "Obsidyen B\u0131\xE7a\u011F\u0131", "light", 7, "/assets/void-sail-dir16-v1.webp"),
+  npc("n7-1-heavy", "Obsidyen Ak\u0131nc\u0131s\u0131", "heavy", 7, "/assets/void-sail-dir16-v1.webp"),
+  npc("n7-2-light", "Obsidyen Ak\u0131nc\u0131s\u0131", "light", 7, "/assets/void-sail-dir16-v1.webp"),
+  npc("n7-2-heavy", "Hi\xE7lik Sava\u015F\xE7\u0131s\u0131", "heavy", 7, "/assets/void-galleon-dir16-v1.webp"),
+  npc("n8-1-light", "Lav Yaran", "light", 8, "/assets/lava-sail-dir16-v1.webp"),
+  npc("n8-1-heavy", "Lav Ak\u0131nc\u0131s\u0131", "heavy", 8, "/assets/lava-sail-dir16-v1.webp"),
+  npc("n8-2-light", "Lav Ak\u0131nc\u0131s\u0131", "light", 8, "/assets/lava-sail-dir16-v1.webp"),
+  npc("n8-2-heavy", "Cehennem Kalyonu", "heavy", 8, "/assets/lava-galleon-dir16-v1.webp")
+];
+var NPCS = Object.fromEntries(NPC_LIST.map((n, i) => [n.id, { ...n, portrait: i }]));
+var mon = (id, name, tier, radius = 54, sprite = "", span = 140, anchorY = 133.4) => {
+  const t = tier - 1, hp = PVE_HP[tier][3], r = { xp: PVE_XP[tier][3], gold: killReward(Math.round(19500 * hpScale(tier)), tier).gold };
+  return { id, name, sprite, span, frame: 256, anchorY, radius, tier, hp, damage: Math.round(1500 * dmgScale(tier) * damageScale(tier)), reload: 2.8 - t * 0.04, gold: r.gold, xp: r.xp };
+};
+var MONSTER_LIST = [
+  { ...mon("m1-2", "Dev Mavi Y\u0131lan", 1, 56), slot: 1 },
+  { ...mon("m2-1", "Pembe Resif Yengeci", 2, 54), slot: 2 },
+  { ...mon("m3-2", "Kadim Orman Leviathan\u0131", 3, 56), slot: 5 },
+  { ...mon("m4-1", "Kemik Bal\u0131\u011F\u0131", 4, 54), slot: 6 },
+  { ...mon("m5-2", "Dev Donmu\u015F Mors", 5, 60), slot: 9 },
+  { ...mon("m6-1", "Elektrik Y\u0131lan\u0131", 6, 54), slot: 10 },
+  { ...mon("m7-2", "U\xE7urum Krakeni", 7, 62), slot: 13 },
+  { ...mon("m8-2", "Alev Leviathan\u0131", 8, 58), slot: 15 }
+];
+var MONSTER_OF_TIER = Object.fromEntries(MONSTER_LIST.map((m) => [m.tier, m.id]));
+var MONSTERS = Object.fromEntries(MONSTER_LIST.map(({ slot, ...m }) => [m.id, { ...m, portrait: NPC_LIST.length + slot }]));
+var PORTRAIT_COUNT = NPC_LIST.length + 16;
+var GRID_COLS = 61;
+var GRID_ROWS = 78;
+var CELL_W = WORLD_WIDTH / GRID_COLS;
+var CELL_H = WORLD_HEIGHT / GRID_ROWS;
+var FLEET_SCALE = 0.8;
+var FLEET_TOWERS_RAW = [
+  [-577, -76],
+  [-385, -194],
+  [-140, -252],
+  [148, -255],
+  [417, -178],
+  [601, -49],
+  [-589, 197],
+  [-384, 315],
+  [-133, 386],
+  [142, 385],
+  [409, 330],
+  [600, 217],
+  [-131, -26],
+  [132, -22],
+  [-157, 98],
+  [179, 108]
+];
+var FLEET = {
+  islandR: 760 * FLEET_SCALE,
+  wallR: 600 * FLEET_SCALE,
+  gap: 0.6,
+  towers: FLEET_TOWERS_RAW.map(([x, y]) => [Math.round(x * FLEET_SCALE), Math.round(y * FLEET_SCALE)])
+};
+var I = (x, y, r, name, look, variant, flip = false) => ({ x, y, r, name, look, variant, flip });
+function sea(key, name, description, opts) {
+  const tier = tierOf(key), look = opts.look ?? THEMES[tier].look, sub = key.split("/")[1];
+  return {
+    key,
+    tier,
+    name,
+    description,
+    safe: !!opts.safe,
+    npcs: [`n${tier}-${sub}-light`, `n${tier}-${sub}-heavy`, ...tier <= 8 ? [sub === "1" ? `n${tier}-2-heavy` : `n${tier}-1-light`] : []],
+    monster: MONSTER_OF_TIER[tier],
+    monsters: [MONSTER_OF_TIER[tier]],
+    npcCount: opts.safe ? 12 : 16,
+    heavyShare: opts.heavy ?? 0.3 + tier * 0.03,
+    islands: opts.islands.map(([x, y, r, n, v, f]) => I(x, y, r, n, look, v, !!f)),
+    fleet: { x: opts.fleet[0], y: opts.fleet[1], name: opts.fleet[2] },
+    labels: (opts.labels ?? []).map(([text, x, y]) => ({ text, x, y })),
+    spawn: { x: opts.fleet[0], y: opts.fleet[1] + 530 }
+  };
+}
+var MAPS = {
+  "1/1": { ...sea(
+    "1/1",
+    "S\u0131\u011F\u0131nak Koyu",
+    "Sava\u015Fa kapal\u0131 ba\u015Flang\u0131\xE7 denizi. Filo adan\u0131n lag\xFCn\xFCnde g\xF6vde kendili\u011Finden onar\u0131l\u0131r; buradaki gemiler sen sald\u0131rmad\u0131k\xE7a ate\u015F a\xE7maz.",
+    { islands: [[640, 700, 170, "Mart\u0131 Kayas\u0131", 1], [2520, 820, 190, "Yosunlu Burun", 0, true], [2560, 2560, 160, "Sakin Resif", 1]], fleet: [1500, 1900, "S\u0131\u011F\u0131nak Filo Adas\u0131"], labels: [["SAK\u0130N SULAR", 1600, 700]], safe: true, count: 6, heavy: 0.25 }
+  ), islands: [I(640, 700, 170, "Mart\u0131 Kayas\u0131", "haven", 1), I(2520, 820, 190, "Yosunlu Burun", "verdant", 0, true), I(2560, 2560, 160, "Sakin Resif", "coral", 1)] },
+  "1/2": sea("1/2", "Mart\u0131 K\u0131y\u0131lar\u0131", "K\u0131y\u0131 Sandal\u0131, T\xFCccar Yelkenlisi ve Kraliyet Firkateyni bu sularda gezer.", { safe: true, islands: [[700, 650, 180, "F\u0131rt\u0131na Burnu", 0], [2500, 700, 210, "\xD6l\xFC Adam Adas\u0131", 1], [650, 2500, 200, "Sis Kayal\u0131klar\u0131", 0, true]], fleet: [2150, 2150, "Mart\u0131 Filo Adas\u0131"], labels: [["KIYI SULARI", 1400, 1e3]] }),
+  "2/1": sea("2/1", "Mercan Ge\xE7idi", "Sedef Kay\u0131\u011F\u0131, Mercan Kesici ve \u0130nci Krali\xE7e Kalyonu mercan resiflerinde gezer.", { islands: [[650, 700, 190, "Mercan Kalesi", 0], [2550, 600, 160, "Pembe Resif", 1], [600, 2550, 170, "Deniz Kabu\u011Fu", 1, true]], fleet: [2050, 2100, "Mercan Filo Adas\u0131"], labels: [["MERCAN GE\xC7\u0130D\u0130", 1300, 900]] }),
+  "2/2": sea("2/2", "\u0130nci Resifleri", "Sedef Kay\u0131\u011F\u0131, Mercan Kesici ve \u0130nci Krali\xE7e Kalyonu ile parlak resif sular\u0131.", { islands: [[2550, 700, 180, "\u0130nci Adas\u0131", 1], [700, 650, 200, "Lag\xFCn Adas\u0131", 0, true], [2600, 2550, 150, "Midye Kayas\u0131", 0]], fleet: [1150, 2100, "\u0130nci Filo Adas\u0131"], labels: [["\u0130NC\u0130 SI\u011ELI\u011EI", 1900, 1e3]] }),
+  "3/1": sea("3/1", "Sis Kayal\u0131klar\u0131", "Ye\u015Fim S\xFCr\xFCklenen, Kristal Yelkenli ve Kadim Azur Gardiyan\u0131 bu sularda gezer.", { islands: [[650, 650, 200, "Sis Burnu", 0], [2550, 650, 180, "Kay\u0131p Fener", 1], [2550, 2550, 190, "Yank\u0131 Kayas\u0131", 0, true]], fleet: [1200, 2150, "Azurya Filo Adas\u0131"], labels: [["S\u0130S DEN\u0130Z\u0130", 2e3, 1300]] }),
+  "3/2": sea("3/2", "Hayalet Bo\u011Faz\u0131", "Ye\u015Fim S\xFCr\xFCklenen, Kristal Yelkenli ve Kadim Azur Gardiyan\u0131 ile Azurya\u2019n\u0131n ge\xE7i\u015F sular\u0131.", { islands: [[700, 2550, 210, "Mezar Adas\u0131", 1], [2500, 2550, 170, "Kemik K\u0131y\u0131s\u0131", 0], [2550, 650, 190, "Bat\u0131klar Burnu", 1, true]], fleet: [1200, 1100, "Ye\u015Fim Filo Adas\u0131"], labels: [["HAYALET BO\u011EAZI", 2e3, 1800]] }),
+  "4/1": sea("4/1", "Kan K\xF6rfezi", "Solgun Ruh, Lanetli Yelken ve Gece Deh\u015Feti F\u0131rkateyni bu lanetli sularda gezer.", { islands: [[650, 650, 190, "Kan Kayas\u0131", 0], [2550, 700, 160, "K\u0131z\u0131l Di\u015F", 1], [650, 2550, 200, "K\u0131r\u0131k S\xFCtunlar", 0, true]], fleet: [2050, 2100, "Hayalet Filo Adas\u0131"], labels: [["KAN K\xD6RFEZ\u0130", 1300, 1e3]] }),
+  "4/2": sea("4/2", "Pasl\u0131 S\u0131\u011Fl\u0131k", "Solgun Ruh, Lanetli Yelken ve Gece Deh\u015Feti F\u0131rkateyni ile hayaletlerin sisli s\u0131\u011Fl\u0131\u011F\u0131.", { islands: [[2550, 650, 190, "Pasl\u0131 \xC7apa Adas\u0131", 1], [650, 700, 170, "Hurda K\u0131y\u0131s\u0131", 0, true], [2500, 2550, 200, "Demir Kayal\u0131k", 0]], fleet: [1150, 2100, "Bat\u0131k Filo Adas\u0131"], labels: [["PASLI SI\u011ELIK", 1900, 1e3]] }),
+  "5/1": sea("5/1", "Ayaz Bo\u011Faz\u0131", "Donuk Yelkenli ve K\u0131\u015F Z\u0131pk\u0131n\u0131 Kalyonu buz k\xFCtleleri aras\u0131nda dola\u015F\u0131r.", { islands: [[650, 650, 200, "Ayaz Tepesi", 0], [2550, 650, 180, "Donmu\u015F Fener", 1], [650, 2550, 180, "Kar Kayas\u0131", 1, true]], fleet: [2050, 2100, "Ayaz Filo Adas\u0131"], labels: [["AYAZ BO\u011EAZI", 1300, 1e3]] }),
+  "5/2": sea("5/2", "Kristal Buzullar", "Donuk Yelkenli ve K\u0131\u015F Z\u0131pk\u0131n\u0131 Kalyonu ile buzullar\u0131n par\u0131ldayan so\u011Fuk derinlikleri.", { islands: [[2550, 650, 210, "Kristal Buzul", 0], [650, 700, 170, "I\u015F\u0131lt\u0131 Kayas\u0131", 1, true], [2550, 2550, 180, "Kutup Kap\u0131s\u0131", 1]], fleet: [1150, 2100, "Kristal Filo Adas\u0131"], labels: [["KR\u0130STAL BUZULLAR", 1900, 1e3]] }),
+  "6/1": sea("6/1", "Zehirli Mangrov", "Ya\u011Fmur Yaran ve \u015Eim\u015Fek Lordu f\u0131rt\u0131nal\u0131 sularda gezer.", { islands: [[650, 650, 200, "Mangrov K\xF6k\xFC", 0], [2550, 650, 170, "\xC7amur K\u0131y\u0131s\u0131", 1], [650, 2550, 190, "Sarma\u015F\u0131k Adas\u0131", 1, true]], fleet: [2050, 2100, "F\u0131rt\u0131na Filo Adas\u0131"], labels: [["ZEH\u0130RL\u0130 MANGROV", 1300, 1e3]] }),
+  "6/2": sea("6/2", "\xC7\xFCr\xFCk Lag\xFCn", "Ya\u011Fmur Yaran ve \u015Eim\u015Fek Lordu ile f\u0131rt\u0131nan\u0131n \u015Fim\u015Fekli lag\xFCn\xFC.", { islands: [[2550, 650, 190, "\xC7\xFCr\xFCk Ada", 0], [650, 700, 180, "Bal\xE7\u0131k Kayas\u0131", 1, true], [2500, 2550, 200, "Veba K\u0131y\u0131s\u0131", 1]], fleet: [1150, 2100, "\u015Eim\u015Fek Filo Adas\u0131"], labels: [["\xC7\xDCR\xDCK LAG\xDCN", 1900, 1e3]] }),
+  "7/1": sea("7/1", "K\xFCl Adalar\u0131", "Obsidyen B\u0131\xE7a\u011F\u0131 ve Hi\xE7lik Sava\u015F\xE7\u0131s\u0131 bu karanl\u0131k sularda gezer.", { islands: [[650, 650, 210, "K\xFCl Da\u011F\u0131", 0], [2550, 650, 180, "Duman Kayas\u0131", 1], [650, 2550, 170, "Kor Adas\u0131", 1, true]], fleet: [2050, 2100, "U\xE7urum Filo Adas\u0131"], labels: [["K\xDCL ADALARI", 1300, 1e3]] }),
+  "7/2": sea("7/2", "Magma Bo\u011Faz\u0131", "Obsidyen B\u0131\xE7a\u011F\u0131 ve Hi\xE7lik Sava\u015F\xE7\u0131s\u0131 ile u\xE7urumun karanl\u0131k bo\u011Faz\u0131.", { islands: [[2550, 650, 200, "Magma Kap\u0131s\u0131", 1], [650, 700, 180, "Yan\u0131k K\u0131y\u0131", 0, true], [2550, 2550, 190, "Ate\u015F \xC7ukuru", 0]], fleet: [1150, 2100, "G\xF6lge Filo Adas\u0131"], labels: [["MAGMA BO\u011EAZI", 1900, 1e3]] }),
+  "8/1": sea("8/1", "\u015Eim\u015Fek Denizi", "Lav Yaran ve Cehennem Kalyonu kaynayan sularda gezer.", { islands: [[650, 650, 200, "\u015Eim\u015Fek Kayal\u0131klar\u0131", 0], [2550, 650, 170, "G\xF6k Kulesi", 1], [650, 2550, 190, "Sessiz Mezar", 1, true]], fleet: [2050, 2100, "Alev Filo Adas\u0131"], labels: [["\u015E\u0130M\u015EEK DEN\u0130Z\u0130", 1300, 1e3]] }),
+  "8/2": sea("8/2", "Kas\u0131rga G\xF6z\xFC", "Lav Yaran ve Cehennem Kalyonu ile lav\u0131n \xF6l\xFCmc\xFCl sular\u0131.", { islands: [[2550, 650, 190, "Kas\u0131rga Burnu", 1], [650, 700, 180, "R\xFCzg\xE2r Kayas\u0131", 0, true], [2550, 2550, 200, "G\xFCr\xFClt\xFC Adas\u0131", 0]], fleet: [1150, 2100, "Magma Filo Adas\u0131"], labels: [["KASIRGA G\xD6Z\xDC", 1900, 1e3]] })
+};
+var MAP_KEYS = Object.keys(MAPS);
+var SEA_LORE = {
+  1: "Kaptanlar\u0131n dinlendi\u011Fi korunakl\u0131 k\u0131y\u0131lar.",
+  2: "\u0130nci gibi parlayan adalar, sakin meltemler ve denizk\u0131zlar\u0131n\u0131n ezgileri.",
+  3: "G\xF6ky\xFCz\xFCn\xFC yans\u0131tan mavi sularda kadim uygarl\u0131klar\u0131n izleri sakl\u0131d\u0131r.",
+  4: "G\xF6lgege\xE7it efsanesinin sular\u0131: sis i\xE7indeki g\xF6r\xFCnmez kap\u0131lar ve kay\u0131p gemiler.",
+  5: "Sonsuz k\u0131\u015F\u0131n h\xFCk\xFCm s\xFCrd\xFC\u011F\xFC, buz alt\u0131nda kadim hazinelerin sakland\u0131\u011F\u0131 deniz.",
+  6: "F\u0131rt\u0131na Taht\u0131 efsanesinin denizi; r\xFCzg\xE2rlar\u0131n ve cesur kaptanlar\u0131n s\u0131nav\u0131.",
+  7: "Karanl\u0131k derinliklerde unutulmu\u015F g\xFC\xE7lerin ve kay\u0131p s\u0131rlar\u0131n denizi.",
+  8: "Alev Sular\u0131 efsanesi: volkanlar\u0131n k\u0131zg\u0131n lavlar\u0131yla \xE7evrili kayal\u0131klar."
+};
+function islandLayout(key, fleet) {
+  let seed = 2166136261;
+  for (const c of `island-art-v2:${key}`) seed = Math.imul(seed ^ c.charCodeAt(0), 16777619);
+  const random = () => {
+    seed ^= seed << 13;
+    seed ^= seed >>> 17;
+    seed ^= seed << 5;
+    return (seed >>> 0) / 4294967296;
+  };
+  const result = [], tier = tierOf(key), count = 8 + Math.floor(random() * 4);
+  const variants = [0, 1, 2, 3, 4, 5];
+  for (let i = variants.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [variants[i], variants[j]] = [variants[j], variants[i]];
+  }
+  const spawn = { x: fleet.x, y: Math.min(WORLD_HEIGHT - 200, fleet.y + 900) };
+  for (let attempt = 0; attempt < 1e3 && result.length < count; attempt++) {
+    const r = 90 + Math.floor(random() * 65), x = Math.round(300 + random() * (WORLD_WIDTH - 600)), y = Math.round(300 + random() * (WORLD_HEIGHT - 600));
+    if (tier >= 2 && Math.hypot(x - fleet.x, y - fleet.y) < FLEET.islandR + r + 400) continue;
+    if (Math.hypot(x - spawn.x, y - spawn.y) < r + 300) continue;
+    if (result.some((i) => Math.hypot(x - i.x, y - i.y) < i.r + r + 230)) continue;
+    result.push(I(x, y, r, `${THEMES[tier].name} \xB7 Adac\u0131k ${result.length + 1}`, THEMES[tier].look, variants[result.length % variants.length], false));
+  }
+  return result;
+}
+for (const key of MAP_KEYS) {
+  const map = MAPS[key];
+  map.name = THEMES[map.tier].name;
+  map.description = SEA_LORE[map.tier];
+  map.fleet.x = Math.round(map.fleet.x * WORLD_WIDTH / 3200);
+  map.fleet.y = Math.round(map.fleet.y * WORLD_HEIGHT / 3200);
+  map.islands = islandLayout(key, map.fleet);
+  map.labels = [{ text: map.name.toLocaleUpperCase("tr"), x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 }];
+  map.spawn = { x: map.fleet.x, y: Math.min(WORLD_HEIGHT - 200, map.fleet.y + 900) };
+}
+var QUEST_BONUS = 0.5;
+var QUESTS = MAP_KEYS.flatMap((key) => {
+  const m = MAPS[key], t = m.tier, L = NPCS[m.npcs[0]], H = NPCS[m.npcs[1]], pay = (n, u, k = QUEST_BONUS) => ({ gold: Math.round(n * u.gold * k), xp: Math.round(n * u.xp * k) });
+  const nL = 20, nH = 20, nC = 20, head = `${key} ${m.name}`;
+  return [
+    { id: `q${key}-light`, map: key, tier: t, title: `${head}: Devriye Av\u0131`, description: `${L.name} gemilerinden ${nL} tanesini bat\u0131r.`, kind: "npc", ids: [L.id], required: nL, ...pay(nL, L), pearls: 2 + t },
+    { id: `q${key}-heavy`, map: key, tier: t, title: `${head}: A\u011F\u0131r Filo`, description: `${H.name} gemilerinden ${nH} tanesini denizin dibine g\xF6nder.`, kind: "npc", ids: [H.id], required: nH, ...pay(nH, H), pearls: 3 + 2 * t },
+    { id: `q${key}-sparkle`, map: key, tier: t, title: `${head}: P\u0131r\u0131lt\u0131 Av\u0131`, description: `Bu denizde ${nC} inci p\u0131r\u0131lt\u0131s\u0131 topla.`, kind: "sparkle", ids: [key], required: nC, ...pay(nC, { gold: L.gold, xp: Math.round(L.xp * 0.5) }, 1), pearls: 4 + 2 * t }
+  ];
+});
+var QUEST_COOLDOWN_MS = 8 * 60 * 60 * 1e3;
+
+// src/level-quest.ts
+var levelQuestTargets = (level) => ({ ships: [`n${level}-1-heavy`, `n${level}-2-heavy`], tier: level });
+var levelQuestMap = (level) => `${level}/1`;
 
 // server/game-server.mjs
 var PORT = Number(process.env.PORT || 3e3);
@@ -3919,6 +4157,37 @@ function dpsTake(c, dmg, now) {
   d.pool -= ok;
   d.over = dmg > ok ? d.over + (dmg - ok) : Math.max(0, d.over - ok);
   return { ok, flag: d.over > rate * 6 };
+}
+var KILL_CREDIT_MULT = 2.5;
+function killCredit(c, id, now) {
+  const map = seaMap(c.sea);
+  if (!map || !MAPS[map]) return { err: "deniz" };
+  const m = MAPS[map], npc2 = NPCS[id], mon2 = MONSTERS[id];
+  if (npc2 ? !m.npcs.includes(id) : !(mon2 && m.monsters.includes(id))) return { err: "hedef" };
+  const def = npc2 ?? mon2;
+  const rate = dpsCap(c.econ?.level ?? 8);
+  c.kb ??= { pool: rate * 30, t: now, miss: 0 };
+  const b = c.kb;
+  b.pool = Math.min(rate * 30, b.pool + Math.max(0, now - b.t) / 1e3 * rate);
+  b.t = now;
+  if (b.pool < def.hp * 0.5) {
+    b.miss++;
+    return { err: "h\u0131z", flag: b.miss >= 10 };
+  }
+  b.pool = Math.max(0, b.pool - def.hp);
+  b.miss = 0;
+  const add = { gold: Math.round(def.gold * KILL_CREDIT_MULT), xp: Math.round(def.xp * KILL_CREDIT_MULT) };
+  if (npc2) {
+    add.st_npc = 1;
+    if (npc2.role === "heavy") add.st_heavy = 1;
+  } else add.st_monster = 1;
+  const lvl = Math.round(Number(c.econ?.level) || 1);
+  if (npc2 && lvl >= 2 && map === levelQuestMap(lvl) && levelQuestTargets(lvl).ships.includes(id)) add.lqk = 1;
+  return { add };
+}
+function addCredit(c, add) {
+  c.credit ??= {};
+  for (const k in add) c.credit[k] = (c.credit[k] || 0) + add[k];
 }
 var Rate = class {
   constructor(perWindow, windowMs) {
@@ -4405,6 +4674,16 @@ setInterval(() => {
     }
   }
 }, TICK_MS).unref();
+async function flushCredit(c) {
+  const add = c.credit;
+  if (!add || !c.uid) return;
+  c.credit = null;
+  const st = await dbRpcJson("economy_grant", { p_uid: c.uid, p_add: add }).catch(() => null);
+  if (st && typeof st === "object") c.econ = st;
+}
+setInterval(() => {
+  for (const c of all) if (c.credit) void flushCredit(c);
+}, 2e4).unref();
 var httpServer = import_node_http.default.createServer(async (q, r) => {
   const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization", "content-type": "application/json" };
   if (q.method === "OPTIONS") {
@@ -4650,6 +4929,19 @@ wss.on("connection", (ws) => {
         if (r.won) siegeFinish();
         return;
       }
+      case "nkill": {
+        if (!c.sea || !c.rKill.hit(now)) return;
+        const r = killCredit(c, String(m.d?.id || ""), now);
+        if (r.err) {
+          if (r.err !== "h\u0131z" || r.flag) {
+            suspect(c, "bat\u0131rma", `${r.err} ${m.d?.id}`);
+            if (c.kb) c.kb.miss = 0;
+          }
+          return;
+        }
+        addCredit(c, r.add);
+        return;
+      }
       case "spy": {
         if (!c.rKill.hit(now)) return;
         await onSpy(c, m.d?.nick);
@@ -4699,6 +4991,7 @@ wss.on("connection", (ws) => {
   });
   ws.on("close", () => {
     clearTimeout(authTimer);
+    void flushCredit(c);
     if (c.uid && c.last && seaMap(c.sea)) void dbRpc("spy_seen", { p_uid: c.uid, p_map: seaMap(c.sea), p_x: Math.round(c.last.x), p_y: Math.round(c.last.y) }).catch(() => {
     });
     leaveSea(c);
@@ -4738,6 +5031,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   HEAL_SECONDS,
   HP_BONUS_MAX,
   ISLAND_KEYS,
+  KILL_CREDIT_MULT,
   LIMITS,
   NEAR,
   PVP_RANGE,
@@ -4750,6 +5044,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   TOWER_HEAL_CAP,
   TOWER_HIT_CAP,
   TOWER_SLOTS,
+  addCredit,
   bossHit,
   bossInfo,
   bossKill,
@@ -4766,6 +5061,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   islandFromRow,
   islandInfo,
   islands,
+  killCredit,
   loadIslands,
   noteHp,
   osbMatch,

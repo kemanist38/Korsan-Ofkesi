@@ -9,6 +9,8 @@ import {WebSocketServer} from 'ws';
 import {BOSS_HP,SIEGE_HP_PER_CAPTAIN} from '../src/pve-balance.ts';
 import {fleetTowerStats,playerBaseHp} from '../src/fleetBalance.ts';
 import {pvpClamp,newPvpBudget} from '../src/pvp.ts';
+import {NPCS,MONSTERS,MAPS} from '../src/campaign.ts';
+import {levelQuestGoal,levelQuestTargets,levelQuestMap} from '../src/level-quest.ts';
 
 const PORT=Number(process.env.PORT||3000);
 const SUPABASE_URL=process.env.SUPABASE_URL||'https://vidjvineafeiyoclioau.supabase.co';
@@ -98,6 +100,20 @@ export function dpsCap(level){const l=Math.max(1,Math.min(8,Math.round(Number(le
 export function dpsTake(c,dmg,now){const rate=dpsCap(c.econ?.level??8);c.dps??={pool:rate*3,t:now,over:0};const d=c.dps;
   d.pool=Math.min(rate*3,d.pool+Math.max(0,now-d.t)/1000*rate);d.t=now;const ok=Math.max(0,Math.min(dmg,d.pool));d.pool-=ok;
   d.over=dmg>ok?d.over+(dmg-ok):Math.max(0,d.over-ok);return{ok,flag:d.over>rate*6};}
+// NPC ve canavar batırma doğrulaması (014): hedef bu denizin hedefi mi, oyuncunun saniyelik hasar bütçesi canına yetiyor mu.
+// Doğrulanan batırmanın altın ve TP'si (bonuslar için ×2,5 pay) ve sayaçları ekonomiye bonus hakkı olarak yazılır.
+// Seviye görevi: oyuncunun seviyesinin ilk haritasındaki görev ağır gemileri sayılır (lqk); seviye atlama buna bağlıdır.
+export const KILL_CREDIT_MULT=2.5;
+export function killCredit(c,id,now){const map=seaMap(c.sea);if(!map||!MAPS[map])return{err:'deniz'};const m=MAPS[map],npc=NPCS[id],mon=MONSTERS[id];
+  if(npc?!m.npcs.includes(id):!(mon&&m.monsters.includes(id)))return{err:'hedef'};const def=npc??mon;
+  // Batırma bütçesi: saniyelik hasar sınırı kadar dolar, 30 saniyelik birikir (büyük gemi uzun sürer); canın yarısı karşılanmalı
+  const rate=dpsCap(c.econ?.level??8);c.kb??={pool:rate*30,t:now,miss:0};const b=c.kb;b.pool=Math.min(rate*30,b.pool+Math.max(0,now-b.t)/1000*rate);b.t=now;
+  if(b.pool<def.hp*.5){b.miss++;return{err:'hız',flag:b.miss>=10};}b.pool=Math.max(0,b.pool-def.hp);b.miss=0;
+  const add={gold:Math.round(def.gold*KILL_CREDIT_MULT),xp:Math.round(def.xp*KILL_CREDIT_MULT)};
+  if(npc){add.st_npc=1;if(npc.role==='heavy')add.st_heavy=1;}else add.st_monster=1;
+  const lvl=Math.round(Number(c.econ?.level)||1);if(npc&&lvl>=2&&map===levelQuestMap(lvl)&&levelQuestTargets(lvl).ships.includes(id))add.lqk=1;
+  return{add};}
+export function addCredit(c,add){c.credit??={};for(const k in add)c.credit[k]=(c.credit[k]||0)+add[k];}
 export class Rate{constructor(perWindow,windowMs){this.n=perWindow;this.w=windowMs;this.t=[];}hit(now){while(this.t.length&&now-this.t[0]>this.w)this.t.shift();if(this.t.length>=this.n)return false;this.t.push(now);return true;}}
 
 // ---------------------------------------------------------------- Sunucu
@@ -259,6 +275,9 @@ export function buildBatch(rec,room,tick){const out=[];if(!rec.seen)rec.seen=new
   return out;}
 setInterval(()=>{tickNo++;if(tickNo%3===0){const now=Date.now();bossTick(now);islandTick(now);siegeTick(now);}for(const room of seas.values()){if(room.size<2)continue;for(const rec of room){const b=buildBatch(rec,room,tickNo);if(b.length)send(rec,{t:'batch',d:b});}}},TICK_MS).unref();
 
+// Doğrulanan kazançlar 20 saniyede bir veritabanına yazılır; dönen değerlerle oyuncunun seviyesi tazelenir
+async function flushCredit(c){const add=c.credit;if(!add||!c.uid)return;c.credit=null;const st=await dbRpcJson('economy_grant',{p_uid:c.uid,p_add:add}).catch(()=>null);if(st&&typeof st==='object')c.econ=st;}
+setInterval(()=>{for(const c of all)if(c.credit)void flushCredit(c);},20_000).unref();
 const httpServer=http.createServer(async(q,r)=>{const cors={'access-control-allow-origin':'*','access-control-allow-headers':'authorization','content-type':'application/json'};
   if(q.method==='OPTIONS'){r.writeHead(204,cors);r.end();return;}
   if(q.method==='POST'&&q.url?.startsWith('/shopier/osb')){let body='';q.on('data',d=>{body+=d;if(body.length>100000)q.destroy();});
@@ -313,6 +332,8 @@ wss.on('connection',ws=>{
       case'shit':{if(c.sea!==SIEGE_ROOM||!c.rTower.hit(now))return;let dmg=Number(m.d?.dmg);if(!num(dmg)||dmg<=0)return;if(dmg>SIEGE_HIT_CAP)suspect(c,'kuşatma hasarı',String(dmg));
         {const t=dpsTake(c,dmg,now);if(t.flag){suspect(c,'saniyelik hasar','kuşatma');c.dps.over=0;}dmg=t.ok;if(dmg<=0)return;}
         const r=siegeHitPiece(c.uid,c.nick,Number(m.d?.i),dmg);if(!r?.down&&r?.down!==0)return;toSea(c,{t:'sdown',d:{i:r.down}},true);if(r.won)siegeFinish();return;}
+      case'nkill':{if(!c.sea||!c.rKill.hit(now))return;const r=killCredit(c,String(m.d?.id||''),now);
+        if(r.err){if(r.err!=='hız'||r.flag){suspect(c,'batırma',`${r.err} ${m.d?.id}`);if(c.kb)c.kb.miss=0;}return;}addCredit(c,r.add);return;}
       case'spy':{if(!c.rKill.hit(now))return;await onSpy(c,m.d?.nick);return;}
       case'thit':{if(!c.sea||!c.rTower.hit(now))return;await onTowerHit(c,m,now);return;}
       // Kule dikildi (veritabanında): önce canlar yazılır, sonra ada yeniden okunup denize gönderilir
@@ -325,7 +346,7 @@ wss.on('connection',ws=>{
       case'known':case'ask':{toAll(c,{t:m.t,d:m.d});return;}
     }
   });
-  ws.on('close',()=>{clearTimeout(authTimer);if(c.uid&&c.last&&seaMap(c.sea))void dbRpc('spy_seen',{p_uid:c.uid,p_map:seaMap(c.sea),p_x:Math.round(c.last.x),p_y:Math.round(c.last.y)}).catch(()=>{});leaveSea(c);all.delete(c);if(c.uid)log('ÇIKIŞ',`#${c.playerNo}`,c.nick);});
+  ws.on('close',()=>{clearTimeout(authTimer);void flushCredit(c);if(c.uid&&c.last&&seaMap(c.sea))void dbRpc('spy_seen',{p_uid:c.uid,p_map:seaMap(c.sea),p_x:Math.round(c.last.x),p_y:Math.round(c.last.y)}).catch(()=>{});leaveSea(c);all.delete(c);if(c.uid)log('ÇIKIŞ',`#${c.playerNo}`,c.nick);});
   ws.on('error',()=>{});
 });
 // Ölü bağlantıları temizle

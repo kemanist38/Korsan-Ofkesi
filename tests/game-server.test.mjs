@@ -1,7 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 process.env.NODE_ENV='test';
-const S=await import('../server/game-server.mjs');
+// Sunucu src altındaki TypeScript dosyalarını da kullanır: canlıdaki gibi esbuild ile paketlenip yüklenir
+import {build} from 'esbuild';import {mkdirSync} from 'node:fs';
+const outDir=new URL('../node_modules/.cache/',import.meta.url).pathname;mkdirSync(outDir,{recursive:true});
+await build({entryPoints:[new URL('../server/game-server.mjs',import.meta.url).pathname],bundle:true,platform:'node',format:'esm',target:'node20',external:['ws'],outfile:outDir+'game-server.test.mjs',logLevel:'silent'});
+const S=await import(outDir+'game-server.test.mjs');
 test('normal movement passes, impossible speed is flagged, teleports (respawn) are allowed',()=>{
   const prev={x:0,y:0,at:0};
   assert.equal(S.checkState(prev,{x:50,y:0,hp:1},100),'ok');
@@ -92,4 +96,15 @@ test('saniyelik hasar sınırı: seviyeye göre, 3 sn birikim, aşırı hız iş
   // Sürekli 10 katı hasar bildiren işaretlenir; normal hız işaretlenmez
   let flag=false;for(let i=2;i<12;i++)flag=S.dpsTake(c,cap*10,now+i*1000).flag||flag;assert.equal(flag,true);
   const n={econ:{level:8}};let f2=false;for(let i=0;i<60;i++)f2=S.dpsTake(n,cap*.8,i*1000).flag||f2;assert.equal(f2,false);
+});
+test('npc batırma doğrulaması: yanlış deniz/hedef reddedilir, hız bütçesi, seviye görevi sayımı',()=>{
+  const c={sea:'sea-3-1',econ:{level:3}};let now=0;
+  assert.equal(S.killCredit(c,'n5-1-heavy',now).err,'hedef');
+  assert.equal(S.killCredit({sea:'sea-siege'},'n3-1-heavy',now).err,'deniz');
+  const r=S.killCredit(c,'n3-1-heavy',now);assert.ok(r.add);assert.equal(r.add.st_npc,1);assert.equal(r.add.st_heavy,1);assert.equal(r.add.lqk,1);
+  // Hafif gemi seviye görevine sayılmaz; 3/2 denizinde de sayılmaz
+  assert.equal(S.killCredit(c,'n3-1-light',now+5000).add.lqk,undefined);
+  const c2={sea:'sea-3-2',econ:{level:3}};assert.equal(S.killCredit(c2,'n3-2-heavy',now).add.lqk,undefined);
+  // Saniyede onlarca batırma: bütçe yetmez
+  const f={sea:'sea-3-1',econ:{level:3}};let bad=0;for(let i=0;i<40;i++)if(S.killCredit(f,'n3-1-heavy',1000+i*10).err)bad++;assert.ok(bad>30);
 });

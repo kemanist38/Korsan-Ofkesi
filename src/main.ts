@@ -25,7 +25,7 @@ import {supa} from './supabase';
 import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
 import {loadLevelQuest,saveLevelQuest,levelQuestDone,levelQuestKill,levelQuestGoal,needsLevelQuest,levelQuestMap} from './level-quest';
 import {SPY_COST,SPY_SHIELD_PRICE,loadSpy,sendSpy,type SpyRival} from './spy';
-import {netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
+import {netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
 import {AUCTION_MS,loadAuction,saveAuction,emptyAuction,auctionHour,auctionEnds,lotsFor,minNextBid,applyBid,wonLots,auctionId,type LotDef,type Bid} from './auction';
 import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,claimReward,GRADUATE_LEVEL,MAX_APPRENTICES,TOGETHER_XP_BONUS,APPRENTICE_MAX_LEVEL} from './mentorship';
 import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
@@ -1680,12 +1680,14 @@ function econAdjust(k:string,d:number){if(!d)return;
   else if(k==='design'){designOwned=designOwned?d>-1:d>0;saveDesignOwned();}
   else if(k.startsWith('o_')){const o=k.slice(2) as OfficerId;if(o in OFFICERS){crew.officers[o]=Math.max(0,Math.min(OFFICER_MAX_RANK,(crew.officers[o]??0)+d));if(!crew.officers[o])crew.active=crew.active.filter(x=>x!==o);saveCrew(crew);bonus=computeBonus(crew);}}
   else if(k.startsWith('st_')){const t=k.slice(3) as typeof ECON_STATS[number];if(t in ach.stats){ach.stats[t]=Math.max(0,(ach.stats[t]??0)+d);saveAchievements(ach);}}}
+// Sunucunun saydığı seviye görevi batırmaları (014): seviye ancak sunucu onaylayınca atlanır, TP boşa gitmez
+let serverLqk:number|null=null;
 let econOn=false,econLast:Record<string,number>={},econG:Record<string,number>={},econS:Record<string,number>={},pearlLast=state.pearls,pearlG=0,pearlS=0;
 function econTick(){if(!econOn)return;const f=econFlat();for(const k in f){const d=f[k]-(econLast[k]??f[k]);if(d>0)econG[k]=(econG[k]??0)+d;else if(d<0)econS[k]=(econS[k]??0)-d;}econLast=f;
   const dp=state.pearls-pearlLast;if(dp>0)pearlG+=dp;else if(dp<0)pearlS-=dp;pearlLast=state.pearls;}
 function econSettle(){econLast=econFlat();pearlLast=state.pearls;saveAccount();saveArsenal(arsenal);updateUI();renderQuickSlots();}
 if(session.account&&session.econStart&&!ELITE_TEST_MODE){econOn=true;const st=session.econStart.state,cur=econFlat();
-  for(const k in st)econAdjust(k,Math.round(st[k])-(cur[k]??0));state.pearls=session.econStart.pearls;
+  for(const k in st)econAdjust(k,Math.round(st[k])-(cur[k]??0));state.pearls=session.econStart.pearls;if(st.lqk!==undefined)serverLqk=Number(st.lqk);
   // Başarımlar ve yetenekler sunucudaki değerlerden türetilir: elle eklenen açılmış başarım ya da fazla yetenek puanı silinir
   ach.unlocked=ach.unlocked.filter(id=>{const d=ACHIEVEMENTS.find(a=>a.id===id);return!!d&&(d.stat==='level'||d.stat==='daily'||ach.stats[d.stat]>=d.goal);});if(!MAIN_COLLECTION.every(id=>ach.unlocked.includes(id)))ach.collectionComplete=false;saveAchievements(ach);achBonusCache=achievementBonus(ach);
   void loadServerClaims();
@@ -1695,7 +1697,7 @@ if(session.account&&session.econStart&&!ELITE_TEST_MODE){econOn=true;const st=se
   session.econCollect=()=>{econTick();const items:Record<string,{v:number;g:number;s:number}>={};for(const k in econLast)items[k]={v:econLast[k],g:econG[k]??0,s:econS[k]??0};
     const b={items,pearlG,pearlS,sent:{...econLast},pearlSent:state.pearls};econG={};econS={};pearlG=0;pearlS=0;return b;};
   session.econRestore=b=>{for(const k in b.items){econG[k]=(econG[k]??0)+b.items[k].g;econS[k]=(econS[k]??0)+b.items[k].s;}pearlG+=b.pearlG;pearlS+=b.pearlS;};
-  session.econApply=(b,st2,pearls)=>{econTick();for(const k in st2)econAdjust(k,Math.round(st2[k])-(b.sent[k]??Math.round(st2[k])));state.pearls=Math.max(0,state.pearls+pearls-b.pearlSent);econSettle();};}
+  session.econApply=(b,st2,pearls)=>{econTick();if(st2.lqk!==undefined)serverLqk=Number(st2.lqk);for(const k in st2)econAdjust(k,Math.round(st2[k])-(b.sent[k]??Math.round(st2[k])));state.pearls=Math.max(0,state.pearls+pearls-b.pearlSent);econSettle();};}
 session.onPearlFix=d=>{state.pearls=Math.max(0,state.pearls+d);saveAccount();updateUI();};
 async function redeemCoupon(){const input=ui('couponInput') as HTMLInputElement,out=ui('couponResult');
   if(session.account){const sb=supa();if(!sb)return;if(normalizeCode(input.value).length<4){out.textContent='Kupon kodunu gir';out.className='coupon-result bad';return;}
@@ -2019,7 +2021,7 @@ function update(dt:number){updateHealFlights(dt);{const rc=document.getElementBy
   for(let i=wrecks.length-1;i>=0;i--){wrecks[i].t+=dt;if(wrecks[i].t>=WRECK_TIME)wrecks.splice(i,1);}
   netTick(dt);compassReveal=Math.max(0,compassReveal-dt);compassCooldown=Math.max(0,compassCooldown-dt);compassPulse=Math.max(0,compassPulse-dt*.8);
   let need=xpNeed(state.level);if(state.fame>=need&&!levelQuestDone(levelQuest)&&!levelQuestNoticed){levelQuestNoticed=true;const g=levelQuestGoal(state.level);rewardNotice(`TP doldu · Seviye görevi: ${levelQuestMap(state.level)} haritasında ${g.ships} ağır gemi ve ${g.monsters} canavar`,'gain');toast('Seviye görevi hazır · Görevler');}
-  while(state.fame>=need&&levelQuestDone(levelQuest)){state.fame-=need;state.level++;levelQuest=loadLevelQuest(state.level);saveLevelQuest(levelQuest);levelQuestNoticed=false;setAch('level',state.level);if(mentorServer)void loadServerMentor();else{const rw=onOwnLevel(mentorship,state.level);for(const r of rw)rewardNotice(`${r.level>=GRADUATE_LEVEL?'Mezuniyet':'Muço'} ödülü hazır · Kaptan & Muço penceresinden talep et`,'gain');saveMentorship(mentorship);}state.maxHp=baseMaxHp();state.hp=effectiveMaxHp();const gift=levelGift(state.level);state.pearls+=gift.pearls;arsenal.fire+=gift.fire;saveArsenal(arsenal);renderQuickSlots();saveAccount();playLevelUp();rewardNotice(`Seviye ${state.level} oldun · +${(playerBaseHp(state.level,0)-playerBaseHp(state.level-1,0)).toLocaleString('tr-TR')} azami gövde · +1 uzmanlık puanı · +${fmt(gift.pearls)} inci · +${fmt(gift.fire)} Ateş Güllesi · ${state.level}/1 açıldı`);toast(`Seviye ${state.level}! Yeni denizler açıldı`);showLevelUp(state.level);need=xpNeed(state.level);}
+  while(state.fame>=need&&levelQuestDone(levelQuest)&&(serverLqk===null||state.level<2||serverLqk>=levelQuestGoal(state.level).ships)){if(serverLqk!==null)serverLqk=0;state.fame-=need;state.level++;levelQuest=loadLevelQuest(state.level);saveLevelQuest(levelQuest);levelQuestNoticed=false;setAch('level',state.level);if(mentorServer)void loadServerMentor();else{const rw=onOwnLevel(mentorship,state.level);for(const r of rw)rewardNotice(`${r.level>=GRADUATE_LEVEL?'Mezuniyet':'Muço'} ödülü hazır · Kaptan & Muço penceresinden talep et`,'gain');saveMentorship(mentorship);}state.maxHp=baseMaxHp();state.hp=effectiveMaxHp();const gift=levelGift(state.level);state.pearls+=gift.pearls;arsenal.fire+=gift.fire;saveArsenal(arsenal);renderQuickSlots();saveAccount();playLevelUp();rewardNotice(`Seviye ${state.level} oldun · +${(playerBaseHp(state.level,0)-playerBaseHp(state.level-1,0)).toLocaleString('tr-TR')} azami gövde · +1 uzmanlık puanı · +${fmt(gift.pearls)} inci · +${fmt(gift.fire)} Ateş Güllesi · ${state.level}/1 açıldı`);toast(`Seviye ${state.level}! Yeni denizler açıldı`);showLevelUp(state.level);need=xpNeed(state.level);}
   if(toastTimer>0){toastTimer-=dt;if(toastTimer<=0)ui('toast').classList.remove('show');}uiClock-=dt;if(uiClock<=0){uiClock=.1;updateUI();};
 }
 
@@ -2174,7 +2176,7 @@ function sinkEnemy(e:Enemy){
   if(e.boss){defeatBoss(e);return;}
   // NPC tecrübe puanı ve altın verir; savaş puanı (SP) yalnızca rakip oyuncu batırınca gelir (src/battle.ts).
     const goldGain=goldGainAch(e.rewardGold*(1+bonus.bounty)),fame=xpGain(e.rewardFame);state.gold+=goldGain;state.fame+=fame;saveAccount();bumpAch('npc');if(e.role==='heavy')bumpAch('heavy');
-  rewardNotice(`${e.name} batırıldı · +${fmt(goldGain)} altın · +${fmt(fame)} TP kazanıldı`,'battle',{xp:fame,gold:goldGain,sink:true});if(e.def){recordQuestProgress('npc',e.def.id);levelQuestHit('npc',e.def.id,e.def.tier);}countBossKill(e);if(!e.summoned)setTimeout(spawnEnemy,1800);
+  rewardNotice(`${e.name} batırıldı · +${fmt(goldGain)} altın · +${fmt(fame)} TP kazanıldı`,'battle',{xp:fame,gold:goldGain,sink:true});if(e.def){if(!siege)sendKill(e.def.id);recordQuestProgress('npc',e.def.id);levelQuestHit('npc',e.def.id,e.def.tier);}countBossKill(e);if(!e.summoned)setTimeout(spawnEnemy,1800);
 }
 // Savaş puanı kazancı; rütbe atlanırsa duyurulur
 const spText=()=>{const r=battleRank(state.battlePoints);return r.next?`${fmt(state.battlePoints)} / ${fmt(r.next.sp)}`:fmt(state.battlePoints);};
@@ -2185,7 +2187,7 @@ function defeatMonster(m:Monster){
   spawnWreck(m);
   playExplosion();const d=m.def;
     const goldGain=goldGainAch(d.gold*(1+bonus.bounty)),fame=xpGain(d.xp);state.gold+=goldGain;state.fame+=fame;saveAccount();bumpAch('monster');
-  rewardNotice(`${m.name} yenildi · +${fmt(goldGain)} altın · +${fmt(fame)} TP kazanıldı`,'battle',{xp:fame,gold:goldGain,sink:true});recordQuestProgress('monster',d.id);levelQuestHit('monster',d.id,d.tier);
+  rewardNotice(`${m.name} yenildi · +${fmt(goldGain)} altın · +${fmt(fame)} TP kazanıldı`,'battle',{xp:fame,gold:goldGain,sink:true});if(!siege)sendKill(d.id);recordQuestProgress('monster',d.id);levelQuestHit('monster',d.id,d.tier);
   const p=randomSeaPoint(900);m.hp=m.maxHp;m.aggro=false;m.burnTimer=0;m.x=p.x;m.y=p.y;m.homeX=m.x;m.homeY=m.y;m.combatTimer=0;selected=null;state.attacking=false;
 }
 // Kule menzili hiçbir zaman oyuncunun top menzilinin altında kalmaz: kuleye ateş edebilen gemiyi kule de vurur
