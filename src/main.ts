@@ -2369,7 +2369,7 @@ function setAch(stat:AchStat,v:number){if(v>ach.stats[stat]){ach.stats[stat]=v;c
 let achSaveAt=0;
 function checkAchievements(){
   const fresh=unlockReached(ach);
-  for(const d of fresh){state.pearls+=d.pearls;rewardNotice(`Başarım açıldı: ${d.name} · +${fmt(d.pearls)} inci`);}
+  for(const d of fresh){if(!session.account)state.pearls+=d.pearls;rewardNotice(`Başarım açıldı: ${d.name} · +${fmt(d.pearls)} inci`);}
   if(fresh.length){const hadCollection=achBonusCache.damage>0;achBonusCache=achievementBonus(ach);if(!hadCollection&&achBonusCache.damage>0)rewardNotice('Ana madalya koleksiyonu tamamlandı · +%5 hasar · +%5 can');saveAccount();playLevelUp();saveAchievements(ach);return;}
   const now=performance.now();if(now-achSaveAt>2000){achSaveAt=now;saveAchievements(ach);}
 }
