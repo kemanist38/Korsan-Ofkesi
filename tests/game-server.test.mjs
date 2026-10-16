@@ -270,3 +270,7 @@ test('mines: placed near the ship only, capped per player, damage from server le
   // Puanından fazla yetenek bildirilirse yetenekler yok sayılır
   const L=S.buildLoadout({level:1},{tal:{sapper:99}});assert.equal(L.mineMult,1);
 });
+test('hero title comes only from the server, a client claim is ignored',()=>{
+  const L=S.buildLoadout({level:3},{hero:false});assert.equal(L.hero,0);
+  S.heroUntil.set('hero-u',Date.now()+1000);assert.ok(S.heroUntil.get('hero-u')>Date.now());
+});

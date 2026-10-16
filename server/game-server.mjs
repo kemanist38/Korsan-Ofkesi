@@ -19,7 +19,7 @@ import {cumulativeEliteBonus,ELITE_CANNON_CAPACITY} from '../src/elite-progressi
 import {ACHIEVEMENTS,MAIN_COLLECTION} from '../src/achievements.ts';
 import {officerSlots,OFFICER_MAX_RANK,talentPoints,TALENTS} from '../src/crew.ts';
 import {MINE} from '../src/arsenal.ts';
-import {HERO_DAMAGE} from '../src/siege.ts';
+import {HERO_DAMAGE,HERO_DAYS} from '../src/siege.ts';
 import {createChest} from '../src/loot.ts';
 import {fleetReward} from '../src/campaign.ts';
 import {contribReward,earnsChest,victoryChest} from '../src/siege.ts';
@@ -216,9 +216,11 @@ export function treasureDig(c){const t=treOf(c.uid);if(!t.spot)return{err:'harit
 // Görev sayaçları, bekleme süreleri ve hazine durumu sunucu dosyasında saklanır (yeniden başlatmada kaybolmaz)
 export const pendingCredits=new Map();
 const STATE_FILE=process.env.STATE_FILE||'/opt/game/state.json';const qkByUid=new Map();
+// Kuşatma Kahramanı unvanı (ilk 3, 7 gün): sunucu verir, oyuncunun bildirdiği unvan sayılmaz
+export const heroUntil=new Map();
 export function saveServerState(){if(process.env.NODE_ENV==='test')return;try{for(const c of all)if(c.credit&&!c.grant){c.grant={id:crypto.randomUUID(),add:c.credit};c.credit=null;pendingCredits.set(c.grant.id,c);}
-  fs.writeFileSync(STATE_FILE+'.tmp',JSON.stringify({g:[...pendingCredits.values()].map(c=>({uid:c.uid,grant:c.grant,credit:c.credit})),q:[...questCooldowns].map(([u,m])=>[u,[...m]]),k:[...qkByUid],t:[...treasures]}));fs.renameSync(STATE_FILE+'.tmp',STATE_FILE);}catch(e){log('DURUM kayıt hatası',e?.code);}}
-function loadServerState(){if(process.env.NODE_ENV==='test')return;try{const d=JSON.parse(fs.readFileSync(STATE_FILE,'utf8'));for(const c of d.g||[])if(c.grant?.id)pendingCredits.set(c.grant.id,c);for(const [u,m] of d.q||[])questCooldowns.set(u,new Map(m));for(const [u,k] of d.k||[])qkByUid.set(u,k);for(const [u,t] of d.t||[])treasures.set(u,t);}catch{}}
+  fs.writeFileSync(STATE_FILE+'.tmp',JSON.stringify({g:[...pendingCredits.values()].map(c=>({uid:c.uid,grant:c.grant,credit:c.credit})),q:[...questCooldowns].map(([u,m])=>[u,[...m]]),k:[...qkByUid],t:[...treasures],h:[...heroUntil]}));fs.renameSync(STATE_FILE+'.tmp',STATE_FILE);}catch(e){log('DURUM kayıt hatası',e?.code);}}
+function loadServerState(){if(process.env.NODE_ENV==='test')return;try{const d=JSON.parse(fs.readFileSync(STATE_FILE,'utf8'));for(const c of d.g||[])if(c.grant?.id)pendingCredits.set(c.grant.id,c);for(const [u,m] of d.q||[])questCooldowns.set(u,new Map(m));for(const [u,k] of d.k||[])qkByUid.set(u,k);for(const [u,t] of d.t||[])treasures.set(u,t);for(const [u,t] of d.h||[])heroUntil.set(u,t);}catch{}}
 loadServerState();setInterval(saveServerState,60_000).unref();process.on('SIGTERM',()=>{saveServerState();process.exit(0);});process.on('SIGINT',()=>{saveServerState();process.exit(0);});
 // Savaş puanı: sunucunun doğruladığı oyuncu batırmasından (aynı rakipten günde en çok 3 kez; etkinlik günü ×2 payı)
 export const spByUid=new Map(); // batıran → Map(rakip → {gün, sayı})
@@ -447,6 +449,7 @@ const siegeTop=r=>[...r.contrib.values()].filter(c=>c.dmg>0).sort((a,b)=>b.dmg-a
 export const siegeInfo=(r,uid)=>({id:r.id,end:r.end,n:r.caps.size,hp:r.hp.map(Math.round),max:r.max,result:r.result,top:siegeTop(r),mine:Math.round(r.contrib.get(uid)?.dmg??0)});
 function siegeFinish(){const r=siegeRun,room=seas.get(SIEGE_ROOM),total=[...r.contrib.values()].reduce((a,c)=>a+c.dmg,0)||1;log('KUŞATMA BİTTİ',r.result,r.caps.size,'kaptan');
   // Zafer sandığı: kalenin yeterli payını vuran herkese sunucu verir (içerik oyuna gönderilir)
+  if(r.result==='won'){const t=Date.now()+HERO_DAYS*86_400_000;[...r.contrib].filter(([,c])=>c.dmg>0).sort((a,b)=>b[1].dmg-a[1].dmg).slice(0,3).forEach(([u])=>heroUntil.set(u,t));}
   const chests=new Map();if(r.result==='won')for(const x of all){const dmg=r.contrib.get(x.uid)?.dmg??0;if(!x.uid||!earnsChest(dmg,r.caps.size))continue;
     const ch=victoryChest(Math.random,Number(x.econ?.level)||8),add={pearls:ch.pearls,a_speed:ch.speed,a_mine:ch.mine,a_powder:ch.powder,a_shield:ch.shield};for(const [k,n] of Object.entries(ch.ammo))add['a_'+k]=(add['a_'+k]||0)+n;addCredit(x,add);chests.set(x.uid,ch);}
   for(const x of room||[])send(x,{t:'send',d:{won:r.result==='won',n:r.caps.size,top:siegeTop(r),mine:Math.round(r.contrib.get(x.uid)?.dmg??0),share:(r.contrib.get(x.uid)?.dmg??0)/total,chest:chests.get(x.uid)??null}});}
@@ -603,7 +606,7 @@ wss.on('connection',ws=>{
       case'bkill':return; // Only accepted nkill events advance the boss counter.
       case'bhit':return; // oyuncunun bildirdiği hasar kabul edilmez (sunucu atışı ve mayın)
       case'shit':return; // oyuncunun bildirdiği hasar kabul edilmez (sunucu atışı ve mayın)
-      case'ld':{c.ld=buildLoadout(c.econ,m.d);c.ldRaw=m.d;return;}
+      case'ld':{const d={...(m.d&&typeof m.d==='object'?m.d:{}),hero:(heroUntil.get(c.uid)??0)>now};c.ld=buildLoadout(c.econ,d);c.ldRaw=d;return;}
       case'atk':{if(!c.sea||!c.rSalvo.hit(now))return;await onAttack(c,m.d,now);return;}
       case'nhit':return; // oyuncunun bildirdiği hasar kabul edilmez (sunucu atışı ve mayın)
       case'nkill':{if(NPCS[String(m.d?.id||'')])return;if(!c.sea||!c.rKill.hit(now))return;const r=killCredit(c,String(m.d?.id||''),now);
