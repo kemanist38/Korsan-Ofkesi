@@ -58,13 +58,7 @@ body.captain-hud{--strip:0px;--hud-brass:#b7824a;--hud-dark:#150d10}
 .captain-hud .chat-toggle svg{width:32px;height:32px;fill:#efc780}
 .captain-hud .chat-toggle>span{position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);background:#1c0c0d;border:1px solid #b7824a;border-radius:5px;padding:3px 10px;font:700 10px Cinzel,serif;color:#ffe0a0}
 .captain-hud .chat-box{left:-130px;bottom:84px;height:min(260px,55vh)}
-.captain-hud #centerCamera{position:absolute;left:-70px;bottom:4px;width:48px;height:48px;pointer-events:auto;border:2px ridge #b7824a;border-radius:50%;background:radial-gradient(circle,#522626,#100d11);box-shadow:0 0 0 3px #3b1719;cursor:pointer}
-.captain-hud #centerCamera>b{position:absolute;inset:4px;display:grid;place-items:center;background:none;border:0;box-shadow:none}
-.captain-hud .combat-controls{right:18px;bottom:14px;width:248px;height:184px}
 .captain-hud .combat-controls .combat-action>b{border:2px ridge #b7824a;background:radial-gradient(circle,#482328,#110b0e);box-shadow:0 0 0 3px #44171a}
-.captain-hud .combat-controls .combat-action>span{background:#190c0e;border:1px solid #a57245;border-radius:5px;padding:3px 7px;color:#ffe1a8;white-space:nowrap;font-size:9px}
-.captain-hud .combat-controls .combat-action>small{display:none}
-.captain-hud .combat-controls .combat-action.recenter-btn{background:radial-gradient(circle,#543023,#100d11);border:2px ridge #b7824a}
 html.touch .captain-hud .corner-buttons{top:90px!important;right:16px;gap:6px}
 .captain-hud .corner-buttons .round-button{width:34px;height:34px}
 html.touch .captain-hud .event-panel{top:139px!important}
@@ -85,3 +79,7 @@ html.touch .captain-hud .combat-targets{top:278px!important}
 /* Telefon: altın/inci mini haritanın üstünde, çevrim içi yanında; köşe düğmeleri en üstte */
 @media(max-width:1100px){.captain-hud .strip-res{-webkit-text-size-adjust:none;text-size-adjust:none;max-height:24px;position:fixed;left:14px;right:auto!important;top:4px!important;height:24px;z-index:46}.captain-hud .strip-res b{font-size:10px!important;padding:1px 7px!important;line-height:16px}.captain-hud .strip-res i.sprite{width:16px!important;height:16px!important}.captain-hud .strip-res button{width:20px;height:20px}.captain-hud .net-pill{position:fixed;right:14px;top:50px!important;transform:scale(.8);transform-origin:right top}.captain-hud .map-cluster{top:32px!important}html.touch .captain-hud .corner-buttons{top:10px!important}html.touch .captain-hud .event-panel{top:80px!important}}
 body.touch-ui.captain-hud .mobile-dock{z-index:40;touch-action:none}
+
+/* Sohbet sabit solda; gemiyi ortala düğmesi yalnız kamera gemiden uzaklaşınca orta altta çıkar */
+html.touch .captain-hud .chat{left:160px!important;bottom:92px!important}
+.center-cam{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:41;width:52px;height:52px;padding:0;border:2px ridge #b7824a;border-radius:50%;background:radial-gradient(circle,#543023,#100d11);display:none;place-items:center;cursor:pointer;pointer-events:auto}.center-cam.show{display:grid}.center-cam>b{display:grid;place-items:center;width:100%;height:100%}

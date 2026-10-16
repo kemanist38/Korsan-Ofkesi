@@ -400,7 +400,7 @@ let uiScale=1;
 // Dokunmatik ekranlarda (telefon) sanal alan 880 × 480: yazılar ve düğmeler parmakla okunup basılabilecek boyda kalır.
 // Web ve mobil aynı HUD düzenini kullanır (sol altta gülle düğmesi, soldaki hedef listesi, aynı çerçeveler)
 const MOBILE_HUD=true;
-function fitHud(){const [vw,vh]=[1180,640];uiScale=Math.max(.5,Math.min(1,innerWidth/vw,innerHeight/vh));document.documentElement.style.setProperty('--ui',String(uiScale));document.documentElement.classList.toggle('touch',MOBILE_HUD);}
+function fitHud(){const [vw,vh]=MOBILE_HUD?[880,480]:[1180,640];uiScale=Math.max(.5,Math.min(1,innerWidth/vw,innerHeight/vh));document.documentElement.style.setProperty('--ui',String(uiScale));document.documentElement.classList.toggle('touch',MOBILE_HUD);}
 fitHud();
 // Günün etkinliği: mini haritada dünya ikonunun yanında kısa rozet (ör. "İnci ×2"); tıklayınca haftalık takvim açılır
 const DAY_SHORT:Record<string,string>={sp:'SP ×2',tp:'TP +%50',ep:'EP +%50',boss:'Boss ×2',gold:'Altın +%50',pearl:'İnci ×2',siege:'Kuşatma'};
@@ -480,7 +480,7 @@ setInterval(renderDayEvent,15000);
 ui('ability-speed').onclick=()=>activateAbility('speed');ui('ability-mine').onclick=dropMine;ui('rageButton').onclick=activateRage;
 function recenterShip(){freeLook=null;camera.x=player.x;camera.y=player.y;toast('Kamera gemiye ortalandı');}
 ui('recenterShip').onclick=recenterShip;{const top=ui('topStatus');const hp=document.querySelector('.hud-dock .hp-line'),sp=document.querySelector('.hud-dock .battle-line');if(hp)top.appendChild(hp);if(sp)top.appendChild(sp);top.classList.add('four-bars');}{const rc=ui('recenterShip');rc.className='combat-action recenter-btn';rc.innerHTML='<b><svg viewBox="0 0 48 48" width="70%" height="70%" aria-hidden="true"><g fill="none" stroke="#ffe09b" stroke-width="3" stroke-linecap="round"><circle cx="24" cy="24" r="12"/><circle cx="24" cy="24" r="4" fill="#ffe09b"/><path d="M24 4v40M4 24h40M9.9 9.9l28.2 28.2M38.1 9.9 9.9 38.1"/></g><g fill="#ffe09b"><circle cx="24" cy="4" r="2.6"/><circle cx="24" cy="44" r="2.6"/><circle cx="4" cy="24" r="2.6"/><circle cx="44" cy="24" r="2.6"/><circle cx="9.9" cy="9.9" r="2.6"/><circle cx="38.1" cy="38.1" r="2.6"/><circle cx="38.1" cy="9.9" r="2.6"/><circle cx="9.9" cy="38.1" r="2.6"/></g></svg></b><span>GEMİ</span>';rc.title='Gemiyi ortala';ui('combatControls').appendChild(rc);
-const center=rc.cloneNode(true) as HTMLButtonElement;center.id='centerCamera';center.title='Gemiyi ekrana ortala';center.setAttribute('aria-label','Gemiyi ekrana ortala');center.querySelector('span')?.remove();center.onclick=recenterShip;document.querySelector('.chat')!.appendChild(center);
+const center=rc.cloneNode(true) as HTMLButtonElement;center.id='centerCamera';center.title='Gemiyi ekrana ortala';center.setAttribute('aria-label','Gemiyi ekrana ortala');center.querySelector('span')?.remove();center.onclick=recenterShip;center.classList.add('center-cam');document.body.appendChild(center);
 }
 ui('openWorldMap').onclick=openWorldMap;ui('closeWorldMap').onclick=closeWorldMap;
 ui('worldMapOverlay').addEventListener('pointerdown',e=>{if(e.target===ui('worldMapOverlay'))closeWorldMap();});
@@ -1376,7 +1376,7 @@ function itemAsset(item:QuickItemId){return rasterItemAssets[item]?`<img class="
 function quickSlotHtml(item:QuickItemId|null,index:number){const row=index<AMMO_ROW?'ammo-row':'item-row',key=slotKey(index),k=key==='—'?'':key;
   return item?`<button class="quick-slot ${row} ${item===state.ammo||((item==='powder'||item==='shield')&&consumableOn[item])?'active':''}" data-quick-slot="${index}" data-quick-item="${item}" aria-label="${QUICK_ITEMS[item].name}">${itemAsset(item)}<b>${quickCount(item)}</b><kbd>${k}</kbd></button>`:`<button class="quick-slot ${row} empty" data-quick-slot="${index}" title="${index<AMMO_ROW?'Gülle yuvası':'Sarf yuvası'}"><span>+</span><kbd>${k}</kbd></button>`;}
 // Sohbet düğmesi mobilde büyük gülle düğmesinin hemen üstünde durur (ölçekten bağımsız, gerçek konuma göre)
-function placeChatAboveDock(){const chat=document.querySelector<HTMLElement>('.chat'),main=document.getElementById('mobMain');if(!chat||!main)return;
+function placeChatAboveDock(){if(document.body.classList.contains('captain-hud'))return;const chat=document.querySelector<HTMLElement>('.chat'),main=document.getElementById('mobMain');if(!chat||!main)return;
   requestAnimationFrame(()=>{const r=main.getBoundingClientRect();chat.style.left=`${Math.max(4,r.left+r.width/2-22)}px`;chat.style.bottom=`${innerHeight-r.top+22}px`;});}
 addEventListener('resize',()=>{if(MOBILE_HUD)placeChatAboveDock();});
 // Mobil dokunmatik: tüm gülle ve malzemeler tek sırada, soldaki büyük düğme seçili gülleyi gösterir ve sırayı açıp kapatır
@@ -1384,14 +1384,14 @@ let mobileTrayOpen=false,dockDragged=false;
 // Gülle düğmesi basılı tutup sürüklenerek taşınır; yeri hatırlanır
 function dockDraggable(dock:HTMLElement){const main=ui('mobMain');try{const p=JSON.parse(localStorage.getItem('pr-dock-pos')||'null');if(p){dock.style.left=`${p.x}px`;dock.style.bottom=`${p.y}px`;}}catch{}
   main.addEventListener('pointerdown',e=>{const sx=e.clientX,sy=e.clientY,ox=dock.offsetLeft,ob=innerHeight-dock.offsetTop-dock.offsetHeight;let moved=false;main.setPointerCapture(e.pointerId);
-    const mv=(m:PointerEvent)=>{const dx=m.clientX-sx,dy=m.clientY-sy;if(!moved&&Math.hypot(dx,dy)<10)return;moved=true;dock.style.left=`${Math.max(0,Math.min(innerWidth-80,ox+dx))}px`;dock.style.bottom=`${Math.max(0,Math.min(innerHeight-90,ob-dy))}px`;placeChatAboveDock();};
+    const mv=(m:PointerEvent)=>{const dx=m.clientX-sx,dy=m.clientY-sy;if(!moved&&Math.hypot(dx,dy)<10)return;moved=true;dock.style.left=`${Math.max(0,Math.min(innerWidth-80,ox+dx))}px`;dock.style.bottom=`${Math.max(0,Math.min(innerHeight-90,ob-dy))}px`;};
     const up=()=>{main.removeEventListener('pointermove',mv);main.removeEventListener('pointerup',up);main.removeEventListener('pointercancel',up);if(moved){dockDragged=true;try{localStorage.setItem('pr-dock-pos',JSON.stringify({x:parseInt(dock.style.left),y:parseInt(dock.style.bottom)}));}catch{}}};
     main.addEventListener('pointermove',mv);main.addEventListener('pointerup',up);main.addEventListener('pointercancel',up);});}
 function renderMobileDock(){if(!MOBILE_HUD)return;let dock=document.getElementById('mobileDock');
   if(!dock){ui('ammoBar').parentElement!.insertAdjacentHTML('beforeend','<div class="mobile-dock" id="mobileDock"><button class="mob-main" id="mobMain"></button><div class="mob-tray" id="mobTray"></div></div>');dock=ui('mobileDock');
     ui('mobMain').onclick=()=>{if(dockDragged){dockDragged=false;return;}mobileTrayOpen=!mobileTrayOpen;renderMobileDock();};dockDraggable(dock);document.body.classList.add('touch-ui');}
   placeChatAboveDock();
-  ui('mobMain').innerHTML=`${itemAsset(state.ammo)}<b>${quickCount(state.ammo)}</b>`;dock.classList.toggle('open',mobileTrayOpen);
+  ui('mobMain').innerHTML=`${itemAsset(state.ammo)}<b>${quickCount(state.ammo)}</b>`;dock.classList.toggle('tray-on',mobileTrayOpen);
   ui('mobTray').innerHTML=quickSlots.map((item,i)=>item?`<button class="${item===state.ammo||((item==='powder'||item==='shield')&&consumableOn[item])?'active':''}" data-mob-slot="${i}" data-quick-item="${item}" title="${QUICK_ITEMS[item].name}">${itemAsset(item)}<b>${quickCount(item)}</b></button>`:'').join('');
   ui('mobTray').querySelectorAll<HTMLButtonElement>('[data-mob-slot]').forEach(b=>b.onclick=()=>{const i=Number(b.dataset.mobSlot),ammo=i<AMMO_ROW;useQuickSlot(i);if(ammo){mobileTrayOpen=false;renderMobileDock();}});}
 // Hızlı yuvalar kendiliğinden dolar: gemide olan her gülle üst sırada, her malzeme alt sırada (boş "+" yuva yok)
@@ -1831,7 +1831,7 @@ function straightAdvance(px:number,py:number,tx:number,ty:number,V:number,dt:num
   const step=Math.min(g,V*dt),mx=gx/g*step,my=gy/g*step/2;
   shipDir16=(8+Math.round(Math.atan2(gy,gx)/(Math.PI/8))+16)%16;isoFace.east=gx>=0;isoFace.north=gy<0;
   return{m:null,mx,my,done:false};}
-function update(dt:number){updateHealFlights(dt);{const rc=document.getElementById('recenterShip');if(rc){const away=!!freeLook&&dist(freeLook,player)>60;if(rc.classList.contains('show')!==away)rc.classList.toggle('show',away);}}
+function update(dt:number){updateHealFlights(dt);{const rc=document.getElementById('recenterShip');if(rc){const away=!!freeLook&&dist(freeLook,player)>60;if(rc.classList.contains('show')!==away){rc.classList.toggle('show',away);document.getElementById('centerCamera')?.classList.toggle('show',away);}}}
     // W-A-S-D (ve oklar) gemiyi yürütmez: gemi yerinde kalırken harita kayar, oyuncu tıklayacağı yeri önceden görür. V gemiye geri ortalar.
     {const px=(held('right','arrowright')?1:0)-(held('left','arrowleft')?1:0),py=(held('back','arrowdown')?1:0)-(held('forward','arrowup')?1:0);
       if(px||py){const base=freeLook??camera,n=Math.hypot(px,py),v=520*dt/camera.zoom;lookAt(base.x+px/n*v,base.y+py/n*v);}
