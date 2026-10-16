@@ -510,3 +510,7 @@ html.touch .info-strip{gap:10px}
 .net-warn{position:fixed;left:50%;top:96px;z-index:80;transform:translateX(-50%);padding:8px 16px;border:1px solid #d9763f;border-radius:8px;background:#2a120ccc;color:#ffd7b0;font:700 13px Inter,sans-serif;box-shadow:0 4px 14px #000a;pointer-events:none}
 /* Uzun can yazısı (milyonlar) sığsın diye küçülür */
 .top-status .status-line b.long,.status-line b#hpHudText.long{font-size:10.5px;letter-spacing:-.03em}
+/* İhale: önceki saatin kazananları */
+.auction-last{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:10px;padding:8px 10px;border-top:1px solid #b8904e44;color:#cdb98f;font:500 11px Inter,sans-serif}
+.auction-last:empty{display:none}.auction-last small{flex-basis:100%;color:#a8916a;font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.auction-last b{color:#f1c662}
