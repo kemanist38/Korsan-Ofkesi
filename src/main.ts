@@ -25,7 +25,7 @@ import {supa} from './supabase';
 import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
 import {loadLevelQuest,saveLevelQuest,levelQuestDone,levelQuestKill,levelQuestGoal,needsLevelQuest,levelQuestMap} from './level-quest';
 import {SPY_COST,SPY_SHIELD_PRICE,loadSpy,sendSpy,type SpyRival} from './spy';
-import {netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,sendSalvo,sendUse,sendQuestDone,sendChest,sendDig,sendSparkle,type NetTreasure,type NetDig,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
+import {netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,sendSalvo,sendUse,sendQuestDone,sendChest,sendDig,sendSparkle,type NetTreasure,type NetDig,type NetLoot,type NetSiegeEnd,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
 import {AUCTION_MS,loadAuction,saveAuction,emptyAuction,auctionHour,auctionEnds,lotsFor,minNextBid,applyBid,wonLots,auctionId,type LotDef,type Bid} from './auction';
 import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,claimReward,GRADUATE_LEVEL,MAX_APPRENTICES,TOGETHER_XP_BONUS,APPRENTICE_MAX_LEVEL} from './mentorship';
 import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
@@ -550,7 +550,7 @@ const netHandlers:NetHandlers={
   siegeHp:list=>{if(siege&&siegeOnline)siegeApplyHp(list);},
   siegeDown:i=>{if(!siege||!siegeOnline)return;const e=enemies.find(x=>x.siege&&siegePiece(x)===i);if(e){e.serverDown=true;sinkEnemy(e);}},
   siegeRank:d=>{if(!siege||!siegeOnline)return;SIEGE_PARTICIPANTS=Math.max(1,d.n);siege.contrib=Object.fromEntries(d.top);siege.contrib[profile.nick]=d.mine;},
-  siegeEnd:d=>{if(!siege||!siegeOnline)return;SIEGE_PARTICIPANTS=Math.max(1,d.n);siege.contrib=Object.fromEntries(d.top);siege.contrib[profile.nick]=d.mine;
+  siegeEnd:d=>{if(!siege||!siegeOnline)return;serverSiegeChest=d.chest??null;SIEGE_PARTICIPANTS=Math.max(1,d.n);siege.contrib=Object.fromEntries(d.top);siege.contrib[profile.nick]=d.mine;
     if(siege.result)return;if(d.won){const e=enemies.find(x=>x.commander);if(e){e.serverDown=true;sinkEnemy(e);return;}siege.result='won';saveSiege(siege);stopBossMusic();finishSiege(true);}
     else{siege.result='lost';saveSiege(siege);stopBossMusic();finishSiege(false);}},
   island:n=>applyIsland(n),
@@ -586,6 +586,8 @@ const netHandlers:NetHandlers={
     if(k.by===myNetId){gainRage(rage,RAGE_PER_RIVAL);const sp=claimRivalSp(rivalLog,k.victimNick)?gainSp(RIVAL_SP*spMult()):0;sinkNotice(k.victimNick,sp);rivalSinks++;saveRivalSinks(rivalSinks);saveAccount();}
     else if(k.victim!==myNetId)rewardNotice(`${k.byNick}, ${k.victimNick} kaptanını batırdı`,'battle');},
   spy:r=>onSpyReport(r),
+  chestReward:r=>applyLoot(r,r.kind==='gilded'?'Yaldızlı sandık':'Ahşap sandık'),
+  sparkleReward:r=>applyLoot(r,'Pırıltı'),
   treasure:t=>onTreasureState(t),
   dig:d=>onDig(d),
   // Sunucu imkânsız hızı kabul etmez: gemi son geçerli konumuna döner
@@ -776,7 +778,7 @@ function defeatBoss(e:Enemy){
   if(share<=0){rewardNotice(`${b.name} batırıldı · bu savaşa katkın olmadı`,'battle');return;}
   const xp=xpGain(Math.round(b.xp*pool*share)),gold=goldGainAch(Math.round(NPCS[b.trigger].gold*20*pool*share));state.fame+=xp;state.gold+=gold;
   const full=share>=BOSS_MIN_SHARE,bEp=full?bossEp(b.tier):0;
-  if(full){gainElitePoints(bEp);gainRage(rage,RAGE_PER_BOSS);bumpAch('boss');state.pearls+=b.pearls;}
+  if(full){gainElitePoints(bEp);gainRage(rage,RAGE_PER_BOSS);bumpAch('boss');serverPearls(b.pearls);}
   saveAccount();
   const part=e.shared&&(e.shareN??1)>1?` · payın %${Math.round(share*100)} (${e.shareN} kaptan)`:'';
   rewardNotice(`${b.name} batırıldı${part} · +${fmt(xp)} TP · +${fmt(gold)} altın${full?` · +${fmt(b.pearls)} inci · +${fmt(bEp)} EP`:''} kazanıldı`,'battle',{xp,gold,sink:true});
@@ -1817,7 +1819,7 @@ function recordQuestProgress(kind:QuestDef['kind'],id:string){
   if(!quest||quest.map!==currentMap||quest.kind!==kind||!quest.ids.includes(id))return;
   questProgress[quest.id]=(questProgress[quest.id]??0)+1;saveQuestState();
   if(questProgress[quest.id]<quest.required)return;
-  sendQuestDone(quest.id);state.gold+=goldGainAch(quest.gold);state.fame+=xpGain(quest.xp);state.pearls+=quest.pearls;bumpAch('quest');const qEp=questEp(quest.tier);gainElitePoints(qEp);
+  sendQuestDone(quest.id);state.gold+=goldGainAch(quest.gold);state.fame+=xpGain(quest.xp);serverPearls(quest.pearls);bumpAch('quest');const qEp=questEp(quest.tier);gainElitePoints(qEp);
   rewardNotice(`Görev tamamlandı: ${quest.title} · +${fmt(quest.gold)} altın · +${fmt(quest.pearls)} inci · +${fmt(quest.xp)} TP · +${fmt(qEp)} EP`,'gain',{xp:quest.xp,gold:quest.gold});
   toast(`${quest.title} tamamlandı`);questProgress[quest.id]=0;questCooldownUntil[quest.id]=Date.now()+QUEST_COOLDOWN_MS;state.activeQuest=null;saveQuestState();saveAccount();
 }
@@ -2025,13 +2027,14 @@ function update(dt:number){updateHealFlights(dt);{const rc=document.getElementBy
   for(let i=wrecks.length-1;i>=0;i--){wrecks[i].t+=dt;if(wrecks[i].t>=WRECK_TIME)wrecks.splice(i,1);}
   netTick(dt);compassReveal=Math.max(0,compassReveal-dt);compassCooldown=Math.max(0,compassCooldown-dt);compassPulse=Math.max(0,compassPulse-dt*.8);
   let need=xpNeed(state.level);if(state.fame>=need&&!levelQuestDone(levelQuest)&&!levelQuestNoticed){levelQuestNoticed=true;const g=levelQuestGoal(state.level);rewardNotice(`TP doldu · Seviye görevi: ${levelQuestMap(state.level)} haritasında ${g.ships} ağır gemi ve ${g.monsters} canavar`,'gain');toast('Seviye görevi hazır · Görevler');}
-  while(state.fame>=need&&levelQuestDone(levelQuest)&&(serverLqk===null||state.level<2||serverLqk>=levelQuestGoal(state.level).ships)){if(serverLqk!==null)serverLqk=0;state.fame-=need;state.level++;levelQuest=loadLevelQuest(state.level);saveLevelQuest(levelQuest);levelQuestNoticed=false;setAch('level',state.level);if(mentorServer)void loadServerMentor();else{const rw=onOwnLevel(mentorship,state.level);for(const r of rw)rewardNotice(`${r.level>=GRADUATE_LEVEL?'Mezuniyet':'Muço'} ödülü hazır · Kaptan & Muço penceresinden talep et`,'gain');saveMentorship(mentorship);}state.maxHp=baseMaxHp();state.hp=effectiveMaxHp();const gift=levelGift(state.level);state.pearls+=gift.pearls;arsenal.fire+=gift.fire;saveArsenal(arsenal);renderQuickSlots();saveAccount();playLevelUp();rewardNotice(`Seviye ${state.level} oldun · +${(playerBaseHp(state.level,0)-playerBaseHp(state.level-1,0)).toLocaleString('tr-TR')} azami gövde · +1 uzmanlık puanı · +${fmt(gift.pearls)} inci · +${fmt(gift.fire)} Ateş Güllesi · ${state.level}/1 açıldı`);toast(`Seviye ${state.level}! Yeni denizler açıldı`);showLevelUp(state.level);need=xpNeed(state.level);}
+  while(state.fame>=need&&levelQuestDone(levelQuest)&&(serverLqk===null||state.level<2||serverLqk>=levelQuestGoal(state.level).ships)){if(serverLqk!==null)serverLqk=0;state.fame-=need;state.level++;levelQuest=loadLevelQuest(state.level);saveLevelQuest(levelQuest);levelQuestNoticed=false;setAch('level',state.level);if(mentorServer)void loadServerMentor();else{const rw=onOwnLevel(mentorship,state.level);for(const r of rw)rewardNotice(`${r.level>=GRADUATE_LEVEL?'Mezuniyet':'Muço'} ödülü hazır · Kaptan & Muço penceresinden talep et`,'gain');saveMentorship(mentorship);}state.maxHp=baseMaxHp();state.hp=effectiveMaxHp();const gift=levelGift(state.level);serverPearls(gift.pearls);arsenal.fire+=gift.fire;saveArsenal(arsenal);renderQuickSlots();saveAccount();playLevelUp();rewardNotice(`Seviye ${state.level} oldun · +${(playerBaseHp(state.level,0)-playerBaseHp(state.level-1,0)).toLocaleString('tr-TR')} azami gövde · +1 uzmanlık puanı · +${fmt(gift.pearls)} inci · +${fmt(gift.fire)} Ateş Güllesi · ${state.level}/1 açıldı`);toast(`Seviye ${state.level}! Yeni denizler açıldı`);showLevelUp(state.level);need=xpNeed(state.level);}
   if(toastTimer>0){toastTimer-=dt;if(toastTimer<=0)ui('toast').classList.remove('show');}uiClock-=dt;if(uiClock<=0){uiClock=.1;updateUI();};
 }
 
 // ---------------------------------------------------------------- Büyük Kuşatma (src/siege.ts)
 // Filo adası altyapısı Kara Kale olarak kullanılır. Test kaptanları sunucu gelene kadar diğer oyuncuların yerine
 // müttefik olarak savaşır: oyuncu onlara, onlar oyuncuya saldırmaz. Kaleden yıkılan hiçbir şey onarılmaz.
+let serverSiegeChest:NetSiegeEnd['chest']=null;
 let SIEGE_PARTICIPANTS=4;const SIEGE_FIRE_RANGE=520;
 // Ortak kuşatma (VPS): kale canı, katılımcı sayısı ve katkı sıralaması sunucudan gelir; yerelde verilen hasar parça parça gönderilir
 let siegeOnline=false;const siegePending=new Map<number,number>();let siegeSendClock=0;
@@ -2110,14 +2113,14 @@ function siegeTowerDown(e:Enemy){if(!siege||e.towerIndex===undefined)return;cons
   if(after===3)spawnCommander();renderSiegeHud();}
 // Katkı ödülü: ödenmemiş hasar kadar (ayrılınca ya da kuşatma bitince)
 function payContribution(){if(!siege)return null;const dmg=siege.contrib[profile.nick]??0,unpaid=dmg-siege.paid;if(unpaid<=0)return null;
-  const r=contribReward(unpaid,SIEGE_PARTICIPANTS,state.level),xp=xpGain(r.xp),gold=goldGainAch(r.gold);state.fame+=xp;state.gold+=gold;state.pearls+=r.pearls;siege.paid=dmg;saveSiege(siege);saveAccount();
+  const r=contribReward(unpaid,SIEGE_PARTICIPANTS,state.level),xp=xpGain(r.xp),gold=goldGainAch(r.gold);state.fame+=xp;state.gold+=gold;serverPearls(r.pearls);siege.paid=dmg;saveSiege(siege);saveAccount();
   return{xp,gold,pearls:r.pearls};}
 function siegeWon(e:Enemy){if(!siege)return;stopBossMusic();siege.result='won';siege.commanderHp=0;saveSiege(siege);
   for(let n=0;n<4;n++)later(n*.25,()=>{burst(e.x+(Math.random()-.5)*90,e.y+(Math.random()-.5)*60,true);playExplosion();});
   enemies.splice(0,enemies.length,...enemies.filter(o=>!o.siege));finishSiege(true);}
 function finishSiege(won:boolean){if(!siege)return;const reward=payContribution(),dmg=siege.contrib[profile.nick]??0,order=ranking(siege.contrib),rank=order.findIndex(([n])=>n===profile.nick)+1;
   let chest:ReturnType<typeof victoryChest>|null=null,title=false;
-  if(won&&earnsChest(dmg,SIEGE_PARTICIPANTS)){chest=victoryChest(Math.random,state.level);state.pearls+=chest.pearls;
+  if(session.account?!!serverSiegeChest:won&&earnsChest(dmg,SIEGE_PARTICIPANTS)){chest=session.account?serverSiegeChest as ReturnType<typeof victoryChest>:victoryChest(Math.random,state.level);serverSiegeChest=null;serverPearls(chest.pearls);
     for(const [k,n] of Object.entries(chest.ammo))arsenal[k as keyof typeof chest.ammo]+=n!;arsenal.speed+=chest.speed;arsenal.mine+=chest.mine;arsenal.powder+=chest.powder;arsenal.shield+=chest.shield;saveArsenal(arsenal);saveAccount();renderQuickSlots();}
   if(won&&rank>0&&rank<=3&&dmg>0){heroTitle=grantTitle();title=true;}
   playLevelUp();showSiegeResult(won,dmg,rank,order,reward,chest,title);renderSiegeHud();}
@@ -2417,7 +2420,7 @@ setTimeout(()=>{if(dailyStatus(daily).canClaim||(festival&&festivalStatus(festiv
 const treasure=loadTreasure();let dig:{t:number;x:number;y:number}|null=null;
 function rollTreasurePart(){
   // Hesapla oynarken parça zarını, hazine yerini ve kazıyı oyun sunucusu yönetir
-  if(session.account){sendChest();return;}
+  if(session.account)return;
   if(Math.random()>=PART_CHANCE)return;treasure.parts++;
   if(treasure.parts>=TREASURE_PARTS&&!treasure.active){treasure.parts-=TREASURE_PARTS;treasure.active=pickTreasureSpot(currentMap);rewardNotice(`Hazine haritası tamamlandı · ${treasure.active.map} · ${treasure.active.label}`);toast(`Hazine ${MAPS[treasure.active.map].name} denizinde, ${treasure.active.label} koordinatında!`);}
   else toast(`Hazine haritası parçası bulundu (${Math.min(treasure.parts,TREASURE_PARTS)}/${TREASURE_PARTS})`);
@@ -2444,10 +2447,17 @@ function updateTreasure(dt:number){
   const spot=treasure.active!,m=MAPS[spot.map],r=treasureReward(m.tier,NPCS[m.npcs[0]].gold);dig=null;giveTreasure(spot,r);}
 function giveTreasure(spot:{x:number;y:number},r:ReturnType<typeof treasureReward>){
   treasure.active=null;treasure.found++;saveTreasure(treasure);bumpAch('treasure');
-  state.gold+=r.gold;state.pearls+=r.pearls;if(r.ammo==='chain')state.chainAmmo+=r.ammoQty;else arsenal[r.ammo]+=r.ammoQty;arsenal.powder+=r.powder;arsenal.shield+=r.shield;saveArsenal(arsenal);renderQuickSlots();saveAccount();playCoins();playLevelUp();
+  state.gold+=r.gold;serverPearls(r.pearls);if(r.ammo==='chain')state.chainAmmo+=r.ammoQty;else arsenal[r.ammo]+=r.ammoQty;arsenal.powder+=r.powder;arsenal.shield+=r.shield;saveArsenal(arsenal);renderQuickSlots();saveAccount();playCoins();playLevelUp();
   for(let n=0;n<3;n++)burst(spot.x+(Math.random()-.5)*30,spot.y+(Math.random()-.5)*20,false);
   rewardNotice(`Hazine bulundu · +${fmt(r.gold)} altın · +${fmt(r.pearls)} inci · +${fmt(r.ammoQty)} ${QUICK_ITEMS[r.ammo].name} · +${fmt(r.powder)} kara barut · +${fmt(r.shield)} kalkan`,'gain',{gold:r.gold});
 }
+// Oyun sunucusunun cüzdana yazdığı inci: yerelde gösterilir ama eşitlemede kazanç olarak bildirilmez (çift sayılmasın)
+function serverPearls(n:number){if(!n)return;state.pearls+=n;if(session.account)session.pearlServerAdd?.(n);}
+// Sunucunun belirlediği sandık/pırıltı içeriği
+function applyLoot(r:NetLoot,title:string){serverPearls(r.pearls??0);arsenal.powder+=r.powder??0;arsenal.shield+=r.shield??0;arsenal.speed+=r.speed??0;arsenal.mine+=r.mine??0;
+  if(r.ammo&&r.ammoQty&&r.ammo in arsenal)(arsenal as unknown as Record<string,number>)[r.ammo]+=r.ammoQty;saveArsenal(arsenal);saveAccount();renderQuickSlots();
+  const parts=[r.pearls&&`+${fmt(r.pearls)} inci`,r.powder&&`+${fmt(r.powder)} kara barut`,r.shield&&`+${fmt(r.shield)} kalkan`,r.ammo&&r.ammoQty&&`+${fmt(r.ammoQty)} ${QUICK_ITEMS[r.ammo as QuickItemId]?.name??r.ammo}`,r.speed&&`+${fmt(r.speed)} hız iksiri`,r.mine&&`+${fmt(r.mine)} mayın`].filter(Boolean);
+  if(parts.length)rewardNotice(`${title} · ${parts.join(' · ')}`,'gain');}
 // Sunucudan hazine durumu ve kazı sonucu
 function onTreasureState(t:NetTreasure){const was=treasure.parts,had=!!treasure.active;treasure.parts=t.parts;treasure.active=t.spot?{...t.spot,map:t.spot.map as MapKey}:null;saveTreasure(treasure);
   if(!t.part)return;if(treasure.active&&!had){rewardNotice(`Hazine haritası tamamlandı · ${treasure.active.map} · ${treasure.active.label}`);toast(`Hazine ${treasure.active.map} denizinde · ${treasure.active.label}`);}
@@ -2460,7 +2470,7 @@ function drawTreasureMark(){
 }
 function updateLootChests(dt:number){
   for(let i=lootChests.length-1;i>=0;i--){const c=lootChests[i];c.life-=dt;
-    if(dist(c,player)<CHEST_PICKUP_RADIUS){lootChests.splice(i,1);playCoins();recordQuestProgress('chest',currentMap);rollTreasurePart();bumpAch('chest');state.pearls+=c.pearls;arsenal.powder+=c.powder;arsenal.shield+=c.shield;arsenal[c.ammo]+=c.ammoQty;arsenal.speed+=c.speed;arsenal.mine+=c.mine;saveArsenal(arsenal);saveAccount();renderQuickSlots();burst(c.x,c.y);rewardNotice(`${c.kind==='gilded'?'Yaldızlı sandık':'Ganimet sandığı'} toplandı · ${chestRewardText(c)}`,'gain');if(destination&&Math.hypot(destination.x-c.x,destination.y-c.y)<2)destination=null;continue;}
+    if(dist(c,player)<CHEST_PICKUP_RADIUS){lootChests.splice(i,1);playCoins();recordQuestProgress('chest',currentMap);if(session.account){sendChest(bonus.gilded);bumpAch('chest');burst(c.x,c.y);continue;}rollTreasurePart();bumpAch('chest');state.pearls+=c.pearls;arsenal.powder+=c.powder;arsenal.shield+=c.shield;arsenal[c.ammo]+=c.ammoQty;arsenal.speed+=c.speed;arsenal.mine+=c.mine;saveArsenal(arsenal);saveAccount();renderQuickSlots();burst(c.x,c.y);rewardNotice(`${c.kind==='gilded'?'Yaldızlı sandık':'Ganimet sandığı'} toplandı · ${chestRewardText(c)}`,'gain');if(destination&&Math.hypot(destination.x-c.x,destination.y-c.y)<2)destination=null;continue;}
     if(c.life<=0)lootChests.splice(i,1);}
   driftClock-=dt;
   if(driftClock<=0){driftClock=DRIFT_RESPAWN_SECONDS;if(lootChests.filter(c=>c.source==='drift').length<4){const p=randomSeaPoint(260);lootChests.push(createChest('drift',p.x,p.y,bonus.gilded,mapDef().tier));}}
@@ -2473,6 +2483,7 @@ function updateSparkles(dt:number){
     sparkles.splice(i,1);playCoins();
     // Pırıltı ödülü şansa bağlı, tek ödül (altın ve TP vermez):
     // %50 inci (1–2) · %15 kara barut · %15 kalkan · %15 özel gülle · %4 hız iksiri · %1 büyük ödül (5 inci + mayın)
+    if(session.account){sendSparkle();recordQuestProgress('sparkle',currentMap);for(let n=0;n<8;n++){const a=Math.random()*Math.PI*2,sp=30+Math.random()*50;particles.push({x:g.x,y:g.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:.5,maxLife:.5,kind:'foam'});}if(routeTarget&&dist(routeTarget,g)<4){routeTarget=null;destination=null;}sparkleQueue.push(SPARKLE_RESPAWN/sparkleMult());continue;}
     const tier=mapDef().tier,roll=Math.random(),kinds=['fire','explosive','breaker','leech'] as const,r=(a:number,b:number)=>a+Math.floor(Math.random()*(b-a+1));let label='';
     if(roll<.5){const n=r(1,2);state.pearls+=n;label=`+${n} İnci`;}
     else if(roll<.65){const n=r(2,5);arsenal.powder+=n;label=`+${n} Kara Barut`;}
@@ -2480,7 +2491,7 @@ function updateSparkles(dt:number){
     else if(roll<.95){const k=kinds[Math.floor(Math.random()*kinds.length)],n=30+15*tier;arsenal[k]+=n;label=`+${n} ${SPECIAL_AMMO[k].name}`;}
     else if(roll<.99){arsenal.speed+=1;label='+1 Hız İksiri';}
     else{state.pearls+=5;arsenal.mine+=1;label='BÜYÜK ÖDÜL · +5 İnci +1 Mayın';}
-    saveArsenal(arsenal);renderQuickSlots();if(session.account)sendSparkle();recordQuestProgress('sparkle',currentMap);saveAccount();playCoins();
+    saveArsenal(arsenal);renderQuickSlots();recordQuestProgress('sparkle',currentMap);saveAccount();playCoins();
     for(let n=0;n<8;n++){const a=Math.random()*Math.PI*2,sp=30+Math.random()*50;particles.push({x:g.x,y:g.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:.5,maxLife:.5,kind:'foam'});}
     particles.push({x:g.x,y:g.y-10,vx:0,vy:-26,life:1.1,maxLife:1.1,kind:'damage',text:label});
     if(routeTarget&&dist(routeTarget,g)<4){routeTarget=null;destination=null;}

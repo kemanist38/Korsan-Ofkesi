@@ -181,3 +181,14 @@ test('siege reward basis is actual damage; blocked pieces have none',()=>{
   assert.equal(hit.damage,before-S.siegeRun.hp[0]);assert.ok(hit.damage<=S.SIEGE_HIT_CAP);
   S.resetSiege();
 });
+test('sandık, pırıltı, boss ve görev incisi sunucudan',()=>{
+  const c={sea:'sea-3-1'};
+  // Sandık: zar sunucuda; %50'nin altı inci (ahşap), yaldızlıda 2 kat
+  const ch=S.chestReward(c,0,()=>.1);assert.ok(ch.out.pearls>0);assert.equal(ch.add.pearls,ch.out.pearls);assert.equal(ch.add.st_chest,1);
+  // Yaldız payı 0,24'ten fazla istenemez
+  let gilded=0;for(let i=0;i<2000;i++)if(S.chestReward(c,5).out.kind==='gilded')gilded++;assert.ok(gilded<2000*.45);
+  // Pırıltı: %50 inci 1–2, %1 büyük ödül
+  assert.ok(S.sparkleReward(c,()=>.2).add.pearls>=1);assert.equal(S.sparkleReward(c,()=>.995).add.a_mine,1);
+  // Boss %3 üstü pay inci verir; görev incisi
+  assert.ok(S.bossCredit('3/1',.5,2).pearls>0);assert.equal(S.bossCredit('3/1',.01,2).pearls,undefined);
+});
