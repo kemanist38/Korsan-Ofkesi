@@ -1,7 +1,7 @@
 // Filo adaları her denizde tam gelişmiş (8. seviye) gemi grubu hedefidir; kule vuruşu 8. seviye can ölçeğindedir. Kule canı: 5 güçlü gemi kule kırıcıyla ~1 dakikada yıkar.
 // NPC ve etkinlik kuşatması ölçeklerinden bağımsızdır; düşük denizlerde de solo hedef değildir.
 export const FLEET_ASSAULT_SIZE=5;
-// Oyuncu canı: seviye tabanı + gövde geliştirmesi başına 25.000. Aynı seviyedeki rakip patlayıcı gülleyle ~15 salvoda (~20 sn) batırır.
+// Oyuncu canı: seviye tabanı + gövde geliştirmesi başına 15.000. Aynı seviyedeki rakip patlayıcı gülleyle ~15 salvoda (~20 sn) batırır.
 // Eski model (75.000 + 2.500/seviye + 2.500/gövde) vuruş gücüne göre çok düşüktü (4. seviyeden sonra 2 salvo).
 export const PLAYER_LEVEL_HP=[0,54_000,108_000,228_000,540_000,690_000,780_000,930_000,1_050_000],HULL_HP=15_000;
 export const playerBaseHp=(level:number,hull:number)=>PLAYER_LEVEL_HP[Math.max(1,Math.min(8,Math.round(level)))]+hull*HULL_HP;

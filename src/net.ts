@@ -1,8 +1,6 @@
-// Çevrim içi deniz. Hesapla girişte önce VPS oyun sunucusuna (wss://game.piraterage.com/ws) bağlanılır: kimlik, kaptan adı,
-// mesaj sıklığı, hasar ve hız sunucuda denetlenir (server/game-server.mjs). Sunucuya ulaşılamazsa eski yol: Supabase Realtime. Aynı haritadaki oyuncular bir kanala katılır ve birbirine durum, atış ve batma
-// mesajı yayınlar. Sunucu tarafında hesap yoktur: her oyuncu kendisine gelen gülleyi kendi tarafında hesaplar
-// (yeterli: arkadaş grubuyla ilk sürüm). Kanal adı: sea-<harita>; sohbet için tek global kanal.
-import {type RealtimeChannel} from '@supabase/supabase-js';
+// Çevrim içi deniz: her şey VPS oyun sunucusundan (wss://game.piraterage.com/ws) geçer. Kimlik, kaptan adı, mesaj sıklığı,
+// hasar ve hız sunucuda denetlenir (server/game-server.mjs). Yedek yol yoktur: bağlantı koparsa oyun sürekli yeniden dener
+// ve ekranda uyarı gösterir; boss, filo adaları ve kuşatma yalnızca sunucuyla çalışır.
 import {supa} from './supabase';
 import {session} from './session';
 const GAME_WS='wss://game.piraterage.com/ws';
@@ -30,20 +28,18 @@ export type NetHandlers={siegeState?:(s:NetSiege)=>void;siegeHp?:(l:[number,numb
 const ID_KEY='yedi-deniz-net-id';
 export const myNetId=(()=>{try{let v=sessionStorage.getItem(ID_KEY);if(!v){v=Math.random().toString(36).slice(2,10);sessionStorage.setItem(ID_KEY,v);}return v;}catch{return Math.random().toString(36).slice(2,10);}})();
 
-let client:ReturnType<typeof supa>=null,sea:RealtimeChannel|null=null,chatCh:RealtimeChannel|null=null,auctionCh:RealtimeChannel|null=null,seaName='';
 let handlers:NetHandlers|null=null;
 // Bağlantı durumu (ekranda gösterilir): 'off' | 'connecting' | 'ok' | 'error'
 export let netStatus:'off'|'connecting'|'ok'|'error'='off',netError='';
 export const netOnline=()=>netStatus==='ok';
-// Hangi yoldan bağlı: VPS oyun sunucusu ya da yedek (Supabase)
 export let vpsError='';
-export const netMode=()=>wsFallback?'yedek':'VPS';
+export const netMode=()=>'VPS';
 
 // ---------------------------------------------------------------- VPS oyun sunucusu (WebSocket)
-let ws:WebSocket|null=null,wsReady=false,wsSea='',wsTries=0,wsFallback=false;
+let ws:WebSocket|null=null,wsReady=false,wsSea='',wsTries=0;
 const wsSend=(t:string,d?:unknown)=>{if(ws&&wsReady)ws.send(JSON.stringify({t,d}));};
-async function connectWs(){const sb=supa();if(!sb||!session.account){fallback();return;}
-  const {data}=await sb.auth.getSession();const token=data.session?.access_token;if(!token){fallback();return;}
+async function connectWs(){const sb=supa();if(!sb||!session.account){netStatus='off';return;}
+  const {data}=await sb.auth.getSession();const token=data.session?.access_token;if(!token){netStatus='error';netError='Oturum bulunamadı';setTimeout(()=>{void connectWs();},5000);return;}
   let opened=false;const sock=new WebSocket(GAME_WS);ws=sock;netStatus='connecting';
   const timer=setTimeout(()=>{if(!opened){sock.close();}},6000);
   sock.onopen=()=>{opened=true;clearTimeout(timer);sock.send(JSON.stringify({t:'auth',token,netId:myNetId}));};
@@ -77,53 +73,25 @@ async function connectWs(){const sb=supa();if(!sb||!session.account){fallback();
   sock.onclose=ev=>{clearTimeout(timer);const was=wsReady;wsReady=false;if(ws!==sock)return;ws=null;
     if(ev.code===4002){netStatus='error';netError='Hesap kapalı';return;}
     if(ev.code===4004){netStatus='error';netError='Hesabına başka bir yerden bağlanıldı';return;}
-    // İlk bağlantı hiç kurulamadıysa eski yola geç; kurulduysa yeniden dene
-    if(!was&&++wsTries>=2){vpsError=netError=`VPS: ${ev.code}${ev.reason?' '+ev.reason:''}`;console.warn('Oyun sunucusuna bağlanılamadı',ev.code,ev.reason);fallback();return;}
-    netStatus='connecting';setTimeout(()=>{void connectWs();},Math.min(15000,1000*2**wsTries++));};
+    // Bağlantı kurulamadı ya da koptu: artan aralıklarla (en çok 15 sn) sürekli yeniden dene
+    if(!was){wsTries++;vpsError=netError=`Sunucuya bağlanılamıyor (${ev.code}${ev.reason?' '+ev.reason:''})`;netStatus='error';}else netStatus='connecting';
+    setTimeout(()=>{void connectWs();},Math.min(15000,1000*2**Math.min(4,wsTries)));};
 }
-function fallback(){if(wsFallback)return;wsFallback=true;ws=null;startSupabase();const s=wsSea;seaName='';if(s)joinSea(s.replace(/^sea-/,''));}
-const useWs=()=>!wsFallback;
-
-export function startNet(h:NetHandlers){
-  handlers=h;
-  if(session.account&&!new URLSearchParams(location.search).has('eskiag')){void connectWs();return;}
-  wsFallback=true;startSupabase();
-}
-function startSupabase(){
-  client=supa();if(!client)return;
-  chatCh=client.channel('chat-global',{config:{broadcast:{self:false}}});
-  chatCh.on('broadcast',{event:'chat'},({payload})=>handlers?.chat(payload as NetChat)).subscribe();
-  const ac=client.channel('auction-global',{config:{broadcast:{self:false}}});auctionCh=ac;
-  ac.on('broadcast',{event:'bid'},({payload})=>handlers?.bid?.(payload as NetBid))
-    .on('broadcast',{event:'ask'},({payload})=>handlers?.bidAsk?.((payload as {hour:number}).hour))
-    .on('broadcast',{event:'known'},({payload})=>handlers?.bidKnown?.((payload as {bids:NetBid[]}).bids))
-    .subscribe(status=>{if(status==='SUBSCRIBED')send(ac,'ask',{hour:Math.floor(Date.now()/3600000)});});
-}
+export function startNet(h:NetHandlers){handlers=h;void connectWs();}
 // Haritaya katıl (harita değişince eski kanaldan çıkılır). Siege gibi özel alanlarda null verilir.
+// Haritaya katıl (harita değişince eski denizden çıkılır); kuşatmada 'siege'
 export function joinSea(map:string|null){
   const name=map?`sea-${map.replace('/','-')}`:'';
-  if(useWs()){if(name===wsSea)return;wsSea=name;if(ws&&wsReady)ws.send(JSON.stringify({t:'join',sea:name}));return;}
-  if(name===seaName)return;seaName=name;
-  if(sea){void sea.unsubscribe();sea=null;}
-  if(!client||!name)return;
-  const ch=client.channel(name,{config:{broadcast:{self:false},presence:{key:myNetId}}});
-  ch.on('broadcast',{event:'state'},({payload})=>handlers?.state(payload as NetState))
-    .on('broadcast',{event:'fire'},({payload})=>handlers?.fire(payload as NetFire))
-    .on('broadcast',{event:'sunk'},({payload})=>handlers?.sunk(payload as NetSunk))
-    .on('presence',{event:'leave'},({key})=>handlers?.leave(key))
-    .subscribe((status,err)=>{if(sea!==ch)return;if(status==='SUBSCRIBED'){netStatus='ok';netError='';void ch.track({id:myNetId});}else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){netStatus='error';netError=status+(err?` · ${err.message}`:'');}});
-  netStatus='connecting';
-  sea=ch;
+  if(name===wsSea)return;wsSea=name;if(ws&&wsReady)ws.send(JSON.stringify({t:'join',sea:name}));
 }
-const send=(ch:RealtimeChannel|null,event:string,payload:unknown)=>{if(ch)void ch.send({type:'broadcast',event,payload});};
-export const sendState=(s:NetState)=>useWs()?wsSend('state',s):send(sea,'state',s);
-export const sendFire=(f:NetFire)=>useWs()?wsSend('fire',f):send(sea,'fire',f);
-export const sendSunk=(s:NetSunk)=>useWs()?wsSend('sunk',s):send(sea,'sunk',s);
-export const sendChat=(c:NetChat)=>useWs()?wsSend('chat',c):send(chatCh,'chat',c);
-export const sendBid=(b:NetBid)=>useWs()?wsSend('bid',b):send(auctionCh,'bid',b);
-export const sendKnownBids=(bids:NetBid[])=>useWs()?wsSend('known',{bids}):send(auctionCh,'known',{bids});
-// Boss'lar VPS bağlantısı varken paylaşılır; yedek yolda (Supabase) her oyuncu kendi boss'unu keser
-export const sharedBosses=()=>useWs()&&wsReady;
+export const sendState=(s:NetState)=>wsSend('state',s);
+export const sendFire=(f:NetFire)=>wsSend('fire',f);
+export const sendSunk=(s:NetSunk)=>wsSend('sunk',s);
+export const sendChat=(c:NetChat)=>wsSend('chat',c);
+export const sendBid=(b:NetBid)=>wsSend('bid',b);
+export const sendKnownBids=(bids:NetBid[])=>wsSend('known',{bids});
+// Sunucuya bağlı ve hazır mı (boss, filo adaları ve kuşatma buna bağlı)
+export const sharedBosses=()=>wsReady;
 export const sendBossKill=(need:number)=>wsSend('bkill',{need});
 export const sendBossHit=(dmg:number)=>wsSend('bhit',{dmg:Math.round(dmg)});
 export const sendTowerHit=(slot:number,dmg:number,heal=false)=>wsSend('thit',{slot,dmg:Math.round(dmg),heal});
