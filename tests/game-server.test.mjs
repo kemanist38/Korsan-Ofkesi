@@ -84,3 +84,12 @@ test('pvp: can sınırı sunucudaki seviyeden, hasar bütçesi ve ölümsüzlük
   // Dost iyileştirmesi de bütçeli
   const h={maxHp:100_000};S.noteHp(h,50_000,now);assert.equal(S.pvpHeal(h,1_000_000,now),6000);
 });
+test('saniyelik hasar sınırı: seviyeye göre, 3 sn birikim, aşırı hız işaretlenir',()=>{
+  const cap=S.dpsCap(8);assert.equal(cap,6_300_000/40);
+  const c={econ:{level:8}};let now=0;
+  assert.equal(S.dpsTake(c,cap*10,now).ok,cap*3);// birikim kadar geçer
+  assert.equal(S.dpsTake(c,cap,now+1000).ok,cap);// saniyede bir sınır
+  // Sürekli 10 katı hasar bildiren işaretlenir; normal hız işaretlenmez
+  let flag=false;for(let i=2;i<12;i++)flag=S.dpsTake(c,cap*10,now+i*1000).flag||flag;assert.equal(flag,true);
+  const n={econ:{level:8}};let f2=false;for(let i=0;i<60;i++)f2=S.dpsTake(n,cap*.8,i*1000).flag||f2;assert.equal(f2,false);
+});

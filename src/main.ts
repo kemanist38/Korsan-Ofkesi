@@ -585,6 +585,8 @@ const netHandlers:NetHandlers={
   sunk:k=>{const e=remoteOf(k.victim);if(e){burst(e.x,e.y,true);playExplosion();splashAt(e.x,e.y,190);enemies.splice(enemies.indexOf(e),1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}}
     if(k.by===myNetId){gainRage(rage,RAGE_PER_RIVAL);const sp=claimRivalSp(rivalLog,k.victimNick)?gainSp(RIVAL_SP*spMult()):0;sinkNotice(k.victimNick,sp);rivalSinks++;saveRivalSinks(rivalSinks);saveAccount();}
     else if(k.victim!==myNetId)rewardNotice(`${k.byNick}, ${k.victimNick} kaptanını batırdı`,'battle');},
+  // Sunucu imkânsız hızı kabul etmez: gemi son geçerli konumuna döner
+  pos:p=>{player.x=p.x;player.y=p.y;player.speed=0;destination=null;routeTarget=null;},
   // Sunucu ölümsüz kalan gemiyi batırır (canı hasara rağmen düşmüyorsa)
   forceSink:d=>{if(state.hp<=0)return;state.hp=0;respawn();showSunkBy(d.byNick);},
   chat:(c:{nick:string;text:string;at:number})=>chat.receive(c.nick,c.text,c.at),
@@ -593,7 +595,7 @@ const netHandlers:NetHandlers={
   bidKnown:bids=>{for(const b of bids)receiveBid(b);},
 };
 startNet(netHandlers);if(session.account)setTimeout(()=>{void refreshCloudGuild();},2000);
-let netClock=0,netFullClock=0,netHp=0,netIdent='',shipDir16=8;const netPrev={x:0,y:0},netVel={x:0,y:0};
+let netClock=0,netFullClock=0,netHp=0,netIdent='',shipDir16=8;const netPrev={x:0,y:0},netVel={x:0,y:0},netSent={x:0,y:0};
 function netTick(dt:number){joinSea(siege?(sharedBosses()?'siege':null):currentMap);{const ix=(player.x-netPrev.x)/Math.max(dt,1e-3),iy=(player.y-netPrev.y)/Math.max(dt,1e-3),ok=Math.hypot(ix,iy)<600;netVel.x=netVel.x*.8+(ok?ix:0)*.2;netVel.y=netVel.y*.8+(ok?iy:0)*.2;}netPrev.x=player.x;netPrev.y=player.y;
   // 16 yönlü tasarımlar: görünüş ortalama gidiş yönünden (çapraz adımlar yumuşatılmış hız). Ekranda dikey hız yarı ölçekli → ×2
   if(Math.hypot(netVel.x,netVel.y)>25)shipDir16=(8+Math.round(Math.atan2(netVel.y*2,netVel.x)/(Math.PI/8))+16)%16;
@@ -606,6 +608,8 @@ function netTick(dt:number){joinSea(siege?(sharedBosses()?'siege':null):currentM
   const f=isoFace,ship=activeShip==='starter'?'starter':String(activeShip),ident=`${profile.nick}|${guild?.tag??''}|${ship}|${effectiveMaxHp()}|${battleRank(state.battlePoints).index}|${state.level}`;
   const msg:NetState={id:myNetId,x:Math.round(player.x),y:Math.round(player.y),east:f.east,north:f.north,hp,t:Date.now(),vx:Math.round(netVel.x),vy:Math.round(netVel.y),d16};
   if(netFullClock<=0||ident!==netIdent){netFullClock=2;netIdent=ident;Object.assign(msg,{nick:profile.nick,tag:guild?.tag??null,ship,maxHp:effectiveMaxHp(),sp:state.battlePoints,level:state.level});}
+  // Yeniden doğma, liman ya da harita geçişi gibi ani konum değişimi: sunucuya ışınlanma olarak bildirilir
+  if(Math.hypot(player.x-netSent.x,player.y-netSent.y)>700)msg.tp=1;netSent.x=player.x;netSent.y=player.y;
   sendState(msg);
   {const others=enemies.filter(e=>e.remote),pill=ui('netPill');pill.dataset.status=netStatus;
     ui('netText').textContent=netStatus==='ok'?`Çevrim içi · ${others.length} kaptan`:netStatus==='error'?'Bağlantı yok':netStatus==='off'?'Çevrim dışı':'Bağlanıyor…';
