@@ -1392,10 +1392,13 @@ function renderMobileDock(){if(document.body.classList.contains('captain-hud'))r
 const AUTO_AMMO:QuickItemId[]=['iron','chain','fire','explosive','breaker','leech','heal'],AUTO_ITEMS:QuickItemId[]=['powder','shield','speed','mine','compass'];
 function ownedQuick(id:QuickItemId){if(id==='iron')return true;if(id==='chain')return state.chainAmmo>0;return(arsenal[id as keyof typeof arsenal] as number)>0;}
 function autoFillQuickSlots(){quickSlots.fill(null);AUTO_AMMO.filter(ownedQuick).slice(0,AMMO_ROW).forEach((id,i)=>{quickSlots[i]=id;});AUTO_ITEMS.filter(ownedQuick).slice(0,AMMO_ROW).forEach((id,i)=>{quickSlots[AMMO_ROW+i]=id;});}
-function renderQuickSlots(){autoFillQuickSlots();renderMobileDock();
+let barsCollapsedOnce=false;
+function renderQuickSlots(){autoFillQuickSlots();if(!barsCollapsedOnce){barsCollapsedOnce=true;document.querySelectorAll('.slot-bar').forEach(b=>b.classList.add('collapsed'));}renderMobileDock();
   ui('ammoSlots').innerHTML=quickSlots.slice(0,AMMO_ROW).map((item,i)=>item?quickSlotHtml(item,i):'').join('');
   ui('itemSlots').innerHTML=quickSlots.slice(AMMO_ROW).map((item,i)=>item?quickSlotHtml(item,i+AMMO_ROW):'').join('');
-  document.querySelectorAll<HTMLButtonElement>('.slot-bar [data-quick-slot]').forEach(slot=>{const index=Number(slot.dataset.quickSlot);slot.onclick=()=>useQuickSlot(index);slot.ondragover=e=>e.preventDefault();slot.ondrop=e=>{e.preventDefault();const item=e.dataTransfer?.getData('text/quick-item') as QuickItemId;if(item&&QUICK_ITEMS[item])assignQuickSlot(index,item);};});
+  // Kapalı çubukta yalnız öndeki yuva görünür (gülle: seçili gülle, malzeme: ilk malzeme); ona basınca açılır, bir yuva seçilince geri kapanır
+  ui('ammoSlots').querySelector(`[data-quick-item="${state.ammo}"]`)?.classList.add('lead');if(!ui('ammoSlots').querySelector('.lead'))ui('ammoSlots').firstElementChild?.classList.add('lead');ui('itemSlots').firstElementChild?.classList.add('lead');
+  document.querySelectorAll<HTMLButtonElement>('.slot-bar [data-quick-slot]').forEach(slot=>{const index=Number(slot.dataset.quickSlot);slot.onclick=()=>{const bar=slot.closest('.slot-bar');if(bar?.classList.contains('collapsed')){bar.classList.remove('collapsed');return;}useQuickSlot(index);bar?.classList.add('collapsed');};slot.ondragover=e=>e.preventDefault();slot.ondrop=e=>{e.preventDefault();const item=e.dataTransfer?.getData('text/quick-item') as QuickItemId;if(item&&QUICK_ITEMS[item])assignQuickSlot(index,item);};});
 }
 function closeAmmoPicker(){ui('ammoPicker').classList.remove('open');}
 function useQuickSlot(index:number){
