@@ -60,4 +60,4 @@ function simulate(modeName='normal',targets=null){const mode=modes[modeName],due
  }
  return{mode:modeName,hours:+(seconds/3600).toFixed(2),days:+(seconds/36000).toFixed(2),quests:questCount,rows};}
 if(process.argv.includes('--calibrate'))console.log(JSON.stringify(simulate('normal',[4,8,14,20,26,32,36]),null,2));
-else{for(const name of Object.keys(modes)){const result=simulate(name);console.log(JSON.stringify(result));if(name==='normal')assert(result.hours>=130&&result.hours<=150,'Baseline must be near 140h');if(name==='fast')assert(result.hours>20,'Stress scenario must not finish in two 10-hour days');}}
+else{for(const name of Object.keys(modes)){const result=simulate(name);console.log(JSON.stringify(result));if(name==='normal')assert(result.hours>=55&&result.hours<=80,'Baseline must be near 66h (görev ödülü ×3)');if(name==='fast')assert(result.hours>20,'Stress scenario must not finish in two 10-hour days');}}
