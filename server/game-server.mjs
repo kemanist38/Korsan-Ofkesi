@@ -166,6 +166,16 @@ export function towerHit(key,slot,guildId,dmg,heal,now=Date.now()){const i=islan
   return res;}
 async function dbRpc(fn,args){if(!SERVER_SECRET)return;const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:'POST',headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`,'content-type':'application/json'},body:JSON.stringify({p_secret:SERVER_SECRET,...args})});
   if(!r.ok)log('ADA kayıt hatası',fn,r.status,await r.text());}
+async function dbRpcJson(fn,args){if(!SERVER_SECRET)return null;const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:'POST',headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`,'content-type':'application/json'},body:JSON.stringify({p_secret:SERVER_SECRET,...args})});
+  if(!r.ok){log('RPC hatası',fn,r.status,await r.text());return null;}return r.json();}
+export const seaMap=name=>{const m=/^sea-(\d)-(\d)$/.exec(name||'');return m?`${m[1]}/${m[2]}`:null;};
+// Casus (013_spy.sql): bedeli ve kalkanı veritabanı işler; konum oyundaysa sunucudan, değilse son çıkış yerinden
+async function onSpy(c,nick){const r=await dbRpcJson('spy_charge',{p_spy:c.uid,p_nick:String(nick||'').slice(0,24)}).catch(()=>null);
+  if(!r){send(c,{t:'spyr',d:{status:'error'}});return;}
+  if(r.status==='found'){const live=[...all].find(x=>x.uid===r.target&&x.sea&&x.last);
+    if(live){const map=seaMap(live.sea);send(c,{t:'spyr',d:{status:'found',nick:r.nick,online:true,map:map??'kale',x:live.last.x,y:live.last.y}});return;}
+    send(c,{t:'spyr',d:{status:'found',nick:r.nick,online:false,map:r.map??null,x:r.x??null,y:r.y??null}});return;}
+  send(c,{t:'spyr',d:r});}
 // Oyuncunun sunucudaki seviyesi ve geliştirmeleri (011 economy_peek); 5 dakikada bir tazelenir
 async function loadEcon(c){if(!SERVER_SECRET||!c.uid)return;try{const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/economy_peek`,{method:'POST',headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`,'content-type':'application/json'},body:JSON.stringify({p_secret:SERVER_SECRET,p_uid:c.uid})});
   if(r.ok){const st=await r.json();if(st&&typeof st==='object')c.econ=st;}}catch{}
@@ -303,6 +313,7 @@ wss.on('connection',ws=>{
       case'shit':{if(c.sea!==SIEGE_ROOM||!c.rTower.hit(now))return;let dmg=Number(m.d?.dmg);if(!num(dmg)||dmg<=0)return;if(dmg>SIEGE_HIT_CAP)suspect(c,'kuşatma hasarı',String(dmg));
         {const t=dpsTake(c,dmg,now);if(t.flag){suspect(c,'saniyelik hasar','kuşatma');c.dps.over=0;}dmg=t.ok;if(dmg<=0)return;}
         const r=siegeHitPiece(c.uid,c.nick,Number(m.d?.i),dmg);if(!r?.down&&r?.down!==0)return;toSea(c,{t:'sdown',d:{i:r.down}},true);if(r.won)siegeFinish();return;}
+      case'spy':{if(!c.rKill.hit(now))return;await onSpy(c,m.d?.nick);return;}
       case'thit':{if(!c.sea||!c.rTower.hit(now))return;await onTowerHit(c,m,now);return;}
       // Kule dikildi (veritabanında): önce canlar yazılır, sonra ada yeniden okunup denize gönderilir
       case'tbuilt':{const key=String(m.d?.key||'');const i=islands.get(key);if(!i||!c.rKill.hit(now))return;await saveIslandHp({...i,hpDirty:true});const n=await loadIsland(key).catch(()=>null);if(n)sendRoom(key,{t:'isle',d:islandInfo(n)});return;}
@@ -314,7 +325,7 @@ wss.on('connection',ws=>{
       case'known':case'ask':{toAll(c,{t:m.t,d:m.d});return;}
     }
   });
-  ws.on('close',()=>{clearTimeout(authTimer);leaveSea(c);all.delete(c);if(c.uid)log('ÇIKIŞ',`#${c.playerNo}`,c.nick);});
+  ws.on('close',()=>{clearTimeout(authTimer);if(c.uid&&c.last&&seaMap(c.sea))void dbRpc('spy_seen',{p_uid:c.uid,p_map:seaMap(c.sea),p_x:Math.round(c.last.x),p_y:Math.round(c.last.y)}).catch(()=>{});leaveSea(c);all.delete(c);if(c.uid)log('ÇIKIŞ',`#${c.playerNo}`,c.nick);});
   ws.on('error',()=>{});
 });
 // Ölü bağlantıları temizle

@@ -25,7 +25,7 @@ import {supa} from './supabase';
 import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
 import {loadLevelQuest,saveLevelQuest,levelQuestDone,levelQuestKill,levelQuestGoal,needsLevelQuest,levelQuestMap} from './level-quest';
 import {SPY_COST,SPY_SHIELD_PRICE,loadSpy,sendSpy,type SpyRival} from './spy';
-import {netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
+import {netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
 import {AUCTION_MS,loadAuction,saveAuction,emptyAuction,auctionHour,auctionEnds,lotsFor,minNextBid,applyBid,wonLots,auctionId,type LotDef,type Bid} from './auction';
 import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,claimReward,GRADUATE_LEVEL,MAX_APPRENTICES,TOGETHER_XP_BONUS,APPRENTICE_MAX_LEVEL} from './mentorship';
 import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
@@ -585,6 +585,7 @@ const netHandlers:NetHandlers={
   sunk:k=>{const e=remoteOf(k.victim);if(e){burst(e.x,e.y,true);playExplosion();splashAt(e.x,e.y,190);enemies.splice(enemies.indexOf(e),1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}}
     if(k.by===myNetId){gainRage(rage,RAGE_PER_RIVAL);const sp=claimRivalSp(rivalLog,k.victimNick)?gainSp(RIVAL_SP*spMult()):0;sinkNotice(k.victimNick,sp);rivalSinks++;saveRivalSinks(rivalSinks);saveAccount();}
     else if(k.victim!==myNetId)rewardNotice(`${k.byNick}, ${k.victimNick} kaptanını batırdı`,'battle');},
+  spy:r=>onSpyReport(r),
   // Sunucu imkânsız hızı kabul etmez: gemi son geçerli konumuna döner
   pos:p=>{player.x=p.x;player.y=p.y;player.speed=0;destination=null;routeTarget=null;},
   // Sunucu ölümsüz kalan gemiyi batırır (canı hasara rağmen düşmüyorsa)
@@ -629,6 +630,8 @@ function spyRivals():SpyRival[]{return TEST_RANKERS.map(r=>{const live=enemies.f
 {const nick=ui('spyNick') as HTMLInputElement;nick.addEventListener('keydown',e=>e.stopPropagation());
   ui('spyGo').onsubmit=e=>{e.preventDefault();const name=nick.value.trim();if(!name){toast('Rakip kaptanın adını yaz');return;}
     if(state.pearls<SPY_COST){toast(`Casus için ${SPY_COST} inci gerekli`);return;}
+    if(session.account){if(!sharedBosses()){toast('Casus için oyun sunucusuna bağlı olmalısın');return;}nick.blur();
+      spyDialog('CASUS GÖNDER',`<b>${escapeHtml(name)}</b> kaptanına <b>${SPY_COST} inci</b> karşılığında casus gönderilsin mi?`,'GÖNDER',()=>{sendSpyNet(name);nick.value='';});return;}
     if(!spyRivals().some(x=>x.nick.toLocaleUpperCase('tr-TR')===name.toLocaleUpperCase('tr-TR'))){toast(`"${name}" adında bir kaptan bulunamadı`);return;}
     nick.blur();
     spyDialog('CASUS GÖNDER',`<b>${escapeHtml(name)}</b> kaptanına <b>${SPY_COST} inci</b> karşılığında casus gönderilsin mi?`,'GÖNDER',()=>{
@@ -639,6 +642,15 @@ function spyRivals():SpyRival[]{return TEST_RANKERS.map(r=>{const live=enemies.f
       const rv=r.rival!;addLog(logbook,{t:Date.now(),kind:'battle',text:`Casus raporu · ${rv.nick} · ${rv.map} ${rv.coord}`});saveLog(logbook);
       spyDialog('CASUS RAPORU',rv.online?`<b>${n}</b> şu an oyunda.<div class="spy-loc"><span>Harita</span><b>${rv.map}</b><span>Koordinat</span><b>${rv.coord}</b></div>`:`<b>${n}</b> şu an oyunda değil. Son çıkış yaptığı yer:<div class="spy-loc"><span>Harita</span><b>${rv.map}</b><span>Koordinat</span><b>${rv.coord}</b></div>`);
     });};}
+// Sunucudan casus raporu: bedel cüzdandan düştü (yerelde de düşülür, eşitlemede harcama sayılmaz)
+function onSpyReport(r:NetSpy){
+  if(r.status==='unknown'){toast('Bu adda bir kaptan bulunamadı');return;}if(r.status==='poor'){toast(`Casus için ${SPY_COST} inci gerekli`);return;}if(r.status==='error'){toast('Casus gönderilemedi, sonra tekrar dene');return;}
+  state.pearls=Math.max(0,state.pearls-SPY_COST);session.pearlServerAdd?.(-SPY_COST);saveAccount();updateUI();const n=escapeHtml(r.nick??'');
+  if(r.status==='blocked'){addLog(logbook,{t:Date.now(),kind:'battle',text:`Casus yakalandı · ${r.nick}`});saveLog(logbook);spyDialog('CASUS YAKALANDI',`<b>${n}</b> gemisindeki Casus Kalkanı casusunu yakaladı.<br><small>Konum öğrenilemedi, inci harcandı.</small>`);return;}
+  if(!r.map||r.x==null||r.y==null){spyDialog('CASUS RAPORU',`<b>${n}</b> şu an oyunda değil ve son konumu bilinmiyor.`);return;}
+  const coord=r.map==='kale'?'':coordLabel({x:r.x,y:r.y});addLog(logbook,{t:Date.now(),kind:'battle',text:`Casus raporu · ${r.nick} · ${r.map} ${coord}`});saveLog(logbook);
+  const loc=`<div class="spy-loc"><span>Harita</span><b>${escapeHtml(r.map==='kale'?'Kara Kale':r.map)}</b>${coord?`<span>Koordinat</span><b>${coord}</b>`:''}</div>`;
+  spyDialog('CASUS RAPORU',r.online?`<b>${n}</b> şu an oyunda.${loc}`:`<b>${n}</b> şu an oyunda değil. Son çıkış yaptığı yer:${loc}`);}
 function spyDialog(title:string,html:string,ok='TAMAM',onOk?:()=>void){
   let el=document.getElementById('spyDialog');if(!el){el=document.createElement('div');el.id='spyDialog';el.className='spy-dialog';document.body.append(el);}
   el.innerHTML=`<section><h3>${title}</h3><p>${html}</p><footer>${onOk?'<button data-x>VAZGEÇ</button>':''}<button data-ok>${ok}</button></footer></section>`;el.classList.add('open');
