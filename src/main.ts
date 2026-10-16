@@ -1692,7 +1692,8 @@ if(session.account&&session.econStart&&!ELITE_TEST_MODE){econOn=true;const st=se
   ach.unlocked=ach.unlocked.filter(id=>{const d=ACHIEVEMENTS.find(a=>a.id===id);return!!d&&(d.stat==='level'||d.stat==='daily'||ach.stats[d.stat]>=d.goal);});if(!MAIN_COLLECTION.every(id=>ach.unlocked.includes(id)))ach.collectionComplete=false;saveAchievements(ach);achBonusCache=achievementBonus(ach);
   void loadServerClaims();
   if(spentPoints(crew)>talentPoints(state.level)){crew.talents={};saveCrew(crew);}crew.active=crew.active.filter(o=>(crew.officers[o]??0)>0).slice(0,officerSlots(state.level));saveCrew(crew);bonus=computeBonus(crew);
-  econSettle();setInterval(econTick,250);
+  // Açılışta ekran henüz kurulmadı: değerler kaydedilir, ekran oyun kurulunca güncellenir
+  econLast=econFlat();pearlLast=state.pearls;saveAccount();saveArsenal(arsenal);setTimeout(()=>{updateUI();renderQuickSlots();},0);setInterval(econTick,250);
   session.pearlServerAdd=n=>{pearlLast+=n;};
   session.econCollect=()=>{econTick();const items:Record<string,{v:number;g:number;s:number}>={};for(const k in econLast)items[k]={v:econLast[k],g:econG[k]??0,s:econS[k]??0};
     const b={items,pearlG,pearlS,sent:{...econLast},pearlSent:state.pearls};econG={};econS={};pearlG=0;pearlS=0;return b;};
