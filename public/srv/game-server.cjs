@@ -3648,9 +3648,13 @@ __export(game_server_exports, {
   BOSS_HIT_CAP: () => BOSS_HIT_CAP,
   BOSS_LIFE_MS: () => BOSS_LIFE_MS,
   FAR_EVERY: () => FAR_EVERY,
+  GOD_MARGIN: () => GOD_MARGIN,
+  HEAL_SECONDS: () => HEAL_SECONDS,
+  HP_BONUS_MAX: () => HP_BONUS_MAX,
   ISLAND_KEYS: () => ISLAND_KEYS,
   LIMITS: () => LIMITS,
   NEAR: () => NEAR,
+  PVP_RANGE: () => PVP_RANGE,
   RUIN_MS: () => RUIN_MS,
   Rate: () => Rate,
   SIEGE_HIT_CAP: () => SIEGE_HIT_CAP,
@@ -3667,15 +3671,21 @@ __export(game_server_exports, {
   buildBatch: () => buildBatch,
   checkFire: () => checkFire,
   checkState: () => checkState,
+  godCheck: () => godCheck,
   guildOf: () => guildOf,
+  hpCap: () => hpCap,
   isAdminToken: () => isAdminToken,
   islandFromRow: () => islandFromRow,
   islandInfo: () => islandInfo,
   islands: () => islands,
   loadIslands: () => loadIslands,
+  noteHp: () => noteHp,
   osbMatch: () => osbMatch,
   parseForm: () => parseForm,
   parseOsb: () => parseOsb,
+  pvpGuard: () => pvpGuard,
+  pvpHeal: () => pvpHeal,
+  pvpReset: () => pvpReset,
   resetSiege: () => resetSiege,
   seaTier: () => seaTier,
   siegeHitPiece: () => siegeHitPiece,
@@ -3721,6 +3731,19 @@ function fleetTowerStats(tier) {
     range: 460,
     ownDamage: Math.round(117300 * (1 + 0.015 * step))
   };
+}
+
+// src/pvp.ts
+var PVP_MIN_SECONDS = 20;
+var PVP_BURST = 0.06;
+var newPvpBudget = (maxHp, now) => ({ pool: maxHp * PVP_BURST, t: now });
+function pvpClamp(b, maxHp, hit, now) {
+  const cap = maxHp * PVP_BURST;
+  b.pool = Math.min(cap, b.pool + Math.max(0, now - b.t) * maxHp / PVP_MIN_SECONDS);
+  b.t = now;
+  const dealt = Math.max(0, Math.min(hit, b.pool));
+  b.pool -= dealt;
+  return dealt;
 }
 
 // server/game-server.mjs
@@ -3838,6 +3861,46 @@ function checkFire(f) {
   if (!f || !num(f.damage) || !num(f.x) || !num(f.y) || typeof f.to !== "string") return "bad";
   if (f.damage < 0 || f.damage > LIMITS.maxHit) return "damage";
   return "ok";
+}
+var HP_BONUS_MAX = 1.8;
+var HEAL_SECONDS = 40;
+var GOD_MARGIN = 0.3;
+var PVP_RANGE = 1500;
+function hpCap(st) {
+  if (!st) return Infinity;
+  return Math.round(playerBaseHp(Number(st.level) || 1, Number(st.u_hull) || 0) * HP_BONUS_MAX);
+}
+var pvpOf = (t) => t.pvp ??= { budget: null, heal: null, hp: null, at: 0, from: /* @__PURE__ */ new Map() };
+function pvpGuard(t, dmg, now) {
+  const p = pvpOf(t), max = t.maxHp || 1;
+  p.budget ??= newPvpBudget(max, now / 1e3);
+  const dealt = pvpClamp(p.budget, max, Math.max(0, dmg), now / 1e3);
+  if (p.hp !== null) p.hp -= dealt;
+  return Math.round(dealt);
+}
+function pvpHeal(t, amt, now) {
+  const p = pvpOf(t), max = t.maxHp || 1;
+  p.heal ??= newPvpBudget(max, now / 1e3);
+  const got = pvpClamp(p.heal, max, Math.max(0, amt), now / 1e3);
+  if (p.hp !== null) p.hp = Math.min(max, p.hp + got);
+  return Math.round(got);
+}
+function noteHp(t, hp, now) {
+  const p = pvpOf(t), max = t.maxHp || hp;
+  p.hp = p.hp === null ? hp : Math.min(hp, Math.min(max, p.hp + Math.max(0, now - p.at) * max / HEAL_SECONDS / 1e3));
+  p.at = now;
+}
+function godCheck(t) {
+  const p = t.pvp;
+  return !!p && p.hp !== null && !!t.maxHp && p.hp <= -GOD_MARGIN * t.maxHp;
+}
+function pvpReset(t) {
+  if (t.pvp) {
+    t.pvp.budget = null;
+    t.pvp.heal = null;
+    t.pvp.hp = null;
+    t.pvp.from.clear();
+  }
 }
 var Rate = class {
   constructor(perWindow, windowMs) {
@@ -4032,6 +4095,20 @@ async function dbRpc(fn, args) {
   if (!SERVER_SECRET) return;
   const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, { method: "POST", headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${SUPABASE_ANON}`, "content-type": "application/json" }, body: JSON.stringify({ p_secret: SERVER_SECRET, ...args }) });
   if (!r.ok) log("ADA kay\u0131t hatas\u0131", fn, r.status, await r.text());
+}
+async function loadEcon(c) {
+  if (!SERVER_SECRET || !c.uid) return;
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/economy_peek`, { method: "POST", headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${SUPABASE_ANON}`, "content-type": "application/json" }, body: JSON.stringify({ p_secret: SERVER_SECRET, p_uid: c.uid }) });
+    if (r.ok) {
+      const st = await r.json();
+      if (st && typeof st === "object") c.econ = st;
+    }
+  } catch {
+  }
+  if (all.has(c)) setTimeout(() => {
+    void loadEcon(c);
+  }, 5 * 6e4).unref?.();
 }
 async function guildTag(id) {
   if (!id) return "";
@@ -4354,6 +4431,7 @@ wss.on("connection", (ws) => {
       clearTimeout(authTimer);
       send(c, { t: "hello", id: c.netId, nick: c.nick, playerNo: c.playerNo });
       log("G\u0130R\u0130\u015E", `#${c.playerNo}`, c.nick);
+      void loadEcon(c);
       return;
     }
     if (!c.uid) return;
@@ -4389,6 +4467,16 @@ wss.on("connection", (ws) => {
         const v = checkState(c.last, s, now);
         if (v === "bad") return;
         if (v === "speed") suspect(c, "h\u0131z", `${Math.round(s.x)},${Math.round(s.y)}`);
+        if (num(s.maxHp)) {
+          const cap = hpCap(c.econ);
+          if (s.maxHp > cap * 1.02) {
+            suspect(c, "can s\u0131n\u0131r\u0131", `${Math.round(s.maxHp)}>${cap}`);
+            s.maxHp = cap;
+          }
+          c.maxHp = s.maxHp;
+        }
+        if (c.maxHp && s.hp > c.maxHp) s.hp = c.maxHp;
+        noteHp(c, s.hp, now);
         c.last = { x: s.x, y: s.y, at: now };
         s.id = c.netId;
         queueState(c, s);
@@ -4406,6 +4494,27 @@ wss.on("connection", (ws) => {
           return;
         }
         f.from = c.netId;
+        {
+          const t = [...seas.get(c.sea) || []].find((x) => x.netId === f.to);
+          if (t) {
+            if (c.last && t.last && Math.hypot(c.last.x - t.last.x, c.last.y - t.last.y) > PVP_RANGE) {
+              suspect(c, "menzil");
+              return;
+            }
+            if (f.ammo === "heal") pvpHeal(t, f.damage, now);
+            else {
+              pvpGuard(t, f.damage, now);
+              pvpOf(t).from.set(c.netId, now);
+              if (godCheck(t)) {
+                suspect(t, "\xF6l\xFCms\xFCz");
+                pvpReset(t);
+                send(t, { t: "forceSink", d: { by: c.netId, byNick: c.nick } });
+                toSea(t, { t: "sunk", d: { victim: t.netId, victimNick: t.nick, by: c.netId, byNick: c.nick } });
+                return;
+              }
+            }
+          }
+        }
         toNear(c, { t: "fire", d: f }, f.to);
         return;
       }
@@ -4414,6 +4523,12 @@ wss.on("connection", (ws) => {
         const s = m.d || {};
         s.victim = c.netId;
         s.victimNick = c.nick;
+        if (s.by && !(now - (c.pvp?.from.get(String(s.by)) ?? -1e12) < 6e4)) {
+          suspect(c, "sahte bat\u0131rma", String(s.by));
+          s.by = null;
+          s.byNick = null;
+        }
+        pvpReset(c);
         toSea(c, { t: "sunk", d: s });
         return;
       }
@@ -4526,9 +4641,13 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   BOSS_HIT_CAP,
   BOSS_LIFE_MS,
   FAR_EVERY,
+  GOD_MARGIN,
+  HEAL_SECONDS,
+  HP_BONUS_MAX,
   ISLAND_KEYS,
   LIMITS,
   NEAR,
+  PVP_RANGE,
   RUIN_MS,
   Rate,
   SIEGE_HIT_CAP,
@@ -4545,15 +4664,21 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   buildBatch,
   checkFire,
   checkState,
+  godCheck,
   guildOf,
+  hpCap,
   isAdminToken,
   islandFromRow,
   islandInfo,
   islands,
   loadIslands,
+  noteHp,
   osbMatch,
   parseForm,
   parseOsb,
+  pvpGuard,
+  pvpHeal,
+  pvpReset,
   resetSiege,
   seaTier,
   siegeHitPiece,

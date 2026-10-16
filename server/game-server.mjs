@@ -7,7 +7,8 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import {WebSocketServer} from 'ws';
 import {BOSS_HP,SIEGE_HP_PER_CAPTAIN} from '../src/pve-balance.ts';
-import {fleetTowerStats} from '../src/fleetBalance.ts';
+import {fleetTowerStats,playerBaseHp} from '../src/fleetBalance.ts';
+import {pvpClamp,newPvpBudget} from '../src/pvp.ts';
 
 const PORT=Number(process.env.PORT||3000);
 const SUPABASE_URL=process.env.SUPABASE_URL||'https://vidjvineafeiyoclioau.supabase.co';
@@ -74,6 +75,23 @@ export function checkState(prev,s,now){
   return'ok';
 }
 export function checkFire(f){if(!f||!num(f.damage)||!num(f.x)||!num(f.y)||typeof f.to!=='string')return'bad';if(f.damage<0||f.damage>LIMITS.maxHit)return'damage';return'ok';}
+// ---------------------------------------------------------------- PvP denetimi (saf fonksiyonlar, testli)
+// Can sınırı: sunucudaki seviye ve gövde geliştirmesinden; donanım, elit gemi ve madalya bonusları için ×1,8 pay
+// Sunucu her oyuncunun PvP canını da tutar: kendi bildirdiği can, iyileşme payı (tam can/40 sn) ve ona isabet eden atışlar.
+// Oyuncu güllesi hedefini izlediği için gönderilen atış isabet demektir. Hasar hedefin bütçesiyle sınırlanır (20 sn'den önce batmaz).
+// Sunucudaki can, gecikme ve iyileşme payıyla birlikte canın %30'u kadar eksiye düşerse oyuncu ölümsüz sayılır ve batırılır.
+export const HP_BONUS_MAX=1.8,HEAL_SECONDS=40,GOD_MARGIN=.3,PVP_RANGE=1500;
+export function hpCap(st){if(!st)return Infinity;return Math.round(playerBaseHp(Number(st.level)||1,Number(st.u_hull)||0)*HP_BONUS_MAX);}
+const pvpOf=t=>t.pvp??={budget:null,heal:null,hp:null,at:0,from:new Map()};
+export function pvpGuard(t,dmg,now){const p=pvpOf(t),max=t.maxHp||1;p.budget??=newPvpBudget(max,now/1000);
+  const dealt=pvpClamp(p.budget,max,Math.max(0,dmg),now/1000);if(p.hp!==null)p.hp-=dealt;return Math.round(dealt);}
+// Dost iyileştirme güllesi: aynı bütçe kuralıyla (saniyede en çok tam can/20)
+export function pvpHeal(t,amt,now){const p=pvpOf(t),max=t.maxHp||1;p.heal??=newPvpBudget(max,now/1000);
+  const got=pvpClamp(p.heal,max,Math.max(0,amt),now/1000);if(p.hp!==null)p.hp=Math.min(max,p.hp+got);return Math.round(got);}
+export function noteHp(t,hp,now){const p=pvpOf(t),max=t.maxHp||hp;
+  p.hp=p.hp===null?hp:Math.min(hp,Math.min(max,p.hp+Math.max(0,now-p.at)*max/HEAL_SECONDS/1000));p.at=now;}
+export function godCheck(t){const p=t.pvp;return!!p&&p.hp!==null&&!!t.maxHp&&p.hp<=-GOD_MARGIN*t.maxHp;}
+export function pvpReset(t){if(t.pvp){t.pvp.budget=null;t.pvp.heal=null;t.pvp.hp=null;t.pvp.from.clear();}}
 export class Rate{constructor(perWindow,windowMs){this.n=perWindow;this.w=windowMs;this.t=[];}hit(now){while(this.t.length&&now-this.t[0]>this.w)this.t.shift();if(this.t.length>=this.n)return false;this.t.push(now);return true;}}
 
 // ---------------------------------------------------------------- Sunucu
@@ -142,6 +160,10 @@ export function towerHit(key,slot,guildId,dmg,heal,now=Date.now()){const i=islan
   return res;}
 async function dbRpc(fn,args){if(!SERVER_SECRET)return;const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:'POST',headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`,'content-type':'application/json'},body:JSON.stringify({p_secret:SERVER_SECRET,...args})});
   if(!r.ok)log('ADA kayıt hatası',fn,r.status,await r.text());}
+// Oyuncunun sunucudaki seviyesi ve geliştirmeleri (011 economy_peek); 5 dakikada bir tazelenir
+async function loadEcon(c){if(!SERVER_SECRET||!c.uid)return;try{const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/economy_peek`,{method:'POST',headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`,'content-type':'application/json'},body:JSON.stringify({p_secret:SERVER_SECRET,p_uid:c.uid})});
+  if(r.ok){const st=await r.json();if(st&&typeof st==='object')c.econ=st;}}catch{}
+  if(all.has(c))setTimeout(()=>{void loadEcon(c);},5*60_000).unref?.();}
 async function guildTag(id){if(!id)return'';const r=await fetch(`${SUPABASE_URL}/rest/v1/guilds?id=eq.${id}&select=tag`,{headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`}});const rows=r.ok?await r.json():[];return rows[0]?.tag||'';}
 async function loadIsland(key){const r=await fetch(`${SUPABASE_URL}/rest/v1/islands?map_key=eq.${encodeURIComponent(key)}&select=*`,{headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`}});
   const row=(r.ok?await r.json():[])[0]??{map_key:key};const i=islandFromRow(row,await guildTag(row.guild_id).catch(()=>''));islands.set(key,i);return i;}
@@ -243,7 +265,7 @@ wss.on('connection',ws=>{
       if(!who){ws.close(4001,'giriş geçersiz');return;}if(who.banned){ws.close(4002,'hesap kapalı');return;}
       for(const x of all)if(x.uid===who.uid&&x!==c)x.ws.close(4004,'başka yerden bağlanıldı');
       Object.assign(c,who);c.netId=String(m.netId||'').slice(0,16)||Math.random().toString(36).slice(2,10);clearTimeout(authTimer);
-      send(c,{t:'hello',id:c.netId,nick:c.nick,playerNo:c.playerNo});log('GİRİŞ',`#${c.playerNo}`,c.nick);return;}
+      send(c,{t:'hello',id:c.netId,nick:c.nick,playerNo:c.playerNo});log('GİRİŞ',`#${c.playerNo}`,c.nick);void loadEcon(c);return;}
     if(!c.uid)return;
     switch(m.t){
       case'join':{const name=String(m.sea||'').slice(0,40);if(name===c.sea)return;leaveSea(c);if(!name)return;
@@ -252,9 +274,20 @@ wss.on('connection',ws=>{
         const isle=islands.get(islandOfSea(name));if(isle)send(c,{t:'isle',d:islandInfo(isle)});
         if(name===SIEGE_ROOM){const r=siegeJoin(c.uid,c.nick,now);if(r)send(c,{t:'sstate',d:siegeInfo(r,c.uid)});}return;}
       case'state':{if(!c.sea||!c.rState.hit(now))return;const s=m.d;const v=checkState(c.last,s,now);if(v==='bad')return;if(v==='speed')suspect(c,'hız',`${Math.round(s.x)},${Math.round(s.y)}`);
+        if(num(s.maxHp)){const cap=hpCap(c.econ);if(s.maxHp>cap*1.02){suspect(c,'can sınırı',`${Math.round(s.maxHp)}>${cap}`);s.maxHp=cap;}c.maxHp=s.maxHp;}
+        if(c.maxHp&&s.hp>c.maxHp)s.hp=c.maxHp;noteHp(c,s.hp,now);
         c.last={x:s.x,y:s.y,at:now};s.id=c.netId;queueState(c,s);return;}
-      case'fire':{if(!c.sea||!c.rFire.hit(now)){suspect(c,'atış hızı');return;}const f=m.d;const v=checkFire(f);if(v!=='ok'){suspect(c,'hasar',String(f?.damage));return;}f.from=c.netId;toNear(c,{t:'fire',d:f},f.to);return;}
-      case'sunk':{if(!c.sea)return;const s=m.d||{};s.victim=c.netId;s.victimNick=c.nick;toSea(c,{t:'sunk',d:s});return;}
+      case'fire':{if(!c.sea||!c.rFire.hit(now)){suspect(c,'atış hızı');return;}const f=m.d;const v=checkFire(f);if(v!=='ok'){suspect(c,'hasar',String(f?.damage));return;}f.from=c.netId;
+        {const t=[...(seas.get(c.sea)||[])].find(x=>x.netId===f.to);if(t){
+          if(c.last&&t.last&&Math.hypot(c.last.x-t.last.x,c.last.y-t.last.y)>PVP_RANGE){suspect(c,'menzil');return;}
+          if(f.ammo==='heal')pvpHeal(t,f.damage,now);
+          else{pvpGuard(t,f.damage,now);pvpOf(t).from.set(c.netId,now);
+            if(godCheck(t)){suspect(t,'ölümsüz');pvpReset(t);send(t,{t:'forceSink',d:{by:c.netId,byNick:c.nick}});toSea(t,{t:'sunk',d:{victim:t.netId,victimNick:t.nick,by:c.netId,byNick:c.nick}});return;}}}}
+        toNear(c,{t:'fire',d:f},f.to);return;}
+      case'sunk':{if(!c.sea)return;const s=m.d||{};s.victim=c.netId;s.victimNick=c.nick;
+        // Batıran yalnızca son 60 sn'de bu oyuncuya ateş etmiş biri olabilir (arkadaşa SP yazdırma engeli)
+        if(s.by&&!(now-(c.pvp?.from.get(String(s.by))??-1e12)<60_000)){suspect(c,'sahte batırma',String(s.by));s.by=null;s.byNick=null;}
+        pvpReset(c);toSea(c,{t:'sunk',d:s});return;}
       case'bkill':{if(!c.sea||!c.rKill.hit(now))return;const b=bossKill(c.sea,m.d?.need,now);if(b){log('BOSS',c.sea);toSea(c,{t:'boss',d:bossInfo(c.sea,b)},true);}return;}
       case'bhit':{if(!c.sea||!c.rBoss.hit(now))return;const dmg=Number(m.d?.dmg);if(!num(dmg)||dmg<=0)return;if(dmg>BOSS_HIT_CAP)suspect(c,'boss hasarı',String(dmg));
         const r=bossHit(c.sea,c.uid,dmg);if(!r)return;const room=seas.get(c.sea);log('BOSS BATTI',c.sea,r.n,'kaptan');
