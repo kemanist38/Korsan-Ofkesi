@@ -66,3 +66,21 @@ test('shared siege: hp scales with captains, order enforced, win by commander',(
   const info=S.siegeInfo(r,'a');assert.equal(info.n,2);assert.equal(info.mine,120);
   assert.equal(S.siegeWindowAt(Date.UTC(2026,9,16,17,30)).open,true);// Cuma 20:30 TR
 });
+test('pvp: can sınırı sunucudaki seviyeden, hasar bütçesi ve ölümsüzlük denetimi',()=>{
+  assert.equal(S.hpCap(null),Infinity);
+  assert.equal(S.hpCap({level:1,u_hull:0}),Math.round(54_000*1.8));
+  // Bütçe: 1.000.000 canlı hedefe tek atışta en çok %6 gider; dev hasar kırpılır, 1 sn'de 50.000 dolar
+  const t={maxHp:1_000_000};const now=1_000_000;S.noteHp(t,1_000_000,now);
+  assert.equal(S.pvpGuard(t,5_000_000,now),60_000);
+  assert.equal(S.pvpGuard(t,5_000_000,now),0);
+  assert.equal(S.pvpGuard(t,5_000_000,now+1000),50_000);
+  // Normal oyuncu: canı düştüğünü bildiriyor → batırılmaz, sonra kendisi batar
+  const a={maxHp:100_000};S.noteHp(a,100_000,now);
+  for(let i=1;i<=25;i++){S.pvpGuard(a,50_000,now+i*1000);S.noteHp(a,Math.max(0,100_000-i*5000),now+i*1000);assert.equal(S.godCheck(a),false);}
+  // Ölümsüz: hasar yiyor ama canı hep dolu bildiriyor → ~1 dk içinde batırılır (en hızlı batma 20 sn)
+  const g={maxHp:100_000};S.noteHp(g,100_000,now);let sunkAt=0;
+  for(let i=1;i<=60&&!sunkAt;i++){S.pvpGuard(g,50_000,now+i*1000);S.noteHp(g,100_000,now+i*1000);if(S.godCheck(g))sunkAt=i;}
+  assert.ok(sunkAt>20&&sunkAt<=60,`batma ${sunkAt}. sn`);
+  // Dost iyileştirmesi de bütçeli
+  const h={maxHp:100_000};S.noteHp(h,50_000,now);assert.equal(S.pvpHeal(h,1_000_000,now),6000);
+});

@@ -585,6 +585,8 @@ const netHandlers:NetHandlers={
   sunk:k=>{const e=remoteOf(k.victim);if(e){burst(e.x,e.y,true);playExplosion();splashAt(e.x,e.y,190);enemies.splice(enemies.indexOf(e),1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}}
     if(k.by===myNetId){gainRage(rage,RAGE_PER_RIVAL);const sp=claimRivalSp(rivalLog,k.victimNick)?gainSp(RIVAL_SP*spMult()):0;sinkNotice(k.victimNick,sp);rivalSinks++;saveRivalSinks(rivalSinks);saveAccount();}
     else if(k.victim!==myNetId)rewardNotice(`${k.byNick}, ${k.victimNick} kaptanını batırdı`,'battle');},
+  // Sunucu ölümsüz kalan gemiyi batırır (canı hasara rağmen düşmüyorsa)
+  forceSink:d=>{if(state.hp<=0)return;state.hp=0;respawn();showSunkBy(d.byNick);},
   chat:(c:{nick:string;text:string;at:number})=>chat.receive(c.nick,c.text,c.at),
   bid:b=>receiveBid(b),
   bidAsk:hour=>{auctionTick();const bids=Object.values(auction.top);if(hour===auction.hour&&bids.length)sendKnownBids(bids);},
