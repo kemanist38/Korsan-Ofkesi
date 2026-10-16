@@ -802,7 +802,7 @@ function populateMap(){
 function enterMap(key:MapKey,at:Vec){
   currentMap=key;fleetSafe=null;fleetFields.clear();try{localStorage.setItem(WORLD_STORAGE,key);}catch{}populateMap();
   player.x=at.x;player.y=at.y;player.speed=0;destination=null;selected=null;state.attacking=false;ui('attack').classList.remove('active');
-  camera.x=player.x;camera.y=player.y;freeLook=null;jumpPrompt=null;mapFade=1;updateJumpPrompt();playMapJump();
+  camera.x=player.x;camera.y=player.y;freeLook=null;jumpPrompt=null;jumpLockUntil=performance.now()+JUMP_LOCK_MS;mapFade=1;updateJumpPrompt();playMapJump();
   rewardNotice(`${mapDef().key} ${mapDef().name} · ${mapDef().safe?'savaşa kapalı':'seviye '+mapDef().tier}`,'none');
 }
 function inCombat(){return enemies.some(e=>e.aggro&&!e.tower&&dist(e,player)<520)||monsters.some(m=>m.aggro&&dist(m,player)<520);}
@@ -813,11 +813,13 @@ function useJump(){
   if(!jumpPrompt){toast('Harita atlamak için denizin kenarına yanaş');return;}const target=MAPS[jumpPrompt.to];
   if(state.level<target.tier){toast(`${target.key} ${target.name} için Seviye ${target.tier} gerekli`);return;}
   if(inCombat()){toast('Savaş sırasında harita atlanamaz');return;}
-  const dir=jumpPrompt.dir,inset=EDGE+30,at={x:dir==='west'?WORLD_WIDTH-inset:dir==='east'?inset:player.x,y:dir==='north'?WORLD_HEIGHT-inset:dir==='south'?inset:player.y};
+  const dir=jumpPrompt.dir,inset=40,at={x:dir==='west'?WORLD_WIDTH-inset:dir==='east'?inset:player.x,y:dir==='north'?WORLD_HEIGHT-inset:dir==='south'?inset:player.y};
   enterMap(target.key,at);
 }
+// Atladıktan sonra gemi karşı kenara yapışık doğar; 3 sn yeniden atlanamaz
+const JUMP_LOCK_MS=3000;let jumpLockUntil=0;
 function updateJumpPrompt(){
-  const dir=siege?null:edgeDir(),to=dir?neighbor(currentMap,dir):null,next=dir&&to?{dir,to}:null,el=ui('portalPrompt');
+  const dir=siege||performance.now()<jumpLockUntil?null:edgeDir(),to=dir?neighbor(currentMap,dir):null,next=dir&&to?{dir,to}:null,el=ui('portalPrompt');
   if(!next){jumpPrompt=null;el.classList.remove('visible');el.innerHTML='';return;}
   if(next.to===jumpPrompt?.to&&next.dir===jumpPrompt?.dir)return;jumpPrompt=next;
   const target=MAPS[next.to],locked=state.level<target.tier,arrow={north:'↑',south:'↓',east:'→',west:'←'}[next.dir];
