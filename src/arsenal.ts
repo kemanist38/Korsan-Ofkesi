@@ -69,6 +69,8 @@ export const priceOf=(p:Price,qty:number)=>Math.ceil(qty*p.amount/(p.per??1));
 // Fiyatlar yarıya indirildi (oyuncu harcamaktan korkmasın); 300 gülle başına inci
 export const AMMO_PRICES={chain:{amount:2,currency:'pearls',per:300},fire:{amount:3,currency:'pearls',per:300},breaker:{amount:3,currency:'pearls',per:300},explosive:{amount:4,currency:'pearls',per:300},leech:{amount:5,currency:'pearls',per:300},heal:{amount:4,currency:'pearls',per:300}} as const satisfies Record<string,Price>;
 // Elit puan: zincir, ateş ve kule kırıcı gülle 1 EP; patlayıcı, şifa ve can emici gülle 2 EP (oyuncu kolayca hesaplar).
+// Demir gülle de az da olsa EP verir: her 10 demir gülle 1 EP
+export const IRON_EP_PER_BALL=.1;
 export const ELITE_POINTS_PER_BALL={chain:1,fire:1,breaker:1,explosive:2,leech:2,heal:2} as const;
 // Barut ve kalkan altınla; birikmiş altını harcatmak için pahalı
 export const SUPPLY_PRICES={powder:{amount:20,currency:'gold'},shield:{amount:20,currency:'gold'},speed:{amount:2,currency:'pearls'},mine:{amount:5,currency:'pearls'},compass:{amount:1,currency:'pearls'}} as const satisfies Record<string,Price>;

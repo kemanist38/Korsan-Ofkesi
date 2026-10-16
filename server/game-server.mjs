@@ -12,7 +12,7 @@ import {pvpClamp,newPvpBudget} from '../src/pvp.ts';
 import {RIVAL_SP,RIVAL_DAILY_LIMIT} from '../src/battle.ts';
 import {NPCS,MAPS,QUESTS,QUEST_COOLDOWN_MS,bossFor,BOSS_KILLS,FLEET,WORLD_WIDTH,WORLD_HEIGHT,coordLabel} from '../src/campaign.ts';
 import {TREASURE_PARTS,PART_CHANCE,DIG_RADIUS,treasureReward} from '../src/treasure.ts';
-import {questEp,bossEp,ELITE_POINTS_PER_BALL,eliteLevelFromEp} from '../src/arsenal.ts';
+import {questEp,bossEp,ELITE_POINTS_PER_BALL,IRON_EP_PER_BALL,eliteLevelFromEp} from '../src/arsenal.ts';
 import {CANNONS,salvoDamage,reloadTime,rangeOf,targetFactor} from '../src/combat.ts';
 import {EQUIPMENT,equipTotals} from '../src/equipment.ts';
 import {cumulativeEliteBonus,ELITE_CANNON_CAPACITY} from '../src/elite-progression.ts';
@@ -325,7 +325,8 @@ async function applyUsage(c,salvo,item,now){
   c.econ=st;c.sb=shadow.sb;c.uses=shadow.uses;
   if(r.over)suspect(c,'top sayısı');
   // Elit gülle EP'si ve sayacı sunucudan (pazartesi %50 EP etkinliği için ×1,5 pay)
-  if(item===null){const a=String(salvo?.a||''),n=Number(use[ITEM_OF[a]??'a_'+a])||0;if(n>0&&ELITE_POINTS_PER_BALL[a])addCredit(c,{ep:Math.round(n*ELITE_POINTS_PER_BALL[a]*epMult()),st_eliteBalls:n});}
+  if(item===null){const a=String(salvo?.a||''),n=Number(use[ITEM_OF[a]??'a_'+a])||0;if(n>0&&ELITE_POINTS_PER_BALL[a])addCredit(c,{ep:Math.round(n*ELITE_POINTS_PER_BALL[a]*epMult()),st_eliteBalls:n});
+    const ni=Number(use.iron)||0;if(ni>0)addCredit(c,{ep:Math.round(ni*IRON_EP_PER_BALL*epMult())});}
 }
 
 // ---------------------------------------------------------------- Sunucu
