@@ -1636,6 +1636,35 @@ function closeCoupon(){ui('couponOverlay').classList.remove('open');}
 // Hesapla girişte kupon sunucuda kontrol edilir (kullanım sınırı, hesap başına bir kez); inci doğrudan cüzdana eklenir
 // Test modunda her açılışta bol inci verildiği için cüzdan eşitlemesi kapalı
 session.pearlSyncOff=ELITE_TEST_MODE;
+// ---------------------------------------------------------------- Sunucu ekonomisi
+// Altın, TP, EP, SP, seviye, gülleler, malzemeler, toplar, geliştirmeler, donanım ve elit gemi sunucuda tutulur (010_economy.sql).
+// Oyun her değişimi kazanç (g) ya da harcama (s) olarak biriktirir; eşitlemede sunucu kabul ettiği değerleri döner, fark buraya uygulanır.
+const ECON_AMMO=['fire','explosive','breaker','leech','heal','mine','powder','shield','speed','compass','spyShield'] as const;
+function econFlat():Record<string,number>{const f:Record<string,number>={gold:state.gold,xp:state.fame,ep:state.elitePoints,sp:state.battlePoints,level:state.level,chain:state.chainAmmo,iron:state.ironAmmo,elite:elitePurchased?1:0};
+  for(const c of Object.keys(cannonInventory) as CannonKind[])f['c_'+c]=cannonInventory[c]+mountedCannons[c];
+  for(const u of Object.keys(upgrades) as UpgradeKind[])f['u_'+u]=upgrades[u];
+  for(const q of EQUIPMENT)f['e_'+q.id]=(equipOwned[q.id]??0)+Object.values(equipped).filter(x=>x===q.id).length;
+  for(const a of ECON_AMMO)f['a_'+a]=arsenal[a];
+  for(const k in f)f[k]=Math.max(0,Math.round(f[k]||0));return f;}
+function econAdjust(k:string,d:number){if(!d)return;
+  if(k==='gold')state.gold=Math.max(0,state.gold+d);else if(k==='xp')state.fame=Math.max(0,state.fame+d);else if(k==='ep')state.elitePoints=Math.max(0,state.elitePoints+d);
+  else if(k==='sp')state.battlePoints=Math.max(0,state.battlePoints+d);else if(k==='level')state.level=Math.max(1,Math.min(MAX_LEVEL,state.level+d));
+  else if(k==='chain')state.chainAmmo=Math.max(0,state.chainAmmo+d);else if(k==='iron')state.ironAmmo=Math.max(0,state.ironAmmo+d);else if(k==='elite')elitePurchased=elitePurchased?d>-1:d>0;
+  else if(k.startsWith('c_')){const c=k.slice(2) as CannonKind;if(!(c in cannonInventory))return;if(d>0)cannonInventory[c]+=d;else{const a=Math.min(cannonInventory[c],-d);cannonInventory[c]-=a;mountedCannons[c]=Math.max(0,mountedCannons[c]-(-d-a));}}
+  else if(k.startsWith('u_')){const u=k.slice(2) as UpgradeKind;if(u in upgrades){upgrades[u]=Math.max(0,Math.min(10,upgrades[u]+d));if(u==='hull')state.maxHp=baseMaxHp();}}
+  else if(k.startsWith('e_')){const id=k.slice(2);let left=(equipOwned[id]??0)+d;if(left<0){for(const sl of Object.keys(equipped) as EquipSlot[])if(left<0&&equipped[sl]===id){equipped[sl]=null;left++;}}equipOwned[id]=Math.max(0,left);}
+  else if(k.startsWith('a_')){const a=k.slice(2) as typeof ECON_AMMO[number];if(a in arsenal)arsenal[a]=Math.max(0,arsenal[a]+d);}}
+let econOn=false,econLast:Record<string,number>={},econG:Record<string,number>={},econS:Record<string,number>={},pearlLast=state.pearls,pearlG=0,pearlS=0;
+function econTick(){if(!econOn)return;const f=econFlat();for(const k in f){const d=f[k]-(econLast[k]??f[k]);if(d>0)econG[k]=(econG[k]??0)+d;else if(d<0)econS[k]=(econS[k]??0)-d;}econLast=f;
+  const dp=state.pearls-pearlLast;if(dp>0)pearlG+=dp;else if(dp<0)pearlS-=dp;pearlLast=state.pearls;}
+function econSettle(){econLast=econFlat();pearlLast=state.pearls;saveAccount();saveArsenal(arsenal);updateUI();renderQuickSlots();}
+if(session.account&&session.econStart&&!ELITE_TEST_MODE){econOn=true;const st=session.econStart.state,cur=econFlat();
+  for(const k in st)econAdjust(k,Math.round(st[k])-(cur[k]??0));state.pearls=session.econStart.pearls;econSettle();setInterval(econTick,250);
+  session.pearlServerAdd=n=>{pearlLast+=n;};
+  session.econCollect=()=>{econTick();const items:Record<string,{v:number;g:number;s:number}>={};for(const k in econLast)items[k]={v:econLast[k],g:econG[k]??0,s:econS[k]??0};
+    const b={items,pearlG,pearlS,sent:{...econLast},pearlSent:state.pearls};econG={};econS={};pearlG=0;pearlS=0;return b;};
+  session.econRestore=b=>{for(const k in b.items){econG[k]=(econG[k]??0)+b.items[k].g;econS[k]=(econS[k]??0)+b.items[k].s;}pearlG+=b.pearlG;pearlS+=b.pearlS;};
+  session.econApply=(b,st2,pearls)=>{econTick();for(const k in st2)econAdjust(k,Math.round(st2[k])-(b.sent[k]??Math.round(st2[k])));state.pearls=Math.max(0,state.pearls+pearls-b.pearlSent);econSettle();};}
 session.onPearlFix=d=>{state.pearls=Math.max(0,state.pearls+d);saveAccount();updateUI();};
 async function redeemCoupon(){const input=ui('couponInput') as HTMLInputElement,out=ui('couponResult');
   if(session.account){const sb=supa();if(!sb)return;if(normalizeCode(input.value).length<4){out.textContent='Kupon kodunu gir';out.className='coupon-result bad';return;}

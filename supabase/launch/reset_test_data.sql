@@ -11,6 +11,9 @@ delete from public.guild_applications;
 delete from public.guild_members;
 delete from public.guilds;
 delete from public.saves;
+delete from public.economy;
+delete from public.economy_flags;
+update public.islands set guild_id = null, towers = '[]'::jsonb, ruins = '{}'::jsonb;
 delete from auth.users where id not in (select user_id from public.admins);
 commit;
 -- Kontrol: kalan hesaplar yalnızca yöneticiler olmalı
