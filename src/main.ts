@@ -788,7 +788,7 @@ function populateMap(){
 function enterMap(key:MapKey,at:Vec){
   currentMap=key;fleetSafe=null;fleetFields.clear();try{localStorage.setItem(WORLD_STORAGE,key);}catch{}populateMap();
   player.x=at.x;player.y=at.y;player.speed=0;destination=null;selected=null;state.attacking=false;ui('attack').classList.remove('active');
-  camera.x=player.x;camera.y=player.y;jumpPrompt=null;mapFade=1;updateJumpPrompt();playMapJump();
+  camera.x=player.x;camera.y=player.y;freeLook=null;jumpPrompt=null;mapFade=1;updateJumpPrompt();playMapJump();
   rewardNotice(`${mapDef().key} ${mapDef().name} · ${mapDef().safe?'savaşa kapalı':'seviye '+mapDef().tier}`,'none');
 }
 function inCombat(){return enemies.some(e=>e.aggro&&!e.tower&&dist(e,player)<520)||monsters.some(m=>m.aggro&&dist(m,player)<520);}
@@ -799,7 +799,7 @@ function useJump(){
   if(!jumpPrompt){toast('Harita atlamak için denizin kenarına yanaş');return;}const target=MAPS[jumpPrompt.to];
   if(state.level<target.tier){toast(`${target.key} ${target.name} için Seviye ${target.tier} gerekli`);return;}
   if(inCombat()){toast('Savaş sırasında harita atlanamaz');return;}
-  const dir=jumpPrompt.dir,inset=EDGE+110,at={x:dir==='west'?WORLD_WIDTH-inset:dir==='east'?inset:player.x,y:dir==='north'?WORLD_HEIGHT-inset:dir==='south'?inset:player.y};
+  const dir=jumpPrompt.dir,inset=EDGE+290,at={x:dir==='west'?WORLD_WIDTH-inset:dir==='east'?inset:player.x,y:dir==='north'?WORLD_HEIGHT-inset:dir==='south'?inset:player.y};
   enterMap(target.key,at);
 }
 function updateJumpPrompt(){
@@ -1011,7 +1011,7 @@ function respawn(){
   currentMap=deathMap;
   try{localStorage.setItem(WORLD_STORAGE,deathMap);}catch{}
   const spot=randomSafePlayerPoint();
-  player.x=spot.x;player.y=spot.y;player.speed=0;destination=null;routeTarget=null;camera.x=player.x;camera.y=player.y;
+  player.x=spot.x;player.y=spot.y;player.speed=0;destination=null;routeTarget=null;camera.x=player.x;camera.y=player.y;freeLook=null;
   fleetSafe={x:spot.x,y:spot.y};collisionNotice=0;
   state.hp=Math.max(1,Math.round(effectiveMaxHp()*.1));state.repairing=true;state.invulnerable=4;state.attacking=false;selected=null;shots.length=0;salvoQueue.length=0;
   enemies.forEach(e=>{e.aggro=false;e.combatTimer=0;});monsters.forEach(m=>{m.aggro=false;m.combatTimer=0;});ui('attack').classList.remove('active');
