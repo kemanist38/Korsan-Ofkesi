@@ -659,8 +659,8 @@ function spyDialog(title:string,html:string,ok='TAMAM',onOk?:()=>void){
   const x=el.querySelector<HTMLButtonElement>('[data-x]');if(x)x.onclick=close;
   el.onclick=e=>{if(e.target===el)close();};}
 // Çevrim içi kaptan listesi: dokununca en yakın kaptana rota çizilir
-// Bağlantı göstergesi (kaç kaptan çevrim içi) yalnızca yöneticiye görünür; yerel geliştirmede de açık
-if(session.isAdmin||import.meta.env.DEV)ui('netPill').hidden=false;
+// Bağlantı göstergesi (kaç kaptan çevrim içi) oyunda gösterilmez; sayı yalnızca yönetim panelinde (yerel geliştirmede açık)
+if(import.meta.env.DEV)ui('netPill').hidden=false;
 ui('netPill').onclick=()=>{const others=enemies.filter(e=>e.remote);if(netStatus!=='ok'){toast(netStatus==='error'?`Sunucuya bağlanılamadı (${netError})`:'Sunucuya bağlanılıyor…');return;}
   if(!others.length){toast(`${currentMap} haritasında başka kaptan yok`);return;}
   const t=others.sort((a,b)=>dist(a,player)-dist(b,player))[0];routeTarget=navigablePoint({x:t.x,y:t.y});destination=routeVia(routeTarget);attackChase=false;
