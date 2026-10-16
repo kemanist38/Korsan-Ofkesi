@@ -799,7 +799,7 @@ function useJump(){
   if(!jumpPrompt){toast('Harita atlamak için denizin kenarına yanaş');return;}const target=MAPS[jumpPrompt.to];
   if(state.level<target.tier){toast(`${target.key} ${target.name} için Seviye ${target.tier} gerekli`);return;}
   if(inCombat()){toast('Savaş sırasında harita atlanamaz');return;}
-  const dir=jumpPrompt.dir,inset=EDGE+290,at={x:dir==='west'?WORLD_WIDTH-inset:dir==='east'?inset:player.x,y:dir==='north'?WORLD_HEIGHT-inset:dir==='south'?inset:player.y};
+  const dir=jumpPrompt.dir,inset=EDGE+30,at={x:dir==='west'?WORLD_WIDTH-inset:dir==='east'?inset:player.x,y:dir==='north'?WORLD_HEIGHT-inset:dir==='south'?inset:player.y};
   enterMap(target.key,at);
 }
 function updateJumpPrompt(){
