@@ -115,7 +115,7 @@ export const sendSparkle=()=>wsSend('spk');
 export const sendNpcHits=(h:[string,number][])=>wsSend('nhit',{h});
 // Sunucu atışı: donanım bildirimi ve hedefe atış (hasarı sunucu hesaplar)
 export const sendLoadout=(d:unknown)=>wsSend('ld',d);
-export const sendAttack=(d:{id:string;a:string;n:number;i:number;p:number;r:number})=>wsSend('atk',d);
+export const sendAttack=(d:{k:string;id:string;a:string;n:number;i:number;p:number;r:number})=>wsSend('atk',d);
 export const sendDig=()=>wsSend('tdig');
 export const sendChat=(c:NetChat)=>wsSend('chat',c);
 export const sendBid=(b:NetBid)=>wsSend('bid',b);

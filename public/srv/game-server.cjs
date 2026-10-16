@@ -3677,6 +3677,7 @@ __export(game_server_exports, {
   TOWER_SLOTS: () => TOWER_SLOTS,
   USE_COOLDOWN: () => USE_COOLDOWN,
   addCredit: () => addCredit,
+  attackTarget: () => attackTarget,
   bossCredit: () => bossCredit,
   bossHit: () => bossHit,
   bossInfo: () => bossInfo,
@@ -5281,6 +5282,9 @@ async function onTowerHit(c, m, now) {
     dmg = sbTake(c, t.ok);
     if (dmg <= 0) return;
   }
+  await towerApply(c, key, slot, dmg, heal, now);
+}
+async function towerApply(c, key, slot, dmg, heal, now) {
   const r = towerHit(key, slot, c.guildId, dmg, heal, now);
   if (!r?.destroyed) return;
   const i = islands.get(key);
@@ -5550,14 +5554,62 @@ function npcDeath(c, r, now) {
     }
   }
 }
+function bossApply(c, dmg) {
+  const r = bossHit(c.sea, c.uid, dmg);
+  if (!r) return;
+  const room = seas.get(c.sea);
+  log("BOSS BATTI", c.sea, r.n, "kaptan");
+  {
+    const map = seaMap(c.sea);
+    for (const x of all) {
+      const sh = r.shares[x.uid];
+      if (!sh) continue;
+      const add = bossCredit(map, sh.share, r.n);
+      if (add) addCredit(x, add);
+    }
+  }
+  for (const x of room || []) send(x, { t: "bdown", d: { id: r.id, n: r.n, ...r.shares[x.uid] ?? { share: 0, dmg: 0 } } });
+}
+function siegeApply(c, i, dmg) {
+  const r = siegeHitPiece(c.uid, c.nick, i, dmg);
+  if (r?.damage > 0) addCredit(c, siegeCredit(r.damage, siegeRun.caps.size, c.econ?.level));
+  if (!r?.down && r?.down !== 0) return;
+  toSea(c, { t: "sdown", d: { i: r.down } }, true);
+  if (r.won) siegeFinish();
+}
+function attackTarget(c, d) {
+  const k = String(d?.k || "n"), id = String(d?.id ?? "");
+  if (k === "n") {
+    const n = seaNpcs.get(c.sea)?.list.get(id);
+    return n ? { k, n, x: n.x, y: n.y, kind: "npc" } : null;
+  }
+  if (k === "b") return bossSeas.get(c.sea)?.boss ? { k, kind: "boss" } : null;
+  if (k === "s") {
+    const i = Number(id);
+    return c.sea === SIEGE_ROOM && Number.isInteger(i) && i >= 0 && i < SIEGE_PIECES ? { k, i, kind: "tower" } : null;
+  }
+  if (k === "t") {
+    const key = islandOfSea(c.sea), slot = Number(id);
+    if (!key || !Number.isInteger(slot) || slot < 0 || slot >= TOWER_SLOTS || !MAPS[key]) return null;
+    const f = MAPS[key].fleet, [dx, dy] = FLEET.towers[slot] ?? [0, 0];
+    return { k, key, slot, x: f.x + dx, y: f.y + dy, kind: "tower" };
+  }
+  if (k === "p") {
+    const t = [...seas.get(c.sea) || []].find((x) => x.netId === id && x !== c);
+    if (!t?.last || c.guildId && c.guildId === t.guildId) return null;
+    return { k, t, x: t.last.x, y: t.last.y, kind: "player" };
+  }
+  return null;
+}
 async function onAttack(c, d, now) {
-  const n = seaNpcs.get(c.sea)?.list.get(String(d?.id || ""));
-  if (!c.ldRaw || !c.last || !n) return;
+  if (!c.ldRaw || !c.last) return;
+  const tg = attackTarget(c, d);
+  if (!tg) return;
   c.ld = buildLoadout(c.econ, c.ldRaw);
   if (!c.ld) return;
   const a = String(d?.a || "iron");
-  if (!["iron", "chain", "fire", "explosive", "breaker", "leech"].includes(a)) return;
-  const why = shotCheck(c, c.ld, a, Math.hypot(c.last.x - n.x, c.last.y - n.y), now, !!d?.r);
+  if (!["iron", "chain", "fire", "explosive", "breaker", "leech", ...tg.k === "p" ? ["heal"] : []].includes(a)) return;
+  const why = shotCheck(c, c.ld, a, tg.x === void 0 ? 0 : Math.hypot(c.last.x - tg.x, c.last.y - tg.y), now, !!d?.r);
   if (why) {
     if (why !== "dolum") suspect(c, "at\u0131\u015F", why);
     return;
@@ -5565,9 +5617,9 @@ async function onAttack(c, d, now) {
   const cap = c.ld.cannons;
   let k = Math.max(0, Math.floor(Number(d?.n) || 0)), i = Math.max(0, Math.floor(Number(d?.i) || 0));
   if (k + i > cap) {
-    const f = cap / (k + i);
-    k = Math.floor(k * f);
-    i = Math.floor(i * f);
+    const f2 = cap / (k + i);
+    k = Math.floor(k * f2);
+    i = Math.floor(i * f2);
   }
   if (a === "iron") {
     i += k;
@@ -5576,11 +5628,43 @@ async function onAttack(c, d, now) {
   const before = c.econ, pool = c.sb?.pool ?? 0;
   await applyUsage(c, { a, n: k, i, p: d?.p ? 1 : 0 }, null, now);
   if (c.sb) c.sb.pool = pool;
-  const live = seaNpcs.get(c.sea)?.list.get(n.id);
-  if (!live) return;
-  const dmg = salvoDamage(c.ld, a, k, i, !!d?.p, !!d?.r) * targetFactor(a, "npc");
-  const r = npcApply(c, c.sea, live, dmg, now);
-  if (r.dead) npcDeath(c, r, now);
+  if (c.econ === before && SERVER_SECRET && !(process.env.BENCH_AUTH === "1" && c.uid.startsWith("b"))) return;
+  const raw = salvoDamage(c.ld, a, k, i, !!d?.p, !!d?.r), dmg = raw * targetFactor(a, tg.kind);
+  if (tg.k === "n") {
+    const live = seaNpcs.get(c.sea)?.list.get(tg.n.id);
+    if (!live) return;
+    const r = npcApply(c, c.sea, live, dmg, now);
+    if (r.dead) npcDeath(c, r, now);
+    return;
+  }
+  if (tg.k === "b") {
+    bossApply(c, dmg);
+    return;
+  }
+  if (tg.k === "s") {
+    siegeApply(c, tg.i, dmg);
+    return;
+  }
+  if (tg.k === "t") {
+    await towerApply(c, tg.key, tg.slot, dmg, false, now);
+    return;
+  }
+  const t = tg.t, f = { from: c.netId, to: t.netId, x: Math.round(c.last.x), y: Math.round(c.last.y), tx: Math.round(t.last.x), ty: Math.round(t.last.y), ammo: a, damage: 0 };
+  if (a === "heal") {
+    f.damage = Math.round(Math.min(raw, (t.maxHp || 163e3) * (0.08 + Math.random() * 0.012)));
+    pvpHeal(t, f.damage, now);
+  } else {
+    f.damage = pvpGuard(t, dmg, now);
+    pvpOf(t).from.set(c.netId, now);
+    if (godCheck(t)) {
+      suspect(t, "\xF6l\xFCms\xFCz");
+      pvpReset(t);
+      send(t, { t: "forceSink", d: { by: c.netId, byNick: c.nick } });
+      toSea(t, { t: "sunk", d: { victim: t.netId, victimNick: t.nick, by: c.netId, byNick: c.nick } });
+      return;
+    }
+  }
+  toNear(c, { t: "fire", d: f }, t.netId);
 }
 async function flushCredit(c) {
   if (c.flushing || !c.uid) return;
@@ -5786,44 +5870,9 @@ wss.on("connection", (ws) => {
         queueState(c, s);
         return;
       }
-      case "fire": {
-        if (!c.sea || !c.rFire.hit(now)) {
-          suspect(c, "at\u0131\u015F h\u0131z\u0131");
-          return;
-        }
-        const f = m.d;
-        const v = checkFire(f);
-        if (v !== "ok") {
-          suspect(c, "hasar", String(f?.damage));
-          return;
-        }
-        f.from = c.netId;
-        {
-          const t = [...seas.get(c.sea) || []].find((x) => x.netId === f.to);
-          if (t) {
-            if (c.last && t.last && Math.hypot(c.last.x - t.last.x, c.last.y - t.last.y) > PVP_RANGE) {
-              suspect(c, "menzil");
-              return;
-            }
-            if (f.ammo === "heal") pvpHeal(t, f.damage, now);
-            else {
-              f.damage = Math.round(sbTake(c, f.damage));
-              if (f.damage <= 0) return;
-              pvpGuard(t, f.damage, now);
-              pvpOf(t).from.set(c.netId, now);
-              if (godCheck(t)) {
-                suspect(t, "\xF6l\xFCms\xFCz");
-                pvpReset(t);
-                send(t, { t: "forceSink", d: { by: c.netId, byNick: c.nick } });
-                toSea(t, { t: "sunk", d: { victim: t.netId, victimNick: t.nick, by: c.netId, byNick: c.nick } });
-                return;
-              }
-            }
-          }
-        }
-        toNear(c, { t: "fire", d: f }, f.to);
+      case "fire":
         return;
-      }
+      // oyuncular arası atış yalnız sunucu atışıyla (atk); oyuncunun bildirdiği hasar kabul edilmez
       case "sunk": {
         if (!c.sea) return;
         const s = m.d || {};
@@ -5860,20 +5909,7 @@ wss.on("connection", (ws) => {
           dmg = sbTake(c, t.ok);
           if (dmg <= 0) return;
         }
-        const r = bossHit(c.sea, c.uid, dmg);
-        if (!r) return;
-        const room = seas.get(c.sea);
-        log("BOSS BATTI", c.sea, r.n, "kaptan");
-        {
-          const map = seaMap(c.sea);
-          for (const x of all) {
-            const sh = r.shares[x.uid];
-            if (!sh) continue;
-            const add = bossCredit(map, sh.share, r.n);
-            if (add) addCredit(x, add);
-          }
-        }
-        for (const x of room || []) send(x, { t: "bdown", d: { id: r.id, n: r.n, ...r.shares[x.uid] ?? { share: 0, dmg: 0 } } });
+        bossApply(c, dmg);
         return;
       }
       case "shit": {
@@ -5890,11 +5926,7 @@ wss.on("connection", (ws) => {
           dmg = sbTake(c, t.ok);
           if (dmg <= 0) return;
         }
-        const r = siegeHitPiece(c.uid, c.nick, Number(m.d?.i), dmg);
-        if (r?.damage > 0) addCredit(c, siegeCredit(r.damage, siegeRun.caps.size, c.econ?.level));
-        if (!r?.down && r?.down !== 0) return;
-        toSea(c, { t: "sdown", d: { i: r.down } }, true);
-        if (r.won) siegeFinish();
+        siegeApply(c, Number(m.d?.i), dmg);
         return;
       }
       case "ld": {
@@ -6125,6 +6157,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   TOWER_SLOTS,
   USE_COOLDOWN,
   addCredit,
+  attackTarget,
   bossCredit,
   bossHit,
   bossInfo,

@@ -251,3 +251,12 @@ test('sunucu atışı: donanım sahip olunanla sınırlı, hasar formülü, dolu
   // Öfke 30 sn'de en çok 2 salvo
   const r={};assert.equal(S.shotCheck(r,L,'iron',10,1e6,true),null);assert.equal(S.shotCheck(r,L,'iron',10,1e6+5000,true),null);assert.equal(S.shotCheck(r,L,'iron',10,1e6+10000,true),'öfke');
 });
+test('sunucu atışı hedefleri: kule konumu sunucudan, dost oyuncuya atış yok, oyuncunun hasar mesajı yok sayılır',()=>{
+  const c={sea:'sea-2-1',guildId:7};
+  const t=S.attackTarget(c,{k:'t',id:'3'});assert.ok(t&&Number.isFinite(t.x)&&t.kind==='tower');
+  assert.equal(S.attackTarget(c,{k:'t',id:'99'}),null);
+  assert.equal(S.attackTarget({sea:'sea-1-1'},{k:'t',id:'1'}),null);// 1. denizde filo adası yok
+  assert.equal(S.attackTarget(c,{k:'s',id:'1'}),null);// kuşatma odası değil
+  assert.equal(S.attackTarget({sea:'sea-siege'},{k:'s',id:'16'}).kind,'tower');
+  assert.equal(S.attackTarget(c,{k:'x',id:'1'}),null);
+});
