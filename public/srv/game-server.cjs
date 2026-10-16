@@ -3697,6 +3697,7 @@ __export(game_server_exports, {
   flushCredit: () => flushCredit,
   godCheck: () => godCheck,
   guildOf: () => guildOf,
+  heroUntil: () => heroUntil,
   hpCap: () => hpCap,
   isAdminToken: () => isAdminToken,
   islandFromRow: () => islandFromRow,
@@ -4292,6 +4293,7 @@ function victoryChest(rand = Math.random, level = 8) {
   const a = Math.floor(rand() * CHEST_AMMO.length), b = (a + 1 + Math.floor(rand() * (CHEST_AMMO.length - 1))) % CHEST_AMMO.length, q = 1500 + 500 * l;
   return { pearls: 300 + 100 * l, ammo: { [CHEST_AMMO[a]]: q, [CHEST_AMMO[b]]: q }, speed: 20, mine: 5 + l, powder: 100 * l, shield: 100 * l };
 }
+var HERO_DAYS = 7;
 var HERO_DAMAGE = 0.03;
 
 // src/loot.ts
@@ -4715,6 +4717,7 @@ function treasureDig(c) {
 var pendingCredits = /* @__PURE__ */ new Map();
 var STATE_FILE = process.env.STATE_FILE || "/opt/game/state.json";
 var qkByUid = /* @__PURE__ */ new Map();
+var heroUntil = /* @__PURE__ */ new Map();
 function saveServerState() {
   if (process.env.NODE_ENV === "test") return;
   try {
@@ -4723,7 +4726,7 @@ function saveServerState() {
       c.credit = null;
       pendingCredits.set(c.grant.id, c);
     }
-    import_node_fs.default.writeFileSync(STATE_FILE + ".tmp", JSON.stringify({ g: [...pendingCredits.values()].map((c) => ({ uid: c.uid, grant: c.grant, credit: c.credit })), q: [...questCooldowns].map(([u, m]) => [u, [...m]]), k: [...qkByUid], t: [...treasures] }));
+    import_node_fs.default.writeFileSync(STATE_FILE + ".tmp", JSON.stringify({ g: [...pendingCredits.values()].map((c) => ({ uid: c.uid, grant: c.grant, credit: c.credit })), q: [...questCooldowns].map(([u, m]) => [u, [...m]]), k: [...qkByUid], t: [...treasures], h: [...heroUntil] }));
     import_node_fs.default.renameSync(STATE_FILE + ".tmp", STATE_FILE);
   } catch (e) {
     log("DURUM kay\u0131t hatas\u0131", e?.code);
@@ -4737,6 +4740,7 @@ function loadServerState() {
     for (const [u, m] of d.q || []) questCooldowns.set(u, new Map(m));
     for (const [u, k] of d.k || []) qkByUid.set(u, k);
     for (const [u, t] of d.t || []) treasures.set(u, t);
+    for (const [u, t] of d.h || []) heroUntil.set(u, t);
   } catch {
   }
 }
@@ -5397,6 +5401,10 @@ var siegeInfo = (r, uid) => ({ id: r.id, end: r.end, n: r.caps.size, hp: r.hp.ma
 function siegeFinish() {
   const r = siegeRun, room = seas.get(SIEGE_ROOM), total = [...r.contrib.values()].reduce((a, c) => a + c.dmg, 0) || 1;
   log("KU\u015EATMA B\u0130TT\u0130", r.result, r.caps.size, "kaptan");
+  if (r.result === "won") {
+    const t = Date.now() + HERO_DAYS * 864e5;
+    [...r.contrib].filter(([, c]) => c.dmg > 0).sort((a, b) => b[1].dmg - a[1].dmg).slice(0, 3).forEach(([u]) => heroUntil.set(u, t));
+  }
   const chests = /* @__PURE__ */ new Map();
   if (r.result === "won") for (const x of all) {
     const dmg = r.contrib.get(x.uid)?.dmg ?? 0;
@@ -5984,8 +5992,9 @@ wss.on("connection", (ws) => {
         return;
       // oyuncunun bildirdiği hasar kabul edilmez (sunucu atışı ve mayın)
       case "ld": {
-        c.ld = buildLoadout(c.econ, m.d);
-        c.ldRaw = m.d;
+        const d = { ...m.d && typeof m.d === "object" ? m.d : {}, hero: (heroUntil.get(c.uid) ?? 0) > now };
+        c.ld = buildLoadout(c.econ, d);
+        c.ldRaw = d;
         return;
       }
       case "atk": {
@@ -6232,6 +6241,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   flushCredit,
   godCheck,
   guildOf,
+  heroUntil,
   hpCap,
   isAdminToken,
   islandFromRow,
