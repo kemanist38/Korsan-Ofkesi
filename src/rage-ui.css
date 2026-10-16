@@ -506,3 +506,5 @@ html.touch .info-strip{gap:10px}
 .corner-buttons .logout-button svg{width:46%;height:46%}
 .corner-buttons .logout-button.pending{border-color:#ff8a4a;box-shadow:0 0 10px #ff6a2a99;animation:logoutPulse 1s infinite}
 @keyframes logoutPulse{50%{color:#fff}}
+/* Sunucu bağlantısı uyarısı */
+.net-warn{position:fixed;left:50%;top:96px;z-index:80;transform:translateX(-50%);padding:8px 16px;border:1px solid #d9763f;border-radius:8px;background:#2a120ccc;color:#ffd7b0;font:700 13px Inter,sans-serif;box-shadow:0 4px 14px #000a;pointer-events:none}
