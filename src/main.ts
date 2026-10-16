@@ -8,6 +8,7 @@ import {drawFlare,drawShotSprite,drawPuff,drawGlint} from './shotArt';
 import './storageMigration';
 import {session} from './session';
 import {guildOnline,loadMyGuild,searchGuilds,myApplications,createGuild,applyGuild,cancelApply,answerApplication,kickMember,setMemberRole,leaveGuild,disbandGuild,canManage,canKick,canDisband,type MyGuild,type GuildInfo,loadGuildIslands,buildIslandTower} from './guild-net';
+import {CANNONS,salvoDamage,reloadTime,rangeOf,type Loadout} from './combat';
 import './style.css';
 import './rage-ui.css';
 import {ACTIONS,loadSettings,saveSettings,keyLabel,normalizeKey,DEFAULT_BINDS,type ActionId} from './settings';
@@ -25,12 +26,12 @@ import {supa} from './supabase';
 import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
 import {loadLevelQuest,saveLevelQuest,levelQuestDone,levelQuestKill,levelQuestGoal,needsLevelQuest,levelQuestMap} from './level-quest';
 import {SPY_COST,SPY_SHIELD_PRICE,loadSpy,sendSpy,type SpyRival} from './spy';
-import {netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,sendSalvo,sendUse,sendQuestDone,sendChest,sendDig,sendSparkle,sendNpcHits,type NetNpc,type NetTreasure,type NetDig,type NetLoot,type NetSiegeEnd,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
+import {netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,sendSalvo,sendUse,sendQuestDone,sendChest,sendDig,sendSparkle,sendNpcHits,sendLoadout,sendAttack,type NetNpc,type NetTreasure,type NetDig,type NetLoot,type NetSiegeEnd,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
 import {AUCTION_MS,loadAuction,saveAuction,emptyAuction,auctionHour,auctionEnds,lotsFor,minNextBid,applyBid,wonLots,auctionId,type LotDef,type Bid} from './auction';
 import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,claimReward,GRADUATE_LEVEL,MAX_APPRENTICES,TOGETHER_XP_BONUS,APPRENTICE_MAX_LEVEL} from './mentorship';
 import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
 import {loadLog,saveLog,addLog,daySummary,LOG_KINDS,type LogKind,type LogEntry} from './logbook';
-import {IRON_START,IRON_PRICE,BALL_DAMAGE,CHAIN_FACTOR,CHAIN_SLOW,FIRE_NPC_FACTOR,EXPLOSIVE_PLAYER_FACTOR,leechHeal,repairAmount,ELITE_POINTS_PER_BALL,ELITE_MAX_LEVEL,questEp,bossEp,eliteLevelEp,eliteLevelFromEp,ABILITIES,SPECIAL_AMMO,MINE,SPEED_BOOST,VISION_RADIUS,COMPASS,CONSUMABLES,AMMO_PRICES,SUPPLY_PRICES,loadArsenal,saveArsenal,type AbilityId,type SpecialAmmo,type ConsumableId,type SupplyId,type Price,priceOf} from './arsenal';
+import {IRON_START,IRON_PRICE,BALL_DAMAGE,CHAIN_SLOW,FIRE_NPC_FACTOR,EXPLOSIVE_PLAYER_FACTOR,leechHeal,repairAmount,ELITE_POINTS_PER_BALL,ELITE_MAX_LEVEL,questEp,bossEp,eliteLevelEp,eliteLevelFromEp,ABILITIES,SPECIAL_AMMO,MINE,SPEED_BOOST,VISION_RADIUS,COMPASS,CONSUMABLES,AMMO_PRICES,SUPPLY_PRICES,loadArsenal,saveArsenal,type AbilityId,type SpecialAmmo,type ConsumableId,type SupplyId,type Price,priceOf} from './arsenal';
 import {loadFleetOwners,saveFleetOwners,loadRuins,markRuin,ruinLeft,ruinLabel,clearRuins} from './conquest';
 import {RIVAL_SP,battleRank,loadRivalLog,claimRivalSp,dayKey,RANK_SHEET,RANK_COLS,RANK_ICONS,rankIcon,BATTLE_RANKS} from './battle';
 import {setupChat} from './chat';
@@ -54,7 +55,7 @@ type AmmoKind = 'iron'|'chain'|SpecialAmmo;
 const isSpecial=(a:string):a is SpecialAmmo=>a in SPECIAL_AMMO;
 type CannonKind = 'cast'|'long'|'rapid'|'heavy';
 type CannonStock=Record<CannonKind,number>;
-type Shot = Vec & { noHome?:boolean; captain?:Enemy; foe?:Enemy; powder?:boolean; vx:number; vy:number; life:number; owner:'player'|'enemy'; damage:number; hit:boolean; ammo:AmmoKind; target?:Target; slow?:number; splash?:number; visual?:'spit'; age?:number; flight?:number; arc?:number; trail?:number };
+type Shot = Vec & { net?:boolean; noHome?:boolean; captain?:Enemy; foe?:Enemy; powder?:boolean; vx:number; vy:number; life:number; owner:'player'|'enemy'; damage:number; hit:boolean; ammo:AmmoKind; target?:Target; slow?:number; splash?:number; visual?:'spit'; age?:number; flight?:number; arc?:number; trail?:number };
 type SalvoRound = { powder?:boolean; delay:number; target:Target; side:number; slot:number; damage:number; ammo:AmmoKind };
 type EnemyRole='light'|'heavy';
 // Test kaptanı: elit gemili, oyuncu gibi savaşan yapay rakip (yalnız test modunda 1/1'de)
@@ -73,12 +74,7 @@ type ShipSelection='starter'|EliteShipId;
 const ELITE_ONE_PRICE=ELITE_ENTRY_PRICE;
 // Test süresince elit gemiler ve 8. seviyeye kadar tüm haritalar açık.
 const ELITE_TEST_MODE=false;
-const CANNONS:Record<CannonKind,{name:string;damage:number;range:number;reload:number}>={
-  cast:{name:'Döküm',damage:1,range:390,reload:1.65},
-  long:{name:'Uzun',damage:.82,range:470,reload:2.05},
-  rapid:{name:'Seri',damage:.68,range:340,reload:1.05},
-  heavy:{name:'Ağır',damage:1.38,range:365,reload:2.65}
-};
+// Top türleri ortak savaş dosyasında (src/combat.ts); oyun sunucusu da aynısını kullanır
 const UPGRADES:Record<UpgradeKind,{name:string;description:string;effect:string;pearls:number}>={
   hull:{name:'Güçlendirilmiş Gövde',description:'Geminin azami gövde dayanıklılığını artırır.',effect:'+15.000 gövde · top kapasitesi sabit',pearls:8},
   damage:{name:'Top Güvertesi',description:'Her borda atışının verdiği hasarı artırır.',effect:'+%11 hasar',pearls:10},
@@ -601,7 +597,7 @@ const netHandlers:NetHandlers={
   bidKnown:bids=>{for(const b of bids)receiveBid(b);},
 };
 startNet(netHandlers);if(session.account)setTimeout(()=>{void refreshCloudGuild();},2000);
-let netClock=0,netFullClock=0,netHp=0,netIdent='',shipDir16=8;const netPrev={x:0,y:0},netVel={x:0,y:0},netSent={x:0,y:0};
+let netClock=0,netFullClock=0,netHp=0,netIdent='',shipDir16=8;const netPrev={x:0,y:0},netVel={x:0,y:0},netSent={x:0,y:0};let ldKey='',ldClock=0;
 function netTick(dt:number){joinSea(siege?(sharedBosses()?'siege':null):currentMap);{const ix=(player.x-netPrev.x)/Math.max(dt,1e-3),iy=(player.y-netPrev.y)/Math.max(dt,1e-3),ok=Math.hypot(ix,iy)<600;netVel.x=netVel.x*.8+(ok?ix:0)*.2;netVel.y=netVel.y*.8+(ok?iy:0)*.2;}netPrev.x=player.x;netPrev.y=player.y;
   // 16 yönlü tasarımlar: görünüş ortalama gidiş yönünden (çapraz adımlar yumuşatılmış hız). Ekranda dikey hız yarı ölçekli → ×2
   if(Math.hypot(netVel.x,netVel.y)>25)shipDir16=(8+Math.round(Math.atan2(netVel.y*2,netVel.x)/(Math.PI/8))+16)%16;
@@ -614,6 +610,8 @@ function netTick(dt:number){joinSea(siege?(sharedBosses()?'siege':null):currentM
   const f=isoFace,ship=activeShip==='starter'?'starter':String(activeShip),ident=`${profile.nick}|${guild?.tag??''}|${ship}|${effectiveMaxHp()}|${battleRank(state.battlePoints).index}|${state.level}`;
   const msg:NetState={id:myNetId,x:Math.round(player.x),y:Math.round(player.y),east:f.east,north:f.north,hp,t:Date.now(),vx:Math.round(netVel.x),vy:Math.round(netVel.y),d16};
   if(netFullClock<=0||ident!==netIdent){netFullClock=2;netIdent=ident;Object.assign(msg,{nick:profile.nick,tag:guild?.tag??null,ship,maxHp:effectiveMaxHp(),sp:state.battlePoints,level:state.level});}
+  // Donanım: değişince ya da 10 sn'de bir sunucuya (atış hasarını sunucu bununla hesaplar)
+  {const ld={mt:mountedCannons,type:state.cannonType,eq:equipped,act:crew.active,hero:!!heroTitle,ach:!!ach.collectionComplete},k=JSON.stringify(ld);ldClock-=1;if(k!==ldKey||ldClock<=0){ldKey=k;ldClock=30;sendLoadout(ld);}}
   // Yeniden doğma, liman ya da harita geçişi gibi ani konum değişimi: sunucuya ışınlanma olarak bildirilir
   if(Math.hypot(player.x-netSent.x,player.y-netSent.y)>700)msg.tp=1;netSent.x=player.x;netSent.y=player.y;
   sendState(msg);
@@ -998,7 +996,6 @@ function toggleRepair(){
 }
 
 function fireAtTarget(){
-  const cannon=CANNONS[state.cannonType];
   if(!selected||player.cooldown>0||dist(player,selected)>effectiveRange())return;
   // Şifa yalnız oyunculara (ve dost kulelere); hasar veren gülle dosta sıkılamaz
   const friendTarget=selected.kind==='ship'&&!!selected.captain;
@@ -1010,18 +1007,17 @@ function fireAtTarget(){
   const stock=state.ammo==='chain'?state.chainAmmo:isSpecial(state.ammo)?arsenal[state.ammo]:0,loaded=Math.min(state.cannon,stock);
   const ironUsed=state.ammo==='heal'?0:Math.min(state.cannon-loaded,state.ironAmmo);
   if(loaded+ironUsed<=0){toast('Demir gülle bitti — marketten altınla alabilirsin');stopAttack();return;}
-  const ammoMult=state.ammo==='chain'?CHAIN_FACTOR:isSpecial(state.ammo)?SPECIAL_AMMO[state.ammo].damage:1,mix=state.cannon>0?(loaded*ammoMult+ironUsed)/state.cannon:1;
   const fx=Math.sin(player.angle),fy=-Math.cos(player.angle),tx=selected.x-player.x,ty=selected.y-player.y;
-  const powderF=state.ammo==='heal'?1:useConsumable('powder'),side=fx*ty-fy*tx>0?-1:1,damage=state.cannon*BALL_DAMAGE*(1+upgrades.damage*.11)*cannon.damage*bonus.damage*mix*(1+equipBonus().damage+achBonus().damage+eliteBonus().damage+heroDamage())*powderF*rageSalvo(rage);
+  const powderF=state.ammo==='heal'?1:useConsumable('powder'),side=fx*ty-fy*tx>0?-1:1,rageF=rageSalvo(rage),damage=salvoDamage(myLoadout(),state.ammo,loaded,ironUsed,powderF>1,rageF>1);
   // Şifa salvosu en çok 13–15 bin can doldurur (top sayısına göre daha az olabilir)
   const amount=state.ammo==='heal'?Math.round(Math.min(damage,(selected.maxHp||163000)*(.08+Math.random()*.012))):damage;
   salvoQueue.push({delay:0,target:selected,side,slot:0,damage:amount,ammo:state.ammo,powder:powderF>1});
-  sendSalvo(state.ammo,loaded,ironUsed,powderF>1?1:0);
+  {const t=selected as Enemy;if(t.kind==='ship'&&t.net)sendAttack({id:t.net.id,a:state.ammo,n:loaded,i:ironUsed,p:powderF>1?1:0,r:rageF>1?1:0});else sendSalvo(state.ammo,loaded,ironUsed,powderF>1?1:0);}
   if(ironUsed){state.ironAmmo-=ironUsed;if(state.ironAmmo<=0)toast('Demir gülle bitti — marketten altınla alabilirsin');}
   if(state.ammo==='chain'){state.chainAmmo-=loaded;gainElitePoints(loaded*ELITE_POINTS_PER_BALL.chain);bumpAch('eliteBalls',loaded);}
   else if(isSpecial(state.ammo)){arsenal[state.ammo]-=loaded;saveArsenal(arsenal);gainElitePoints(loaded*ELITE_POINTS_PER_BALL[state.ammo]);bumpAch('eliteBalls',loaded);}
   saveAccount();renderQuickSlots();
-  player.cooldown=(1-equipBonus().reload)*cannon.reload*Math.max(.6,1-upgrades.reload*.04)*bonus.reload/(1+eliteBonus().reload)*(state.ammo==='chain'?1.18:1)*(isSpecial(state.ammo)?SPECIAL_AMMO[state.ammo].reload:1);
+  player.cooldown=reloadTime(myLoadout(),state.ammo);
 }
 function stopAttack(){state.attacking=false;attackChase=false;ui('attack').classList.remove('active');}
 function gainElitePoints(ep:number){
@@ -1040,7 +1036,7 @@ function releaseSalvo(round:SalvoRound){
   const muzzle=forwardDot>.55?{x:fx*24,y:fy*24}:forwardDot<-.55?{x:-fx*20,y:-fy*20}:{x:rx*round.side*18,y:ry*round.side*18};
   const x=player.x+muzzle.x,y=player.y+muzzle.y;
   {const t=round.target as Enemy;if(t.kind==='ship'&&t.remote)sendFire({from:myNetId,to:t.remote.id,x,y,tx:t.x,ty:t.y,damage:round.damage,ammo:round.ammo});}
-  shots.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life:Math.max(1.1,d/speed+.5),owner:'player',damage:round.damage,hit:false,ammo:round.ammo,target:round.target,powder:round.powder});
+  shots.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life:Math.max(1.1,d/speed+.5),owner:'player',damage:round.damage,hit:false,ammo:round.ammo,target:round.target,powder:round.powder,net:!!(round.target as Enemy).net});
   playCannon(state.cannonType,round.ammo==='heal'?'iron':round.ammo);
   muzzleFlash(x,y,Math.atan2(muzzle.y,muzzle.x));
 }
@@ -1114,7 +1110,10 @@ function sinkNotice(name:string,sp:number){
 }
 function saveQuestState(){localStorage.setItem(QUEST_STORAGE,JSON.stringify({rulesVersion:2,active:state.activeQuest,progress:questProgress,cooldowns:questCooldownUntil}));}
 function saveAccount(){localStorage.setItem(ACCOUNT_STORAGE,JSON.stringify({pearls:state.pearls,gold:state.gold,fame:state.fame,level:state.level,maxHp:state.maxHp,hp:state.hp,chainAmmo:state.chainAmmo,ironAmmo:state.ironAmmo,elitePoints:state.elitePoints,eliteEconomyVersion:ELITE_ECONOMY_VERSION,battlePoints:state.battlePoints,cannonType:state.cannonType,cannonInventory,mountedCannons,equipOwned,equipped,quickSlots,quickKnown,upgrades,eliteShip:activeEliteShip,activeShip,elitePurchased,currentMap}));try{localStorage.setItem(WORLD_STORAGE,currentMap);}catch{}}
-function effectiveRange(){return(CANNONS[state.cannonType].range+upgrades.range*18+bonus.range+equipBonus().range);}
+// Atışı etkileyen her şey tek yerde: oyun hasarı bununla hesaplar, aynı bilgiler oyun sunucusuna da bildirilir
+function myLoadout():Loadout{const eq=equipBonus(),el=eliteBonus();return{cannons:state.cannon,type:state.cannonType,upDamage:upgrades.damage,upReload:upgrades.reload,upRange:upgrades.range,
+  crewDamage:bonus.damage,crewReload:bonus.reload,crewRange:bonus.range,equipDamage:eq.damage,equipReload:eq.reload,equipRange:eq.range,achDamage:achBonus().damage,eliteDamage:el.damage,eliteReload:el.reload,hero:heroDamage()};}
+function effectiveRange(){return rangeOf(myLoadout());}
 function effectiveSpeed(){return(128+upgrades.speed*5)*bonus.speed*(1+equipBonus().speed+eliteBonus().speed)*(abilityActive('speed')?SPEED_BOOST:1)*(rageActive(rage)?RAGE_SPEED:1)*(playerSlow>0?CHAIN_SLOW.factor:1);}
 function cannonCapacity(){return earnedEliteLevel()>0?ELITE_CANNON_CAPACITY:BASE_CANNONS;}
 function mountedCannonCount(){return (Object.keys(mountedCannons) as CannonKind[]).reduce((sum,kind)=>sum+mountedCannons[kind],0);}
@@ -2010,6 +2009,7 @@ function update(dt:number){updateHealFlights(dt);{const rc=document.getElementBy
         if(s.ammo==='heal'){if(e!==s.target||dist(s,e)>=(e.hitRadius??25))continue;s.hit=true;s.life=0;const amt=Math.max(0,Math.min(s.damage,e.maxHp-e.hp));if(!e.remote)e.hp+=amt;healText(e.x,e.y,e.remote?s.damage:amt);playHeal();continue;}
         if(isAlly(e))continue;
         if(e.remote&&dist(s,e)<(e.hitRadius??25)){s.hit=true;s.life=0;burst(e.x,e.y);playHit();continue;}
+        if(e.net&&s.net&&dist(s,e)<(e.hitRadius??25)){s.hit=true;s.life=0;e.aggro=true;e.combatTimer=12;e.lastHitBy='player';burst(e.x,e.y);playHit();damageText(e.x,e.y,Math.round(s.damage*(s.ammo==='fire'?FIRE_NPC_FACTOR:1)),s.powder?DMG_GOLD:DMG_RED);continue;}
         if(dist(s,e)<(e.hitRadius??25)){const rawHit=(s.damage*(s.ammo==='breaker'&&e.tower?SPECIAL_AMMO.breaker.towerFactor:1)*(s.ammo==='fire'&&!e.tower&&!e.captain?FIRE_NPC_FACTOR:1)*(s.ammo==='explosive'&&e.captain?EXPLOSIVE_PLAYER_FACTOR:1));const hit=e.captain?pvpClamp(e.pvp??=newPvpBudget(e.maxHp,performance.now()/1000),e.maxHp,rawHit,performance.now()/1000):rawHit;s.hit=true;if(s.slow)e.slowTimer=Math.max(e.slowTimer,s.slow);if(s.splash)towerSplash(s,e);e.aggro=true;e.lastHitBy='player';e.combatTimer=12;if(s.ammo==='chain'&&e.captain)e.slowTimer=CHAIN_SLOW.seconds;e.hp-=hit;siegeHit(e,hit,profile.nick);damageText(e.x,e.y,hit,s.powder?DMG_GOLD:DMG_RED);burst(e.x,e.y);playHit();ammoImpact(s,e,hit);s.life=0;
           if(e.hp<=0)sinkEnemy(e);
         }

@@ -12,7 +12,13 @@ import {pvpClamp,newPvpBudget} from '../src/pvp.ts';
 import {RIVAL_SP,RIVAL_DAILY_LIMIT} from '../src/battle.ts';
 import {NPCS,MONSTERS,MAPS,QUESTS,QUEST_COOLDOWN_MS,bossFor,BOSS_KILLS,FLEET,WORLD_WIDTH,WORLD_HEIGHT,coordLabel} from '../src/campaign.ts';
 import {TREASURE_PARTS,PART_CHANCE,DIG_RADIUS,treasureReward} from '../src/treasure.ts';
-import {questEp,bossEp,ELITE_POINTS_PER_BALL} from '../src/arsenal.ts';
+import {questEp,bossEp,ELITE_POINTS_PER_BALL,eliteLevelFromEp} from '../src/arsenal.ts';
+import {CANNONS,salvoDamage,reloadTime,rangeOf,targetFactor} from '../src/combat.ts';
+import {EQUIPMENT,equipTotals} from '../src/equipment.ts';
+import {cumulativeEliteBonus,ELITE_CANNON_CAPACITY} from '../src/elite-progression.ts';
+import {ACHIEVEMENTS,MAIN_COLLECTION} from '../src/achievements.ts';
+import {officerSlots,OFFICER_MAX_RANK} from '../src/crew.ts';
+import {HERO_DAMAGE} from '../src/siege.ts';
 import {createChest} from '../src/loot.ts';
 import {fleetReward} from '../src/campaign.ts';
 import {contribReward,earnsChest,victoryChest} from '../src/siege.ts';
@@ -218,6 +224,24 @@ export const spByUid=new Map(); // batıran → Map(rakip → {gün, sayı})
 export function spCredit(killer,victimUid,now){if(!killer?.uid||!victimUid||killer.uid===victimUid)return null;const day=new Date(now+3*3600_000).toISOString().slice(0,10);
   const m=spByUid.get(killer.uid)??new Map();spByUid.set(killer.uid,m);const r=m.get(victimUid);const n=r&&r.day===day?r.n:0;if(n>=RIVAL_DAILY_LIMIT)return null;
   m.set(victimUid,{day,n:n+1});return{sp:RIVAL_SP*2};}
+// ---------------------------------------------------------------- Sunucu atışı
+// Oyuncu donanımını bildirir (ld); sunucu her kalemi sahip olduklarıyla sınırlar ve atışı (atk) kendisi hesaplar:
+// dolum süresi, menzil, stok ve hasar oyunun formülüyle (src/combat.ts) sunucuda. Oyuncu hasar bildirmez.
+export function buildLoadout(st,d){if(!st)return null;const lvl=Math.max(1,Math.min(8,Number(st.level)||1)),elite=Number(st.elite)>0?eliteLevelFromEp(Number(st.ep)||0):0;
+  const cap=elite>0?ELITE_CANNON_CAPACITY:100,mt={};let total=0;
+  for(const k of Object.keys(CANNONS)){const want=Math.max(0,Math.floor(Number(d?.mt?.[k])||0)),own=Math.max(0,Number(st['c_'+k])||0);mt[k]=Math.min(want,own,cap-total);total+=mt[k];}
+  let type=String(d?.type||'cast');if(!CANNONS[type]||!mt[type])type=Object.keys(mt).sort((a,b)=>mt[b]-mt[a])[0]||'cast';
+  const eq={},used={};for(const [slot,id] of Object.entries(d?.eq||{})){if(typeof id!=='string'||!EQUIPMENT.some(e=>e.id===id&&e.slot===slot))continue;used[id]=(used[id]||0)+1;if(used[id]<=(Number(st['e_'+id])||0))eq[slot]=id;}
+  const et=equipTotals(eq),active=(Array.isArray(d?.act)?d.act:[]).filter(x=>typeof x==='string').slice(0,officerSlots(lvl));
+  const rank=id=>active.includes(id)?Math.max(0,Math.min(OFFICER_MAX_RANK,Number(st['o_'+id])||0)):0;
+  // Madalya koleksiyonu: sayaçlarla doğrulanır (günlük seri doğrulanamaz, kabul edilir)
+  const achOk=!!d?.ach&&MAIN_COLLECTION.every(id=>{const a=ACHIEVEMENTS.find(x=>x.id===id);if(!a)return true;if(a.stat==='daily')return true;if(a.stat==='level')return lvl>=a.goal;return(Number(st['st_'+a.stat])||0)>=a.goal;});
+  const el=cumulativeEliteBonus(elite);
+  return{cannons:total,type,upDamage:Number(st.u_damage)||0,upReload:Number(st.u_reload)||0,upRange:Number(st.u_range)||0,crewDamage:1+.05*rank('gunner'),crewReload:1,crewRange:12*rank('lookout'),
+    equipDamage:et.damage,equipReload:et.reload,equipRange:et.range,achDamage:achOk?.05:0,eliteDamage:el.damage,eliteReload:el.reload,hero:d?.hero?HERO_DAMAGE:0};}
+// Atış denetimi: dolum süresi (%15 pay) ve menzil (150 birim gecikme payı); öfke 30 sn'de en çok 2 salvo
+export function shotCheck(c,L,a,dist,now,rage){const rl=reloadTime(L,a)*1000*.85;if(now-(c.lastAtk??-1e12)<rl)return'dolum';if(dist>rangeOf(L)+150)return'menzil';
+  if(rage){c.rageShots=(c.rageShots||[]).filter(t=>now-t<30_000);if(c.rageShots.length>=2)return'öfke';c.rageShots.push(now);}c.lastAtk=now;return null;}
 export function addCredit(c,add){c.credit??={};for(const k in add)c.credit[k]=(c.credit[k]||0)+add[k];}
 // ---------------------------------------------------------------- Sunucu NPC'leri
 // Her denizin normal NPC'lerini oyun sunucusu yaşatır: yer, hareket ve can sunucudadır, herkes aynı NPC'yi görür.
@@ -251,8 +275,9 @@ export function npcFire(n,players,now,safe,rand=Math.random){if(safe||now<(n.cdU
 export function npcHit(c,sea,id,dmg,now){const n=seaNpcs.get(sea)?.list.get(String(id));if(!n||!(dmg>0))return null;
   if(!c.last||Math.hypot(c.last.x-n.x,c.last.y-n.y)>NPC_RANGE)return{err:'menzil'};
   const t=dpsTake(c,dmg,now);let d=sbTake(c,t.ok);d=Math.min(d,n.hp);if(d<=0)return{err:'bütçe',flag:t.flag};
-  n.hp-=d;n.hpDirty=true;n.dmg.set(c.uid,(n.dmg.get(c.uid)||0)+d);n.aggro=c.uid;n.aggroUntil=now+12_000;
-  if(n.hp>0)return{dealt:d,flag:t.flag};
+  return{...npcApply(c,sea,n,d,now),flag:t.flag};}
+export function npcApply(c,sea,n,d,now){d=Math.min(d,n.hp);n.hp-=d;n.hpDirty=true;n.dmg.set(c.uid,(n.dmg.get(c.uid)||0)+d);n.aggro=c.uid;n.aggroUntil=now+12_000;
+  if(n.hp>0)return{dealt:d};
   const st=seaNpcs.get(sea);st.list.delete(n.id);st.respawn.push(now+NPC_RESPAWN_MS);
   const total=[...n.dmg.values()].reduce((a,v)=>a+v,0)||1;return{dealt:d,dead:n,shares:[...n.dmg].map(([uid,v])=>[uid,v/total])};}
 // Batış ödülü: altın/TP payla (×2,5 bonus payı), batırma sayaçları payı %30 üstündekilere
@@ -455,10 +480,18 @@ function npcDamage(t,dmg,n,now){const p=pvpOf(t);p.hitAt=now;if(p.hp===null)retu
   if(godCheck(t)){suspect(t,'ölümsüz','npc');pvpReset(t);send(t,{t:'forceSink',d:{by:'',byNick:n.def.name}});}}
 function onNpcHit(c,list,now){const map=seaMap(c.sea);if(!map||!Array.isArray(list))return;
   for(const it of list.slice(0,40)){if(!Array.isArray(it))continue;const r=npcHit(c,c.sea,it[0],Number(it[1]),now);if(!r)continue;if(r.flag){suspect(c,'saniyelik hasar','npc');if(c.dps)c.dps.over=0;}
-    if(!r.dead)continue;const room=seas.get(c.sea)||new Set(),def=r.dead.def;
+    if(r.dead)npcDeath(c,r,now);}}
+function npcDeath(c,r,now){{const map=seaMap(c.sea);const room=seas.get(c.sea)||new Set(),def=r.dead.def;
     for(const [uid,share] of r.shares){const x=[...room].find(p=>p.uid===uid)??[...all].find(p=>p.uid===uid);if(!x)continue;addCredit(x,npcDeathCredit(x,def,map,share));send(x,{t:'nkilled',d:{id:r.dead.id,share}});}
     const m=JSON.stringify({t:'ndie',d:{id:r.dead.id}});for(const x of room)send(x,m);
     if(def.id===bossFor(map).trigger){const b=bossKill(c.sea,BOSS_KILLS,now);if(b)toSea(c,{t:'boss',d:bossInfo(c.sea,b)},true);}}}
+// Sunucu atışı: NPC hedefi
+async function onAttack(c,d,now){const n=seaNpcs.get(c.sea)?.list.get(String(d?.id||''));if(!c.ldRaw||!c.last||!n)return;c.ld=buildLoadout(c.econ,c.ldRaw);if(!c.ld)return;const a=String(d?.a||'iron');if(!['iron','chain','fire','explosive','breaker','leech'].includes(a))return;
+  const why=shotCheck(c,c.ld,a,Math.hypot(c.last.x-n.x,c.last.y-n.y),now,!!d?.r);if(why){if(why!=='dolum')suspect(c,'atış',why);return;}
+  const cap=c.ld.cannons;let k=Math.max(0,Math.floor(Number(d?.n)||0)),i=Math.max(0,Math.floor(Number(d?.i)||0));if(k+i>cap){const f=cap/(k+i);k=Math.floor(k*f);i=Math.floor(i*f);}if(a==='iron'){i+=k;k=0;}
+  const before=c.econ,pool=c.sb?.pool??0;await applyUsage(c,{a,n:k,i,p:d?.p?1:0},null,now);if(c.sb)c.sb.pool=pool;// sunucu atışı hasar bütçesi doldurmaz (çift hasar olmasın)if(c.econ===before&&SERVER_SECRET&&!(process.env.BENCH_AUTH==='1'&&c.uid.startsWith('b')))return;// stok onaylanmadı
+  const live=seaNpcs.get(c.sea)?.list.get(n.id);if(!live)return;const dmg=salvoDamage(c.ld,a,k,i,!!d?.p,!!d?.r)*targetFactor(a,'npc');
+  const r=npcApply(c,c.sea,live,dmg,now);if(r.dead)npcDeath(c,r,now);}
 // Doğrulanan kazançlar 20 saniyede bir veritabanına yazılır; dönen değerlerle oyuncunun seviyesi tazelenir
 export async function flushCredit(c){
   if(c.flushing||!c.uid)return;c.flushing=true;
@@ -532,6 +565,8 @@ wss.on('connection',ws=>{
       case'shit':{if(c.sea!==SIEGE_ROOM||!c.rTower.hit(now))return;let dmg=Number(m.d?.dmg);if(!num(dmg)||dmg<=0)return;if(dmg>SIEGE_HIT_CAP)suspect(c,'kuşatma hasarı',String(dmg));
         {const t=dpsTake(c,dmg,now);if(t.flag){suspect(c,'saniyelik hasar','kuşatma');c.dps.over=0;}dmg=sbTake(c,t.ok);if(dmg<=0)return;}
         const r=siegeHitPiece(c.uid,c.nick,Number(m.d?.i),dmg);if(r?.damage>0)addCredit(c,siegeCredit(r.damage,siegeRun.caps.size,c.econ?.level));if(!r?.down&&r?.down!==0)return;toSea(c,{t:'sdown',d:{i:r.down}},true);if(r.won)siegeFinish();return;}
+      case'ld':{c.ld=buildLoadout(c.econ,m.d);c.ldRaw=m.d;return;}
+      case'atk':{if(!c.sea||!c.rSalvo.hit(now))return;await onAttack(c,m.d,now);return;}
       case'nhit':{if(!c.sea||!c.rBoss.hit(now))return;onNpcHit(c,m.d?.h,now);return;}
       case'nkill':{if(NPCS[String(m.d?.id||'')])return;if(!c.sea||!c.rKill.hit(now))return;const r=killCredit(c,String(m.d?.id||''),now);
         if(r.err){if((r.err!=='hız'&&r.err!=='mermi')||r.flag){suspect(c,'batırma',`${r.err} ${m.d?.id}`);if(c.kb)c.kb.miss=0;}return;}addCredit(c,r.add);

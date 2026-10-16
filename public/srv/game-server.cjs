@@ -3684,6 +3684,7 @@ __export(game_server_exports, {
   bossPool: () => bossPool,
   bossSeas: () => bossSeas,
   buildBatch: () => buildBatch,
+  buildLoadout: () => buildLoadout,
   canJoin: () => canJoin,
   cannonsOf: () => cannonsOf,
   checkFire: () => checkFire,
@@ -3705,6 +3706,7 @@ __export(game_server_exports, {
   noteHp: () => noteHp,
   noteSalvo: () => noteSalvo,
   noteUse: () => noteUse,
+  npcApply: () => npcApply,
   npcDeathCredit: () => npcDeathCredit,
   npcFill: () => npcFill,
   npcFire: () => npcFire,
@@ -3730,6 +3732,7 @@ __export(game_server_exports, {
   seaMap: () => seaMap,
   seaNpcs: () => seaNpcs,
   seaTier: () => seaTier,
+  shotCheck: () => shotCheck,
   siegeCredit: () => siegeCredit,
   siegeHitPiece: () => siegeHitPiece,
   siegeInfo: () => siegeInfo,
@@ -3947,10 +3950,10 @@ var CELL_W = WORLD_WIDTH / GRID_COLS;
 var CELL_H = WORLD_HEIGHT / GRID_ROWS;
 var colName = (c) => String(c).padStart(2, "0");
 var rowName = (r) => String.fromCharCode(65 + Math.floor(r / 26)) + String.fromCharCode(65 + r % 26);
-var gridCell = (p) => ({ c: Math.max(0, Math.min(GRID_COLS - 1, Math.floor(p.x / CELL_W))), r: Math.max(0, Math.min(GRID_ROWS - 1, Math.floor(p.y / CELL_H))) });
-function coordLabel(p) {
-  const g = gridCell(p);
-  return `${colName(g.c)}${rowName(g.r)}`;
+var gridCell = (p2) => ({ c: Math.max(0, Math.min(GRID_COLS - 1, Math.floor(p2.x / CELL_W))), r: Math.max(0, Math.min(GRID_ROWS - 1, Math.floor(p2.y / CELL_H))) });
+function coordLabel(p2) {
+  const g2 = gridCell(p2);
+  return `${colName(g2.c)}${rowName(g2.r)}`;
 }
 var FLEET_SCALE = 0.8;
 var FLEET_TOWERS_RAW = [
@@ -4092,30 +4095,136 @@ function treasureReward(tier, lightGold, rand = Math.random) {
 var ELITE_THRESHOLD_SCALE = 0.72;
 
 // src/arsenal.ts
+var CONSUMABLES = {
+  powder: { name: "Kara Barut", factor: 1.1, icon: "/assets/icon-powder-v4.webp", description: "A\xE7\u0131kken her salvoda 1 adet harcar; top hasar\u0131 %10 artar." },
+  shield: { name: "Kalkan", factor: 0.9, icon: "/assets/icon-shield-v3.webp", description: "A\xE7\u0131kken her isabette 1 adet harcar; gelen hasar %10 azal\u0131r." }
+};
+var BALL_DAMAGE = 20;
+var CHAIN_FACTOR = 1.25;
+var SPECIAL_AMMO = {
+  fire: { name: "Ate\u015F G\xFCllesi", damage: 2.5, reload: 1.1, rangeFactor: 1, burnSeconds: 0, burnDps: 250, blastRadius: 0, blastFactor: 0, towerFactor: 1, leech: 0, icon: "/assets/ammo-fire-v2.webp", description: "NPC ve canavarlara %40 fazla hasar." },
+  explosive: { name: "Patlay\u0131c\u0131 G\xFClle", damage: 2.5, reload: 1.1, rangeFactor: 1, burnSeconds: 0, burnDps: 0, blastRadius: 0, blastFactor: 0, towerFactor: 1, leech: 0, icon: "/assets/ammo-explosive-v2.webp", description: "Oyunculara %40 fazla hasar." },
+  breaker: { name: "Kule K\u0131r\u0131c\u0131", damage: 2.25, reload: 1.15, rangeFactor: 1, burnSeconds: 0, burnDps: 0, blastRadius: 0, blastFactor: 0, towerFactor: 2.6, leech: 0, icon: "/assets/ammo-breaker-v2.webp", description: "Kulelere ve ada tahkimat\u0131na 2,6 kat hasar." },
+  leech: { name: "Can Emici", damage: 3, reload: 1.1, rangeFactor: 1, burnSeconds: 0, burnDps: 0, blastRadius: 0, blastFactor: 0, towerFactor: 1, leech: 0.3, icon: "/assets/ammo-leech-v2.webp", description: "Yaln\u0131z oyunculara kar\u015F\u0131: isabetlerin %20'si hasar\u0131n %15'i kadar can \xE7alar (en \xE7ok can\u0131n\u0131n %2'si)." },
+  // Şifa: hasar vermez; vurduğu oyuncunun (ya da dost kulenin) canını, salvonun hasarı kadar doldurur. NPC'ye ve düşmana sıkılamaz.
+  heal: { name: "\u015Eifa G\xFCllesi", damage: 1, reload: 1.1, rangeFactor: 1, burnSeconds: 0, burnDps: 0, blastRadius: 0, blastFactor: 0, towerFactor: 1, leech: 0, icon: "/assets/ammo-heal-v1.webp", description: "Hasar vermez: oyuncular\u0131n ve dost kulelerin can\u0131n\u0131 doldurur. NPC'ye s\u0131k\u0131lamaz." }
+};
+var FIRE_NPC_FACTOR = 1.4;
+var EXPLOSIVE_PLAYER_FACTOR = 1.4;
 var ELITE_EP = [0, 0, 7e3, 3e4, 8e4, 2e5, 36e4, 53e4, 75e4, 102e4, 136e4, 178e4, 23e5, 295e4, 385e4, 5e6].map((n) => Math.round(n * ELITE_THRESHOLD_SCALE));
+var ELITE_MAX_LEVEL = 15;
 var questEp = (tier) => 20 * tier;
 var bossEp = (tier) => 500 * tier;
+var eliteLevelEp = (level) => ELITE_EP[Math.max(1, Math.min(ELITE_MAX_LEVEL, level))];
+var eliteLevelFromEp = (ep) => {
+  let l = 1;
+  while (l < ELITE_MAX_LEVEL && ep >= eliteLevelEp(l + 1)) l++;
+  return l;
+};
 var AMMO_PRICES = { chain: { amount: 3, currency: "pearls", per: 300 }, fire: { amount: 4, currency: "pearls", per: 300 }, breaker: { amount: 5, currency: "pearls", per: 300 }, explosive: { amount: 6, currency: "pearls", per: 300 }, leech: { amount: 8, currency: "pearls", per: 300 }, heal: { amount: 6, currency: "pearls", per: 300 } };
 var EP_PER_PEARL = 5.75;
-var epPerBall = (p) => Math.round(p.amount / (p.per ?? 1) * EP_PER_PEARL * 1e4) / 1e4;
+var epPerBall = (p2) => Math.round(p2.amount / (p2.per ?? 1) * EP_PER_PEARL * 1e4) / 1e4;
 var ELITE_POINTS_PER_BALL = { chain: epPerBall(AMMO_PRICES.chain), fire: epPerBall(AMMO_PRICES.fire), breaker: epPerBall(AMMO_PRICES.breaker), explosive: epPerBall(AMMO_PRICES.explosive), leech: epPerBall(AMMO_PRICES.leech), heal: epPerBall(AMMO_PRICES.heal) };
 
-// src/loot.ts
-var CHEST_AMMO = ["fire", "explosive", "breaker", "leech"];
-var LOOT_TABLES = {
-  drift: { gildedChance: 0.06, pearls: [2, 3], powder: [3, 6], shield: [3, 6], life: Infinity }
+// src/rage.ts
+var RAGE_DAMAGE = 1.25;
+
+// src/combat.ts
+var CANNONS = {
+  cast: { name: "D\xF6k\xFCm", damage: 1, range: 390, reload: 1.65 },
+  long: { name: "Uzun", damage: 0.82, range: 470, reload: 2.05 },
+  rapid: { name: "Seri", damage: 0.68, range: 340, reload: 1.05 },
+  heavy: { name: "A\u011F\u0131r", damage: 1.38, range: 365, reload: 2.65 }
 };
-function createChest(source, x, y, gildedBonus = 0, tier = 1, rand = Math.random) {
-  const table = LOOT_TABLES[source], gilded = rand() < table.gildedChance + gildedBonus, k = gilded ? 2 : 1, r = ([a, b]) => a + Math.floor(rand() * (b - a + 1)), roll = rand();
-  const c = { x, y, source, kind: gilded ? "gilded" : "wood", life: table.life, maxLife: table.life, pearls: 0, powder: 0, shield: 0, ammo: CHEST_AMMO[Math.floor(rand() * CHEST_AMMO.length)], ammoQty: 0, speed: 0, mine: 0 };
-  if (roll < 0.5) c.pearls = r(table.pearls) * k;
-  else if (roll < 0.65) c.powder = r(table.powder) * k;
-  else if (roll < 0.8) c.shield = r(table.shield) * k;
-  else if (roll < 0.95) c.ammoQty = (50 + 20 * Math.max(1, Math.min(8, tier))) * k;
-  else if (roll < 0.99) c.speed = 2 * k;
-  else c.mine = k;
-  return c;
+var ammoMult = (a) => a === "chain" ? CHAIN_FACTOR : a === "iron" ? 1 : SPECIAL_AMMO[a].damage;
+function salvoDamage(L, a, n, i, powder, rage) {
+  if (L.cannons <= 0) return 0;
+  const mix = (a === "iron" ? n + i : n * ammoMult(a) + i) / L.cannons;
+  return L.cannons * BALL_DAMAGE * (1 + L.upDamage * 0.11) * CANNONS[L.type].damage * L.crewDamage * mix * (1 + L.equipDamage + L.achDamage + L.eliteDamage + L.hero) * (powder ? CONSUMABLES.powder.factor : 1) * (rage ? RAGE_DAMAGE : 1);
 }
+function reloadTime(L, a) {
+  return (1 - L.equipReload) * CANNONS[L.type].reload * Math.max(0.6, 1 - L.upReload * 0.04) * L.crewReload / (1 + L.eliteReload) * (a === "chain" ? 1.18 : 1) * (a !== "iron" && a !== "chain" ? SPECIAL_AMMO[a].reload : 1);
+}
+var rangeOf = (L) => CANNONS[L.type].range + L.upRange * 18 + L.crewRange + L.equipRange;
+function targetFactor(a, kind) {
+  return (a === "fire" && (kind === "npc" || kind === "boss") ? FIRE_NPC_FACTOR : 1) * (a === "explosive" && kind === "player" ? EXPLOSIVE_PLAYER_FACTOR : 1) * (a === "breaker" && kind === "tower" ? SPECIAL_AMMO.breaker.towerFactor : 1);
+}
+
+// src/equipment.ts
+var g = (amount) => ({ amount, currency: "gold" });
+var p = (amount) => ({ amount, currency: "pearls" });
+var EQUIPMENT = [
+  { id: "sail-0", slot: "sail", rarity: 0, name: "Kanvas Yelken", price: g(5e3), stats: { speed: 0.05 } },
+  { id: "sail-2", slot: "sail", rarity: 2, name: "F\u0131rt\u0131na Yelkeni", price: p(2500), stats: { speed: 0.16 } },
+  { id: "figure-0", slot: "figure", rarity: 0, name: "Ah\u015Fap Deniz K\u0131z\u0131", price: g(8e3), stats: { damage: 0.04 } },
+  { id: "figure-2", slot: "figure", rarity: 2, name: "Alt\u0131n Kraken", price: p(3500), stats: { damage: 0.13 } },
+  { id: "armor-0", slot: "armor", rarity: 0, name: "Me\u015Fe Kaplama", price: g(6e3), stats: { hp: 0.06 } },
+  { id: "armor-2", slot: "armor", rarity: 2, name: "Ejder Pulu Z\u0131rh", price: p(3e3), stats: { hp: 0.2 } },
+  { id: "carriage-0", slot: "carriage", rarity: 0, name: "Demir Kundak", price: g(7e3), stats: { reload: 0.05 } },
+  { id: "carriage-2", slot: "carriage", rarity: 2, name: "D\xF6ner Kundak", price: p(3e3), stats: { reload: 0.14, range: 40 } }
+];
+var equipById = (id) => EQUIPMENT.find((e) => e.id === id);
+function equipTotals(equipped) {
+  const t = { speed: 0, damage: 0, hp: 0, reload: 0, range: 0 };
+  for (const id of Object.values(equipped)) {
+    const e = id ? equipById(id) : void 0;
+    if (!e) continue;
+    for (const k of Object.keys(t)) t[k] += e.stats[k] ?? 0;
+  }
+  return t;
+}
+
+// src/elite-progression.ts
+var ELITE_CANNON_CAPACITY = 315;
+var ELITE_REWARDS = [
+  {},
+  { damage: 2 },
+  { hp: 3 },
+  { reload: 2 },
+  { speed: 2 },
+  { damage: 3 },
+  { hp: 4 },
+  { reload: 3 },
+  { defense: 3 },
+  { speed: 3 },
+  { damage: 4 },
+  { hp: 5 },
+  { reload: 3 },
+  { defense: 2 },
+  { repair: 5 },
+  { damage: 6, hp: 8 }
+];
+function cumulativeEliteBonus(level) {
+  const total = { damage: 0, hp: 0, reload: 0, speed: 0, defense: 0, repair: 0 };
+  for (let i = 1; i <= Math.min(15, Math.max(0, Math.floor(level))); i++)
+    for (const key of Object.keys(total)) total[key] += ELITE_REWARDS[i][key] ?? 0;
+  for (const key of Object.keys(total)) total[key] /= 100;
+  return total;
+}
+
+// src/achievements.ts
+var ACHIEVEMENTS = [
+  { id: "npc-100", name: "K\u0131y\u0131 Belas\u0131", desc: "100 NPC gemisi bat\u0131r", stat: "npc", goal: 100, pearls: 10, bonus: {} },
+  { id: "npc-1000", name: "Deniz Kurdu", desc: "1.000 NPC gemisi bat\u0131r", stat: "npc", goal: 1e3, pearls: 50, bonus: {} },
+  { id: "npc-10000", name: "Yedi Denizin Korkusu", desc: "10.000 NPC gemisi bat\u0131r", stat: "npc", goal: 1e4, pearls: 200, bonus: {} },
+  { id: "heavy-200", name: "Filo Avc\u0131s\u0131", desc: "200 a\u011F\u0131r gemi bat\u0131r", stat: "heavy", goal: 200, pearls: 20, bonus: {} },
+  { id: "boss-1", name: "\u0130lk Amiral", desc: "Bir harita bossunu bat\u0131r", stat: "boss", goal: 1, pearls: 20, bonus: {} },
+  { id: "boss-16", name: "Yedi Denizin Efendisi", desc: "16 harita bossu bat\u0131r", stat: "boss", goal: 16, pearls: 300, bonus: {} },
+  { id: "chest-100", name: "Ganimet\xE7i", desc: "100 ganimet sand\u0131\u011F\u0131 topla", stat: "chest", goal: 100, pearls: 15, bonus: {} },
+  { id: "treasure-1", name: "Define Avc\u0131s\u0131", desc: "\u0130lk hazineyi kaz", stat: "treasure", goal: 1, pearls: 10, bonus: {} },
+  { id: "treasure-25", name: "Define Ustas\u0131", desc: "25 hazine kaz", stat: "treasure", goal: 25, pearls: 100, bonus: {} },
+  { id: "quest-10", name: "G\xF6rev Adam\u0131", desc: "10 g\xF6rev tamamla", stat: "quest", goal: 10, pearls: 15, bonus: {} },
+  { id: "quest-100", name: "Efsanevi Kaptan", desc: "100 g\xF6rev tamamla", stat: "quest", goal: 100, pearls: 150, bonus: {} },
+  { id: "elite-10000", name: "Elit Top\xE7u", desc: "10.000 elit g\xFClle ate\u015Fle", stat: "eliteBalls", goal: 1e4, pearls: 50, bonus: {} },
+  { id: "level-5", name: "Tecr\xFCbeli Kaptan", desc: "5. seviyeye ula\u015F", stat: "level", goal: 5, pearls: 30, bonus: {} },
+  { id: "level-8", name: "Amiral", desc: "8. seviyeye ula\u015F", stat: "level", goal: 8, pearls: 100, bonus: {} },
+  { id: "daily-7", name: "Sad\u0131k Denizci", desc: "G\xFCnl\xFCk \xF6d\xFCl\xFC 7 g\xFCn art arda topla", stat: "daily", goal: 7, pearls: 30, bonus: {} }
+];
+var MAIN_COLLECTION = ["npc-100", "npc-1000", "npc-10000", "heavy-200", "boss-1", "boss-16", "chest-100", "treasure-1", "treasure-25", "quest-10", "quest-100", "elite-10000", "level-5", "level-8", "daily-7"];
+
+// src/crew.ts
+var OFFICER_MAX_RANK = 5;
+var officerSlots = (level) => level >= 6 ? 3 : level >= 3 ? 2 : 1;
 
 // src/siege.ts
 var SIEGE_START_H = 20;
@@ -4149,11 +4258,29 @@ function contribReward(damage, participants = 4, level = 8) {
 }
 var CHEST_SHARE = 0.02;
 var earnsChest = (damage, participants = 4) => damage >= siegeTotalHp(participants) * CHEST_SHARE;
-var CHEST_AMMO2 = ["explosive", "breaker", "leech", "fire"];
+var CHEST_AMMO = ["explosive", "breaker", "leech", "fire"];
 function victoryChest(rand = Math.random, level = 8) {
   const l = Math.max(1, Math.min(8, Math.round(level)));
-  const a = Math.floor(rand() * CHEST_AMMO2.length), b = (a + 1 + Math.floor(rand() * (CHEST_AMMO2.length - 1))) % CHEST_AMMO2.length, q = 1500 + 500 * l;
-  return { pearls: 300 + 100 * l, ammo: { [CHEST_AMMO2[a]]: q, [CHEST_AMMO2[b]]: q }, speed: 20, mine: 5 + l, powder: 100 * l, shield: 100 * l };
+  const a = Math.floor(rand() * CHEST_AMMO.length), b = (a + 1 + Math.floor(rand() * (CHEST_AMMO.length - 1))) % CHEST_AMMO.length, q = 1500 + 500 * l;
+  return { pearls: 300 + 100 * l, ammo: { [CHEST_AMMO[a]]: q, [CHEST_AMMO[b]]: q }, speed: 20, mine: 5 + l, powder: 100 * l, shield: 100 * l };
+}
+var HERO_DAMAGE = 0.03;
+
+// src/loot.ts
+var CHEST_AMMO2 = ["fire", "explosive", "breaker", "leech"];
+var LOOT_TABLES = {
+  drift: { gildedChance: 0.06, pearls: [2, 3], powder: [3, 6], shield: [3, 6], life: Infinity }
+};
+function createChest(source, x, y, gildedBonus = 0, tier = 1, rand = Math.random) {
+  const table = LOOT_TABLES[source], gilded = rand() < table.gildedChance + gildedBonus, k = gilded ? 2 : 1, r = ([a, b]) => a + Math.floor(rand() * (b - a + 1)), roll = rand();
+  const c = { x, y, source, kind: gilded ? "gilded" : "wood", life: table.life, maxLife: table.life, pearls: 0, powder: 0, shield: 0, ammo: CHEST_AMMO2[Math.floor(rand() * CHEST_AMMO2.length)], ammoQty: 0, speed: 0, mine: 0 };
+  if (roll < 0.5) c.pearls = r(table.pearls) * k;
+  else if (roll < 0.65) c.powder = r(table.powder) * k;
+  else if (roll < 0.8) c.shield = r(table.shield) * k;
+  else if (roll < 0.95) c.ammoQty = (50 + 20 * Math.max(1, Math.min(8, tier))) * k;
+  else if (roll < 0.99) c.speed = 2 * k;
+  else c.mine = k;
+  return c;
 }
 
 // src/level-quest.ts
@@ -4171,14 +4298,14 @@ var OSB_PASS = process.env.SHOPIER_OSB_PASS || "";
 var SERVER_SECRET = process.env.SERVER_SECRET || "";
 async function verifyToken(token) {
   if (process.env.BENCH_AUTH === "1" && token.startsWith("bench:")) {
-    const [n, g] = token.slice(6).split(":").map(Number);
-    return { uid: "b" + n, nick: "Bot" + n, playerNo: 9e4 + n, banned: false, guildId: g || 0 };
+    const [n, g2] = token.slice(6).split(":").map(Number);
+    return { uid: "b" + n, nick: "Bot" + n, playerNo: 9e4 + n, banned: false, guildId: g2 || 0 };
   }
   const u = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${token}` } });
   if (!u.ok) return null;
   const user = await u.json();
-  const p = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}&select=nick,player_no,banned`, { headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${token}` } });
-  const rows = p.ok ? await p.json() : [];
+  const p2 = await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}&select=nick,player_no,banned`, { headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${token}` } });
+  const rows = p2.ok ? await p2.json() : [];
   const prof = rows[0];
   if (!prof) return null;
   return { uid: user.id, nick: prof.nick, playerNo: prof.player_no, banned: !!prof.banned, guildId: await guildOf(user.id).catch(() => 0) };
@@ -4296,30 +4423,30 @@ function hpCap(st) {
 }
 var pvpOf = (t) => t.pvp ??= { budget: null, heal: null, hp: null, at: 0, from: /* @__PURE__ */ new Map() };
 function pvpGuard(t, dmg, now) {
-  const p = pvpOf(t), max = t.maxHp || 1;
-  p.budget ??= newPvpBudget(max, now / 1e3);
-  const dealt = pvpClamp(p.budget, max, Math.max(0, dmg), now / 1e3);
-  if (p.hp !== null) p.hp -= dealt;
-  p.hitAt = now;
+  const p2 = pvpOf(t), max = t.maxHp || 1;
+  p2.budget ??= newPvpBudget(max, now / 1e3);
+  const dealt = pvpClamp(p2.budget, max, Math.max(0, dmg), now / 1e3);
+  if (p2.hp !== null) p2.hp -= dealt;
+  p2.hitAt = now;
   return Math.round(dealt);
 }
 function pvpHeal(t, amt, now) {
-  const p = pvpOf(t), max = t.maxHp || 1;
-  p.heal ??= newPvpBudget(max, now / 1e3);
-  const got = pvpClamp(p.heal, max, Math.max(0, amt), now / 1e3);
-  if (p.hp !== null) p.hp = Math.min(max, p.hp + got);
+  const p2 = pvpOf(t), max = t.maxHp || 1;
+  p2.heal ??= newPvpBudget(max, now / 1e3);
+  const got = pvpClamp(p2.heal, max, Math.max(0, amt), now / 1e3);
+  if (p2.hp !== null) p2.hp = Math.min(max, p2.hp + got);
   return Math.round(got);
 }
 var COMBAT_HEAL_SECONDS = 200;
 var COMBAT_MS = 1e4;
 function noteHp(t, hp, now) {
-  const p = pvpOf(t), max = t.maxHp || hp, secs = now - (p.hitAt ?? -1e12) < COMBAT_MS ? COMBAT_HEAL_SECONDS : HEAL_SECONDS;
-  p.hp = p.hp === null ? hp : Math.min(hp, Math.min(max, p.hp + Math.max(0, now - p.at) * max / secs / 1e3));
-  p.at = now;
+  const p2 = pvpOf(t), max = t.maxHp || hp, secs = now - (p2.hitAt ?? -1e12) < COMBAT_MS ? COMBAT_HEAL_SECONDS : HEAL_SECONDS;
+  p2.hp = p2.hp === null ? hp : Math.min(hp, Math.min(max, p2.hp + Math.max(0, now - p2.at) * max / secs / 1e3));
+  p2.at = now;
 }
 function godCheck(t) {
-  const p = t.pvp;
-  return !!p && p.hp !== null && !!t.maxHp && p.hp <= -GOD_MARGIN * t.maxHp;
+  const p2 = t.pvp;
+  return !!p2 && p2.hp !== null && !!t.maxHp && p2.hp <= -GOD_MARGIN * t.maxHp;
 }
 function pvpReset(t) {
   if (t.pvp) {
@@ -4611,6 +4738,64 @@ function spCredit(killer, victimUid, now) {
   m.set(victimUid, { day, n: n + 1 });
   return { sp: RIVAL_SP * 2 };
 }
+function buildLoadout(st, d) {
+  if (!st) return null;
+  const lvl = Math.max(1, Math.min(8, Number(st.level) || 1)), elite = Number(st.elite) > 0 ? eliteLevelFromEp(Number(st.ep) || 0) : 0;
+  const cap = elite > 0 ? ELITE_CANNON_CAPACITY : 100, mt = {};
+  let total = 0;
+  for (const k of Object.keys(CANNONS)) {
+    const want = Math.max(0, Math.floor(Number(d?.mt?.[k]) || 0)), own = Math.max(0, Number(st["c_" + k]) || 0);
+    mt[k] = Math.min(want, own, cap - total);
+    total += mt[k];
+  }
+  let type = String(d?.type || "cast");
+  if (!CANNONS[type] || !mt[type]) type = Object.keys(mt).sort((a, b) => mt[b] - mt[a])[0] || "cast";
+  const eq = {}, used = {};
+  for (const [slot, id] of Object.entries(d?.eq || {})) {
+    if (typeof id !== "string" || !EQUIPMENT.some((e) => e.id === id && e.slot === slot)) continue;
+    used[id] = (used[id] || 0) + 1;
+    if (used[id] <= (Number(st["e_" + id]) || 0)) eq[slot] = id;
+  }
+  const et = equipTotals(eq), active = (Array.isArray(d?.act) ? d.act : []).filter((x) => typeof x === "string").slice(0, officerSlots(lvl));
+  const rank = (id) => active.includes(id) ? Math.max(0, Math.min(OFFICER_MAX_RANK, Number(st["o_" + id]) || 0)) : 0;
+  const achOk = !!d?.ach && MAIN_COLLECTION.every((id) => {
+    const a = ACHIEVEMENTS.find((x) => x.id === id);
+    if (!a) return true;
+    if (a.stat === "daily") return true;
+    if (a.stat === "level") return lvl >= a.goal;
+    return (Number(st["st_" + a.stat]) || 0) >= a.goal;
+  });
+  const el = cumulativeEliteBonus(elite);
+  return {
+    cannons: total,
+    type,
+    upDamage: Number(st.u_damage) || 0,
+    upReload: Number(st.u_reload) || 0,
+    upRange: Number(st.u_range) || 0,
+    crewDamage: 1 + 0.05 * rank("gunner"),
+    crewReload: 1,
+    crewRange: 12 * rank("lookout"),
+    equipDamage: et.damage,
+    equipReload: et.reload,
+    equipRange: et.range,
+    achDamage: achOk ? 0.05 : 0,
+    eliteDamage: el.damage,
+    eliteReload: el.reload,
+    hero: d?.hero ? HERO_DAMAGE : 0
+  };
+}
+function shotCheck(c, L, a, dist, now, rage) {
+  const rl = reloadTime(L, a) * 1e3 * 0.85;
+  if (now - (c.lastAtk ?? -1e12) < rl) return "dolum";
+  if (dist > rangeOf(L) + 150) return "menzil";
+  if (rage) {
+    c.rageShots = (c.rageShots || []).filter((t) => now - t < 3e4);
+    if (c.rageShots.length >= 2) return "\xF6fke";
+    c.rageShots.push(now);
+  }
+  c.lastAtk = now;
+  return null;
+}
 function addCredit(c, add) {
   c.credit ??= {};
   for (const k in add) c.credit[k] = (c.credit[k] || 0) + add[k];
@@ -4636,8 +4821,8 @@ function npcSpawn(sea2, now = Date.now(), rand = Math.random) {
   }
   const def = npcPick(m, st.list);
   if (!def) return null;
-  const p = pickSpot(map, rand), id = `${map}:${++st.seq}`;
-  const n = { id, def, x: p.x, y: p.y, hx: p.x, hy: p.y, hp: def.hp, max: def.hp, wx: p.x, wy: p.y, aggro: null, aggroUntil: 0, dmg: /* @__PURE__ */ new Map(), moved: true, hpDirty: false };
+  const p2 = pickSpot(map, rand), id = `${map}:${++st.seq}`;
+  const n = { id, def, x: p2.x, y: p2.y, hx: p2.x, hy: p2.y, hp: def.hp, max: def.hp, wx: p2.x, wy: p2.y, aggro: null, aggroUntil: 0, dmg: /* @__PURE__ */ new Map(), moved: true, hpDirty: false };
   st.list.set(id, n);
   return n;
 }
@@ -4657,7 +4842,7 @@ function npcFill(sea2, now = Date.now()) {
 var npcInfo = (n) => ({ id: n.id, d: n.def.id, x: Math.round(n.x), y: Math.round(n.y), hp: Math.round(n.hp), max: n.max });
 function npcMove(n, dt, players, now) {
   let tx = n.wx, ty = n.wy, v = n.def.speed * 0.45 * 1.4;
-  const foe = n.aggro && now < n.aggroUntil ? players.find((p) => p.uid === n.aggro && p.last) : null;
+  const foe = n.aggro && now < n.aggroUntil ? players.find((p2) => p2.uid === n.aggro && p2.last) : null;
   if (foe && Math.hypot(n.x - n.hx, n.y - n.hy) < NPC_LEASH) {
     tx = foe.last.x;
     ty = foe.last.y;
@@ -4685,16 +4870,16 @@ var NPC_SPAWN_GRACE = 3e3;
 var NPC_DMG_MODEL = 0.7;
 function npcFire(n, players, now, safe, rand = Math.random) {
   if (safe || now < (n.cdUntil ?? 0)) return null;
-  let t = n.aggro && now < n.aggroUntil ? players.find((p) => p.uid === n.aggro && p.last) : null;
+  let t = n.aggro && now < n.aggroUntil ? players.find((p2) => p2.uid === n.aggro && p2.last) : null;
   if (!t || Math.hypot(t.last.x - n.x, t.last.y - n.y) > NPC_FIRE_RANGE) {
     t = null;
     let bd = NPC_FIRE_RANGE;
-    for (const p of players) {
-      if (!p.last || now - (p.tpAt || 0) < NPC_SPAWN_GRACE) continue;
-      const d = Math.hypot(p.last.x - n.x, p.last.y - n.y);
+    for (const p2 of players) {
+      if (!p2.last || now - (p2.tpAt || 0) < NPC_SPAWN_GRACE) continue;
+      const d = Math.hypot(p2.last.x - n.x, p2.last.y - n.y);
       if (d < bd) {
         bd = d;
-        t = p;
+        t = p2;
       }
     }
   }
@@ -4714,12 +4899,16 @@ function npcHit(c, sea2, id, dmg, now) {
   let d = sbTake(c, t.ok);
   d = Math.min(d, n.hp);
   if (d <= 0) return { err: "b\xFCt\xE7e", flag: t.flag };
+  return { ...npcApply(c, sea2, n, d, now), flag: t.flag };
+}
+function npcApply(c, sea2, n, d, now) {
+  d = Math.min(d, n.hp);
   n.hp -= d;
   n.hpDirty = true;
   n.dmg.set(c.uid, (n.dmg.get(c.uid) || 0) + d);
   n.aggro = c.uid;
   n.aggroUntil = now + 12e3;
-  if (n.hp > 0) return { dealt: d, flag: t.flag };
+  if (n.hp > 0) return { dealt: d };
   const st = seaNpcs.get(sea2);
   st.list.delete(n.id);
   st.respawn.push(now + NPC_RESPAWN_MS);
@@ -5319,10 +5508,10 @@ function npcTick(now) {
   }
 }
 function npcDamage(t, dmg, n, now) {
-  const p = pvpOf(t);
-  p.hitAt = now;
-  if (p.hp === null) return;
-  p.hp -= dmg * NPC_DMG_MODEL;
+  const p2 = pvpOf(t);
+  p2.hitAt = now;
+  if (p2.hp === null) return;
+  p2.hp -= dmg * NPC_DMG_MODEL;
   if (godCheck(t)) {
     suspect(t, "\xF6l\xFCms\xFCz", "npc");
     pvpReset(t);
@@ -5340,10 +5529,15 @@ function onNpcHit(c, list, now) {
       suspect(c, "saniyelik hasar", "npc");
       if (c.dps) c.dps.over = 0;
     }
-    if (!r.dead) continue;
+    if (r.dead) npcDeath(c, r, now);
+  }
+}
+function npcDeath(c, r, now) {
+  {
+    const map = seaMap(c.sea);
     const room = seas.get(c.sea) || /* @__PURE__ */ new Set(), def = r.dead.def;
     for (const [uid, share] of r.shares) {
-      const x = [...room].find((p) => p.uid === uid) ?? [...all].find((p) => p.uid === uid);
+      const x = [...room].find((p2) => p2.uid === uid) ?? [...all].find((p2) => p2.uid === uid);
       if (!x) continue;
       addCredit(x, npcDeathCredit(x, def, map, share));
       send(x, { t: "nkilled", d: { id: r.dead.id, share } });
@@ -5355,6 +5549,38 @@ function onNpcHit(c, list, now) {
       if (b) toSea(c, { t: "boss", d: bossInfo(c.sea, b) }, true);
     }
   }
+}
+async function onAttack(c, d, now) {
+  const n = seaNpcs.get(c.sea)?.list.get(String(d?.id || ""));
+  if (!c.ldRaw || !c.last || !n) return;
+  c.ld = buildLoadout(c.econ, c.ldRaw);
+  if (!c.ld) return;
+  const a = String(d?.a || "iron");
+  if (!["iron", "chain", "fire", "explosive", "breaker", "leech"].includes(a)) return;
+  const why = shotCheck(c, c.ld, a, Math.hypot(c.last.x - n.x, c.last.y - n.y), now, !!d?.r);
+  if (why) {
+    if (why !== "dolum") suspect(c, "at\u0131\u015F", why);
+    return;
+  }
+  const cap = c.ld.cannons;
+  let k = Math.max(0, Math.floor(Number(d?.n) || 0)), i = Math.max(0, Math.floor(Number(d?.i) || 0));
+  if (k + i > cap) {
+    const f = cap / (k + i);
+    k = Math.floor(k * f);
+    i = Math.floor(i * f);
+  }
+  if (a === "iron") {
+    i += k;
+    k = 0;
+  }
+  const before = c.econ, pool = c.sb?.pool ?? 0;
+  await applyUsage(c, { a, n: k, i, p: d?.p ? 1 : 0 }, null, now);
+  if (c.sb) c.sb.pool = pool;
+  const live = seaNpcs.get(c.sea)?.list.get(n.id);
+  if (!live) return;
+  const dmg = salvoDamage(c.ld, a, k, i, !!d?.p, !!d?.r) * targetFactor(a, "npc");
+  const r = npcApply(c, c.sea, live, dmg, now);
+  if (r.dead) npcDeath(c, r, now);
 }
 async function flushCredit(c) {
   if (c.flushing || !c.uid) return;
@@ -5671,6 +5897,16 @@ wss.on("connection", (ws) => {
         if (r.won) siegeFinish();
         return;
       }
+      case "ld": {
+        c.ld = buildLoadout(c.econ, m.d);
+        c.ldRaw = m.d;
+        return;
+      }
+      case "atk": {
+        if (!c.sea || !c.rSalvo.hit(now)) return;
+        await onAttack(c, m.d, now);
+        return;
+      }
       case "nhit": {
         if (!c.sea || !c.rBoss.hit(now)) return;
         onNpcHit(c, m.d?.h, now);
@@ -5896,6 +6132,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   bossPool,
   bossSeas,
   buildBatch,
+  buildLoadout,
   canJoin,
   cannonsOf,
   checkFire,
@@ -5917,6 +6154,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   noteHp,
   noteSalvo,
   noteUse,
+  npcApply,
   npcDeathCredit,
   npcFill,
   npcFire,
@@ -5942,6 +6180,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   seaMap,
   seaNpcs,
   seaTier,
+  shotCheck,
   siegeCredit,
   siegeHitPiece,
   siegeInfo,
