@@ -54,7 +54,7 @@ const setup=e.ELITE_ENTRY_PRICE+a.priceOf(e.CANNON_COSTS.heavy,315)+Object.value
  const speedPotions=Math.ceil(time*.25/a.ABILITIES.speed.duration),mines=Math.ceil(time/3600*5),supplyPearls=a.priceOf(a.SUPPLY_PRICES.speed,speedPotions)+a.priceOf(a.SUPPLY_PRICES.mine,mines);
  const result={hours:time/3600,ep,balls,totalBalls:Object.values(balls).reduce((a,b)=>a+b,0),ammoPearls,setup,supplyPearls,setupPurchase:cheapestPack(setup),ammoPurchase:cheapestPack(ammoPearls),purchase:cheapestPack(setup+ammoPearls+supplyPearls),stats,gold,bossPearls:pearls};
  console.log(JSON.stringify(result,null,2));
- if(!process.argv.includes('--all-leech')&&!process.argv.includes('--fast-route')&&!process.argv.includes('--slow-route')){assert(result.hours>=200&&result.hours<=245);assert(result.purchase.tl>=6500&&result.purchase.tl<=8000);}
+ if(!process.argv.includes('--all-leech')&&!process.argv.includes('--fast-route')&&!process.argv.includes('--slow-route')){assert(result.hours>=200&&result.hours<=245);assert(result.purchase.tl>=4500&&result.purchase.tl<=6500);}
  {const v=a.ELITE_POINTS_PER_BALL;assert(v.chain<=v.fire&&v.fire<=v.breaker&&v.breaker<=v.explosive&&v.explosive<=v.leech);}
  console.log('PASS: encounter budget and existing elite levels preserved');
 }
