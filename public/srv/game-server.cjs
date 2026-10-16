@@ -4060,14 +4060,14 @@ for (const key of MAP_KEYS) {
   map.labels = [{ text: map.name.toLocaleUpperCase("tr"), x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 }];
   map.spawn = { x: map.fleet.x, y: Math.min(WORLD_HEIGHT - 200, map.fleet.y + 900) };
 }
-var QUEST_BONUS = 3;
+var QUEST_BONUS = 1.5;
 var QUESTS = MAP_KEYS.flatMap((key) => {
   const m = MAPS[key], t = m.tier, L = NPCS[m.npcs[0]], H = NPCS[m.npcs[1]], pay = (n, u, k = QUEST_BONUS) => ({ gold: Math.round(n * u.gold * k), xp: Math.round(n * u.xp * k) });
   const nL = 20, nH = 20, nC = 20, head = `${key} ${m.name}`;
   return [
     { id: `q${key}-light`, map: key, tier: t, title: `${head}: Devriye Av\u0131`, description: `${L.name} gemilerinden ${nL} tanesini bat\u0131r.`, kind: "npc", ids: [L.id], required: nL, ...pay(nL, L), pearls: 2 * (2 + t) },
     { id: `q${key}-heavy`, map: key, tier: t, title: `${head}: A\u011F\u0131r Filo`, description: `${H.name} gemilerinden ${nH} tanesini denizin dibine g\xF6nder.`, kind: "npc", ids: [H.id], required: nH, ...pay(nH, H), pearls: 2 * (3 + 2 * t) },
-    { id: `q${key}-sparkle`, map: key, tier: t, title: `${head}: P\u0131r\u0131lt\u0131 Av\u0131`, description: `Bu denizde ${nC} inci p\u0131r\u0131lt\u0131s\u0131 topla.`, kind: "sparkle", ids: [key], required: nC, ...pay(nC, { gold: L.gold, xp: Math.round(L.xp * 0.5) }, 6), pearls: 2 * (4 + 2 * t) }
+    { id: `q${key}-sparkle`, map: key, tier: t, title: `${head}: P\u0131r\u0131lt\u0131 Av\u0131`, description: `Bu denizde ${nC} inci p\u0131r\u0131lt\u0131s\u0131 topla.`, kind: "sparkle", ids: [key], required: nC, ...pay(nC, { gold: L.gold, xp: Math.round(L.xp * 0.5) }, 3), pearls: 2 * (4 + 2 * t) }
   ];
 });
 var QUEST_COOLDOWN_MS = 8 * 60 * 60 * 1e3;
