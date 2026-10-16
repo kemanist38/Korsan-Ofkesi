@@ -4113,6 +4113,7 @@ async function onTowerHit(c, m, now) {
   } else await dbRpc("island_destroy", { p_map: key, p_slot: slot, p_at: now }).catch(() => {
   });
 }
+var SIEGE_TRIAL = process.env.SIEGE_TRIAL === "1";
 var SIEGE_ROOM = "sea-siege";
 var SIEGE_PIECES = 17;
 var SIEGE_HIT_CAP = 4e5;
@@ -4129,6 +4130,7 @@ function resetSiege() {
 }
 function siegeJoin(uid, nick, now = Date.now()) {
   const w = siegeWindowAt(now);
+  if (!w.open && !SIEGE_TRIAL) return null;
   const reuse = siegeRun && (w.open ? siegeRun.id === w.id : !siegeRun.result && now < siegeRun.end);
   if (!reuse) {
     if (w.open || !siegeRun || siegeRun.result || now >= siegeRun.end) {
@@ -4377,7 +4379,7 @@ wss.on("connection", (ws) => {
         if (isle) send(c, { t: "isle", d: islandInfo(isle) });
         if (name === SIEGE_ROOM) {
           const r = siegeJoin(c.uid, c.nick, now);
-          send(c, { t: "sstate", d: siegeInfo(r, c.uid) });
+          if (r) send(c, { t: "sstate", d: siegeInfo(r, c.uid) });
         }
         return;
       }
