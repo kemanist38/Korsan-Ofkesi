@@ -77,3 +77,8 @@ html.touch .captain-hud .combat-targets{top:278px!important}
 .captain-hud .combat-controls .combat-action.recenter-btn{display:none!important}
 /* Gülle ve malzeme yuvaları: sayılar ve kısayol tuşu görünür */
 .captain-hud .slot-bar .quick-slot>b{display:block}.captain-hud .slot-bar .quick-slot>kbd{display:block}
+/* Sürüklenen çubuk aşağı doğru uzamasın (alt kenar sabitlemesi kalkar) */
+.captain-hud #ammoBar.moved,.captain-hud #itemBar.moved{bottom:auto!important}
+/* Kapalı çubuk: yalnız öndeki yuva görünür; basınca açılır */
+.captain-hud .slot-bar.collapsed .bar-slots{display:grid!important}
+.captain-hud .slot-bar.collapsed .bar-slots>.quick-slot:not(.lead){display:none}
