@@ -92,12 +92,14 @@ export const HP_BONUS_MAX=1.8,HEAL_SECONDS=40,GOD_MARGIN=.3,PVP_RANGE=1500;
 export function hpCap(st){if(!st)return 0;return Math.round(playerBaseHp(Number(st.level)||1,Number(st.u_hull)||0)*HP_BONUS_MAX);}
 const pvpOf=t=>t.pvp??={budget:null,heal:null,hp:null,at:0,from:new Map()};
 export function pvpGuard(t,dmg,now){const p=pvpOf(t),max=t.maxHp||1;p.budget??=newPvpBudget(max,now/1000);
-  const dealt=pvpClamp(p.budget,max,Math.max(0,dmg),now/1000);if(p.hp!==null)p.hp-=dealt;return Math.round(dealt);}
+  const dealt=pvpClamp(p.budget,max,Math.max(0,dmg),now/1000);if(p.hp!==null)p.hp-=dealt;p.hitAt=now;return Math.round(dealt);}
 // Dost iyileştirme güllesi: aynı bütçe kuralıyla (saniyede en çok tam can/20)
 export function pvpHeal(t,amt,now){const p=pvpOf(t),max=t.maxHp||1;p.heal??=newPvpBudget(max,now/1000);
   const got=pvpClamp(p.heal,max,Math.max(0,amt),now/1000);if(p.hp!==null)p.hp=Math.min(max,p.hp+got);return Math.round(got);}
-export function noteHp(t,hp,now){const p=pvpOf(t),max=t.maxHp||hp;
-  p.hp=p.hp===null?hp:Math.min(hp,Math.min(max,p.hp+Math.max(0,now-p.at)*max/HEAL_SECONDS/1000));p.at=now;}
+// İyileşme payı: savaş dışında tam can/40 sn (tamir); son 10 sn'de hasar aldıysa tamir yapılamaz, yalnız can emici payı (tam can/200 sn)
+export const COMBAT_HEAL_SECONDS=200,COMBAT_MS=10_000;
+export function noteHp(t,hp,now){const p=pvpOf(t),max=t.maxHp||hp,secs=now-(p.hitAt??-1e12)<COMBAT_MS?COMBAT_HEAL_SECONDS:HEAL_SECONDS;
+  p.hp=p.hp===null?hp:Math.min(hp,Math.min(max,p.hp+Math.max(0,now-p.at)*max/secs/1000));p.at=now;}
 export function godCheck(t){const p=t.pvp;return!!p&&p.hp!==null&&!!t.maxHp&&p.hp<=-GOD_MARGIN*t.maxHp;}
 export function pvpReset(t){if(t.pvp){t.pvp.budget=null;t.pvp.heal=null;t.pvp.hp=null;t.pvp.from.clear();}}
 // Oyuncu başına saniyelik hasar sınırı (boss, kuşatma, ada kuleleri): seviyenin bossunu tek başına ~40 sn'de batıracak hız
@@ -228,6 +230,14 @@ export function npcMove(n,dt,players,now){let tx=n.wx,ty=n.wy,v=n.def.speed*.45*
   if(foe&&Math.hypot(n.x-n.hx,n.y-n.hy)<NPC_LEASH){tx=foe.last.x;ty=foe.last.y;v=n.def.speed*1.4;if(Math.hypot(tx-n.x,ty-n.y)<240)return;}
   else{n.aggro=null;if(Math.hypot(n.wx-n.x,n.wy-n.y)<20){const a=Math.random()*Math.PI*2,r=60+Math.random()*240;n.wx=Math.max(80,Math.min(WORLD_WIDTH-80,n.hx+Math.cos(a)*r));n.wy=Math.max(80,Math.min(WORLD_HEIGHT-80,n.hy+Math.sin(a)*r));tx=n.wx;ty=n.wy;}}
   const d=Math.hypot(tx-n.x,ty-n.y);if(d<1)return;const st=Math.min(d,v*dt);n.x+=(tx-n.x)/d*st;n.y+=(ty-n.y)/d*st;n.moved=true;}
+// Ateş: NPC, kendisini vuran ya da 360 birime yaklaşan oyuncuya oyunun hızıyla ateş eder (güvenli denizde etmez, yeniden doğan
+// oyuncuya 3 sn dokunmaz). Hasar oyuncuya bildirilir ve sunucudaki can modelinden düşülür (kalkan, yetenek gibi azaltıcılar için %70).
+export const NPC_FIRE_RANGE=360,NPC_SPAWN_GRACE=3000,NPC_DMG_MODEL=.7;
+export function npcFire(n,players,now,safe,rand=Math.random){if(safe||now<(n.cdUntil??0))return null;
+  let t=n.aggro&&now<n.aggroUntil?players.find(p=>p.uid===n.aggro&&p.last):null;
+  if(!t||Math.hypot(t.last.x-n.x,t.last.y-n.y)>NPC_FIRE_RANGE){t=null;let bd=NPC_FIRE_RANGE;for(const p of players){if(!p.last||now-(p.tpAt||0)<NPC_SPAWN_GRACE)continue;const d=Math.hypot(p.last.x-n.x,p.last.y-n.y);if(d<bd){bd=d;t=p;}}}
+  if(!t)return null;if(!n.aggro){n.aggro=t.uid;n.aggroUntil=now+4000;}
+  n.cdUntil=now+(n.def.reload+rand()*.55)*1000;return{to:t,dmg:Math.round(n.def.damage*(.85+rand()*.3))};}
 // Vuruş: menzil ve bütçeyle sınırlanmış hasar uygulanır; batarsa paylar döner
 export function npcHit(c,sea,id,dmg,now){const n=seaNpcs.get(sea)?.list.get(String(id));if(!n||!(dmg>0))return null;
   if(!c.last||Math.hypot(c.last.x-n.x,c.last.y-n.y)>NPC_RANGE)return{err:'menzil'};
@@ -428,8 +438,12 @@ setInterval(()=>{tickNo++;if(tickNo%2===0)npcTick(Date.now());if(tickNo%3===0){c
 // NPC'ler: oyuncu olan denizlerde 0,2 sn'de bir hareket ve can güncellemesi; boş denizin NPC'leri silinir
 function npcTick(now){for(const [sea,st] of seaNpcs){const room=seas.get(sea);if(!room||!room.size){seaNpcs.delete(sea);continue;}
   const players=[...room];st.respawn=st.respawn.filter(t=>{if(t>now)return true;const n=npcSpawn(sea,now);if(n){const m=JSON.stringify({t:'nspawn',d:npcInfo(n)});for(const x of room)send(x,m);}return false;});
-  const pos=[],hp=[];for(const n of st.list.values()){npcMove(n,.2,players,now);if(n.moved){n.moved=false;pos.push([n.id,Math.round(n.x),Math.round(n.y)]);}if(n.hpDirty){n.hpDirty=false;hp.push([n.id,Math.round(n.hp)]);}}
-  if(pos.length||hp.length){const m=JSON.stringify({t:'npos',d:{p:pos,h:hp}});for(const x of room)send(x,m);}}}
+  const safe=!!MAPS[seaMap(sea)]?.safe,fires=[];
+  const pos=[],hp=[];for(const n of st.list.values()){npcMove(n,.2,players,now);const f=npcFire(n,players,now,safe);if(f){fires.push([n.id,f.to.netId,f.dmg]);npcDamage(f.to,f.dmg,n,now);}if(n.moved){n.moved=false;pos.push([n.id,Math.round(n.x),Math.round(n.y)]);}if(n.hpDirty){n.hpDirty=false;hp.push([n.id,Math.round(n.hp)]);}}
+  if(pos.length||hp.length||fires.length){const m=JSON.stringify({t:'npos',d:{p:pos,h:hp,f:fires}});for(const x of room)send(x,m);}}}
+// NPC hasarı oyuncunun sunucudaki can modeline işlenir; canı hasara rağmen hiç düşmeyen oyuncu (ölümsüz) batırılır
+function npcDamage(t,dmg,n,now){const p=pvpOf(t);p.hitAt=now;if(p.hp===null)return;p.hp-=dmg*NPC_DMG_MODEL;
+  if(godCheck(t)){suspect(t,'ölümsüz','npc');pvpReset(t);send(t,{t:'forceSink',d:{by:'',byNick:n.def.name}});}}
 function onNpcHit(c,list,now){const map=seaMap(c.sea);if(!map||!Array.isArray(list))return;
   for(const it of list.slice(0,40)){if(!Array.isArray(it))continue;const r=npcHit(c,c.sea,it[0],Number(it[1]),now);if(!r)continue;if(r.flag){suspect(c,'saniyelik hasar','npc');if(c.dps)c.dps.over=0;}
     if(!r.dead)continue;const room=seas.get(c.sea)||new Set(),def=r.dead.def;

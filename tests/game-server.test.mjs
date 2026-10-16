@@ -207,3 +207,17 @@ test('sunucu NPC: doğma, menzil, bütçe, paylı ödül, yeniden doğma',()=>{
   assert.equal(ca.st_npc,1);assert.equal(cb.st_npc,undefined);assert.ok(cb.gold>0&&cb.gold<ca.gold);
   assert.equal(S.seaNpcs.get(sea).list.has(n.id),false);assert.equal(S.seaNpcs.get(sea).respawn.length,1);
 });
+test('NPC ateşi sunucuda: menzil, bekleme, güvenli deniz, yeniden doğma koruması',()=>{
+  const sea='sea-3-1';S.seaNpcs.delete(sea);const n=S.npcFill(sea,0)[0];
+  const near={uid:'p1',netId:'n1',last:{x:n.x+100,y:n.y}},far={uid:'p2',netId:'n2',last:{x:n.x+2000,y:n.y}};
+  const T=100_000;assert.equal(S.npcFire(n,[far],T,false),null);// menzil dışı
+  assert.equal(S.npcFire(n,[near],T,true),null);// güvenli deniz
+  const f=S.npcFire(n,[near,far],T,false,()=>.5);assert.equal(f.to,near);assert.ok(f.dmg>0);
+  assert.equal(S.npcFire(n,[near],T+500,false),null);// bekleme
+  const fresh={uid:'p3',netId:'n3',last:{x:n.x+50,y:n.y},tpAt:9000};const m={...n,cdUntil:0,aggro:null};
+  assert.equal(S.npcFire(m,[fresh],10_000,false),null);// yeni doğan 3 sn korunur
+  // Ölümsüz: NPC hasarı alıp canı hep dolu bildiren oyuncu
+  const g={maxHp:100000};S.noteHp(g,100000,0);let dead=false;
+  for(let i=1;i<200&&!dead;i++){const p=g.pvp;p.hp-=8000*S.NPC_DMG_MODEL;S.noteHp(g,100000,i*1000);if(S.godCheck(g))dead=true;}
+  assert.ok(dead);
+});

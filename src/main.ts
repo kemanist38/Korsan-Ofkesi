@@ -794,7 +794,11 @@ function npcFromNet(n:NetNpc):Enemy|null{const def=NPCS[n.d];if(!def)return null
 const npcById=(id:string)=>enemies.find(e=>e.net?.id===id);
 function onNpcList(list:NetNpc[]){if(!netNpcs())return;for(let i=enemies.length-1;i>=0;i--){const e=enemies[i];if(e.net||(!e.tower&&!e.boss&&!e.captain&&!e.remote&&!e.commander&&e.def)){if(selected===enemies[i]){selected=null;state.attacking=false;}enemies.splice(i,1);}}
   for(const n of list){const e=npcFromNet(n);if(e)enemies.push(e);}}
-function onNpcPos(d:{p:[string,number,number][];h:[string,number][]}){for(const [id,x,y] of d.p){const e=npcById(id);if(e?.net){e.net.tx=x;e.net.ty=y;}}for(const [id,hp] of d.h){const e=npcById(id);if(e){e.hp=Math.max(1,hp);e.lastHp=e.hp;}}}
+// Sunucunun ateşlediği NPC güllesi: hedef bu oyuncuysa gülle oyuncuya uçar (hasar oyunun kurallarıyla, kalkan vb. dahil)
+function npcShot(id:string,to:string,dmg:number){const e=npcById(id);if(!e)return;const tx=to===myNetId?player:enemies.find(x=>x.remote?.id===to);if(!tx)return;
+  const a=Math.atan2(tx.y-e.y,tx.x-e.x);if(dist(e,player)<900)playEnemyCannon(dist(e,player),(e.x-player.x)/600);muzzleFlash(e.x+Math.cos(a)*16,e.y+Math.sin(a)*16,a,36);
+  if(to!==myNetId||state.invulnerable>0)return;e.aggro=true;e.combatTimer=4;shots.push({x:e.x,y:e.y,vx:Math.cos(a)*260,vy:Math.sin(a)*260,life:2.2,owner:'enemy',damage:dmg,hit:false,ammo:'iron'});}
+function onNpcPos(d:{p:[string,number,number][];h:[string,number][];f?:[string,string,number][]}){for(const [id,to,dmg] of d.f??[])npcShot(id,to,dmg);for(const [id,x,y] of d.p){const e=npcById(id);if(e?.net){e.net.tx=x;e.net.ty=y;}}for(const [id,hp] of d.h){const e=npcById(id);if(e){e.hp=Math.max(1,hp);e.lastHp=e.hp;}}}
 function onNpcDie(id:string){const e=npcById(id);if(!e)return;e.serverDown=true;e.hp=0;e.lastHp=0;npcHitPending.delete(id);sinkEnemy(e);}
 // Paylaşılan boss: yerel kopyada verilen hasar biriktirilip sunucuya gönderilir; can sunucudan gelir, batışı sunucu bildirir
 let bossHitPending=0,bossHitClock=0;
@@ -1966,8 +1970,7 @@ function update(dt:number){updateHealFlights(dt);{const rc=document.getElementBy
       if(Math.hypot(px-e.x,py-e.y)>400){e.x=px;e.y=py;}else{e.x+=(px-e.x)*k;e.y+=(py-e.y)*k;}continue;}
     if(e.net){const n=e.net,dx=n.tx-e.x,dy=n.ty-e.y,dd=Math.hypot(dx,dy);if(dd>400){e.x=n.tx;e.y=n.ty;}else if(dd>.5){const k=Math.min(1,dt*6);e.x+=dx*k;e.y+=dy*k;}
       if(dd>3){e.face={east:dx>0,north:dy<0};e.dir16=dir16Toward(dx,dy);e.angle=Math.atan2(dx,-dy);}
-      const d=dist(e,player);e.slowTimer=Math.max(0,e.slowTimer-dt);proximityAggro(e,d);if(e.aggro){e.combatTimer-=dt;if(e.combatTimer<=0)e.aggro=false;}
-      if(e.aggro&&d<NPC_FIRE_RANGE&&e.cooldown<=0)enemyFire(e);e.cooldown-=dt;continue;}
+      e.slowTimer=Math.max(0,e.slowTimer-dt);continue;} // ateşine sunucu karar verir (npos.f)
     if(e.captain){if(siege)updateSiegeCaptain(e,dt);else updateCaptain(e,dt);continue;}
     if(e.commander){updateCommander(e,dt);continue;}
     if((e.frozen??0)>0){e.frozen=Math.max(0,e.frozen!-dt);e.cooldown=Math.max(e.cooldown,.5);continue;}
