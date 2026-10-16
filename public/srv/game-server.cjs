@@ -4139,13 +4139,13 @@ function targetFactor(a, kind) {
 var g = (amount) => ({ amount, currency: "gold" });
 var p = (amount) => ({ amount, currency: "pearls" });
 var EQUIPMENT = [
-  { id: "sail-0", slot: "sail", rarity: 0, name: "Kanvas Yelken", price: g(5e3), stats: { speed: 0.05 } },
+  { id: "sail-0", slot: "sail", rarity: 0, name: "Kanvas Yelken", price: g(25e3), stats: { speed: 0.05 } },
   { id: "sail-2", slot: "sail", rarity: 2, name: "F\u0131rt\u0131na Yelkeni", price: p(2500), stats: { speed: 0.16 } },
-  { id: "figure-0", slot: "figure", rarity: 0, name: "Ah\u015Fap Deniz K\u0131z\u0131", price: g(8e3), stats: { damage: 0.04 } },
+  { id: "figure-0", slot: "figure", rarity: 0, name: "Ah\u015Fap Deniz K\u0131z\u0131", price: g(4e4), stats: { damage: 0.04 } },
   { id: "figure-2", slot: "figure", rarity: 2, name: "Alt\u0131n Kraken", price: p(3500), stats: { damage: 0.13 } },
-  { id: "armor-0", slot: "armor", rarity: 0, name: "Me\u015Fe Kaplama", price: g(6e3), stats: { hp: 0.06 } },
+  { id: "armor-0", slot: "armor", rarity: 0, name: "Me\u015Fe Kaplama", price: g(3e4), stats: { hp: 0.06 } },
   { id: "armor-2", slot: "armor", rarity: 2, name: "Ejder Pulu Z\u0131rh", price: p(3e3), stats: { hp: 0.2 } },
-  { id: "carriage-0", slot: "carriage", rarity: 0, name: "Demir Kundak", price: g(7e3), stats: { reload: 0.05 } },
+  { id: "carriage-0", slot: "carriage", rarity: 0, name: "Demir Kundak", price: g(35e3), stats: { reload: 0.05 } },
   { id: "carriage-2", slot: "carriage", rarity: 2, name: "D\xF6ner Kundak", price: p(3e3), stats: { reload: 0.14, range: 40 } }
 ];
 var equipById = (id) => EQUIPMENT.find((e) => e.id === id);

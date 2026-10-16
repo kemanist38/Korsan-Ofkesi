@@ -1,6 +1,6 @@
 // Permanent setup and ammunition are priced separately. No calendar lock on elite levels.
 export const ELITE_ENTRY_PRICE=2500;
-export const CANNON_COSTS={cast:{amount:40,currency:'gold'},long:{amount:15,currency:'pearls'},rapid:{amount:30,currency:'pearls'},heavy:{amount:50,currency:'pearls'}} as const;
+export const CANNON_COSTS={cast:{amount:400,currency:'gold'},long:{amount:15,currency:'pearls'},rapid:{amount:30,currency:'pearls'},heavy:{amount:50,currency:'pearls'}} as const;
 export const UPGRADE_PRICE_MULTIPLIER=26;
 export const ELITE_ECONOMY_VERSION=2;
 // All old thresholds scale by the same factor: preserve earned levels and within-level progress.
