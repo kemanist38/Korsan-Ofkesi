@@ -13,7 +13,7 @@ export function setupChat(me:()=>{nick:string;tag:string|null},onSend?:(tab:Chat
   const root=document.createElement('div');root.className='chat';
   root.innerHTML=`<section class="chat-box" id="chatBox" aria-label="Sohbet"><header class="chat-tabs"><button data-chat-tab="global">Global</button><button data-chat-tab="fleet">Filo</button><span class="chat-close" title="Kapat">×</span></header>
     <div class="chat-log" id="chatLog"></div><form class="chat-form" id="chatForm"><input id="chatInput" maxlength="120" autocomplete="off" placeholder="Mesaj yaz…"/><button type="submit">Gönder</button></form></section>
-    <button class="chat-toggle" id="chatToggle" aria-label="Sohbet" title="Sohbet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v10H9l-5 4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><i class="chat-dot"></i><span>SOHBET</span></button>`;
+    <button class="chat-toggle" id="chatToggle" aria-label="Sohbet" title="Sohbet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v10H9l-5 4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><i class="chat-dot"></i></button>`;
   document.body.append(root);
   const box=root.querySelector<HTMLElement>('#chatBox')!,log=root.querySelector<HTMLElement>('#chatLog')!,input=root.querySelector<HTMLInputElement>('#chatInput')!,dot=root.querySelector<HTMLElement>('.chat-dot')!;
   const lines:Record<ChatTab,Line[]>={global:[],fleet:[]};let tab:ChatTab='global',open=false;

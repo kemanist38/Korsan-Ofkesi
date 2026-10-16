@@ -10,7 +10,6 @@ import {session} from './session';
 import {guildOnline,loadMyGuild,searchGuilds,myApplications,createGuild,applyGuild,cancelApply,answerApplication,kickMember,setMemberRole,leaveGuild,disbandGuild,canManage,canKick,canDisband,type MyGuild,type GuildInfo,loadGuildIslands,buildIslandTower} from './guild-net';
 import './style.css';
 import './rage-ui.css';
-import './captain-hud.css';
 import {ACTIONS,loadSettings,saveSettings,keyLabel,normalizeKey,DEFAULT_BINDS,type ActionId} from './settings';
 import {playBossMusic,stopBossMusic,playBossHorn,setAudio,unlockAudio,playCannon,playEnemyCannon,playHit,playExplosion,playCoins,playSpeed,playRage,playShield,playSplash,playLevelUp,playMapJump,playSink,playHeal,playClick} from './audio';
 import {drawSeaSparkle,drawNpcShip,drawMonsterSheet,drawChestSprite,drawIslandSprite,drawFleetBase,drawBastion,drawBuiltTower,drawMineSprite,seaTilePattern,islandSheetUrl,shipLabelOffset,shipDrawSize,portraitStyle,preload,fleetBaseUrl,fleetTowerUrl,setTowerTheme,TOWER_LABEL_OFFSET,FLEET_ART,drawFleetOccluder} from './sprites';
@@ -96,14 +95,8 @@ const QUICK_ITEMS:Record<QuickItemId,{name:string;icon:string;category:'ammo'|'c
   compass:{name:'Pusula',icon:'compass',category:'consumable',description:'Basınca 8 saniye boyunca haritadaki bütün gemileri ve canavarları mini haritada gösterir. 20 saniyede bir kullanılır, her kullanımda 1 adet harcar.'},
   powder:{name:'Kara Barut',icon:'damage',category:'consumable',description:CONSUMABLES.powder.description},shield:{name:'Kalkan',icon:'hull',category:'consumable',description:CONSUMABLES.shield.description},mine:{name:'Deniz Mayını',icon:'hull',category:'consumable',description:'Kıçtan mayın bırakır.'}
 };
-const AMMO_ROW=8;
+const AMMO_ROW=6;
 const QUICK_TIPS:Record<QuickItemId,string>={iron:'Altınla',heal:'Can doldurur',chain:'Yavaşlatır',fire:'NPC +%40',explosive:'Oyuncu +%40',breaker:'Kule ×2,6',leech:'Can çalar',repairkit:'Tamir',speed:'Hızlandırır',compass:'Herkesi gösterir',powder:'Hasar artar',shield:'Hasar azalır',mine:'Mayın bırakır'};
-
-document.body.classList.add('captain-hud');
-try { if(localStorage.getItem('pirate-rage-hud-layout')!=='captain-v1') {
-  for(const key of ['yedi-deniz-dock-pos','yedi-deniz-bar-ammo','yedi-deniz-bar-item','yedi-deniz-frame-links','yedi-deniz-chat-pos'])localStorage.removeItem(key);
-  localStorage.setItem('pirate-rage-hud-layout','captain-v1');
-} } catch {}
 
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <main class="game-shell">
@@ -115,7 +108,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
       <div class="resources"><div class="resource compact"><i class="sprite icon-gold"></i><span>ALTIN</span><b id="gold">000</b></div><div class="resource compact pearl" id="pearlResource" title="İnci satın al"><i class="sprite icon-pearl"></i><span>İNCİ</span><b id="pearls">000</b><em class="pearl-plus">+</em></div></div>
       <div class="panel quest" hidden><span class="eyebrow">Aktif görev</span><h3 id="questTitle">Görev seçilmedi</h3><p id="questDescription">Kaptan, yapmak istediğin görevi görev defterinden seçebilirsin.</p><div class="progress" id="quest">Hazır olduğunda bir görev başlat</div><button class="quest-open" id="openQuests">GÖREVLERİ AÇ</button></div>
       <section class="combat-targets" id="combatTargets" aria-live="polite"></section>
-      <div class="hud-dock"><div class="dock-status"><div class="status-pair"><div class="status-line hp-line"><span>HP</span><i><em id="hpHudBar"></em></i><b id="hpHudText">100 / 100</b></div></div><div class="dock-center"><button class="recenter" id="recenterShip" aria-label="Gemiyi haritada ortala">✥</button></div><div class="status-pair"><div class="status-line battle-line"><span>SP</span><i><em id="battleBar"></em></i><b id="battleText">0 / 100</b></div></div></div></div><div class="slot-bar" id="ammoBar" data-bar="ammo"><div class="bar-grip" title="Tutup sürükle · çift tık: eski yerine"><button class="bar-toggle" aria-label="Gülle yuvalarını aç/kapat" title="Aç/kapat"><i></i></button></div><div class="bar-slots" id="ammoSlots"></div></div><div class="slot-bar" id="itemBar" data-bar="item"><div class="bar-grip" title="Tutup sürükle · çift tık: eski yerine"><button class="bar-toggle" aria-label="Malzeme yuvalarını aç/kapat" title="Aç/kapat"><i></i></button></div><div class="bar-slots" id="itemSlots"></div></div><div class="ammo-picker" id="ammoPicker"></div><div class="top-status" id="topStatus"><div class="status-line xp-line"><span>TP</span><i><em id="xpHudBar"></em></i><b id="xpHudText">0 / 100</b></div><b class="top-level" id="level" title="Kaptan seviyesi">1</b><div class="status-line elite-line"><span>EP</span><i><em id="eliteBar"></em></i><b id="eliteText">0 / 100</b></div></div>
+      <div class="hud-dock"><div class="dock-status"><div class="status-pair"><div class="status-line hp-line"><span>CP</span><i><em id="hpHudBar"></em></i><b id="hpHudText">100 / 100</b></div></div><div class="dock-center"><button class="recenter" id="recenterShip" aria-label="Gemiyi haritada ortala">✥</button></div><div class="status-pair"><div class="status-line battle-line"><span>SP</span><i><em id="battleBar"></em></i><b id="battleText">0 / 100</b></div></div></div></div><div class="slot-bar" id="ammoBar" data-bar="ammo"><div class="bar-grip" title="Tutup sürükle · çift tık: eski yerine"><button class="bar-toggle" aria-label="Gülle yuvalarını aç/kapat" title="Aç/kapat"><i></i></button></div><div class="bar-slots" id="ammoSlots"></div></div><div class="slot-bar" id="itemBar" data-bar="item"><div class="bar-grip" title="Tutup sürükle · çift tık: eski yerine"><button class="bar-toggle" aria-label="Malzeme yuvalarını aç/kapat" title="Aç/kapat"><i></i></button></div><div class="bar-slots" id="itemSlots"></div></div><div class="ammo-picker" id="ammoPicker"></div><div class="top-status" id="topStatus"><div class="status-line xp-line"><span>TP</span><i><em id="xpHudBar"></em></i><b id="xpHudText">0 / 100</b></div><b class="top-level" id="level" title="Kaptan seviyesi">1</b><div class="status-line elite-line"><span>EP</span><i><em id="eliteBar"></em></i><b id="eliteText">0 / 100</b></div></div>
       <div class="combat-controls" id="combatControls"><button class="combat-action attack" id="attack" title="Saldır"><b><img src="/assets/icon-attack-v2.webp" alt="" draggable="false"/></b><span id="attackLabel">SALDIR</span><small id="reloadText">HAZIR</small></button><button class="combat-action speed ability" id="ability-speed" title="Hız İksiri"><b><img src="/assets/icon-speed-potion-v2.webp" alt="" draggable="false"/></b><span>HIZ</span><small data-bind="speed"></small></button><button class="combat-action mine ability" id="ability-mine" title="Deniz Mayını"><b><img src="/assets/icon-mine-v2.webp" alt="" draggable="false"/></b><span>MAYIN</span><small data-bind="mine"></small></button><button class="combat-action rage" id="rageButton" title="Korsan Öfkesi — bar dolunca bas: 2 salvo %25 hasar, %15 hız"><b><img src="/assets/icon-app-192.png" alt="" draggable="false"/></b><span>KORSAN ÖFKESİ</span><small id="rageTime">%0</small></button></div>
       <div class="map-cluster"><div class="map-badge" id="mapBadge"><strong id="mapName"></strong><small id="mapSubtitle"></small><b class="map-coord" id="mapCoord" title="Konum koordinatı">1/1 - 00AA</b></div><canvas id="minimap" width="188" height="133"></canvas><button class="world-map-button" id="openWorldMap" aria-label="Dünya haritalarını görüntüle"><img id="worldMapIcon" alt="" draggable="false"/><span>DÜNYA</span></button><button class="quest-bust" id="openQuestTop" aria-label="Görevler"><img src="/assets/quest-captain-v2.webp" alt="" draggable="false"/><span>GÖREVLER</span><small id="questBadge"></small></button><div class="panel zoom-controls"><button id="zoomOut" aria-label="Uzaklaştır">−</button><span id="zoomValue">70%</span><button id="zoomIn" aria-label="Yakınlaştır">+</button></div></div>
       <div class="sink-notices" id="sinkNotices" role="status" aria-live="polite"></div>
@@ -131,9 +124,6 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 const canvas = document.querySelector<HTMLCanvasElement>('#sea')!;
 // alpha:false → tuval opak; tarayıcı arka planla karıştırmaz (daha hızlı birleştirme)
 const ctx = canvas.getContext('2d',{alpha:false})!;
-// Keep the original form nodes and event handlers inside the minimap frame.
-const mapPanel=document.querySelector<HTMLElement>('.map-cluster')!;
-mapPanel.append(document.getElementById('coordGo')!,document.getElementById('spyGo')!);
 const minimap = document.querySelector<HTMLCanvasElement>('#minimap')!;
 const mini = minimap.getContext('2d')!;
 // Mini harita da cihaz piksel oranında çizilir (çizim kodu 188×133 koordinatlarıyla çalışmaya devam eder)
@@ -215,7 +205,7 @@ let designOwned=ELITE_TEST_MODE||loadDesignOwned();
 let activeSpecialDesign=designOwned?loadSpecialDesign():null;
 let previewShip:ShipSelection|SpecialDesignId=activeSpecialDesign??activeShip;
 // Özel tasarım yalnızca görünümü değiştirir; seçili geminin gücü ve donanımı korunur.
-const quickSlots:Array<QuickItemId|null>=Array(AMMO_ROW*2).fill(null);
+const quickSlots:Array<QuickItemId|null>=Array(12).fill(null);
 {const stored=(storedAccount?.quickSlots??['iron','chain','fire','breaker','speed','powder','shield','mine']).filter((id):id is QuickItemId=>!!id&&id!=='repairkit'&&id in QUICK_ITEMS);
   const place=(id:QuickItemId)=>{if(quickSlots.includes(id))return;const row=QUICK_ITEMS[id].category==='ammo'?0:AMMO_ROW;for(let i=row;i<row+AMMO_ROW;i++)if(!quickSlots[i]){quickSlots[i]=id;return;}};
   stored.forEach(place);place('compass');(['iron','chain','fire','breaker','speed','powder','shield','mine'] as QuickItemId[]).forEach(id=>{if(!storedAccount?.quickSlots)place(id);});
@@ -431,7 +421,7 @@ setInterval(renderDayEvent,15000);
   // gülle/malzeme çerçevesi tutamaktan ya da yuvalar dışındaki kenarından tutulur
   const GRIP:Record<FrameId,HTMLElement>={dock:EL.dock.querySelector('.dock-status') as HTMLElement,ammo:EL.ammo,item:EL.item};
   const IDS:FrameId[]=['dock','ammo','item'],DEFAULT_LINK:Record<FrameId,FrameId|null>={dock:null,ammo:'dock',item:'ammo'};
-  const POS=(id:FrameId)=>id==='dock'?'yedi-deniz-dock-pos':`yedi-deniz-bar-${id}`,LINKS='yedi-deniz-frame-links',SNAP=26,GAP=2;
+  const POS=(id:FrameId)=>id==='dock'?'yedi-deniz-dock-pos':`yedi-deniz-bar-${id}`,LINKS='yedi-deniz-frame-links',EDGE=90,SNAP=26,GAP=2;
   let link:Record<FrameId,FrameId|null>={...DEFAULT_LINK};
   try{const l=JSON.parse(localStorage.getItem(LINKS)||'null');if(l)link={dock:null,ammo:l.ammo??null,item:l.item??null};}catch{}
   const rect=(id:FrameId)=>EL[id].getBoundingClientRect();
@@ -441,15 +431,15 @@ setInterval(renderDayEvent,15000);
   const tree=(id:FrameId):FrameId[]=>kids(id).flatMap(k=>[k,...tree(k)]);
   const save=()=>{try{for(const id of IDS){const e=EL[id];localStorage.setItem(POS(id),JSON.stringify({x:e.classList.contains('moved')?parseFloat(e.style.left):null,y:parseFloat(e.style.top),v:e.classList.contains('vertical'),c:e.classList.contains('collapsed')}));}localStorage.setItem(LINKS,JSON.stringify(link));}catch{}};
   // kenara bırakılan çerçeve dikey, ortaya bırakılan yatay olur (yalnız gülle/malzeme)
-  // Çerçeveler kenara bırakılınca da yatay kalır (dikey açılım kaldırıldı)
-  const orient=(_id:FrameId)=>{};
+  const orient=(id:FrameId)=>{if(id==='dock')return;const e=EL[id],r=rect(id),v=r.left<EDGE||r.right>innerWidth-EDGE;if(v===e.classList.contains('vertical'))return;const cx=r.left+r.width/2,cy=r.top+r.height/2;e.classList.toggle('vertical',v);
+    const n=rect(id);place(id,r.left<EDGE?r.left:r.right>innerWidth-EDGE?r.right-n.width:cx-n.width/2,cy-n.height/2);};
   // en yakın kenara yapış: alt/üst kenara (ortalanarak) ya da sol/sağ kenara (üstleri hizalı)
   const snap=(id:FrameId)=>{const r=rect(id);let best:{d:number;to:FrameId;x:number;y:number}|null=null;
     for(const t of IDS){if(t===id)continue;const q=rect(t),hOver=Math.min(r.right,q.right)-Math.max(r.left,q.left),vOver=Math.min(r.bottom,q.bottom)-Math.max(r.top,q.top),cx=q.left+q.width/2-r.width/2;
       const opts:[number,number,number,boolean][]=[[Math.abs(r.top-q.bottom),cx,q.bottom+GAP,hOver>-SNAP],[Math.abs(r.bottom-q.top),cx,q.top-r.height-GAP,hOver>-SNAP],[Math.abs(r.left-q.right),q.right+GAP,q.top,vOver>-SNAP],[Math.abs(r.right-q.left),q.left-r.width-GAP,q.top,vOver>-SNAP]];
       for(const [d,x,y,ok] of opts)if(ok&&d<SNAP&&(!best||d<best.d))best={d,to:t,x,y};}
     if(best){place(id,best.x,best.y);link[id]=best.to;}};
-  for(const id of IDS){try{const p=JSON.parse(localStorage.getItem(POS(id))||'null');if(p){if(id!=='dock'){EL[id].classList.toggle('vertical',false);EL[id].classList.toggle('collapsed',!!p.c);}if(p.x!=null&&Number.isFinite(p.x))requestAnimationFrame(()=>place(id,p.x*uiScale,p.y*uiScale));}}catch{}}
+  for(const id of IDS){try{const p=JSON.parse(localStorage.getItem(POS(id))||'null');if(p){if(id!=='dock'){EL[id].classList.toggle('vertical',!!p.v);EL[id].classList.toggle('collapsed',!!p.c);}if(p.x!=null&&Number.isFinite(p.x))requestAnimationFrame(()=>place(id,p.x*uiScale,p.y*uiScale));}}catch{}}
   for(const id of ['ammo','item'] as FrameId[])(EL[id].querySelector('.bar-toggle') as HTMLElement).onclick=()=>{EL[id].classList.toggle('collapsed');closeAmmoPicker();save();};
   let drag:{id:FrameId;dx:number;dy:number;group:{id:FrameId;ox:number;oy:number}[]}|null=null;
   for(const id of IDS){const grip=GRIP[id];
@@ -479,9 +469,7 @@ setInterval(renderDayEvent,15000);
   addEventListener('resize',()=>{fitHud();for(const id of IDS)if(EL[id].classList.contains('moved'))place(id,parseFloat(EL[id].style.left)*uiScale,parseFloat(EL[id].style.top)*uiScale);});}
 ui('ability-speed').onclick=()=>activateAbility('speed');ui('ability-mine').onclick=dropMine;ui('rageButton').onclick=activateRage;
 function recenterShip(){freeLook=null;camera.x=player.x;camera.y=player.y;toast('Kamera gemiye ortalandı');}
-ui('recenterShip').onclick=recenterShip;{const top=ui('topStatus');const hp=document.querySelector('.hud-dock .hp-line'),sp=document.querySelector('.hud-dock .battle-line');if(hp)top.appendChild(hp);if(sp)top.appendChild(sp);top.classList.add('four-bars');}{const rc=ui('recenterShip');rc.className='combat-action recenter-btn';rc.innerHTML='<b><svg viewBox="0 0 48 48" width="70%" height="70%" aria-hidden="true"><g fill="none" stroke="#ffe09b" stroke-width="3" stroke-linecap="round"><circle cx="24" cy="24" r="12"/><circle cx="24" cy="24" r="4" fill="#ffe09b"/><path d="M24 4v40M4 24h40M9.9 9.9l28.2 28.2M38.1 9.9 9.9 38.1"/></g><g fill="#ffe09b"><circle cx="24" cy="4" r="2.6"/><circle cx="24" cy="44" r="2.6"/><circle cx="4" cy="24" r="2.6"/><circle cx="44" cy="24" r="2.6"/><circle cx="9.9" cy="9.9" r="2.6"/><circle cx="38.1" cy="38.1" r="2.6"/><circle cx="38.1" cy="9.9" r="2.6"/><circle cx="9.9" cy="38.1" r="2.6"/></g></svg></b><span>GEMİ</span>';rc.title='Gemiyi ortala';ui('combatControls').appendChild(rc);
-const center=rc.cloneNode(true) as HTMLButtonElement;center.id='centerCamera';center.title='Gemiyi ekrana ortala';center.setAttribute('aria-label','Gemiyi ekrana ortala');center.querySelector('span')?.remove();center.onclick=recenterShip;center.classList.add('center-cam');document.body.appendChild(center);
-}
+ui('recenterShip').onclick=recenterShip;{const top=ui('topStatus');const hp=document.querySelector('.hud-dock .hp-line'),sp=document.querySelector('.hud-dock .battle-line');if(hp)top.appendChild(hp);if(sp)top.appendChild(sp);top.classList.add('four-bars');}{const rc=ui('recenterShip');rc.className='combat-action recenter-btn';rc.innerHTML='<b><svg viewBox="0 0 48 48" width="70%" height="70%" aria-hidden="true"><g fill="none" stroke="#ffe09b" stroke-width="3" stroke-linecap="round"><circle cx="24" cy="24" r="12"/><circle cx="24" cy="24" r="4" fill="#ffe09b"/><path d="M24 4v40M4 24h40M9.9 9.9l28.2 28.2M38.1 9.9 9.9 38.1"/></g><g fill="#ffe09b"><circle cx="24" cy="4" r="2.6"/><circle cx="24" cy="44" r="2.6"/><circle cx="4" cy="24" r="2.6"/><circle cx="44" cy="24" r="2.6"/><circle cx="9.9" cy="9.9" r="2.6"/><circle cx="38.1" cy="38.1" r="2.6"/><circle cx="38.1" cy="9.9" r="2.6"/><circle cx="9.9" cy="38.1" r="2.6"/></g></svg></b><span>GEMİ</span>';rc.title='Gemiyi ortala';ui('combatControls').appendChild(rc);}
 ui('openWorldMap').onclick=openWorldMap;ui('closeWorldMap').onclick=closeWorldMap;
 ui('worldMapOverlay').addEventListener('pointerdown',e=>{if(e.target===ui('worldMapOverlay'))closeWorldMap();});
 ui('openCaptain').onclick=openCaptainProfile;
@@ -1371,42 +1359,46 @@ setInterval(()=>{auctionTick();if(ui('auctionOverlay').classList.contains('open'
 let loadoutTab:'ammo'|'consumable'='ammo';
 let pendingQuickItem:QuickItemId|null=null;
 function quickCount(item:QuickItemId){if(item==='iron')return short(state.ironAmmo);if(item==='chain')return short(state.chainAmmo);if(isSpecial(item)||item==='mine'||item==='powder'||item==='shield'||item==='speed'||item==='compass')return short(arsenal[item]);return'';}
-function slotKey(index:number){const b=settings.binds[(index<AMMO_ROW?`ammo${index+1}`:`item${index-AMMO_ROW+1}`) as ActionId];return b?keyLabel(b):'';}
+function slotKey(index:number){return keyLabel(settings.binds[(index<AMMO_ROW?`ammo${index+1}`:`item${index-AMMO_ROW+1}`) as ActionId]);}
 function itemAsset(item:QuickItemId){return rasterItemAssets[item]?`<img class="raster-item" src="${rasterItemAssets[item]}" alt="${QUICK_ITEMS[item].name}" draggable="false"/>`:`<i class="sprite icon-${QUICK_ITEMS[item].icon}"></i>`;}
 function quickSlotHtml(item:QuickItemId|null,index:number){const row=index<AMMO_ROW?'ammo-row':'item-row',key=slotKey(index),k=key==='—'?'':key;
   return item?`<button class="quick-slot ${row} ${item===state.ammo||((item==='powder'||item==='shield')&&consumableOn[item])?'active':''}" data-quick-slot="${index}" data-quick-item="${item}" aria-label="${QUICK_ITEMS[item].name}">${itemAsset(item)}<b>${quickCount(item)}</b><kbd>${k}</kbd></button>`:`<button class="quick-slot ${row} empty" data-quick-slot="${index}" title="${index<AMMO_ROW?'Gülle yuvası':'Sarf yuvası'}"><span>+</span><kbd>${k}</kbd></button>`;}
 // Sohbet düğmesi mobilde büyük gülle düğmesinin hemen üstünde durur (ölçekten bağımsız, gerçek konuma göre)
-function placeChatAboveDock(){if(document.body.classList.contains('captain-hud'))return;const chat=document.querySelector<HTMLElement>('.chat'),main=document.getElementById('mobMain');if(!chat||!main)return;
+function placeChatAboveDock(){const chat=document.querySelector<HTMLElement>('.chat'),main=document.getElementById('mobMain');if(!chat||!main)return;
   requestAnimationFrame(()=>{const r=main.getBoundingClientRect();chat.style.left=`${Math.max(4,r.left+r.width/2-22)}px`;chat.style.bottom=`${innerHeight-r.top+22}px`;});}
 addEventListener('resize',()=>{if(MOBILE_HUD)placeChatAboveDock();});
 // Mobil dokunmatik: tüm gülle ve malzemeler tek sırada, soldaki büyük düğme seçili gülleyi gösterir ve sırayı açıp kapatır
-let mobileTrayOpen=false,dockDragged=false;
-// Gülle düğmesi basılı tutup sürüklenerek taşınır; yeri hatırlanır
-function dockDraggable(dock:HTMLElement){const main=ui('mobMain');try{const p=JSON.parse(localStorage.getItem('pr-dock-pos')||'null');if(p){dock.style.left=`${p.x}px`;dock.style.bottom=`${p.y}px`;}}catch{}
-  main.addEventListener('pointerdown',e=>{const sx=e.clientX,sy=e.clientY,ox=dock.offsetLeft,ob=innerHeight-dock.offsetTop-dock.offsetHeight;let moved=false;main.setPointerCapture(e.pointerId);
-    const mv=(m:PointerEvent)=>{const dx=m.clientX-sx,dy=m.clientY-sy;if(!moved&&Math.hypot(dx,dy)<10)return;moved=true;dock.style.left=`${Math.max(0,Math.min(innerWidth-80,ox+dx))}px`;dock.style.bottom=`${Math.max(0,Math.min(innerHeight-90,ob-dy))}px`;};
-    const up=()=>{main.removeEventListener('pointermove',mv);main.removeEventListener('pointerup',up);main.removeEventListener('pointercancel',up);if(moved){dockDragged=true;try{localStorage.setItem('pr-dock-pos',JSON.stringify({x:parseInt(dock.style.left),y:parseInt(dock.style.bottom)}));}catch{}}};
-    main.addEventListener('pointermove',mv);main.addEventListener('pointerup',up);main.addEventListener('pointercancel',up);});}
+let mobileTrayOpen=false;
 function renderMobileDock(){if(!MOBILE_HUD)return;let dock=document.getElementById('mobileDock');
   if(!dock){ui('ammoBar').parentElement!.insertAdjacentHTML('beforeend','<div class="mobile-dock" id="mobileDock"><button class="mob-main" id="mobMain"></button><div class="mob-tray" id="mobTray"></div></div>');dock=ui('mobileDock');
-    ui('mobMain').onclick=()=>{if(dockDragged){dockDragged=false;return;}mobileTrayOpen=!mobileTrayOpen;renderMobileDock();};dockDraggable(dock);document.body.classList.add('touch-ui');}
+    ui('mobMain').onclick=()=>{mobileTrayOpen=!mobileTrayOpen;renderMobileDock();};document.body.classList.add('touch-ui');}
   placeChatAboveDock();
-  ui('mobMain').innerHTML=`${itemAsset(state.ammo)}<b>${quickCount(state.ammo)}</b>`;dock.classList.toggle('tray-on',mobileTrayOpen);
+  ui('mobMain').innerHTML=`${itemAsset(state.ammo)}<b>${quickCount(state.ammo)}</b>`;dock.classList.toggle('open',mobileTrayOpen);
   ui('mobTray').innerHTML=quickSlots.map((item,i)=>item?`<button class="${item===state.ammo||((item==='powder'||item==='shield')&&consumableOn[item])?'active':''}" data-mob-slot="${i}" data-quick-item="${item}" title="${QUICK_ITEMS[item].name}">${itemAsset(item)}<b>${quickCount(item)}</b></button>`:'').join('');
   ui('mobTray').querySelectorAll<HTMLButtonElement>('[data-mob-slot]').forEach(b=>b.onclick=()=>{const i=Number(b.dataset.mobSlot),ammo=i<AMMO_ROW;useQuickSlot(i);if(ammo){mobileTrayOpen=false;renderMobileDock();}});}
-// Hızlı yuvalar kendiliğinden dolar: gemide olan her gülle üst sırada, her malzeme alt sırada (boş "+" yuva yok)
-const AUTO_AMMO:QuickItemId[]=['iron','chain','fire','explosive','breaker','leech','heal'],AUTO_ITEMS:QuickItemId[]=['powder','shield','speed','mine','compass'];
-function ownedQuick(id:QuickItemId){if(id==='iron')return true;if(id==='chain')return state.chainAmmo>0;return(arsenal[id as keyof typeof arsenal] as number)>0;}
-function autoFillQuickSlots(){quickSlots.fill(null);AUTO_AMMO.filter(ownedQuick).slice(0,AMMO_ROW).forEach((id,i)=>{quickSlots[i]=id;});AUTO_ITEMS.filter(ownedQuick).slice(0,AMMO_ROW).forEach((id,i)=>{quickSlots[AMMO_ROW+i]=id;});}
-let barsCollapsedOnce=false;
-function renderQuickSlots(){autoFillQuickSlots();if(!barsCollapsedOnce){barsCollapsedOnce=true;document.querySelectorAll('.slot-bar').forEach(b=>b.classList.add('collapsed'));}renderMobileDock();
-  ui('ammoSlots').innerHTML=quickSlots.slice(0,AMMO_ROW).map((item,i)=>item?quickSlotHtml(item,i):'').join('');
-  ui('itemSlots').innerHTML=quickSlots.slice(AMMO_ROW).map((item,i)=>item?quickSlotHtml(item,i+AMMO_ROW):'').join('');
-  // Kapalı çubukta yalnız öndeki yuva görünür (gülle: seçili gülle, malzeme: ilk malzeme); ona basınca açılır, bir yuva seçilince geri kapanır
-  ui('ammoSlots').querySelector(`[data-quick-item="${state.ammo}"]`)?.classList.add('lead');if(!ui('ammoSlots').querySelector('.lead'))ui('ammoSlots').firstElementChild?.classList.add('lead');ui('itemSlots').firstElementChild?.classList.add('lead');
-  document.querySelectorAll<HTMLButtonElement>('.slot-bar [data-quick-slot]').forEach(slot=>{const index=Number(slot.dataset.quickSlot);slot.onclick=()=>{const bar=slot.closest('.slot-bar');if(bar?.classList.contains('collapsed')){bar.classList.remove('collapsed');return;}useQuickSlot(index);bar?.classList.add('collapsed');};slot.ondragover=e=>e.preventDefault();slot.ondrop=e=>{e.preventDefault();const item=e.dataTransfer?.getData('text/quick-item') as QuickItemId;if(item&&QUICK_ITEMS[item])assignQuickSlot(index,item);};});
+function renderQuickSlots(){renderMobileDock();
+  ui('ammoSlots').innerHTML=quickSlots.slice(0,AMMO_ROW).map((item,i)=>quickSlotHtml(item,i)).join('');
+  ui('itemSlots').innerHTML=quickSlots.slice(AMMO_ROW).map((item,i)=>quickSlotHtml(item,i+AMMO_ROW)).join('');
+  document.querySelectorAll<HTMLButtonElement>('.slot-bar [data-quick-slot]').forEach(slot=>{const index=Number(slot.dataset.quickSlot);slot.onclick=()=>{if(index<AMMO_ROW&&!pendingQuickItem){if(quickSlots[index])useQuickSlot(index);openAmmoPicker(index);}else useQuickSlot(index);};slot.ondragover=e=>e.preventDefault();slot.ondrop=e=>{e.preventDefault();const item=e.dataTransfer?.getData('text/quick-item') as QuickItemId;if(item&&QUICK_ITEMS[item])assignQuickSlot(index,item);};});
 }
-function closeAmmoPicker(){ui('ammoPicker').classList.remove('open');}
+// Gülle seçme sekmesi: numaralı gülle yuvasına dokununca tüm gülleler küçük bir sekmede açılır; seçilen gülle o yuvaya
+// yerleşir ve atış güllesi olur (başka yuvadaysa iki yuva yer değiştirir).
+let pickerSlot=-1;
+function closeAmmoPicker(){pickerSlot=-1;ui('ammoPicker').classList.remove('open');}
+function openAmmoPicker(index:number){
+  const picker=ui('ammoPicker');if(pickerSlot===index&&picker.classList.contains('open')){closeAmmoPicker();return;}pickerSlot=index;
+  const ammo=(Object.keys(QUICK_ITEMS) as QuickItemId[]).filter(id=>QUICK_ITEMS[id].category==='ammo');
+  picker.innerHTML=`<small>${index+1}. YUVA</small><div>${ammo.map(id=>`<button class="${quickSlots[index]===id?'current':''}" data-pick="${id}" title="${QUICK_ITEMS[id].name}">${itemAsset(id)}<b>${quickCount(id)}</b></button>`).join('')}</div>`;
+  picker.querySelectorAll<HTMLButtonElement>('[data-pick]').forEach(b=>b.onclick=()=>{const id=b.dataset.pick as QuickItemId,old=quickSlots[index],from=quickSlots.indexOf(id);
+    // seçilen gülle başka yuvadaysa iki yuva yer değiştirir; böylece hiçbir gülle bardan kaybolmaz
+    if(old!==id){assignQuickSlot(index,id);if(from>=0&&old){quickSlots[from]=old;saveAccount();renderQuickSlots();}}useQuickSlot(index);closeAmmoPicker();});
+  const bar=ui('ammoBar'),slot=bar.querySelector(`[data-quick-slot="${index}"]`) as HTMLElement,r=slot.getBoundingClientRect(),vertical=bar.classList.contains('vertical');
+  picker.classList.toggle('side',vertical);picker.classList.add('open');const k=uiScale,pw=picker.offsetWidth*k,ph=picker.offsetHeight*k;
+  let x=vertical?(r.left<innerWidth/2?r.right+8:r.left-pw-8):r.left+r.width/2-pw/2,y=vertical?r.top+r.height/2-ph/2:r.top-ph-8;
+  if(!vertical&&y<4)y=r.bottom+8;
+  picker.style.left=`${clamp(x,4,innerWidth-pw-4)/k}px`;picker.style.top=`${clamp(y,4,innerHeight-ph-4)/k}px`;}
+addEventListener('pointerdown',e=>{if(pickerSlot<0)return;const t=e.target as HTMLElement;if(t.closest('#ammoPicker')||t.closest('#ammoBar [data-quick-slot]'))return;closeAmmoPicker();},true);
+addEventListener('keydown',e=>{if(e.key==='Escape')closeAmmoPicker();});
 function useQuickSlot(index:number){
   if(pendingQuickItem){assignQuickSlot(index,pendingQuickItem);return;}
   const item=quickSlots[index];if(!item){openLoadout(index<AMMO_ROW?'ammo':'consumable');return;}
@@ -1831,7 +1823,7 @@ function straightAdvance(px:number,py:number,tx:number,ty:number,V:number,dt:num
   const step=Math.min(g,V*dt),mx=gx/g*step,my=gy/g*step/2;
   shipDir16=(8+Math.round(Math.atan2(gy,gx)/(Math.PI/8))+16)%16;isoFace.east=gx>=0;isoFace.north=gy<0;
   return{m:null,mx,my,done:false};}
-function update(dt:number){updateHealFlights(dt);{const rc=document.getElementById('recenterShip');if(rc){const away=!!freeLook&&dist(freeLook,player)>60;if(rc.classList.contains('show')!==away){rc.classList.toggle('show',away);document.getElementById('centerCamera')?.classList.toggle('show',away);}}}
+function update(dt:number){updateHealFlights(dt);{const rc=document.getElementById('recenterShip');if(rc){const away=!!freeLook&&dist(freeLook,player)>60;if(rc.classList.contains('show')!==away)rc.classList.toggle('show',away);}}
     // W-A-S-D (ve oklar) gemiyi yürütmez: gemi yerinde kalırken harita kayar, oyuncu tıklayacağı yeri önceden görür. V gemiye geri ortalar.
     {const px=(held('right','arrowright')?1:0)-(held('left','arrowleft')?1:0),py=(held('back','arrowdown')?1:0)-(held('forward','arrowup')?1:0);
       if(px||py){const base=freeLook??camera,n=Math.hypot(px,py),v=520*dt/camera.zoom;lookAt(base.x+px/n*v,base.y+py/n*v);}
