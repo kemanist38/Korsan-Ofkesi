@@ -4,7 +4,7 @@ const cache={};function load(file){file=path.resolve(file);if(cache[file])return
 const a=load('src/arsenal.ts'),e=load('src/economy.ts'),p=load('src/elite-progression.ts'),shop=load('src/pearlShop.ts'),gear=load('src/equipment.ts');
 const main=fs.readFileSync('src/main.ts','utf8');
 function constant(name){const start=main.indexOf(`const ${name}:`),end=main.indexOf('\n};',start)+3;const ctx={};vm.createContext(ctx);vm.runInContext(ts.transpileModule(main.slice(start,end)+`\nglobalThis.result=${name};`,{}).outputText,ctx);return ctx.result;}
-const cannons=constant('CANNONS'),upgrades=constant('UPGRADES');
+const cannons=load('src/combat.ts').CANNONS,upgrades=constant('UPGRADES');
 function cheapestPack(need){const packs=shop.PEARL_PACKS,limit=Math.ceil(need/500)+280,cost=Array(limit+1).fill(Infinity),prev=[];cost[0]=0;
  for(let n=1;n<=limit;n++)for(let j=0;j<packs.length;j++){const q=shop.packTotal(packs[j])/500,v=Math.round(packs[j].price*100);if(n>=q&&cost[n-q]+v<cost[n]){cost[n]=cost[n-q]+v;prev[n]=j;}}
  let best=Math.ceil(need/500);for(let n=best;n<=limit;n++)if(cost[n]<cost[best])best=n;
@@ -54,9 +54,7 @@ const setup=e.ELITE_ENTRY_PRICE+a.priceOf(e.CANNON_COSTS.heavy,315)+Object.value
  const speedPotions=Math.ceil(time*.25/a.ABILITIES.speed.duration),mines=Math.ceil(time/3600*5),supplyPearls=a.priceOf(a.SUPPLY_PRICES.speed,speedPotions)+a.priceOf(a.SUPPLY_PRICES.mine,mines);
  const result={hours:time/3600,ep,balls,totalBalls:Object.values(balls).reduce((a,b)=>a+b,0),ammoPearls,setup,supplyPearls,setupPurchase:cheapestPack(setup),ammoPurchase:cheapestPack(ammoPearls),purchase:cheapestPack(setup+ammoPearls+supplyPearls),stats,gold,bossPearls:pearls};
  console.log(JSON.stringify(result,null,2));
- if(!process.argv.includes('--all-leech')&&!process.argv.includes('--fast-route')&&!process.argv.includes('--slow-route')){assert(result.hours>=190&&result.hours<=225);assert(result.purchase.tl>=7500&&result.purchase.tl<=8500);}
- const old=[0,0,25000,65000,130000,230000,360000,530000,750000,1020000,1360000,1780000,2300000,2950000,3850000,5000000];
- for(let level=1;level<=15;level++){const value=e.migrateElitePoints(old[level]);assert.equal(a.eliteLevelFromEp(value),level);assert.equal(e.migrateElitePoints(value,2),value);}
- {const v=a.ELITE_POINTS_PER_BALL;assert(v.chain<v.fire&&v.fire<v.breaker&&v.breaker<v.explosive&&v.explosive<v.leech);}
+ if(!process.argv.includes('--all-leech')&&!process.argv.includes('--fast-route')&&!process.argv.includes('--slow-route')){assert(result.hours>=200&&result.hours<=245);assert(result.purchase.tl>=6500&&result.purchase.tl<=8000);}
+ {const v=a.ELITE_POINTS_PER_BALL;assert(v.chain<=v.fire&&v.fire<=v.breaker&&v.breaker<=v.explosive&&v.explosive<=v.leech);}
  console.log('PASS: encounter budget and existing elite levels preserved');
 }

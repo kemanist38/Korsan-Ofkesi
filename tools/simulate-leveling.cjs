@@ -5,9 +5,7 @@ const cache={};function load(file){file=path.resolve(file);if(cache[file])return
  vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports,require:id=>load(path.resolve(path.dirname(file),id+'.ts'))});return exports;}
 const fb=load('src/fleetBalance.ts'),c=load('src/campaign.ts'),p=load('src/elite-progression.ts'),a=load('src/arsenal.ts');
 const main=fs.readFileSync('src/main.ts','utf8');
-const cannonText=main.slice(main.indexOf('const CANNONS:'),main.indexOf('\nconst ',main.indexOf('const CANNONS:')+1));
-const cannonContext={};vm.createContext(cannonContext);vm.runInContext(ts.transpileModule(cannonText+'\nglobalThis.cannons=CANNONS;',{}).outputText,cannonContext);
-const cannons=cannonContext.cannons;
+const cannons=load('src/combat.ts').CANNONS;
 // Baseline: iron ammunition, progressive cannons/upgrades and earned elite levels.
 // No assumption that test-mode upgrades/stocks are available to a new player.
 const profiles=[null,

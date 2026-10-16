@@ -171,12 +171,12 @@ export function questCredit(c,id,now){const q=QUESTS.find(x=>x.id===id);if(!q)re
   if(q.kind==='sparkle'){c.qk??={};const k='spk:'+q.map;if((c.qk[k]||0)<q.required)return{err:'sayı',have:c.qk[k]||0};c.qk[k]-=q.required;}
   if(q.kind==='npc'){c.qk??={};const have=q.ids.reduce((a,k)=>a+(c.qk[k]||0),0);if(have<q.required)return{err:'sayı',have};
     let need=q.required;for(const k of q.ids){const t=Math.min(need,c.qk[k]||0);c.qk[k]-=t;need-=t;}}
-  cd.set(id,now);return{add:{pearls:q.pearls,gold:Math.round(q.gold*KILL_CREDIT_MULT),xp:Math.round(q.xp*KILL_CREDIT_MULT),ep:Math.round(questEp(q.tier)*1.5),st_quest:1}};}
+  cd.set(id,now);return{add:{pearls:q.pearls,gold:Math.round(q.gold*KILL_CREDIT_MULT),xp:Math.round(q.xp*KILL_CREDIT_MULT),ep:questEp(q.tier),st_quest:1}};}
 // Boss ödülü: payı sunucu bilir; katılımcıya oyunun formülüyle (havuz × pay) kazanç hakkı yazılır
 export const bossPool=n=>1+.6*(Math.min(5,Math.max(1,n))-1);
 export function bossCredit(map,share,n){if(!MAPS[map]||!(share>0))return null;const b=bossFor(map),pool=bossPool(n);
   const add={gold:Math.round(NPCS[b.trigger].gold*20*pool*share*KILL_CREDIT_MULT),xp:Math.round(b.xp*pool*share*KILL_CREDIT_MULT)};
-  if(share>=.03){add.ep=Math.round(bossEp(b.tier)*1.5);add.st_boss=1;add.pearls=b.pearls;}return add;}
+  if(share>=.03){add.ep=bossEp(b.tier);add.st_boss=1;add.pearls=b.pearls;}return add;}
 // Kuşatma: kabul edilen her hasar için katkı ödülü (oyunun formülüyle) kazanç hakkı olarak
 export function siegeCredit(dmg,n,level){const r=contribReward(dmg,Math.max(1,n),Math.max(1,Math.min(8,Math.round(Number(level)||8))));return{gold:Math.round(r.gold*KILL_CREDIT_MULT),xp:Math.round(r.xp*KILL_CREDIT_MULT),pearls:r.pearls};}
 // Hazine avı: oyun yalnız toplanan sandığı bildirir; parça zarını sunucu atar, 4 parçada hazine yerini sunucu seçer,
@@ -322,7 +322,7 @@ async function applyUsage(c,salvo,item,now){
   c.econ=st;c.sb=shadow.sb;c.uses=shadow.uses;
   if(r.over)suspect(c,'top sayısı');
   // Elit gülle EP'si ve sayacı sunucudan (pazartesi %50 EP etkinliği için ×1,5 pay)
-  if(item===null){const a=String(salvo?.a||''),n=Number(use[ITEM_OF[a]??'a_'+a])||0;if(n>0&&ELITE_POINTS_PER_BALL[a])addCredit(c,{ep:Math.ceil(n*ELITE_POINTS_PER_BALL[a]*1.5),st_eliteBalls:n});}
+  if(item===null){const a=String(salvo?.a||''),n=Number(use[ITEM_OF[a]??'a_'+a])||0;if(n>0&&ELITE_POINTS_PER_BALL[a])addCredit(c,{ep:n*ELITE_POINTS_PER_BALL[a],st_eliteBalls:n});}
 }
 
 // ---------------------------------------------------------------- Sunucu
