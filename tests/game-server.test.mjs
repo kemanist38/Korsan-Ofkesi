@@ -165,8 +165,8 @@ test('empty ammo, missing account and early mine cannot mint damage budgets',()=
   assert.equal(S.noteSalvo({}, {a:'iron',n:1}).err,'salvo');
   assert.equal(S.noteSalvo(c,{a:'__proto__',n:1}).err,'salvo');
   assert.equal(S.noteSalvo(c,{a:'fire',n:Infinity}).err,'salvo');
-  assert.ok(S.noteUse(c,'mine',0).use);const before=c.sb.pool;
-  assert.equal(S.noteUse(c,'mine',1).err,'bekleme');assert.equal(c.sb.pool,before);
+  assert.ok(S.noteUse(c,'mine',0).use);assert.equal(c.sb,undefined);// mayın hasarı sunucuda hesaplanır, bütçe açmaz
+  assert.equal(S.noteUse(c,'mine',1).err,'bekleme');
   assert.equal(c.uses.mine,0);
 });
 test('invalid state payloads and locked sea joins fail closed',()=>{
@@ -259,4 +259,14 @@ test('sunucu atışı hedefleri: kule konumu sunucudan, dost oyuncuya atış yok
   assert.equal(S.attackTarget(c,{k:'s',id:'1'}),null);// kuşatma odası değil
   assert.equal(S.attackTarget({sea:'sea-siege'},{k:'s',id:'16'}).kind,'tower');
   assert.equal(S.attackTarget(c,{k:'x',id:'1'}),null);
+});
+test('mines: placed near the ship only, capped per player, damage from server level and validated sapper talent',()=>{
+  const st={level:5};const c={uid:'mine-u',netId:'m1',sea:'mine-sea',last:{x:100,y:100},econ:st,ldRaw:{tal:{sapper:2}}};
+  assert.equal(S.placeMine(c,500,500,0),null);
+  const m=S.placeMine(c,130,100,0);assert.ok(m);
+  assert.equal(m.dmg,Math.round((4000+5*400)*1.3));
+  for(let i=0;i<4;i++)assert.ok(S.placeMine(c,100,100,0));
+  assert.equal(S.placeMine(c,100,100,0),null);
+  // Puanından fazla yetenek bildirilirse yetenekler yok sayılır
+  const L=S.buildLoadout({level:1},{tal:{sapper:99}});assert.equal(L.mineMult,1);
 });

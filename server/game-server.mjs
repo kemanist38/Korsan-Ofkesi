@@ -17,7 +17,8 @@ import {CANNONS,salvoDamage,reloadTime,rangeOf,targetFactor} from '../src/combat
 import {EQUIPMENT,equipTotals} from '../src/equipment.ts';
 import {cumulativeEliteBonus,ELITE_CANNON_CAPACITY} from '../src/elite-progression.ts';
 import {ACHIEVEMENTS,MAIN_COLLECTION} from '../src/achievements.ts';
-import {officerSlots,OFFICER_MAX_RANK} from '../src/crew.ts';
+import {officerSlots,OFFICER_MAX_RANK,talentPoints,TALENTS} from '../src/crew.ts';
+import {MINE} from '../src/arsenal.ts';
 import {HERO_DAMAGE} from '../src/siege.ts';
 import {createChest} from '../src/loot.ts';
 import {fleetReward} from '../src/campaign.ts';
@@ -146,7 +147,7 @@ export function noteUse(c,id,now){if(!(id in USE_COOLDOWN))return{err:'tür'};c.
   if(early)return{err:'bekleme',early:true};
   if(!c.econ||stockOf(c.econ,'a_'+id)<1)return{err:'stok'};
   c.uses[id]=now;
-  if(id==='mine'){c.sb??={pool:0};c.sb.pool+=30_000;}return{use:{['cn_a_'+id]:1},early};}
+  return{use:{['cn_a_'+id]:1},early};}
 export function killCredit(c,id,now){const map=seaMap(c.sea);if(!map||!MAPS[map])return{err:'deniz'};const m=MAPS[map],npc=NPCS[id],mon=MONSTERS[id];
   if(npc?!m.npcs.includes(id):!(mon&&m.monsters.includes(id)))return{err:'hedef'};const def=npc??mon;
   // Batırma bütçesi: saniyelik hasar sınırı kadar dolar, 30 saniyelik birikir (büyük gemi uzun sürer); canın yarısı karşılanmalı
@@ -237,7 +238,9 @@ export function buildLoadout(st,d){if(!st)return null;const lvl=Math.max(1,Math.
   // Madalya koleksiyonu: sayaçlarla doğrulanır (günlük seri doğrulanamaz, kabul edilir)
   const achOk=!!d?.ach&&MAIN_COLLECTION.every(id=>{const a=ACHIEVEMENTS.find(x=>x.id===id);if(!a)return true;if(a.stat==='daily')return true;if(a.stat==='level')return lvl>=a.goal;return(Number(st['st_'+a.stat])||0)>=a.goal;});
   const el=cumulativeEliteBonus(elite);
-  return{cannons:total,type,upDamage:Number(st.u_damage)||0,upReload:Number(st.u_reload)||0,upRange:Number(st.u_range)||0,crewDamage:1+.05*rank('gunner'),crewReload:1,crewRange:12*rank('lookout'),
+  // Yetenekler: toplam puan seviyeyi, her biri kendi sınırını aşamaz; yalnız Mayın Uzmanı savaşı etkiler
+  let tal={},spent=0;for(const [id,r] of Object.entries(d?.tal||{})){const t=TALENTS[id];const n=Math.max(0,Math.min(t?.max??0,Math.floor(Number(r)||0)));if(t&&n){tal[id]=n;spent+=n;}}if(spent>talentPoints(lvl))tal={};
+  return{level:lvl,mineMult:1+.15*(tal.sapper||0),cannons:total,type,upDamage:Number(st.u_damage)||0,upReload:Number(st.u_reload)||0,upRange:Number(st.u_range)||0,crewDamage:1+.05*rank('gunner'),crewReload:1,crewRange:12*rank('lookout'),
     equipDamage:et.damage,equipReload:et.reload,equipRange:et.range,achDamage:achOk?.05:0,eliteDamage:el.damage,eliteReload:el.reload,hero:d?.hero?HERO_DAMAGE:0};}
 // Atış denetimi: dolum süresi (%15 pay) ve menzil (150 birim gecikme payı); öfke 30 sn'de en çok 2 salvo
 export function shotCheck(c,L,a,dist,now,rage){const rl=reloadTime(L,a)*1000*.85;if(now-(c.lastAtk??-1e12)<rl)return'dolum';if(dist>rangeOf(L)+150)return'menzil';
@@ -468,7 +471,7 @@ export function buildBatch(rec,room,tick){const out=[];if(!rec.seen)rec.seen=new
     const near=!rec.last||!o.last||Math.abs(o.last.x-rec.last.x)+Math.abs(o.last.y-rec.last.y)<NEAR;if(!near&&!far)continue;
     const d={...o.state};if(seen.i!==o.identVer&&o.ident){Object.assign(d,o.ident);seen.i=o.identVer;}seen.s=o.stateVer;rec.seen.set(o,seen);out.push(d);}
   return out;}
-setInterval(()=>{tickNo++;if(tickNo%2===0)npcTick(Date.now());if(tickNo%3===0){const now=Date.now();bossTick(now);islandTick(now);siegeTick(now);}for(const room of seas.values()){if(room.size<2)continue;for(const rec of room){const b=buildBatch(rec,room,tickNo);if(b.length)send(rec,{t:'batch',d:b});}}},TICK_MS).unref();
+setInterval(()=>{tickNo++;if(tickNo%2===0){npcTick(Date.now());void mineTick(Date.now());}if(tickNo%3===0){const now=Date.now();bossTick(now);islandTick(now);siegeTick(now);}for(const room of seas.values()){if(room.size<2)continue;for(const rec of room){const b=buildBatch(rec,room,tickNo);if(b.length)send(rec,{t:'batch',d:b});}}},TICK_MS).unref();
 
 // NPC'ler: oyuncu olan denizlerde 0,2 sn'de bir hareket ve can güncellemesi; boş denizin NPC'leri silinir
 function npcTick(now){for(const [sea,st] of seaNpcs){const room=seas.get(sea);if(!room||!room.size){seaNpcs.delete(sea);continue;}
@@ -486,6 +489,28 @@ function npcDeath(c,r,now){{const map=seaMap(c.sea);const room=seas.get(c.sea)||
     for(const [uid,share] of r.shares){const x=[...room].find(p=>p.uid===uid)??[...all].find(p=>p.uid===uid);if(!x)continue;addCredit(x,npcDeathCredit(x,def,map,share));send(x,{t:'nkilled',d:{id:r.dead.id,share}});}
     const m=JSON.stringify({t:'ndie',d:{id:r.dead.id}});for(const x of room)send(x,m);
     if(def.id===bossFor(map).trigger){const b=bossKill(c.sea,BOSS_KILLS,now);if(b)toSea(c,{t:'boss',d:bossInfo(c.sea,b)},true);}}}
+// ---------------------------------------------------------------- Mayınlar (sunucuda)
+// Mayın oyuncunun bildirdiği yere (geminin 80 birim yakını) konur, 1 sn'de kurulur, 40 sn yaşar. 46 birime yaklaşan düşman NPC'de,
+// başka filodan oyuncuda ya da düşman ada kulesinde patlar; 95 birim içindekilere seviye ve Mayın Uzmanı yeteneğiyle hasar verir.
+export const seaMines=new Map();let mineSeq=0;
+export function placeMine(c,x,y,now){if(!c.last||!num(x)||!num(y)||Math.hypot(x-c.last.x,y-c.last.y)>80)return null;
+  const list=seaMines.get(c.sea)??[];seaMines.set(c.sea,list);if(list.filter(m=>m.uid===c.uid).length>=MINE.maxActive)return null;
+  const L=c.ldRaw?buildLoadout(c.econ,c.ldRaw):null,m={id:++mineSeq,uid:c.uid,netId:c.netId,guildId:c.guildId||0,x:Math.round(x),y:Math.round(y),arm:now+MINE.armSeconds*1000,until:now+40_000,
+    dmg:Math.round((MINE.baseDamage+(L?.level??1)*MINE.damagePerLevel)*(L?.mineMult??1))};list.push(m);return m;}
+function mineFoes(sea,m){const out={npcs:[],players:[],towers:[]};const near=(x,y,r)=>Math.hypot(x-m.x,y-m.y)<r;
+  for(const n of seaNpcs.get(sea)?.list.values()??[])out.npcs.push(n);
+  for(const p of seas.get(sea)??[])if(p.uid!==m.uid&&p.last&&!(m.guildId&&p.guildId===m.guildId))out.players.push(p);
+  const key=islandOfSea(sea),isle=key?islands.get(key):null;if(isle&&MAPS[key]&&!(m.guildId&&isle.guild===m.guildId)){const f=MAPS[key].fleet;isle.towers.forEach((t,slot)=>{if(t){const [dx,dy]=FLEET.towers[slot]??[0,0];out.towers.push({key,slot,x:f.x+dx,y:f.y+dy});}});}
+  return{all:out,near};}
+async function mineTick(now){for(const [sea,list] of seaMines){const room=seas.get(sea);if(!room||!room.size){seaMines.delete(sea);continue;}
+  for(let k=list.length-1;k>=0;k--){const m=list[k];if(now>m.until){list.splice(k,1);continue;}if(now<m.arm)continue;
+    const {all:f,near}=mineFoes(sea,m);const R=MINE.triggerRadius;
+    if(!f.npcs.some(n=>near(n.x,n.y,R))&&!f.players.some(p=>near(p.last.x,p.last.y,R))&&!f.towers.some(t=>near(t.x,t.y,R)))continue;
+    list.splice(k,1);const owner=[...all].find(x=>x.uid===m.uid)??{uid:m.uid,netId:m.netId,nick:'',sea,econ:null};const B=MINE.blastRadius;
+    const boom=JSON.stringify({t:'mboom',d:{id:m.id,x:m.x,y:m.y}});for(const x of room)send(x,boom);
+    for(const n of f.npcs)if(near(n.x,n.y,B)&&seaNpcs.get(sea)?.list.has(n.id)){const r=npcApply(owner,sea,n,m.dmg,now);if(r.dead&&owner.ws)npcDeath(owner,r,now);}
+    for(const p of f.players)if(near(p.last.x,p.last.y,B)){const dealt=pvpGuard(p,m.dmg,now);pvpOf(p).from.set(m.netId,now);if(dealt>0)send(p,{t:'mhit',d:{dmg:dealt,by:m.netId}});}
+    for(const t of f.towers)if(near(t.x,t.y,B)&&owner.ws)await towerApply(owner,t.key,t.slot,m.dmg,false,now);}}}
 // Sunucu atışı: NPC hedefi
 function bossApply(c,dmg){const r=bossHit(c.sea,c.uid,dmg);if(!r)return;const room=seas.get(c.sea);log('BOSS BATTI',c.sea,r.n,'kaptan');
   {const map=seaMap(c.sea);for(const x of all){const sh=r.shares[x.uid];if(!sh)continue;const add=bossCredit(map,sh.share,r.n);if(add)addCredit(x,add);}}
@@ -501,7 +526,7 @@ export function attackTarget(c,d){const k=String(d?.k||'n'),id=String(d?.id??'')
   if(k==='p'){const t=[...(seas.get(c.sea)||[])].find(x=>x.netId===id&&x!==c);if(!t?.last||(c.guildId&&c.guildId===t.guildId))return null;return{k,t,x:t.last.x,y:t.last.y,kind:'player'};}
   return null;}
 async function onAttack(c,d,now){if(!c.ldRaw||!c.last)return;const tg=attackTarget(c,d);if(!tg)return;c.ld=buildLoadout(c.econ,c.ldRaw);if(!c.ld)return;
-  const a=String(d?.a||'iron');if(!['iron','chain','fire','explosive','breaker','leech',...(tg.k==='p'?['heal']:[])].includes(a))return;
+  const a=String(d?.a||'iron');if(!['iron','chain','fire','explosive','breaker','leech',...(tg.k==='p'||tg.k==='t'?['heal']:[])].includes(a))return;
   const why=shotCheck(c,c.ld,a,tg.x===undefined?0:Math.hypot(c.last.x-tg.x,c.last.y-tg.y),now,!!d?.r);if(why){if(why!=='dolum')suspect(c,'atış',why);return;}
   const cap=c.ld.cannons;let k=Math.max(0,Math.floor(Number(d?.n)||0)),i=Math.max(0,Math.floor(Number(d?.i)||0));if(k+i>cap){const f=cap/(k+i);k=Math.floor(k*f);i=Math.floor(i*f);}if(a==='iron'){i+=k;k=0;}
   const before=c.econ,pool=c.sb?.pool??0;await applyUsage(c,{a,n:k,i,p:d?.p?1:0},null,now);if(c.sb)c.sb.pool=pool;// sunucu atışı hasar bütçesi doldurmaz (çift hasar olmasın)
@@ -510,7 +535,7 @@ async function onAttack(c,d,now){if(!c.ldRaw||!c.last)return;const tg=attackTarg
   if(tg.k==='n'){const live=seaNpcs.get(c.sea)?.list.get(tg.n.id);if(!live)return;const r=npcApply(c,c.sea,live,dmg,now);if(r.dead)npcDeath(c,r,now);return;}
   if(tg.k==='b'){bossApply(c,dmg);return;}
   if(tg.k==='s'){siegeApply(c,tg.i,dmg);return;}
-  if(tg.k==='t'){await towerApply(c,tg.key,tg.slot,dmg,false,now);return;}
+  if(tg.k==='t'){if(a==='heal')towerHit(tg.key,tg.slot,c.guildId,Math.round(raw*2.6),true,now);else await towerApply(c,tg.key,tg.slot,dmg,false,now);return;}
   // Oyuncu: şifa (oyunun formülüyle en çok canın %8–9,2'si) ya da hasar (hedefin 20 sn bütçesiyle); oyuna gülle olarak iletilir
   const t=tg.t,f={from:c.netId,to:t.netId,x:Math.round(c.last.x),y:Math.round(c.last.y),tx:Math.round(t.last.x),ty:Math.round(t.last.y),ammo:a,damage:0};
   if(a==='heal'){f.damage=Math.round(Math.min(raw,(t.maxHp||163000)*(.08+Math.random()*.012)));pvpHeal(t,f.damage,now);}
@@ -576,27 +601,24 @@ wss.on('connection',ws=>{
         if(s.by){const k=[...(seas.get(c.sea)||[])].find(x=>x.netId===String(s.by));const add=spCredit(k,c.uid,now);if(add)addCredit(k,add);}
         pvpReset(c);toSea(c,{t:'sunk',d:s});return;}
       case'bkill':return; // Only accepted nkill events advance the boss counter.
-      case'bhit':{if(!c.sea||!c.rBoss.hit(now))return;let dmg=Number(m.d?.dmg);if(!num(dmg)||dmg<=0)return;if(dmg>BOSS_HIT_CAP)suspect(c,'boss hasarı',String(dmg));
-        {const t=dpsTake(c,dmg,now);if(t.flag){suspect(c,'saniyelik hasar','boss');c.dps.over=0;}dmg=sbTake(c,t.ok);if(dmg<=0)return;}
-        bossApply(c,dmg);return;}
-      case'shit':{if(c.sea!==SIEGE_ROOM||!c.rTower.hit(now))return;let dmg=Number(m.d?.dmg);if(!num(dmg)||dmg<=0)return;if(dmg>SIEGE_HIT_CAP)suspect(c,'kuşatma hasarı',String(dmg));
-        {const t=dpsTake(c,dmg,now);if(t.flag){suspect(c,'saniyelik hasar','kuşatma');c.dps.over=0;}dmg=sbTake(c,t.ok);if(dmg<=0)return;}
-        siegeApply(c,Number(m.d?.i),dmg);return;}
+      case'bhit':return; // oyuncunun bildirdiği hasar kabul edilmez (sunucu atışı ve mayın)
+      case'shit':return; // oyuncunun bildirdiği hasar kabul edilmez (sunucu atışı ve mayın)
       case'ld':{c.ld=buildLoadout(c.econ,m.d);c.ldRaw=m.d;return;}
       case'atk':{if(!c.sea||!c.rSalvo.hit(now))return;await onAttack(c,m.d,now);return;}
-      case'nhit':{if(!c.sea||!c.rBoss.hit(now))return;onNpcHit(c,m.d?.h,now);return;}
+      case'nhit':return; // oyuncunun bildirdiği hasar kabul edilmez (sunucu atışı ve mayın)
       case'nkill':{if(NPCS[String(m.d?.id||'')])return;if(!c.sea||!c.rKill.hit(now))return;const r=killCredit(c,String(m.d?.id||''),now);
         if(r.err){if((r.err!=='hız'&&r.err!=='mermi')||r.flag){suspect(c,'batırma',`${r.err} ${m.d?.id}`);if(c.kb)c.kb.miss=0;}return;}addCredit(c,r.add);
         const map=seaMap(c.sea);if(map&&String(m.d?.id)===bossFor(map).trigger){const b=bossKill(c.sea,BOSS_KILLS,now);if(b)toSea(c,{t:'boss',d:bossInfo(c.sea,b)},true);}return;}
       case'salvo':{if(!c.rSalvo.hit(now)){suspect(c,'salvo hızı');return;}await applyUsage(c,m.d,null,now);return;}
-      case'use':{if(!c.rUse.hit(now))return;await applyUsage(c,null,String(m.d?.id||''),now);return;}
+      case'use':{if(!c.rUse.hit(now))return;const id=String(m.d?.id||''),before=c.econ;await applyUsage(c,null,id,now);
+        if(id==='mine'&&(c.econ!==before||!SERVER_SECRET||(process.env.BENCH_AUTH==='1'&&c.uid.startsWith('b')))){const mn=placeMine(c,Number(m.d?.x),Number(m.d?.y),now);if(mn)toSea(c,{t:'mine',d:{id:mn.id,x:mn.x,y:mn.y,by:c.netId}});}return;}
       case'qdone':{if(!c.uid||!c.rKill.hit(now))return;const id=String(m.d?.id||'');const r=questCredit(c,id,now);
         if(r.err){if(r.err==='bekleme')suspect(c,'görev bekleme',id);send(c,{t:'qres',d:{id,ok:false,err:r.err}});return;}addCredit(c,r.add);send(c,{t:'qres',d:{id,ok:true}});return;}
       case'spk':{if(!c.sea||!c.rUse.hit(now))return;const r=sparklePicked(c,now);if(r.err){if(r.err==='hız')suspect(c,'pırıltı hızı');return;}const sr=sparkleReward(c);addCredit(c,sr.add);send(c,{t:'spkr',d:sr.out});return;}
       case'chest':{if(!c.sea||!c.rKill.hit(now))return;const r=chestPicked(c,now);if(r.err){if(r.err==='hız')suspect(c,'sandık hızı');return;}{const cr=chestReward(c,m.d?.g);addCredit(c,cr.add);send(c,{t:'chestr',d:cr.out});}if(r.found)send(c,{t:'tstate',d:{parts:r.parts,spot:treOf(c.uid).spot,part:true}});return;}
       case'tdig':{if(!c.sea||!c.rKill.hit(now))return;const r=treasureDig(c);if(r.err){send(c,{t:'tdig',d:{ok:false,err:r.err}});return;}addCredit(c,r.add);send(c,{t:'tdig',d:{ok:true,reward:r.reward}});return;}
       case'spy':{if(!c.rKill.hit(now))return;await onSpy(c,m.d?.nick);return;}
-      case'thit':{if(!c.sea||!c.rTower.hit(now))return;await onTowerHit(c,m,now);return;}
+      case'thit':return; // kule hasarı ve tamiri yalnız sunucu atışıyla
       // Kule dikildi (veritabanında): önce canlar yazılır, sonra ada yeniden okunup denize gönderilir
       case'tbuilt':{const key=String(m.d?.key||'');const i=islands.get(key);if(!i||!c.rKill.hit(now))return;await saveIslandHp({...i,hpDirty:true});const n=await loadIsland(key).catch(()=>null);if(n)sendRoom(key,{t:'isle',d:islandInfo(n)});return;}
       // Filoya girme/çıkma sonrası filo bilgisi yenilenir

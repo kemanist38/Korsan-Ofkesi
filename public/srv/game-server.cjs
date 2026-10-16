@@ -3722,6 +3722,7 @@ __export(game_server_exports, {
   pendingCredits: () => pendingCredits,
   perBall: () => perBall,
   pickSpot: () => pickSpot,
+  placeMine: () => placeMine,
   pvpGuard: () => pvpGuard,
   pvpHeal: () => pvpHeal,
   pvpReset: () => pvpReset,
@@ -3731,6 +3732,7 @@ __export(game_server_exports, {
   saveServerState: () => saveServerState,
   sbTake: () => sbTake,
   seaMap: () => seaMap,
+  seaMines: () => seaMines,
   seaNpcs: () => seaNpcs,
   seaTier: () => seaTier,
   shotCheck: () => shotCheck,
@@ -4122,6 +4124,7 @@ var eliteLevelFromEp = (ep) => {
   while (l < ELITE_MAX_LEVEL && ep >= eliteLevelEp(l + 1)) l++;
   return l;
 };
+var MINE = { armSeconds: 1, triggerRadius: 46, blastRadius: 95, baseDamage: 4e3, damagePerLevel: 400, maxActive: 5, icon: "/assets/icon-mine-v2.webp" };
 var AMMO_PRICES = { chain: { amount: 3, currency: "pearls", per: 300 }, fire: { amount: 4, currency: "pearls", per: 300 }, breaker: { amount: 5, currency: "pearls", per: 300 }, explosive: { amount: 6, currency: "pearls", per: 300 }, leech: { amount: 8, currency: "pearls", per: 300 }, heal: { amount: 6, currency: "pearls", per: 300 } };
 var EP_PER_PEARL = 5.75;
 var epPerBall = (p2) => Math.round(p2.amount / (p2.per ?? 1) * EP_PER_PEARL * 1e4) / 1e4;
@@ -4224,8 +4227,32 @@ var ACHIEVEMENTS = [
 var MAIN_COLLECTION = ["npc-100", "npc-1000", "npc-10000", "heavy-200", "boss-1", "boss-16", "chest-100", "treasure-1", "treasure-25", "quest-10", "quest-100", "elite-10000", "level-5", "level-8", "daily-7"];
 
 // src/crew.ts
+var TALENTS = {
+  firemaster: { name: "Ate\u015F Ustas\u0131", max: 3, per: "+%25 yanma hasar\u0131", icon: "/assets/ammo-fire-v2.webp", apply: (b, r) => {
+    b.burn *= 1 + 0.25 * r;
+  } },
+  sapper: { name: "May\u0131n Uzman\u0131", max: 4, per: "+%15 may\u0131n hasar\u0131", icon: "/assets/icon-mine-v2.webp", apply: (b, r) => {
+    b.mine *= 1 + 0.15 * r;
+  } },
+  tough: { name: "Sa\u011Flam Omurga", max: 5, per: "-%3 al\u0131nan hasar", icon: "/assets/icon-shield-v3.webp", apply: (b, r) => {
+    b.taken *= 1 - 0.03 * r;
+  } },
+  windcaller: { name: "F\u0131rt\u0131na Bilgesi", max: 3, per: "-%10 may\u0131n bekleme", icon: "/assets/icon-speed-v2.webp", apply: (b, r) => {
+    b.cooldown *= 1 - 0.1 * r;
+  } },
+  plunder: { name: "Ya\u011Fma Ustas\u0131", max: 5, per: "+%10 sand\u0131k alt\u0131n\u0131", icon: "/assets/icon-market-v2.webp", apply: (b, r) => {
+    b.chestGold *= 1 + 0.1 * r;
+  } },
+  scavenger: { name: "Enkaz Avc\u0131s\u0131", max: 3, per: "+%8 yald\u0131zl\u0131 sand\u0131k \u015Fans\u0131", icon: "/assets/icon-chest-v2.webp", apply: (b, r) => {
+    b.gilded += 0.08 * r;
+  } },
+  bounty: { name: "\xD6d\xFCl Avc\u0131s\u0131", max: 5, per: "+%5 bat\u0131rma alt\u0131n\u0131", icon: "/assets/icon-attack-v2.webp", apply: (b, r) => {
+    b.bounty += 0.05 * r;
+  } }
+};
 var OFFICER_MAX_RANK = 5;
 var officerSlots = (level) => level >= 6 ? 3 : level >= 3 ? 2 : 1;
+var talentPoints = (level) => Math.max(0, level - 1);
 
 // src/siege.ts
 var SIEGE_START_H = 20;
@@ -4519,10 +4546,6 @@ function noteUse(c, id, now) {
   if (early) return { err: "bekleme", early: true };
   if (!c.econ || stockOf(c.econ, "a_" + id) < 1) return { err: "stok" };
   c.uses[id] = now;
-  if (id === "mine") {
-    c.sb ??= { pool: 0 };
-    c.sb.pool += 3e4;
-  }
   return { use: { ["cn_a_" + id]: 1 }, early };
 }
 function killCredit(c, id, now) {
@@ -4767,7 +4790,19 @@ function buildLoadout(st, d) {
     return (Number(st["st_" + a.stat]) || 0) >= a.goal;
   });
   const el = cumulativeEliteBonus(elite);
+  let tal = {}, spent = 0;
+  for (const [id, r] of Object.entries(d?.tal || {})) {
+    const t = TALENTS[id];
+    const n = Math.max(0, Math.min(t?.max ?? 0, Math.floor(Number(r) || 0)));
+    if (t && n) {
+      tal[id] = n;
+      spent += n;
+    }
+  }
+  if (spent > talentPoints(lvl)) tal = {};
   return {
+    level: lvl,
+    mineMult: 1 + 0.15 * (tal.sapper || 0),
     cannons: total,
     type,
     upDamage: Number(st.u_damage) || 0,
@@ -5268,22 +5303,6 @@ function islandTick(now) {
     }
   }
 }
-async function onTowerHit(c, m, now) {
-  const key = islandOfSea(c.sea), d = m.d || {}, slot = Number(d.slot), heal = !!d.heal;
-  let dmg = Number(d.dmg);
-  if (!key || !Number.isInteger(slot) || slot < 0 || slot >= TOWER_SLOTS || !num(dmg) || dmg <= 0) return;
-  if (!heal && dmg > TOWER_HIT_CAP) suspect(c, "kule hasar\u0131", String(dmg));
-  if (!heal) {
-    const t = dpsTake(c, dmg, now);
-    if (t.flag) {
-      suspect(c, "saniyelik hasar", "kule");
-      c.dps.over = 0;
-    }
-    dmg = sbTake(c, t.ok);
-    if (dmg <= 0) return;
-  }
-  await towerApply(c, key, slot, dmg, heal, now);
-}
 async function towerApply(c, key, slot, dmg, heal, now) {
   const r = towerHit(key, slot, c.guildId, dmg, heal, now);
   if (!r?.destroyed) return;
@@ -5455,7 +5474,10 @@ function buildBatch(rec, room, tick) {
 }
 setInterval(() => {
   tickNo++;
-  if (tickNo % 2 === 0) npcTick(Date.now());
+  if (tickNo % 2 === 0) {
+    npcTick(Date.now());
+    void mineTick(Date.now());
+  }
   if (tickNo % 3 === 0) {
     const now = Date.now();
     bossTick(now);
@@ -5522,20 +5544,6 @@ function npcDamage(t, dmg, n, now) {
     send(t, { t: "forceSink", d: { by: "", byNick: n.def.name } });
   }
 }
-function onNpcHit(c, list, now) {
-  const map = seaMap(c.sea);
-  if (!map || !Array.isArray(list)) return;
-  for (const it of list.slice(0, 40)) {
-    if (!Array.isArray(it)) continue;
-    const r = npcHit(c, c.sea, it[0], Number(it[1]), now);
-    if (!r) continue;
-    if (r.flag) {
-      suspect(c, "saniyelik hasar", "npc");
-      if (c.dps) c.dps.over = 0;
-    }
-    if (r.dead) npcDeath(c, r, now);
-  }
-}
 function npcDeath(c, r, now) {
   {
     const map = seaMap(c.sea);
@@ -5551,6 +5559,79 @@ function npcDeath(c, r, now) {
     if (def.id === bossFor(map).trigger) {
       const b = bossKill(c.sea, BOSS_KILLS, now);
       if (b) toSea(c, { t: "boss", d: bossInfo(c.sea, b) }, true);
+    }
+  }
+}
+var seaMines = /* @__PURE__ */ new Map();
+var mineSeq = 0;
+function placeMine(c, x, y, now) {
+  if (!c.last || !num(x) || !num(y) || Math.hypot(x - c.last.x, y - c.last.y) > 80) return null;
+  const list = seaMines.get(c.sea) ?? [];
+  seaMines.set(c.sea, list);
+  if (list.filter((m2) => m2.uid === c.uid).length >= MINE.maxActive) return null;
+  const L = c.ldRaw ? buildLoadout(c.econ, c.ldRaw) : null, m = {
+    id: ++mineSeq,
+    uid: c.uid,
+    netId: c.netId,
+    guildId: c.guildId || 0,
+    x: Math.round(x),
+    y: Math.round(y),
+    arm: now + MINE.armSeconds * 1e3,
+    until: now + 4e4,
+    dmg: Math.round((MINE.baseDamage + (L?.level ?? 1) * MINE.damagePerLevel) * (L?.mineMult ?? 1))
+  };
+  list.push(m);
+  return m;
+}
+function mineFoes(sea2, m) {
+  const out = { npcs: [], players: [], towers: [] };
+  const near = (x, y, r) => Math.hypot(x - m.x, y - m.y) < r;
+  for (const n of seaNpcs.get(sea2)?.list.values() ?? []) out.npcs.push(n);
+  for (const p2 of seas.get(sea2) ?? []) if (p2.uid !== m.uid && p2.last && !(m.guildId && p2.guildId === m.guildId)) out.players.push(p2);
+  const key = islandOfSea(sea2), isle = key ? islands.get(key) : null;
+  if (isle && MAPS[key] && !(m.guildId && isle.guild === m.guildId)) {
+    const f = MAPS[key].fleet;
+    isle.towers.forEach((t, slot) => {
+      if (t) {
+        const [dx, dy] = FLEET.towers[slot] ?? [0, 0];
+        out.towers.push({ key, slot, x: f.x + dx, y: f.y + dy });
+      }
+    });
+  }
+  return { all: out, near };
+}
+async function mineTick(now) {
+  for (const [sea2, list] of seaMines) {
+    const room = seas.get(sea2);
+    if (!room || !room.size) {
+      seaMines.delete(sea2);
+      continue;
+    }
+    for (let k = list.length - 1; k >= 0; k--) {
+      const m = list[k];
+      if (now > m.until) {
+        list.splice(k, 1);
+        continue;
+      }
+      if (now < m.arm) continue;
+      const { all: f, near } = mineFoes(sea2, m);
+      const R = MINE.triggerRadius;
+      if (!f.npcs.some((n) => near(n.x, n.y, R)) && !f.players.some((p2) => near(p2.last.x, p2.last.y, R)) && !f.towers.some((t) => near(t.x, t.y, R))) continue;
+      list.splice(k, 1);
+      const owner = [...all].find((x) => x.uid === m.uid) ?? { uid: m.uid, netId: m.netId, nick: "", sea: sea2, econ: null };
+      const B = MINE.blastRadius;
+      const boom = JSON.stringify({ t: "mboom", d: { id: m.id, x: m.x, y: m.y } });
+      for (const x of room) send(x, boom);
+      for (const n of f.npcs) if (near(n.x, n.y, B) && seaNpcs.get(sea2)?.list.has(n.id)) {
+        const r = npcApply(owner, sea2, n, m.dmg, now);
+        if (r.dead && owner.ws) npcDeath(owner, r, now);
+      }
+      for (const p2 of f.players) if (near(p2.last.x, p2.last.y, B)) {
+        const dealt = pvpGuard(p2, m.dmg, now);
+        pvpOf(p2).from.set(m.netId, now);
+        if (dealt > 0) send(p2, { t: "mhit", d: { dmg: dealt, by: m.netId } });
+      }
+      for (const t of f.towers) if (near(t.x, t.y, B) && owner.ws) await towerApply(owner, t.key, t.slot, m.dmg, false, now);
     }
   }
 }
@@ -5608,7 +5689,7 @@ async function onAttack(c, d, now) {
   c.ld = buildLoadout(c.econ, c.ldRaw);
   if (!c.ld) return;
   const a = String(d?.a || "iron");
-  if (!["iron", "chain", "fire", "explosive", "breaker", "leech", ...tg.k === "p" ? ["heal"] : []].includes(a)) return;
+  if (!["iron", "chain", "fire", "explosive", "breaker", "leech", ...tg.k === "p" || tg.k === "t" ? ["heal"] : []].includes(a)) return;
   const why = shotCheck(c, c.ld, a, tg.x === void 0 ? 0 : Math.hypot(c.last.x - tg.x, c.last.y - tg.y), now, !!d?.r);
   if (why) {
     if (why !== "dolum") suspect(c, "at\u0131\u015F", why);
@@ -5646,7 +5727,8 @@ async function onAttack(c, d, now) {
     return;
   }
   if (tg.k === "t") {
-    await towerApply(c, tg.key, tg.slot, dmg, false, now);
+    if (a === "heal") towerHit(tg.key, tg.slot, c.guildId, Math.round(raw * 2.6), true, now);
+    else await towerApply(c, tg.key, tg.slot, dmg, false, now);
     return;
   }
   const t = tg.t, f = { from: c.netId, to: t.netId, x: Math.round(c.last.x), y: Math.round(c.last.y), tx: Math.round(t.last.x), ty: Math.round(t.last.y), ammo: a, damage: 0 };
@@ -5895,40 +5977,12 @@ wss.on("connection", (ws) => {
       case "bkill":
         return;
       // Only accepted nkill events advance the boss counter.
-      case "bhit": {
-        if (!c.sea || !c.rBoss.hit(now)) return;
-        let dmg = Number(m.d?.dmg);
-        if (!num(dmg) || dmg <= 0) return;
-        if (dmg > BOSS_HIT_CAP) suspect(c, "boss hasar\u0131", String(dmg));
-        {
-          const t = dpsTake(c, dmg, now);
-          if (t.flag) {
-            suspect(c, "saniyelik hasar", "boss");
-            c.dps.over = 0;
-          }
-          dmg = sbTake(c, t.ok);
-          if (dmg <= 0) return;
-        }
-        bossApply(c, dmg);
+      case "bhit":
         return;
-      }
-      case "shit": {
-        if (c.sea !== SIEGE_ROOM || !c.rTower.hit(now)) return;
-        let dmg = Number(m.d?.dmg);
-        if (!num(dmg) || dmg <= 0) return;
-        if (dmg > SIEGE_HIT_CAP) suspect(c, "ku\u015Fatma hasar\u0131", String(dmg));
-        {
-          const t = dpsTake(c, dmg, now);
-          if (t.flag) {
-            suspect(c, "saniyelik hasar", "ku\u015Fatma");
-            c.dps.over = 0;
-          }
-          dmg = sbTake(c, t.ok);
-          if (dmg <= 0) return;
-        }
-        siegeApply(c, Number(m.d?.i), dmg);
+      // oyuncunun bildirdiği hasar kabul edilmez (sunucu atışı ve mayın)
+      case "shit":
         return;
-      }
+      // oyuncunun bildirdiği hasar kabul edilmez (sunucu atışı ve mayın)
       case "ld": {
         c.ld = buildLoadout(c.econ, m.d);
         c.ldRaw = m.d;
@@ -5939,11 +5993,9 @@ wss.on("connection", (ws) => {
         await onAttack(c, m.d, now);
         return;
       }
-      case "nhit": {
-        if (!c.sea || !c.rBoss.hit(now)) return;
-        onNpcHit(c, m.d?.h, now);
+      case "nhit":
         return;
-      }
+      // oyuncunun bildirdiği hasar kabul edilmez (sunucu atışı ve mayın)
       case "nkill": {
         if (NPCS[String(m.d?.id || "")]) return;
         if (!c.sea || !c.rKill.hit(now)) return;
@@ -5973,7 +6025,12 @@ wss.on("connection", (ws) => {
       }
       case "use": {
         if (!c.rUse.hit(now)) return;
-        await applyUsage(c, null, String(m.d?.id || ""), now);
+        const id = String(m.d?.id || ""), before = c.econ;
+        await applyUsage(c, null, id, now);
+        if (id === "mine" && (c.econ !== before || !SERVER_SECRET || process.env.BENCH_AUTH === "1" && c.uid.startsWith("b"))) {
+          const mn = placeMine(c, Number(m.d?.x), Number(m.d?.y), now);
+          if (mn) toSea(c, { t: "mine", d: { id: mn.id, x: mn.x, y: mn.y, by: c.netId } });
+        }
         return;
       }
       case "qdone": {
@@ -6032,11 +6089,9 @@ wss.on("connection", (ws) => {
         await onSpy(c, m.d?.nick);
         return;
       }
-      case "thit": {
-        if (!c.sea || !c.rTower.hit(now)) return;
-        await onTowerHit(c, m, now);
+      case "thit":
         return;
-      }
+      // kule hasarı ve tamiri yalnız sunucu atışıyla
       // Kule dikildi (veritabanında): önce canlar yazılır, sonra ada yeniden okunup denize gönderilir
       case "tbuilt": {
         const key = String(m.d?.key || "");
@@ -6202,6 +6257,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   pendingCredits,
   perBall,
   pickSpot,
+  placeMine,
   pvpGuard,
   pvpHeal,
   pvpReset,
@@ -6211,6 +6267,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   saveServerState,
   sbTake,
   seaMap,
+  seaMines,
   seaNpcs,
   seaTier,
   shotCheck,
