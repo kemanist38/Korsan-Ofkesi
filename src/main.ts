@@ -25,7 +25,7 @@ import {supa} from './supabase';
 import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
 import {loadLevelQuest,saveLevelQuest,levelQuestDone,levelQuestKill,levelQuestGoal,needsLevelQuest,levelQuestMap} from './level-quest';
 import {SPY_COST,SPY_SHIELD_PRICE,loadSpy,sendSpy,type SpyRival} from './spy';
-import {netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
+import {netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,sendSalvo,sendUse,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
 import {AUCTION_MS,loadAuction,saveAuction,emptyAuction,auctionHour,auctionEnds,lotsFor,minNextBid,applyBid,wonLots,auctionId,type LotDef,type Bid} from './auction';
 import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,claimReward,GRADUATE_LEVEL,MAX_APPRENTICES,TOGETHER_XP_BONUS,APPRENTICE_MAX_LEVEL} from './mentorship';
 import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
@@ -802,7 +802,7 @@ function towerHealTick(dt:number){if(towerHealSlot===null)return;const slot=towe
   if(dist(player,at)>effectiveRange()+80){return;}
   towerHealClock-=dt;if(towerHealClock>0)return;const cannon=CANNONS[state.cannonType];towerHealClock=cannon.reload;
   const loaded=Math.min(state.cannon,arsenal.heal);if(loaded<=0){stopTowerHeal('Şifa güllesi tükendi');renderQuickSlots();return;}
-  arsenal.heal-=loaded;saveArsenal(arsenal);renderQuickSlots();
+  arsenal.heal-=loaded;sendSalvo('heal',loaded,0,0);saveArsenal(arsenal);renderQuickSlots();
   const amount=Math.round(loaded*BALL_DAMAGE*(1+upgrades.damage*.11)*cannon.damage*bonus.damage*(1+equipBonus().damage+achBonus().damage+eliteBonus().damage)*2.6);
   sendTowerHit(slot,amount,true);healText(at.x,at.y-40,amount);playHeal();}
 function populateMap(){
@@ -995,6 +995,7 @@ function fireAtTarget(){
   // Şifa salvosu en çok 13–15 bin can doldurur (top sayısına göre daha az olabilir)
   const amount=state.ammo==='heal'?Math.round(Math.min(damage,(selected.maxHp||163000)*(.08+Math.random()*.012))):damage;
   salvoQueue.push({delay:0,target:selected,side,slot:0,damage:amount,ammo:state.ammo,powder:powderF>1});
+  sendSalvo(state.ammo,loaded,ironUsed,powderF>1?1:0);
   if(ironUsed){state.ironAmmo-=ironUsed;if(state.ironAmmo<=0)toast('Demir gülle bitti — marketten altınla alabilirsin');}
   if(state.ammo==='chain'){state.chainAmmo-=loaded;gainElitePoints(loaded*ELITE_POINTS_PER_BALL.chain);bumpAch('eliteBalls',loaded);}
   else if(isSpecial(state.ammo)){arsenal[state.ammo]-=loaded;saveArsenal(arsenal);gainElitePoints(loaded*ELITE_POINTS_PER_BALL[state.ammo]);bumpAch('eliteBalls',loaded);}
@@ -2271,7 +2272,7 @@ function toggleConsumable(id:ConsumableId){
 // Açık sarf malzemesinden 1 adet harcar; bitince kendiliğinden kapanır. Çarpanı döndürür.
 function useConsumable(id:ConsumableId){
   if(!consumableOn[id])return 1;if(arsenal[id]<=0){consumableOn[id]=false;renderQuickSlots();return 1;}
-  arsenal[id]-=1;saveArsenal(arsenal);if(arsenal[id]<=0){consumableOn[id]=false;toast(`${CONSUMABLES[id].name} tükendi`);}renderQuickSlots();
+  arsenal[id]-=1;if(id==='shield')sendUse('shield');saveArsenal(arsenal);if(arsenal[id]<=0){consumableOn[id]=false;toast(`${CONSUMABLES[id].name} tükendi`);}renderQuickSlots();
   return CONSUMABLES[id].factor;
 }
 // Pusula: görüş sisini kısa süre kaldırır
@@ -2279,7 +2280,7 @@ let compassReveal=0,compassCooldown=0;
 function useCompass(){
   if(compassCooldown>0){toast(`Pusula ${Math.ceil(compassCooldown)} sn sonra hazır`);return;}
   if(arsenal.compass<=0){toast('Pusula kalmadı — Malzemeler\'den alabilirsin');return;}
-  arsenal.compass--;saveArsenal(arsenal);renderQuickSlots();compassReveal=COMPASS.reveal;compassCooldown=COMPASS.cooldown;compassPulse=1;playClick();
+  arsenal.compass--;sendUse('compass');saveArsenal(arsenal);renderQuickSlots();compassReveal=COMPASS.reveal;compassCooldown=COMPASS.cooldown;compassPulse=1;playClick();
   toast(`Pusula açıldı · ${COMPASS.reveal} sn boyunca bütün deniz görünür`);
 }
 let compassPulse=0;
@@ -2290,7 +2291,7 @@ function activateAbility(id:'speed'){
   if(t.cooldown>0){toast(`${a.name} ${Math.ceil(t.cooldown)} sn sonra hazır`);return;}
   if(t.active>0){toast(`${a.name} zaten etkin`);return;}
   if(arsenal.speed<=0){toast(`${a.name} kalmadı — marketten alabilirsin`);return;}
-  arsenal.speed--;saveArsenal(arsenal);renderQuickSlots();
+  arsenal.speed--;sendUse('speed');saveArsenal(arsenal);renderQuickSlots();
   t.active=a.duration;t.cooldown=a.cooldown;// hız iksiri bekleme süresi sabit 30 sn (kaptan bonusları kısaltmaz)
   toast(`${a.name} içildi · kalan ${arsenal.speed.toLocaleString('tr-TR')}`);playSpeed();
   // içildiği an gemiyi saran kısa parıltı patlaması
@@ -2302,7 +2303,7 @@ function dropMine(){
   if(arsenal.mine<=0){toast('Deniz mayını kalmadı — marketten alabilirsin');return;}
   if(t.cooldown>0){toast(`Mayın ${Math.ceil(t.cooldown)} sn sonra hazır`);return;}
   if(mines.length>=MINE.maxActive){toast(`Aynı anda en fazla ${MINE.maxActive} mayın`);return;}
-  arsenal.mine-=1;saveArsenal(arsenal);renderQuickSlots();t.cooldown=ABILITIES.mine.cooldown*bonus.cooldown;
+  arsenal.mine-=1;sendUse('mine');saveArsenal(arsenal);renderQuickSlots();t.cooldown=ABILITIES.mine.cooldown*bonus.cooldown;
   playSplash();mines.push({x:player.x-Math.sin(player.angle)*42,y:player.y+Math.cos(player.angle)*42,life:ABILITIES.mine.duration,arm:MINE.armSeconds});toast('Mayın bırakıldı');
 }
 function detonateMine(index:number){

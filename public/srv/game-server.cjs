@@ -3665,12 +3665,14 @@ __export(game_server_exports, {
   TOWER_HEAL_CAP: () => TOWER_HEAL_CAP,
   TOWER_HIT_CAP: () => TOWER_HIT_CAP,
   TOWER_SLOTS: () => TOWER_SLOTS,
+  USE_COOLDOWN: () => USE_COOLDOWN,
   addCredit: () => addCredit,
   bossHit: () => bossHit,
   bossInfo: () => bossInfo,
   bossKill: () => bossKill,
   bossSeas: () => bossSeas,
   buildBatch: () => buildBatch,
+  cannonsOf: () => cannonsOf,
   checkFire: () => checkFire,
   checkState: () => checkState,
   dpsCap: () => dpsCap,
@@ -3685,13 +3687,17 @@ __export(game_server_exports, {
   killCredit: () => killCredit,
   loadIslands: () => loadIslands,
   noteHp: () => noteHp,
+  noteSalvo: () => noteSalvo,
+  noteUse: () => noteUse,
   osbMatch: () => osbMatch,
   parseForm: () => parseForm,
   parseOsb: () => parseOsb,
+  perBall: () => perBall,
   pvpGuard: () => pvpGuard,
   pvpHeal: () => pvpHeal,
   pvpReset: () => pvpReset,
   resetSiege: () => resetSiege,
+  sbTake: () => sbTake,
   seaMap: () => seaMap,
   seaTier: () => seaTier,
   siegeHitPiece: () => siegeHitPiece,
@@ -4159,6 +4165,52 @@ function dpsTake(c, dmg, now) {
   return { ok, flag: d.over > rate * 6 };
 }
 var KILL_CREDIT_MULT = 2.5;
+var AMMO_MULT = { iron: 1, chain: 1.25, fire: 2.5 * 1.8, explosive: 2.5, breaker: 2.25 * 2.6, leech: 3, heal: 0 };
+function perBall(ammo, st) {
+  return 20 * 1.38 * (1 + (st ? Number(st.u_damage) || 0 : 10) * 0.11) * (AMMO_MULT[ammo] ?? 1) * 1.4 * 2.2;
+}
+function cannonsOf(st) {
+  if (!st) return Infinity;
+  return ["cast", "long", "rapid", "heavy"].reduce((a, k) => a + (Number(st["c_" + k]) || 0), 0);
+}
+var ITEM_OF = { iron: "iron", chain: "chain" };
+function noteSalvo(c, d) {
+  const a = String(d?.a || "iron");
+  let n = Math.max(0, Math.floor(Number(d?.n) || 0)), i = Math.max(0, Math.floor(Number(d?.i) || 0));
+  const cap = cannonsOf(c.econ), over = n + i > cap * 1.05 + 5;
+  if (over) {
+    const k = cap / (n + i);
+    n = Math.floor(n * k);
+    i = Math.floor(i * k);
+  }
+  const dmg = n * perBall(a, c.econ) + i * perBall("iron", c.econ);
+  c.sb ??= { pool: 0 };
+  c.sb.pool = Math.min(c.sb.pool + dmg, Math.max(dmg, 1) * 40);
+  const use = {};
+  if (n && a !== "iron") use["cn_" + (ITEM_OF[a] ?? "a_" + a)] = n;
+  if (i) use.cn_iron = (use.cn_iron || 0) + i;
+  if (n && a === "iron") use.cn_iron = (use.cn_iron || 0) + n;
+  if (d?.p) use.cn_a_powder = 1;
+  return { use, over };
+}
+function sbTake(c, amount) {
+  c.sb ??= { pool: 0 };
+  const ok = Math.max(0, Math.min(amount, c.sb.pool));
+  c.sb.pool -= ok;
+  return ok;
+}
+var USE_COOLDOWN = { speed: 2e4, mine: 2e4, compass: 16e3, shield: 0 };
+function noteUse(c, id, now) {
+  if (!(id in USE_COOLDOWN)) return { err: "t\xFCr" };
+  c.uses ??= {};
+  const last = c.uses[id] ?? -1e12, early = now - last < USE_COOLDOWN[id];
+  c.uses[id] = now;
+  if (id === "mine") {
+    c.sb ??= { pool: 0 };
+    c.sb.pool += 3e4;
+  }
+  return { use: { ["cn_a_" + id]: 1 }, early };
+}
 function killCredit(c, id, now) {
   const map = seaMap(c.sea);
   if (!map || !MAPS[map]) return { err: "deniz" };
@@ -4174,6 +4226,11 @@ function killCredit(c, id, now) {
     b.miss++;
     return { err: "h\u0131z", flag: b.miss >= 10 };
   }
+  if ((c.sb?.pool ?? 0) < def.hp * 0.6) {
+    b.miss++;
+    return { err: "mermi", flag: b.miss >= 10 };
+  }
+  sbTake(c, def.hp * 0.6);
   b.pool = Math.max(0, b.pool - def.hp);
   b.miss = 0;
   const add = { gold: Math.round(def.gold * KILL_CREDIT_MULT), xp: Math.round(def.xp * KILL_CREDIT_MULT) };
@@ -4500,7 +4557,7 @@ async function onTowerHit(c, m, now) {
       suspect(c, "saniyelik hasar", "kule");
       c.dps.over = 0;
     }
-    dmg = t.ok;
+    dmg = sbTake(c, t.ok);
     if (dmg <= 0) return;
   }
   const r = towerHit(key, slot, c.guildId, dmg, heal, now);
@@ -4734,7 +4791,7 @@ var httpServer = import_node_http.default.createServer(async (q, r) => {
 });
 var wss = new import_websocket_server.default({ server: httpServer, path: "/ws", maxPayload: 16 * 1024, perMessageDeflate: { threshold: 256, zlibDeflateOptions: { level: 3 }, serverNoContextTakeover: false, clientNoContextTakeover: true } });
 wss.on("connection", (ws) => {
-  const c = { ws, uid: "", nick: "", playerNo: 0, netId: "", sea: "", last: null, strikes: 0, rState: new Rate(LIMITS.statesPerSec, 1e3), rFire: new Rate(LIMITS.firesPerSec, 1e3), rChat: new Rate(LIMITS.chatPerMin, 6e4), rMsg: new Rate(60, 1e3), rBoss: new Rate(5, 1e3), rKill: new Rate(3, 1e3), rTower: new Rate(12, 1e3) };
+  const c = { ws, uid: "", nick: "", playerNo: 0, netId: "", sea: "", last: null, strikes: 0, rState: new Rate(LIMITS.statesPerSec, 1e3), rFire: new Rate(LIMITS.firesPerSec, 1e3), rChat: new Rate(LIMITS.chatPerMin, 6e4), rMsg: new Rate(60, 1e3), rBoss: new Rate(5, 1e3), rKill: new Rate(3, 1e3), rSalvo: new Rate(3, 1e3), rUse: new Rate(12, 1e3), rTower: new Rate(12, 1e3) };
   all.add(c);
   const authTimer = setTimeout(() => {
     if (!c.uid) ws.close(4001, "giri\u015F yok");
@@ -4850,6 +4907,8 @@ wss.on("connection", (ws) => {
             }
             if (f.ammo === "heal") pvpHeal(t, f.damage, now);
             else {
+              f.damage = Math.round(sbTake(c, f.damage));
+              if (f.damage <= 0) return;
               pvpGuard(t, f.damage, now);
               pvpOf(t).from.set(c.netId, now);
               if (godCheck(t)) {
@@ -4899,7 +4958,7 @@ wss.on("connection", (ws) => {
             suspect(c, "saniyelik hasar", "boss");
             c.dps.over = 0;
           }
-          dmg = t.ok;
+          dmg = sbTake(c, t.ok);
           if (dmg <= 0) return;
         }
         const r = bossHit(c.sea, c.uid, dmg);
@@ -4920,7 +4979,7 @@ wss.on("connection", (ws) => {
             suspect(c, "saniyelik hasar", "ku\u015Fatma");
             c.dps.over = 0;
           }
-          dmg = t.ok;
+          dmg = sbTake(c, t.ok);
           if (dmg <= 0) return;
         }
         const r = siegeHitPiece(c.uid, c.nick, Number(m.d?.i), dmg);
@@ -4933,13 +4992,31 @@ wss.on("connection", (ws) => {
         if (!c.sea || !c.rKill.hit(now)) return;
         const r = killCredit(c, String(m.d?.id || ""), now);
         if (r.err) {
-          if (r.err !== "h\u0131z" || r.flag) {
+          if (r.err !== "h\u0131z" && r.err !== "mermi" || r.flag) {
             suspect(c, "bat\u0131rma", `${r.err} ${m.d?.id}`);
             if (c.kb) c.kb.miss = 0;
           }
           return;
         }
         addCredit(c, r.add);
+        return;
+      }
+      case "salvo": {
+        if (!c.rSalvo.hit(now)) {
+          suspect(c, "salvo h\u0131z\u0131");
+          return;
+        }
+        const r = noteSalvo(c, m.d);
+        if (r.over) suspect(c, "top say\u0131s\u0131", String(m.d?.n));
+        addCredit(c, r.use);
+        return;
+      }
+      case "use": {
+        if (!c.rUse.hit(now)) return;
+        const r = noteUse(c, String(m.d?.id || ""), now);
+        if (r.err) return;
+        if (r.early) suspect(c, "bekleme s\xFCresi", String(m.d?.id));
+        addCredit(c, r.use);
         return;
       }
       case "spy": {
@@ -5044,12 +5121,14 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   TOWER_HEAL_CAP,
   TOWER_HIT_CAP,
   TOWER_SLOTS,
+  USE_COOLDOWN,
   addCredit,
   bossHit,
   bossInfo,
   bossKill,
   bossSeas,
   buildBatch,
+  cannonsOf,
   checkFire,
   checkState,
   dpsCap,
@@ -5064,13 +5143,17 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   killCredit,
   loadIslands,
   noteHp,
+  noteSalvo,
+  noteUse,
   osbMatch,
   parseForm,
   parseOsb,
+  perBall,
   pvpGuard,
   pvpHeal,
   pvpReset,
   resetSiege,
+  sbTake,
   seaMap,
   seaTier,
   siegeHitPiece,

@@ -98,13 +98,28 @@ test('saniyelik hasar sınırı: seviyeye göre, 3 sn birikim, aşırı hız iş
   const n={econ:{level:8}};let f2=false;for(let i=0;i<60;i++)f2=S.dpsTake(n,cap*.8,i*1000).flag||f2;assert.equal(f2,false);
 });
 test('npc batırma doğrulaması: yanlış deniz/hedef reddedilir, hız bütçesi, seviye görevi sayımı',()=>{
-  const c={sea:'sea-3-1',econ:{level:3}};let now=0;
+  const c={sea:'sea-3-1',econ:{level:3}};let now=0;c.sb={pool:1e9};
   assert.equal(S.killCredit(c,'n5-1-heavy',now).err,'hedef');
   assert.equal(S.killCredit({sea:'sea-siege'},'n3-1-heavy',now).err,'deniz');
   const r=S.killCredit(c,'n3-1-heavy',now);assert.ok(r.add);assert.equal(r.add.st_npc,1);assert.equal(r.add.st_heavy,1);assert.equal(r.add.lqk,1);
   // Hafif gemi seviye görevine sayılmaz; 3/2 denizinde de sayılmaz
   assert.equal(S.killCredit(c,'n3-1-light',now+5000).add.lqk,undefined);
-  const c2={sea:'sea-3-2',econ:{level:3}};assert.equal(S.killCredit(c2,'n3-2-heavy',now).add.lqk,undefined);
+  const c2={sea:'sea-3-2',econ:{level:3},sb:{pool:1e9}};assert.equal(S.killCredit(c2,'n3-2-heavy',now).add.lqk,undefined);
   // Saniyede onlarca batırma: bütçe yetmez
-  const f={sea:'sea-3-1',econ:{level:3}};let bad=0;for(let i=0;i<40;i++)if(S.killCredit(f,'n3-1-heavy',1000+i*10).err)bad++;assert.ok(bad>30);
+  const f={sea:'sea-3-1',econ:{level:3},sb:{pool:1e9}};let bad=0;for(let i=0;i<40;i++)if(S.killCredit(f,'n3-1-heavy',1000+i*10).err)bad++;assert.ok(bad>30);
+});
+test('salvo bütçesi ve kullanım sayımı: salvosuz batırma sayılmaz, top sayısı sınırı, bekleme süresi',()=>{
+  const st={level:3,u_damage:0,c_cast:100};const c={sea:'sea-3-1',econ:st};
+  // Salvo bildirmeden batırma: mermi yok
+  assert.equal(S.killCredit(c,'n3-1-light',0).err,'mermi');
+  // 100 ateş güllesi salvosu: kullanım sayılır, bütçe dolar
+  const r=S.noteSalvo(c,{a:'fire',n:100,i:0,p:1});assert.equal(r.use.cn_a_fire,100);assert.equal(r.use.cn_a_powder,1);assert.equal(r.over,false);
+  assert.ok(S.killCredit(c,'n3-1-light',0).add);
+  // 1000 top yalanı kırpılır ve işaretlenir
+  const big=S.noteSalvo(c,{a:'iron',n:1000,i:0});assert.equal(big.over,true);assert.ok(big.use.cn_iron<=105);
+  // Bekleme süresi: hız iksiri 20 sn dolmadan (yetenekle en kısa 21 sn) ikinci kez erken sayılır
+  assert.equal(S.noteUse(c,'speed',0).early,false);assert.equal(S.noteUse(c,'speed',5000).early,true);assert.equal(S.noteUse(c,'speed',40000).early,false);
+  assert.equal(S.noteUse(c,'speed',40000).use.cn_a_speed,1);
+  // Bütçeden hasar düşümü
+  const d={sb:{pool:1000}};assert.equal(S.sbTake(d,5000),1000);assert.equal(S.sbTake(d,5000),0);
 });
