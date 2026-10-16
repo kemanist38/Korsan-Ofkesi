@@ -208,6 +208,39 @@ export function saveServerState(){if(process.env.NODE_ENV==='test')return;try{fo
 function loadServerState(){if(process.env.NODE_ENV==='test')return;try{const d=JSON.parse(fs.readFileSync(STATE_FILE,'utf8'));for(const c of d.g||[])if(c.grant?.id)pendingCredits.set(c.grant.id,c);for(const [u,m] of d.q||[])questCooldowns.set(u,new Map(m));for(const [u,k] of d.k||[])qkByUid.set(u,k);for(const [u,t] of d.t||[])treasures.set(u,t);}catch{}}
 loadServerState();setInterval(saveServerState,60_000).unref();process.on('SIGTERM',()=>{saveServerState();process.exit(0);});process.on('SIGINT',()=>{saveServerState();process.exit(0);});
 export function addCredit(c,add){c.credit??={};for(const k in add)c.credit[k]=(c.credit[k]||0)+add[k];}
+// ---------------------------------------------------------------- Sunucu NPC'leri
+// Her denizin normal NPC'lerini oyun sunucusu yaşatır: yer, hareket ve can sunucudadır, herkes aynı NPC'yi görür.
+// Oyuncu verdiği hasarı bildirir (nhit); hasar menzil, saniyelik hız ve salvo bütçesiyle sınırlanır. Batışa sunucu karar verir,
+// ödül hasar payına göre dağıtılır (pay ≥ %30 olanlara batırma sayılır: görev, seviye görevi, sayaçlar).
+// NPC'nin oyuncuya ateşi oyuncunun tarayıcısında kalır (yalnız kendi aleyhine olabilir).
+export const NPC_RANGE=900,NPC_LEASH=680,NPC_RESPAWN_MS=3000,NPC_KILL_SHARE=.3;
+export const seaNpcs=new Map(); // deniz → {list:Map(id→npc), seq, respawn:[zaman,...]}
+const npcPick=(m,list)=>{const defs=m.npcs.map(id=>NPCS[id]).filter(d=>d&&d.sprite);const missing=defs.filter(d=>![...list.values()].some(n=>n.def.id===d.id));const pool=missing.length?missing:defs;return pool[Math.floor(Math.random()*pool.length)];};
+export function npcSpawn(sea,now=Date.now(),rand=Math.random){const map=seaMap(sea),m=MAPS[map];if(!m)return null;let st=seaNpcs.get(sea);if(!st){st={list:new Map(),seq:0,respawn:[]};seaNpcs.set(sea,st);}
+  const def=npcPick(m,st.list);if(!def)return null;const p=pickSpot(map,rand),id=`${map}:${++st.seq}`;
+  const n={id,def,x:p.x,y:p.y,hx:p.x,hy:p.y,hp:def.hp,max:def.hp,wx:p.x,wy:p.y,aggro:null,aggroUntil:0,dmg:new Map(),moved:true,hpDirty:false};st.list.set(id,n);return n;}
+export function npcFill(sea,now=Date.now()){const m=MAPS[seaMap(sea)];if(!m)return[];let st=seaNpcs.get(sea);const out=[];
+  while((st?.list.size??0)+(st?.respawn.length??0)<m.npcCount){const n=npcSpawn(sea,now);if(!n)break;out.push(n);st=seaNpcs.get(sea);}return out;}
+export const npcInfo=n=>({id:n.id,d:n.def.id,x:Math.round(n.x),y:Math.round(n.y),hp:Math.round(n.hp),max:n.max});
+// Hareket: evinin çevresinde dolaşır; vurulunca vuranın peşine düşer (evden 680 birim uzaklaşınca bırakır), 240 birimde durur
+export function npcMove(n,dt,players,now){let tx=n.wx,ty=n.wy,v=n.def.speed*.45*1.4;
+  const foe=n.aggro&&now<n.aggroUntil?players.find(p=>p.uid===n.aggro&&p.last):null;
+  if(foe&&Math.hypot(n.x-n.hx,n.y-n.hy)<NPC_LEASH){tx=foe.last.x;ty=foe.last.y;v=n.def.speed*1.4;if(Math.hypot(tx-n.x,ty-n.y)<240)return;}
+  else{n.aggro=null;if(Math.hypot(n.wx-n.x,n.wy-n.y)<20){const a=Math.random()*Math.PI*2,r=60+Math.random()*240;n.wx=Math.max(80,Math.min(WORLD_WIDTH-80,n.hx+Math.cos(a)*r));n.wy=Math.max(80,Math.min(WORLD_HEIGHT-80,n.hy+Math.sin(a)*r));tx=n.wx;ty=n.wy;}}
+  const d=Math.hypot(tx-n.x,ty-n.y);if(d<1)return;const st=Math.min(d,v*dt);n.x+=(tx-n.x)/d*st;n.y+=(ty-n.y)/d*st;n.moved=true;}
+// Vuruş: menzil ve bütçeyle sınırlanmış hasar uygulanır; batarsa paylar döner
+export function npcHit(c,sea,id,dmg,now){const n=seaNpcs.get(sea)?.list.get(String(id));if(!n||!(dmg>0))return null;
+  if(!c.last||Math.hypot(c.last.x-n.x,c.last.y-n.y)>NPC_RANGE)return{err:'menzil'};
+  const t=dpsTake(c,dmg,now);let d=sbTake(c,t.ok);d=Math.min(d,n.hp);if(d<=0)return{err:'bütçe',flag:t.flag};
+  n.hp-=d;n.hpDirty=true;n.dmg.set(c.uid,(n.dmg.get(c.uid)||0)+d);n.aggro=c.uid;n.aggroUntil=now+12_000;
+  if(n.hp>0)return{dealt:d,flag:t.flag};
+  const st=seaNpcs.get(sea);st.list.delete(n.id);st.respawn.push(now+NPC_RESPAWN_MS);
+  const total=[...n.dmg.values()].reduce((a,v)=>a+v,0)||1;return{dealt:d,dead:n,shares:[...n.dmg].map(([uid,v])=>[uid,v/total])};}
+// Batış ödülü: altın/TP payla (×2,5 bonus payı), batırma sayaçları payı %30 üstündekilere
+export function npcDeathCredit(c,def,map,share){const add={gold:Math.round(def.gold*share*KILL_CREDIT_MULT),xp:Math.round(def.xp*share*KILL_CREDIT_MULT)};
+  if(share>=NPC_KILL_SHARE){add.st_npc=1;if(def.role==='heavy')add.st_heavy=1;c.qk??={};c.qk[def.id]=(c.qk[def.id]||0)+1;
+    const lvl=Math.round(Number(c.econ?.level)||1);if(lvl>=2&&map===levelQuestMap(lvl)&&levelQuestTargets(lvl).ships.includes(def.id))add.lqk=1;}
+  return add;}
 export class Rate{constructor(perWindow,windowMs){this.n=perWindow;this.w=windowMs;this.t=[];}hit(now){while(this.t.length&&now-this.t[0]>this.w)this.t.shift();if(this.t.length>=this.n)return false;this.t.push(now);return true;}}
 
 export function canJoin(c,name,now=Date.now()){
@@ -390,8 +423,19 @@ export function buildBatch(rec,room,tick){const out=[];if(!rec.seen)rec.seen=new
     const near=!rec.last||!o.last||Math.abs(o.last.x-rec.last.x)+Math.abs(o.last.y-rec.last.y)<NEAR;if(!near&&!far)continue;
     const d={...o.state};if(seen.i!==o.identVer&&o.ident){Object.assign(d,o.ident);seen.i=o.identVer;}seen.s=o.stateVer;rec.seen.set(o,seen);out.push(d);}
   return out;}
-setInterval(()=>{tickNo++;if(tickNo%3===0){const now=Date.now();bossTick(now);islandTick(now);siegeTick(now);}for(const room of seas.values()){if(room.size<2)continue;for(const rec of room){const b=buildBatch(rec,room,tickNo);if(b.length)send(rec,{t:'batch',d:b});}}},TICK_MS).unref();
+setInterval(()=>{tickNo++;if(tickNo%2===0)npcTick(Date.now());if(tickNo%3===0){const now=Date.now();bossTick(now);islandTick(now);siegeTick(now);}for(const room of seas.values()){if(room.size<2)continue;for(const rec of room){const b=buildBatch(rec,room,tickNo);if(b.length)send(rec,{t:'batch',d:b});}}},TICK_MS).unref();
 
+// NPC'ler: oyuncu olan denizlerde 0,2 sn'de bir hareket ve can güncellemesi; boş denizin NPC'leri silinir
+function npcTick(now){for(const [sea,st] of seaNpcs){const room=seas.get(sea);if(!room||!room.size){seaNpcs.delete(sea);continue;}
+  const players=[...room];st.respawn=st.respawn.filter(t=>{if(t>now)return true;const n=npcSpawn(sea,now);if(n){const m=JSON.stringify({t:'nspawn',d:npcInfo(n)});for(const x of room)send(x,m);}return false;});
+  const pos=[],hp=[];for(const n of st.list.values()){npcMove(n,.2,players,now);if(n.moved){n.moved=false;pos.push([n.id,Math.round(n.x),Math.round(n.y)]);}if(n.hpDirty){n.hpDirty=false;hp.push([n.id,Math.round(n.hp)]);}}
+  if(pos.length||hp.length){const m=JSON.stringify({t:'npos',d:{p:pos,h:hp}});for(const x of room)send(x,m);}}}
+function onNpcHit(c,list,now){const map=seaMap(c.sea);if(!map||!Array.isArray(list))return;
+  for(const it of list.slice(0,40)){if(!Array.isArray(it))continue;const r=npcHit(c,c.sea,it[0],Number(it[1]),now);if(!r)continue;if(r.flag){suspect(c,'saniyelik hasar','npc');if(c.dps)c.dps.over=0;}
+    if(!r.dead)continue;const room=seas.get(c.sea)||new Set(),def=r.dead.def;
+    for(const [uid,share] of r.shares){const x=[...room].find(p=>p.uid===uid)??[...all].find(p=>p.uid===uid);if(!x)continue;addCredit(x,npcDeathCredit(x,def,map,share));send(x,{t:'nkilled',d:{id:r.dead.id,share}});}
+    const m=JSON.stringify({t:'ndie',d:{id:r.dead.id}});for(const x of room)send(x,m);
+    if(def.id===bossFor(map).trigger){const b=bossKill(c.sea,BOSS_KILLS,now);if(b)toSea(c,{t:'boss',d:bossInfo(c.sea,b)},true);}}}
 // Doğrulanan kazançlar 20 saniyede bir veritabanına yazılır; dönen değerlerle oyuncunun seviyesi tazelenir
 export async function flushCredit(c){
   if(c.flushing||!c.uid)return;c.flushing=true;
@@ -434,6 +478,8 @@ wss.on('connection',ws=>{
     switch(m.t){
       case'join':{const name=String(m.sea||'').slice(0,40);if(name===c.sea)return;if(!canJoin(c,name,now)){send(c,{t:'denied',reason:'harita kilitli'});return;}leaveSea(c);c.last=null;if(!name)return;
         const room=seas.get(name)??new Set();if(room.size>=LIMITS.maxPerSea){send(c,{t:'full'});return;}room.add(c);seas.set(name,room);c.sea=name;c.seen=null;send(c,{t:'joined',sea:name});
+        if(seaMap(name)){const fresh=npcFill(name,now);const st=seaNpcs.get(name);send(c,{t:'nlist',d:[...(st?.list.values()??[])].map(npcInfo)});
+          if(fresh.length){const m=JSON.stringify({t:'nlist',d:[...st.list.values()].map(npcInfo)});for(const x of room)if(x!==c)send(x,m);}}
         const b=bossSeas.get(name)?.boss;if(b)send(c,{t:'boss',d:bossInfo(name,b)});
         const isle=islands.get(islandOfSea(name));if(isle)send(c,{t:'isle',d:islandInfo(isle)});
         if(name===SIEGE_ROOM){const r=siegeJoin(c.uid,c.nick,now);if(r)send(c,{t:'sstate',d:siegeInfo(r,c.uid)});}return;}
@@ -461,7 +507,8 @@ wss.on('connection',ws=>{
       case'shit':{if(c.sea!==SIEGE_ROOM||!c.rTower.hit(now))return;let dmg=Number(m.d?.dmg);if(!num(dmg)||dmg<=0)return;if(dmg>SIEGE_HIT_CAP)suspect(c,'kuşatma hasarı',String(dmg));
         {const t=dpsTake(c,dmg,now);if(t.flag){suspect(c,'saniyelik hasar','kuşatma');c.dps.over=0;}dmg=sbTake(c,t.ok);if(dmg<=0)return;}
         const r=siegeHitPiece(c.uid,c.nick,Number(m.d?.i),dmg);if(r?.damage>0)addCredit(c,siegeCredit(r.damage,siegeRun.caps.size,c.econ?.level));if(!r?.down&&r?.down!==0)return;toSea(c,{t:'sdown',d:{i:r.down}},true);if(r.won)siegeFinish();return;}
-      case'nkill':{if(!c.sea||!c.rKill.hit(now))return;const r=killCredit(c,String(m.d?.id||''),now);
+      case'nhit':{if(!c.sea||!c.rBoss.hit(now))return;onNpcHit(c,m.d?.h,now);return;}
+      case'nkill':{if(NPCS[String(m.d?.id||'')])return;if(!c.sea||!c.rKill.hit(now))return;const r=killCredit(c,String(m.d?.id||''),now);
         if(r.err){if((r.err!=='hız'&&r.err!=='mermi')||r.flag){suspect(c,'batırma',`${r.err} ${m.d?.id}`);if(c.kb)c.kb.miss=0;}return;}addCredit(c,r.add);
         const map=seaMap(c.sea);if(map&&String(m.d?.id)===bossFor(map).trigger){const b=bossKill(c.sea,BOSS_KILLS,now);if(b)toSea(c,{t:'boss',d:bossInfo(c.sea,b)},true);}return;}
       case'salvo':{if(!c.rSalvo.hit(now)){suspect(c,'salvo hızı');return;}await applyUsage(c,m.d,null,now);return;}
