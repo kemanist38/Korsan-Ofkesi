@@ -138,3 +138,15 @@ test('görev, boss ve kuşatma ödülü sunucuda: batırma sayısı, bekleme sü
   assert.equal(S.bossCredit('2/1',0,3),null);assert.equal(S.bossCredit('2/1',.02,3).ep,undefined);assert.ok(S.bossCredit('2/1',.5,3).ep>0);
   assert.ok(S.siegeCredit(100000,4,8).gold>0);
 });
+test('hazine avı sunucuda: sandık hızı, parça zarı, yer seçimi, kazı yeri',()=>{
+  const c={uid:'t1',sea:'sea-3-1',last:{x:0,y:0}};let parts=0,spot=null;
+  // Zar hep tutsun: 4 sandıkta hazine haritası tamamlanır
+  for(let i=0;i<4;i++){const r=S.chestPicked(c,i*20_000,()=>0);parts=r.parts;spot=r.spot??spot;}
+  assert.ok(spot);assert.equal(spot.map,'3/1');assert.equal(parts,0);
+  // Sandık seli: kova boşalınca reddedilir
+  const f={uid:'t2',sea:'sea-3-1'};let rej=0;for(let i=0;i<20;i++)if(S.chestPicked(f,100+i,()=>.9).err)rej++;assert.ok(rej>=13);
+  // Yanlış yerde kazı reddedilir, doğru yerde ödül ve kazanç hakkı
+  assert.equal(S.treasureDig(c).err,'yer');
+  c.last={x:spot.x+10,y:spot.y};const d=S.treasureDig(c);assert.ok(d.reward);assert.equal(d.add.st_treasure,1);
+  assert.equal(S.treasureDig(c).err,'harita');// ikinci kazı yok
+});

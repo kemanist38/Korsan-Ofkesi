@@ -9,7 +9,8 @@ import {WebSocketServer} from 'ws';
 import {BOSS_HP,SIEGE_HP_PER_CAPTAIN} from '../src/pve-balance.ts';
 import {fleetTowerStats,playerBaseHp} from '../src/fleetBalance.ts';
 import {pvpClamp,newPvpBudget} from '../src/pvp.ts';
-import {NPCS,MONSTERS,MAPS,QUESTS,QUEST_COOLDOWN_MS,bossFor} from '../src/campaign.ts';
+import {NPCS,MONSTERS,MAPS,QUESTS,QUEST_COOLDOWN_MS,bossFor,FLEET,WORLD_WIDTH,WORLD_HEIGHT,coordLabel} from '../src/campaign.ts';
+import {TREASURE_PARTS,PART_CHANCE,DIG_RADIUS,treasureReward} from '../src/treasure.ts';
 import {questEp,bossEp} from '../src/arsenal.ts';
 import {contribReward} from '../src/siege.ts';
 import {levelQuestGoal,levelQuestTargets,levelQuestMap} from '../src/level-quest.ts';
@@ -152,6 +153,30 @@ export function bossCredit(map,share,n){if(!MAPS[map]||!(share>0))return null;co
   if(share>=.03){add.ep=Math.round(bossEp(b.tier)*1.5);add.st_boss=1;}return add;}
 // Kuşatma: kabul edilen her hasar için katkı ödülü (oyunun formülüyle) kazanç hakkı olarak
 export function siegeCredit(dmg,n,level){const r=contribReward(dmg,Math.max(1,n),Math.max(1,Math.min(8,Math.round(Number(level)||8))));return{gold:Math.round(r.gold*KILL_CREDIT_MULT),xp:Math.round(r.xp*KILL_CREDIT_MULT)};}
+// Hazine avı: oyun yalnız toplanan sandığı bildirir; parça zarını sunucu atar, 4 parçada hazine yerini sunucu seçer,
+// kazıyı (oyuncu o denizde ve noktada mı) ve ödülü sunucu onaylar. Sandık bildirimi sandık çıkma hızıyla sınırlıdır.
+export const treasures=new Map(); // uid → {parts, spot, chest:{pool,t}}
+const treOf=uid=>{let t=treasures.get(uid);if(!t){t={parts:0,spot:null,chest:{pool:4,t:0}};treasures.set(uid,t);}return t;};
+export function pickSpot(map,rand=Math.random){const m=MAPS[map];
+  for(let i=0;i<80;i++){const x=300+rand()*(WORLD_WIDTH-600),y=300+rand()*(WORLD_HEIGHT-600);
+    if(m.islands.some(is=>Math.hypot(x-is.x,y-is.y)<is.r+90))continue;if(Math.hypot(x-m.fleet.x,y-m.fleet.y)<FLEET.islandR+160)continue;
+    return{map,x:Math.round(x),y:Math.round(y),label:coordLabel({x,y})};}
+  return{map,x:Math.round(WORLD_WIDTH/2),y:Math.round(WORLD_HEIGHT-400),label:coordLabel({x:WORLD_WIDTH/2,y:WORLD_HEIGHT-400})};}
+// Sandık: denizde aynı anda en çok 4 sandık, 22 sn'de bir yenisi → kova 6 sandık, 18 sn'de bir dolar
+export function chestPicked(c,now,rand=Math.random){const map=seaMap(c.sea);if(!map||!MAPS[map])return{err:'deniz'};const t=treOf(c.uid);
+  t.chest.pool=Math.min(6,t.chest.pool+Math.max(0,now-t.chest.t)/18_000);t.chest.t=now;if(t.chest.pool<1)return{err:'hız'};t.chest.pool-=1;
+  if(rand()>=PART_CHANCE)return{parts:t.parts};t.parts++;
+  if(t.parts>=TREASURE_PARTS&&!t.spot){t.parts-=TREASURE_PARTS;t.spot=pickSpot(map,rand);return{parts:t.parts,spot:t.spot,found:true};}
+  return{parts:t.parts,found:true};}
+export function treasureDig(c){const t=treOf(c.uid);if(!t.spot)return{err:'harita'};const map=seaMap(c.sea);
+  if(map!==t.spot.map||!c.last||Math.hypot(c.last.x-t.spot.x,c.last.y-t.spot.y)>DIG_RADIUS+60)return{err:'yer'};
+  const m=MAPS[map],r=treasureReward(m.tier,NPCS[m.npcs[0]].gold);t.spot=null;
+  return{reward:r,add:{gold:Math.round(r.gold*KILL_CREDIT_MULT),st_treasure:1,[r.ammo==='chain'?'chain':'a_'+r.ammo]:r.ammoQty,a_powder:r.powder,a_shield:r.shield}};}
+// Görev sayaçları, bekleme süreleri ve hazine durumu sunucu dosyasında saklanır (yeniden başlatmada kaybolmaz)
+const STATE_FILE=process.env.STATE_FILE||'/opt/game/state.json';const qkByUid=new Map();
+export function saveServerState(){if(process.env.NODE_ENV==='test')return;try{fs.writeFileSync(STATE_FILE,JSON.stringify({q:[...questCooldowns].map(([u,m])=>[u,[...m]]),k:[...qkByUid],t:[...treasures]}));}catch{}}
+function loadServerState(){if(process.env.NODE_ENV==='test')return;try{const d=JSON.parse(fs.readFileSync(STATE_FILE,'utf8'));for(const [u,m] of d.q||[])questCooldowns.set(u,new Map(m));for(const [u,k] of d.k||[])qkByUid.set(u,k);for(const [u,t] of d.t||[])treasures.set(u,t);}catch{}}
+loadServerState();setInterval(saveServerState,60_000).unref();process.on('SIGTERM',()=>{saveServerState();process.exit(0);});process.on('SIGINT',()=>{saveServerState();process.exit(0);});
 export function addCredit(c,add){c.credit??={};for(const k in add)c.credit[k]=(c.credit[k]||0)+add[k];}
 export class Rate{constructor(perWindow,windowMs){this.n=perWindow;this.w=windowMs;this.t=[];}hit(now){while(this.t.length&&now-this.t[0]>this.w)this.t.shift();if(this.t.length>=this.n)return false;this.t.push(now);return true;}}
 
@@ -340,7 +365,7 @@ wss.on('connection',ws=>{
       if(!who){ws.close(4001,'giriş geçersiz');return;}if(who.banned){ws.close(4002,'hesap kapalı');return;}
       for(const x of all)if(x.uid===who.uid&&x!==c)x.ws.close(4004,'başka yerden bağlanıldı');
       Object.assign(c,who);c.netId=String(m.netId||'').slice(0,16)||Math.random().toString(36).slice(2,10);clearTimeout(authTimer);
-      send(c,{t:'hello',id:c.netId,nick:c.nick,playerNo:c.playerNo});log('GİRİŞ',`#${c.playerNo}`,c.nick);void loadEcon(c);return;}
+      send(c,{t:'hello',id:c.netId,nick:c.nick,playerNo:c.playerNo});log('GİRİŞ',`#${c.playerNo}`,c.nick);void loadEcon(c);if(!qkByUid.has(c.uid))qkByUid.set(c.uid,{});c.qk=qkByUid.get(c.uid);{const t=treasures.get(c.uid);if(t)send(c,{t:'tstate',d:{parts:t.parts,spot:t.spot}});}return;}
     if(!c.uid)return;
     switch(m.t){
       case'join':{const name=String(m.sea||'').slice(0,40);if(name===c.sea)return;leaveSea(c);if(!name)return;
@@ -378,6 +403,8 @@ wss.on('connection',ws=>{
       case'use':{if(!c.rUse.hit(now))return;const r=noteUse(c,String(m.d?.id||''),now);if(r.err)return;if(r.early)suspect(c,'bekleme süresi',String(m.d?.id));addCredit(c,r.use);return;}
       case'qdone':{if(!c.uid||!c.rKill.hit(now))return;const id=String(m.d?.id||'');const r=questCredit(c,id,now);
         if(r.err){if(r.err==='bekleme')suspect(c,'görev bekleme',id);send(c,{t:'qres',d:{id,ok:false,err:r.err}});return;}addCredit(c,r.add);send(c,{t:'qres',d:{id,ok:true}});return;}
+      case'chest':{if(!c.sea||!c.rKill.hit(now))return;const r=chestPicked(c,now);if(r.err){if(r.err==='hız')suspect(c,'sandık hızı');return;}if(r.found)send(c,{t:'tstate',d:{parts:r.parts,spot:treOf(c.uid).spot,part:true}});return;}
+      case'tdig':{if(!c.sea||!c.rKill.hit(now))return;const r=treasureDig(c);if(r.err){send(c,{t:'tdig',d:{ok:false,err:r.err}});return;}addCredit(c,r.add);send(c,{t:'tdig',d:{ok:true,reward:r.reward}});return;}
       case'spy':{if(!c.rKill.hit(now))return;await onSpy(c,m.d?.nick);return;}
       case'thit':{if(!c.sea||!c.rTower.hit(now))return;await onTowerHit(c,m,now);return;}
       // Kule dikildi (veritabanında): önce canlar yazılır, sonra ada yeniden okunup denize gönderilir
