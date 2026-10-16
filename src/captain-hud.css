@@ -72,3 +72,8 @@ html.touch .captain-hud .event-panel{top:139px!important}
 /* Target cards must stay below the taller minimap rather than cover its forms. */
 html.touch .captain-hud .combat-targets{top:278px!important}
 .captain-hud .chat{z-index:48}
+/* Savaş düğmeleri: ikon çerçeveli orb'un içinde, kare kenarlık yok; gemiyi ortala düğmesi alt ortada (burada yok) */
+.captain-hud .combat-controls .combat-action>b{border:0!important;background:none!important;box-shadow:none!important}
+.captain-hud .combat-controls .combat-action.recenter-btn{display:none!important}
+/* Gülle ve malzeme yuvaları: sayılar ve kısayol tuşu görünür */
+.captain-hud .slot-bar .quick-slot>b{display:block}.captain-hud .slot-bar .quick-slot>kbd{display:block}

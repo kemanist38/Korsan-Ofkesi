@@ -96,7 +96,7 @@ const QUICK_ITEMS:Record<QuickItemId,{name:string;icon:string;category:'ammo'|'c
   compass:{name:'Pusula',icon:'compass',category:'consumable',description:'Basınca 8 saniye boyunca haritadaki bütün gemileri ve canavarları mini haritada gösterir. 20 saniyede bir kullanılır, her kullanımda 1 adet harcar.'},
   powder:{name:'Kara Barut',icon:'damage',category:'consumable',description:CONSUMABLES.powder.description},shield:{name:'Kalkan',icon:'hull',category:'consumable',description:CONSUMABLES.shield.description},mine:{name:'Deniz Mayını',icon:'hull',category:'consumable',description:'Kıçtan mayın bırakır.'}
 };
-const AMMO_ROW=6;
+const AMMO_ROW=8;
 const QUICK_TIPS:Record<QuickItemId,string>={iron:'Altınla',heal:'Can doldurur',chain:'Yavaşlatır',fire:'NPC +%40',explosive:'Oyuncu +%40',breaker:'Kule ×2,6',leech:'Can çalar',repairkit:'Tamir',speed:'Hızlandırır',compass:'Herkesi gösterir',powder:'Hasar artar',shield:'Hasar azalır',mine:'Mayın bırakır'};
 
 document.body.classList.add('captain-hud');
@@ -215,7 +215,7 @@ let designOwned=ELITE_TEST_MODE||loadDesignOwned();
 let activeSpecialDesign=designOwned?loadSpecialDesign():null;
 let previewShip:ShipSelection|SpecialDesignId=activeSpecialDesign??activeShip;
 // Özel tasarım yalnızca görünümü değiştirir; seçili geminin gücü ve donanımı korunur.
-const quickSlots:Array<QuickItemId|null>=Array(12).fill(null);
+const quickSlots:Array<QuickItemId|null>=Array(AMMO_ROW*2).fill(null);
 {const stored=(storedAccount?.quickSlots??['iron','chain','fire','breaker','speed','powder','shield','mine']).filter((id):id is QuickItemId=>!!id&&id!=='repairkit'&&id in QUICK_ITEMS);
   const place=(id:QuickItemId)=>{if(quickSlots.includes(id))return;const row=QUICK_ITEMS[id].category==='ammo'?0:AMMO_ROW;for(let i=row;i<row+AMMO_ROW;i++)if(!quickSlots[i]){quickSlots[i]=id;return;}};
   stored.forEach(place);place('compass');(['iron','chain','fire','breaker','speed','powder','shield','mine'] as QuickItemId[]).forEach(id=>{if(!storedAccount?.quickSlots)place(id);});
@@ -431,7 +431,7 @@ setInterval(renderDayEvent,15000);
   // gülle/malzeme çerçevesi tutamaktan ya da yuvalar dışındaki kenarından tutulur
   const GRIP:Record<FrameId,HTMLElement>={dock:EL.dock.querySelector('.dock-status') as HTMLElement,ammo:EL.ammo,item:EL.item};
   const IDS:FrameId[]=['dock','ammo','item'],DEFAULT_LINK:Record<FrameId,FrameId|null>={dock:null,ammo:'dock',item:'ammo'};
-  const POS=(id:FrameId)=>id==='dock'?'yedi-deniz-dock-pos':`yedi-deniz-bar-${id}`,LINKS='yedi-deniz-frame-links',EDGE=90,SNAP=26,GAP=2;
+  const POS=(id:FrameId)=>id==='dock'?'yedi-deniz-dock-pos':`yedi-deniz-bar-${id}`,LINKS='yedi-deniz-frame-links',SNAP=26,GAP=2;
   let link:Record<FrameId,FrameId|null>={...DEFAULT_LINK};
   try{const l=JSON.parse(localStorage.getItem(LINKS)||'null');if(l)link={dock:null,ammo:l.ammo??null,item:l.item??null};}catch{}
   const rect=(id:FrameId)=>EL[id].getBoundingClientRect();
@@ -441,15 +441,15 @@ setInterval(renderDayEvent,15000);
   const tree=(id:FrameId):FrameId[]=>kids(id).flatMap(k=>[k,...tree(k)]);
   const save=()=>{try{for(const id of IDS){const e=EL[id];localStorage.setItem(POS(id),JSON.stringify({x:e.classList.contains('moved')?parseFloat(e.style.left):null,y:parseFloat(e.style.top),v:e.classList.contains('vertical'),c:e.classList.contains('collapsed')}));}localStorage.setItem(LINKS,JSON.stringify(link));}catch{}};
   // kenara bırakılan çerçeve dikey, ortaya bırakılan yatay olur (yalnız gülle/malzeme)
-  const orient=(id:FrameId)=>{if(id==='dock')return;const e=EL[id],r=rect(id),v=r.left<EDGE||r.right>innerWidth-EDGE;if(v===e.classList.contains('vertical'))return;const cx=r.left+r.width/2,cy=r.top+r.height/2;e.classList.toggle('vertical',v);
-    const n=rect(id);place(id,r.left<EDGE?r.left:r.right>innerWidth-EDGE?r.right-n.width:cx-n.width/2,cy-n.height/2);};
+  // Çerçeveler kenara bırakılınca da yatay kalır (dikey açılım kaldırıldı)
+  const orient=(_id:FrameId)=>{};
   // en yakın kenara yapış: alt/üst kenara (ortalanarak) ya da sol/sağ kenara (üstleri hizalı)
   const snap=(id:FrameId)=>{const r=rect(id);let best:{d:number;to:FrameId;x:number;y:number}|null=null;
     for(const t of IDS){if(t===id)continue;const q=rect(t),hOver=Math.min(r.right,q.right)-Math.max(r.left,q.left),vOver=Math.min(r.bottom,q.bottom)-Math.max(r.top,q.top),cx=q.left+q.width/2-r.width/2;
       const opts:[number,number,number,boolean][]=[[Math.abs(r.top-q.bottom),cx,q.bottom+GAP,hOver>-SNAP],[Math.abs(r.bottom-q.top),cx,q.top-r.height-GAP,hOver>-SNAP],[Math.abs(r.left-q.right),q.right+GAP,q.top,vOver>-SNAP],[Math.abs(r.right-q.left),q.left-r.width-GAP,q.top,vOver>-SNAP]];
       for(const [d,x,y,ok] of opts)if(ok&&d<SNAP&&(!best||d<best.d))best={d,to:t,x,y};}
     if(best){place(id,best.x,best.y);link[id]=best.to;}};
-  for(const id of IDS){try{const p=JSON.parse(localStorage.getItem(POS(id))||'null');if(p){if(id!=='dock'){EL[id].classList.toggle('vertical',!!p.v);EL[id].classList.toggle('collapsed',!!p.c);}if(p.x!=null&&Number.isFinite(p.x))requestAnimationFrame(()=>place(id,p.x*uiScale,p.y*uiScale));}}catch{}}
+  for(const id of IDS){try{const p=JSON.parse(localStorage.getItem(POS(id))||'null');if(p){if(id!=='dock'){EL[id].classList.toggle('vertical',false);EL[id].classList.toggle('collapsed',!!p.c);}if(p.x!=null&&Number.isFinite(p.x))requestAnimationFrame(()=>place(id,p.x*uiScale,p.y*uiScale));}}catch{}}
   for(const id of ['ammo','item'] as FrameId[])(EL[id].querySelector('.bar-toggle') as HTMLElement).onclick=()=>{EL[id].classList.toggle('collapsed');closeAmmoPicker();save();};
   let drag:{id:FrameId;dx:number;dy:number;group:{id:FrameId;ox:number;oy:number}[]}|null=null;
   for(const id of IDS){const grip=GRIP[id];
@@ -1371,7 +1371,7 @@ setInterval(()=>{auctionTick();if(ui('auctionOverlay').classList.contains('open'
 let loadoutTab:'ammo'|'consumable'='ammo';
 let pendingQuickItem:QuickItemId|null=null;
 function quickCount(item:QuickItemId){if(item==='iron')return short(state.ironAmmo);if(item==='chain')return short(state.chainAmmo);if(isSpecial(item)||item==='mine'||item==='powder'||item==='shield'||item==='speed'||item==='compass')return short(arsenal[item]);return'';}
-function slotKey(index:number){return keyLabel(settings.binds[(index<AMMO_ROW?`ammo${index+1}`:`item${index-AMMO_ROW+1}`) as ActionId]);}
+function slotKey(index:number){const b=settings.binds[(index<AMMO_ROW?`ammo${index+1}`:`item${index-AMMO_ROW+1}`) as ActionId];return b?keyLabel(b):'';}
 function itemAsset(item:QuickItemId){return rasterItemAssets[item]?`<img class="raster-item" src="${rasterItemAssets[item]}" alt="${QUICK_ITEMS[item].name}" draggable="false"/>`:`<i class="sprite icon-${QUICK_ITEMS[item].icon}"></i>`;}
 function quickSlotHtml(item:QuickItemId|null,index:number){const row=index<AMMO_ROW?'ammo-row':'item-row',key=slotKey(index),k=key==='—'?'':key;
   return item?`<button class="quick-slot ${row} ${item===state.ammo||((item==='powder'||item==='shield')&&consumableOn[item])?'active':''}" data-quick-slot="${index}" data-quick-item="${item}" aria-label="${QUICK_ITEMS[item].name}">${itemAsset(item)}<b>${quickCount(item)}</b><kbd>${k}</kbd></button>`:`<button class="quick-slot ${row} empty" data-quick-slot="${index}" title="${index<AMMO_ROW?'Gülle yuvası':'Sarf yuvası'}"><span>+</span><kbd>${k}</kbd></button>`;}
@@ -1388,29 +1388,16 @@ function renderMobileDock(){if(document.body.classList.contains('captain-hud'))r
   ui('mobMain').innerHTML=`${itemAsset(state.ammo)}<b>${quickCount(state.ammo)}</b>`;dock.classList.toggle('open',mobileTrayOpen);
   ui('mobTray').innerHTML=quickSlots.map((item,i)=>item?`<button class="${item===state.ammo||((item==='powder'||item==='shield')&&consumableOn[item])?'active':''}" data-mob-slot="${i}" data-quick-item="${item}" title="${QUICK_ITEMS[item].name}">${itemAsset(item)}<b>${quickCount(item)}</b></button>`:'').join('');
   ui('mobTray').querySelectorAll<HTMLButtonElement>('[data-mob-slot]').forEach(b=>b.onclick=()=>{const i=Number(b.dataset.mobSlot),ammo=i<AMMO_ROW;useQuickSlot(i);if(ammo){mobileTrayOpen=false;renderMobileDock();}});}
-function renderQuickSlots(){renderMobileDock();
-  ui('ammoSlots').innerHTML=quickSlots.slice(0,AMMO_ROW).map((item,i)=>quickSlotHtml(item,i)).join('');
-  ui('itemSlots').innerHTML=quickSlots.slice(AMMO_ROW).map((item,i)=>quickSlotHtml(item,i+AMMO_ROW)).join('');
-  document.querySelectorAll<HTMLButtonElement>('.slot-bar [data-quick-slot]').forEach(slot=>{const index=Number(slot.dataset.quickSlot);slot.onclick=()=>{if(index<AMMO_ROW&&!pendingQuickItem){if(quickSlots[index])useQuickSlot(index);openAmmoPicker(index);}else useQuickSlot(index);};slot.ondragover=e=>e.preventDefault();slot.ondrop=e=>{e.preventDefault();const item=e.dataTransfer?.getData('text/quick-item') as QuickItemId;if(item&&QUICK_ITEMS[item])assignQuickSlot(index,item);};});
+// Hızlı yuvalar kendiliğinden dolar: gemide olan her gülle üst sırada, her malzeme alt sırada (boş "+" yuva yok)
+const AUTO_AMMO:QuickItemId[]=['iron','chain','fire','explosive','breaker','leech','heal'],AUTO_ITEMS:QuickItemId[]=['powder','shield','speed','mine','compass'];
+function ownedQuick(id:QuickItemId){if(id==='iron')return true;if(id==='chain')return state.chainAmmo>0;return(arsenal[id as keyof typeof arsenal] as number)>0;}
+function autoFillQuickSlots(){quickSlots.fill(null);AUTO_AMMO.filter(ownedQuick).slice(0,AMMO_ROW).forEach((id,i)=>{quickSlots[i]=id;});AUTO_ITEMS.filter(ownedQuick).slice(0,AMMO_ROW).forEach((id,i)=>{quickSlots[AMMO_ROW+i]=id;});}
+function renderQuickSlots(){autoFillQuickSlots();renderMobileDock();
+  ui('ammoSlots').innerHTML=quickSlots.slice(0,AMMO_ROW).map((item,i)=>item?quickSlotHtml(item,i):'').join('');
+  ui('itemSlots').innerHTML=quickSlots.slice(AMMO_ROW).map((item,i)=>item?quickSlotHtml(item,i+AMMO_ROW):'').join('');
+  document.querySelectorAll<HTMLButtonElement>('.slot-bar [data-quick-slot]').forEach(slot=>{const index=Number(slot.dataset.quickSlot);slot.onclick=()=>useQuickSlot(index);slot.ondragover=e=>e.preventDefault();slot.ondrop=e=>{e.preventDefault();const item=e.dataTransfer?.getData('text/quick-item') as QuickItemId;if(item&&QUICK_ITEMS[item])assignQuickSlot(index,item);};});
 }
-// Gülle seçme sekmesi: numaralı gülle yuvasına dokununca tüm gülleler küçük bir sekmede açılır; seçilen gülle o yuvaya
-// yerleşir ve atış güllesi olur (başka yuvadaysa iki yuva yer değiştirir).
-let pickerSlot=-1;
-function closeAmmoPicker(){pickerSlot=-1;ui('ammoPicker').classList.remove('open');}
-function openAmmoPicker(index:number){
-  const picker=ui('ammoPicker');if(pickerSlot===index&&picker.classList.contains('open')){closeAmmoPicker();return;}pickerSlot=index;
-  const ammo=(Object.keys(QUICK_ITEMS) as QuickItemId[]).filter(id=>QUICK_ITEMS[id].category==='ammo');
-  picker.innerHTML=`<small>${index+1}. YUVA</small><div>${ammo.map(id=>`<button class="${quickSlots[index]===id?'current':''}" data-pick="${id}" title="${QUICK_ITEMS[id].name}">${itemAsset(id)}<b>${quickCount(id)}</b></button>`).join('')}</div>`;
-  picker.querySelectorAll<HTMLButtonElement>('[data-pick]').forEach(b=>b.onclick=()=>{const id=b.dataset.pick as QuickItemId,old=quickSlots[index],from=quickSlots.indexOf(id);
-    // seçilen gülle başka yuvadaysa iki yuva yer değiştirir; böylece hiçbir gülle bardan kaybolmaz
-    if(old!==id){assignQuickSlot(index,id);if(from>=0&&old){quickSlots[from]=old;saveAccount();renderQuickSlots();}}useQuickSlot(index);closeAmmoPicker();});
-  const bar=ui('ammoBar'),slot=bar.querySelector(`[data-quick-slot="${index}"]`) as HTMLElement,r=slot.getBoundingClientRect(),vertical=bar.classList.contains('vertical');
-  picker.classList.toggle('side',vertical);picker.classList.add('open');const k=uiScale,pw=picker.offsetWidth*k,ph=picker.offsetHeight*k;
-  let x=vertical?(r.left<innerWidth/2?r.right+8:r.left-pw-8):r.left+r.width/2-pw/2,y=vertical?r.top+r.height/2-ph/2:r.top-ph-8;
-  if(!vertical&&y<4)y=r.bottom+8;
-  picker.style.left=`${clamp(x,4,innerWidth-pw-4)/k}px`;picker.style.top=`${clamp(y,4,innerHeight-ph-4)/k}px`;}
-addEventListener('pointerdown',e=>{if(pickerSlot<0)return;const t=e.target as HTMLElement;if(t.closest('#ammoPicker')||t.closest('#ammoBar [data-quick-slot]'))return;closeAmmoPicker();},true);
-addEventListener('keydown',e=>{if(e.key==='Escape')closeAmmoPicker();});
+function closeAmmoPicker(){ui('ammoPicker').classList.remove('open');}
 function useQuickSlot(index:number){
   if(pendingQuickItem){assignQuickSlot(index,pendingQuickItem);return;}
   const item=quickSlots[index];if(!item){openLoadout(index<AMMO_ROW?'ammo':'consumable');return;}
