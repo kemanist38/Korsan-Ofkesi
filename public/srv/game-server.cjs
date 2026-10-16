@@ -3656,6 +3656,7 @@ __export(game_server_exports, {
   ISLAND_KEYS: () => ISLAND_KEYS,
   KILL_CREDIT_MULT: () => KILL_CREDIT_MULT,
   LIMITS: () => LIMITS,
+  LOOT: () => LOOT,
   NEAR: () => NEAR,
   NPC_DMG_MODEL: () => NPC_DMG_MODEL,
   NPC_FIRE_RANGE: () => NPC_FIRE_RANGE,
@@ -3705,6 +3706,10 @@ __export(game_server_exports, {
   islands: () => islands,
   killCredit: () => killCredit,
   loadIslands: () => loadIslands,
+  lootFor: () => lootFor,
+  lootInfo: () => lootInfo,
+  lootTake: () => lootTake,
+  lootTick: () => lootTick,
   noteHp: () => noteHp,
   noteSalvo: () => noteSalvo,
   noteUse: () => noteUse,
@@ -4255,6 +4260,20 @@ var OFFICER_MAX_RANK = 5;
 var officerSlots = (level) => level >= 6 ? 3 : level >= 3 ? 2 : 1;
 var talentPoints = (level) => Math.max(0, level - 1);
 
+// src/events.ts
+var BY_WEEKDAY = {
+  6: { id: "sp", day: "Cumartesi", name: "Sava\u015F G\xFCn\xFC", desc: "Rakip oyuncu bat\u0131r\u0131nca 2 kat sava\u015F puan\u0131 (50 SP)" },
+  0: { id: "tp", day: "Pazar", name: "Tecr\xFCbe \u015E\xF6leni", desc: "T\xFCm tecr\xFCbe puanlar\u0131 %50 fazla" },
+  1: { id: "ep", day: "Pazartesi", name: "Elit G\xFCn\xFC", desc: "Elit puanlar\u0131 %50 fazla" },
+  2: { id: "boss", day: "Sal\u0131", name: "Boss Av\u0131", desc: "Boss, gereken bat\u0131rman\u0131n yar\u0131s\u0131nda \xE7\u0131kar" },
+  3: { id: "gold", day: "\xC7ar\u015Famba", name: "Alt\u0131n G\xFCn\xFC", desc: "T\xFCm alt\u0131n kazan\xE7lar\u0131 %50 fazla" },
+  5: { id: "siege", day: "Cuma", name: "B\xFCy\xFCk Ku\u015Fatma", desc: "20:00\u201322:00 \xB7 b\xFCt\xFCn kaptanlar birlikte Kara Kale'ye sald\u0131r\u0131r" },
+  4: { id: "pearl", day: "Per\u015Fembe", name: "\u0130nci Av\u0131", desc: "Denizde 2 kat inci p\u0131r\u0131lt\u0131s\u0131, 2 kat h\u0131zl\u0131 yenilenir" }
+};
+var dayEvent = (d = /* @__PURE__ */ new Date()) => BY_WEEKDAY[d.getDay()] ?? null;
+var is = (id, d) => dayEvent(d)?.id === id;
+var sparkleMult = (d) => is("pearl", d) ? 2 : 1;
+
 // src/siege.ts
 var SIEGE_START_H = 20;
 var SIEGE_END_H = 22;
@@ -4433,8 +4452,8 @@ var SHORE_SLACK = 25;
 function onLand(map, x, y) {
   const m = MAPS[map];
   if (!m) return null;
-  for (const is of m.islands) {
-    if (Math.hypot(x - is.x, y - is.y) < is.r * 0.72 + 28 - SHORE_SLACK) return is.name;
+  for (const is2 of m.islands) {
+    if (Math.hypot(x - is2.x, y - is2.y) < is2.r * 0.72 + 28 - SHORE_SLACK) return is2.name;
   }
   return null;
 }
@@ -4640,7 +4659,7 @@ function pickSpot(map, rand = Math.random) {
   const m = MAPS[map];
   for (let i = 0; i < 80; i++) {
     const x = 300 + rand() * (WORLD_WIDTH - 600), y = 300 + rand() * (WORLD_HEIGHT - 600);
-    if (m.islands.some((is) => Math.hypot(x - is.x, y - is.y) < is.r + 90)) continue;
+    if (m.islands.some((is2) => Math.hypot(x - is2.x, y - is2.y) < is2.r + 90)) continue;
     if (Math.hypot(x - m.fleet.x, y - m.fleet.y) < FLEET.islandR + 160) continue;
     return { map, x: Math.round(x), y: Math.round(y), label: coordLabel({ x, y }) };
   }
@@ -4675,6 +4694,41 @@ function sparklePicked(c, now) {
   const k = "spk:" + map;
   c.qk[k] = Math.min(200, (c.qk[k] || 0) + 1);
   return { ok: true };
+}
+var LOOT = { chests: 3, chestMax: 4, chestRespawn: 22e3, sparkles: 12, chestR: 46, sparkleR: 40, slack: 110 };
+function lootFor(c, rand = Math.random) {
+  const map = seaMap(c.sea);
+  if (!map || !MAPS[map]) return null;
+  if (c.loot?.map !== map) {
+    c.loot = { map, ch: [], sp: [], seq: 0, chT: Date.now() };
+    for (let i = 0; i < LOOT.chests; i++) lootAdd(c.loot, "ch", rand);
+    for (let i = 0; i < LOOT.sparkles * sparkleMult(); i++) lootAdd(c.loot, "sp", rand);
+  }
+  return c.loot;
+}
+function lootAdd(l, kind, rand = Math.random) {
+  const p2 = pickSpot(l.map, rand);
+  l[kind].push([++l.seq, Math.round(p2.x), Math.round(p2.y)]);
+}
+var lootInfo = (l) => ({ ch: l.ch, sp: l.sp });
+function lootTake(c, kind, id) {
+  const l = c.loot;
+  if (!l || l.map !== seaMap(c.sea) || !c.last) return { err: "yok" };
+  const list = l[kind], i = list.findIndex((x2) => x2[0] === Number(id));
+  if (i < 0) return { err: "yok" };
+  const [, x, y] = list[i];
+  if (Math.hypot(x - c.last.x, y - c.last.y) > (kind === "ch" ? LOOT.chestR : LOOT.sparkleR) + LOOT.slack) return { err: "uzak" };
+  list.splice(i, 1);
+  if (kind === "sp") lootAdd(l, "sp");
+  return { ok: true };
+}
+function lootTick(c, now) {
+  const l = c.loot;
+  if (!l || now - l.chT < LOOT.chestRespawn) return false;
+  l.chT = now;
+  if (l.ch.length >= LOOT.chestMax) return false;
+  lootAdd(l, "ch");
+  return true;
 }
 function chestReward(c, gilded, rand = Math.random) {
   const map = seaMap(c.sea);
@@ -5486,6 +5540,10 @@ setInterval(() => {
     npcTick(Date.now());
     void mineTick(Date.now());
   }
+  if (tickNo % 10 === 0) {
+    const now = Date.now();
+    for (const c of all) if (c.sea && lootTick(c, now)) send(c, { t: "loot", d: lootInfo(c.loot) });
+  }
   if (tickNo % 3 === 0) {
     const now = Date.now();
     bossTick(now);
@@ -5910,6 +5968,10 @@ wss.on("connection", (ws) => {
             for (const x of room) if (x !== c) send(x, m2);
           }
         }
+        {
+          const l = lootFor(c);
+          if (l) send(c, { t: "loot", d: lootInfo(l) });
+        }
         const b = bossSeas.get(name)?.boss;
         if (b) send(c, { t: "boss", d: bossInfo(name, b) });
         const isle = islands.get(islandOfSea(name));
@@ -6057,6 +6119,14 @@ wss.on("connection", (ws) => {
       }
       case "spk": {
         if (!c.sea || !c.rUse.hit(now)) return;
+        {
+          const t = lootTake(c, "sp", m.d?.id);
+          if (t.err) {
+            if (t.err === "uzak") suspect(c, "uzak p\u0131r\u0131lt\u0131");
+            return;
+          }
+          send(c, { t: "loot", d: lootInfo(c.loot) });
+        }
         const r = sparklePicked(c, now);
         if (r.err) {
           if (r.err === "h\u0131z") suspect(c, "p\u0131r\u0131lt\u0131 h\u0131z\u0131");
@@ -6069,6 +6139,14 @@ wss.on("connection", (ws) => {
       }
       case "chest": {
         if (!c.sea || !c.rKill.hit(now)) return;
+        {
+          const t = lootTake(c, "ch", m.d?.id);
+          if (t.err) {
+            if (t.err === "uzak") suspect(c, "uzak sand\u0131k");
+            return;
+          }
+          send(c, { t: "loot", d: lootInfo(c.loot) });
+        }
         const r = chestPicked(c, now);
         if (r.err) {
           if (r.err === "h\u0131z") suspect(c, "sand\u0131k h\u0131z\u0131");
@@ -6200,6 +6278,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   ISLAND_KEYS,
   KILL_CREDIT_MULT,
   LIMITS,
+  LOOT,
   NEAR,
   NPC_DMG_MODEL,
   NPC_FIRE_RANGE,
@@ -6249,6 +6328,10 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   islands,
   killCredit,
   loadIslands,
+  lootFor,
+  lootInfo,
+  lootTake,
+  lootTick,
   noteHp,
   noteSalvo,
   noteUse,

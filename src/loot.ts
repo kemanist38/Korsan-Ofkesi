@@ -6,7 +6,7 @@ export type LootSource='drift';
 // Sandık ödülü (altın ve TP vermez): şansa bağlı tek ödül
 export const CHEST_AMMO=['fire','explosive','breaker','leech'] as const;
 export type ChestAmmo=typeof CHEST_AMMO[number];
-export type LootChest={x:number;y:number;kind:ChestKind;source:LootSource;life:number;maxLife:number;pearls:number;powder:number;shield:number;ammo:ChestAmmo;ammoQty:number;speed:number;mine:number};
+export type LootChest={sid?:number;x:number;y:number;kind:ChestKind;source:LootSource;life:number;maxLife:number;pearls:number;powder:number;shield:number;ammo:ChestAmmo;ammoQty:number;speed:number;mine:number};
 
 type Range=readonly [number,number];
 type LootTable={gildedChance:number;pearls:Range;powder:Range;shield:Range;life:number};

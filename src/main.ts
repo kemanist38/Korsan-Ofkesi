@@ -26,7 +26,7 @@ import {supa} from './supabase';
 import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
 import {loadLevelQuest,saveLevelQuest,levelQuestDone,levelQuestKill,levelQuestGoal,needsLevelQuest,levelQuestMap} from './level-quest';
 import {SPY_COST,SPY_SHIELD_PRICE,loadSpy,sendSpy,type SpyRival} from './spy';
-import {netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,sendSalvo,sendUse,sendQuestDone,sendChest,sendDig,sendSparkle,sendNpcHits,sendLoadout,sendAttack,type NetNpc,type NetTreasure,type NetDig,type NetLoot,type NetSiegeEnd,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
+import {netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,sendSalvo,sendUse,sendQuestDone,sendChest,sendDig,sendSparkle,sendNpcHits,sendLoadout,sendAttack,type NetNpc,type NetLootSpots,type NetTreasure,type NetDig,type NetLoot,type NetSiegeEnd,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
 import {AUCTION_MS,loadAuction,saveAuction,emptyAuction,auctionHour,auctionEnds,lotsFor,minNextBid,applyBid,wonLots,auctionId,type LotDef,type Bid} from './auction';
 import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,claimReward,GRADUATE_LEVEL,MAX_APPRENTICES,TOGETHER_XP_BONUS,APPRENTICE_MAX_LEVEL} from './mentorship';
 import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
@@ -262,7 +262,7 @@ const monsters:Monster[]=[];
 function createMonsters(){monsters.length=0;}
 const lootChests:LootChest[]=[];
 const SPARKLE_COUNT=12,SPARKLE_PICKUP=40,SPARKLE_RESPAWN=4;
-const sparkles:{x:number;y:number;seed:number;born:number}[]=[];
+const sparkles:{sid?:number;x:number;y:number;seed:number;born:number}[]=[];
 const sparkleQueue:number[]=[];
 const abilityTimers:Record<AbilityId,{active:number;cooldown:number}>={speed:{active:0,cooldown:0},mine:{active:0,cooldown:0}};
 const mines:{x:number;y:number;life:number;arm:number}[]=[];
@@ -582,7 +582,7 @@ const netHandlers:NetHandlers={
     if(k.by===myNetId){gainRage(rage,RAGE_PER_RIVAL);const sp=claimRivalSp(rivalLog,k.victimNick)?gainSp(RIVAL_SP*spMult()):0;sinkNotice(k.victimNick,sp);rivalSinks++;saveRivalSinks(rivalSinks);saveAccount();}
     else if(k.victim!==myNetId)rewardNotice(`${k.byNick}, ${k.victimNick} kaptanını batırdı`,'battle');},
   spy:r=>onSpyReport(r),
-  npcList:l=>onNpcList(l),npcSpawn:n=>{if(!netNpcs()||npcById(n.id))return;const e=npcFromNet(n);if(e)enemies.push(e);},npcPos:d=>onNpcPos(d),mine:d=>{if(d.by!==myNetId)mines.push({x:d.x,y:d.y,life:ABILITIES.mine.duration,arm:MINE.armSeconds});},mboom:d=>onMineBoom(d.x,d.y),mhit:d=>{if(state.invulnerable>0)return;shots.push({x:player.x,y:player.y,vx:0,vy:0,life:.1,owner:'enemy',damage:d.dmg,hit:false,ammo:'iron',noHome:true});},npcShare:d=>{const e=npcById(d.id);if(e)e.share=d.share;},npcDie:id=>onNpcDie(id),
+  npcList:l=>onNpcList(l),npcSpawn:n=>{if(!netNpcs()||npcById(n.id))return;const e=npcFromNet(n);if(e)enemies.push(e);},npcPos:d=>onNpcPos(d),loot:d=>onLootSpots(d),mine:d=>{if(d.by!==myNetId)mines.push({x:d.x,y:d.y,life:ABILITIES.mine.duration,arm:MINE.armSeconds});},mboom:d=>onMineBoom(d.x,d.y),mhit:d=>{if(state.invulnerable>0)return;shots.push({x:player.x,y:player.y,vx:0,vy:0,life:.1,owner:'enemy',damage:d.dmg,hit:false,ammo:'iron',noHome:true});},npcShare:d=>{const e=npcById(d.id);if(e)e.share=d.share;},npcDie:id=>onNpcDie(id),
   chestReward:r=>applyLoot(r,r.kind==='gilded'?'Yaldızlı sandık':'Ahşap sandık'),
   sparkleReward:r=>applyLoot(r,'Pırıltı'),
   treasure:t=>onTreasureState(t),
@@ -835,8 +835,9 @@ function populateMap(){
   if(siege){spawnSiegeAllies();ui('mapName').textContent=map.name;ui('mapSubtitle').textContent='BÜYÜK KUŞATMA';ui('mapBadge').className='map-badge danger-3';renderSiegeHud();return;}
   if(bossOf(currentMap).pending&&!session.account)spawnBoss(); // hesaplı oyunda boss sunucudan gelir
   spawnTestCaptains();
+  if(!session.account){
   for(let i=0;i<3;i++){const p=randomSeaPoint(0);lootChests.push(createChest('drift',p.x,p.y,bonus.gilded,map.tier));}
-  for(let i=0;i<SPARKLE_COUNT*sparkleMult();i++)spawnSparkle();
+  for(let i=0;i<SPARKLE_COUNT*sparkleMult();i++)spawnSparkle();}
   ui('mapName').textContent=`${map.key} · ${map.name}`;ui('mapSubtitle').textContent=map.safe?'SAVAŞA KAPALI':`${theme().name.toLocaleUpperCase('tr')} · SEVİYE ${map.tier}`;ui('mapBadge').className=`map-badge ${map.safe?'safe':'danger-'+Math.min(3,Math.ceil(map.tier/3))}`;
 }
 function enterMap(key:MapKey,at:Vec){
@@ -2501,11 +2502,18 @@ function drawTreasureMark(){
 }
 function updateLootChests(dt:number){
   for(let i=lootChests.length-1;i>=0;i--){const c=lootChests[i];c.life-=dt;
-    if(dist(c,player)<CHEST_PICKUP_RADIUS){lootChests.splice(i,1);playCoins();recordQuestProgress('chest',currentMap);if(session.account){sendChest(bonus.gilded);bumpAch('chest');burst(c.x,c.y);continue;}rollTreasurePart();bumpAch('chest');state.pearls+=c.pearls;arsenal.powder+=c.powder;arsenal.shield+=c.shield;arsenal[c.ammo]+=c.ammoQty;arsenal.speed+=c.speed;arsenal.mine+=c.mine;saveArsenal(arsenal);saveAccount();renderQuickSlots();burst(c.x,c.y);rewardNotice(`${c.kind==='gilded'?'Yaldızlı sandık':'Ganimet sandığı'} toplandı · ${chestRewardText(c)}`,'gain');if(destination&&Math.hypot(destination.x-c.x,destination.y-c.y)<2)destination=null;continue;}
+    if(dist(c,player)<CHEST_PICKUP_RADIUS){lootChests.splice(i,1);playCoins();recordQuestProgress('chest',currentMap);if(session.account){sendChest(bonus.gilded,c.sid??0);bumpAch('chest');burst(c.x,c.y);continue;}rollTreasurePart();bumpAch('chest');state.pearls+=c.pearls;arsenal.powder+=c.powder;arsenal.shield+=c.shield;arsenal[c.ammo]+=c.ammoQty;arsenal.speed+=c.speed;arsenal.mine+=c.mine;saveArsenal(arsenal);saveAccount();renderQuickSlots();burst(c.x,c.y);rewardNotice(`${c.kind==='gilded'?'Yaldızlı sandık':'Ganimet sandığı'} toplandı · ${chestRewardText(c)}`,'gain');if(destination&&Math.hypot(destination.x-c.x,destination.y-c.y)<2)destination=null;continue;}
     if(c.life<=0)lootChests.splice(i,1);}
   driftClock-=dt;
-  if(driftClock<=0){driftClock=DRIFT_RESPAWN_SECONDS;if(lootChests.filter(c=>c.source==='drift').length<4){const p=randomSeaPoint(260);lootChests.push(createChest('drift',p.x,p.y,bonus.gilded,mapDef().tier));}}
+  if(driftClock<=0&&!session.account){driftClock=DRIFT_RESPAWN_SECONDS;if(lootChests.filter(c=>c.source==='drift').length<4){const p=randomSeaPoint(260);lootChests.push(createChest('drift',p.x,p.y,bonus.gilded,mapDef().tier));}}
 }
+// Hesaplı oyunda sandık ve pırıltı yerlerini sunucu verir; alımda kimliği gönderilir
+
+function onLootSpots(d:NetLootSpots){if(!session.account)return;const tier=mapDef().tier;
+  const keepC=new Map(lootChests.filter(c=>c.sid).map(c=>[c.sid!,c]));for(let i=lootChests.length-1;i>=0;i--)if(lootChests[i].sid||lootChests[i].source==='drift')lootChests.splice(i,1);
+  for(const [id,x,y] of d.ch){const c=keepC.get(id)??createChest('drift',x,y,bonus.gilded,tier);c.sid=id;c.life=c.maxLife=1e9;lootChests.push(c);}
+  const keepS=new Map(sparkles.filter(g=>g.sid).map(g=>[g.sid!,g]));sparkles.length=0;
+  for(const [id,x,y] of d.sp)sparkles.push(keepS.get(id)??{sid:id,x,y,seed:Math.random(),born:performance.now()});}
 // Deniz pırıltıları (Seafight tarzı): denizde parlayan inciler; üzerinden geçince küçük ödül verir, yenisi rastgele yerde çıkar.
 function spawnSparkle(){const p=randomSeaPoint(200);sparkles.push({x:p.x,y:p.y,seed:Math.random(),born:performance.now()});}
 function updateSparkles(dt:number){
@@ -2514,7 +2522,7 @@ function updateSparkles(dt:number){
     sparkles.splice(i,1);playCoins();
     // Pırıltı ödülü şansa bağlı, tek ödül (altın ve TP vermez):
     // %50 inci (1–2) · %15 kara barut · %15 kalkan · %15 özel gülle · %4 hız iksiri · %1 büyük ödül (5 inci + mayın)
-    if(session.account){sendSparkle();recordQuestProgress('sparkle',currentMap);for(let n=0;n<8;n++){const a=Math.random()*Math.PI*2,sp=30+Math.random()*50;particles.push({x:g.x,y:g.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:.5,maxLife:.5,kind:'foam'});}if(routeTarget&&dist(routeTarget,g)<4){routeTarget=null;destination=null;}sparkleQueue.push(SPARKLE_RESPAWN/sparkleMult());continue;}
+    if(session.account){sendSparkle(g.sid??0);recordQuestProgress('sparkle',currentMap);for(let n=0;n<8;n++){const a=Math.random()*Math.PI*2,sp=30+Math.random()*50;particles.push({x:g.x,y:g.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:.5,maxLife:.5,kind:'foam'});}if(routeTarget&&dist(routeTarget,g)<4){routeTarget=null;destination=null;}continue;}
     const tier=mapDef().tier,roll=Math.random(),kinds=['fire','explosive','breaker','leech'] as const,r=(a:number,b:number)=>a+Math.floor(Math.random()*(b-a+1));let label='';
     if(roll<.5){const n=r(1,2);state.pearls+=n;label=`+${n} İnci`;}
     else if(roll<.65){const n=r(2,5);arsenal.powder+=n;label=`+${n} Kara Barut`;}

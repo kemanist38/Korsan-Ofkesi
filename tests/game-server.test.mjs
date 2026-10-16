@@ -274,3 +274,13 @@ test('hero title comes only from the server, a client claim is ignored',()=>{
   const L=S.buildLoadout({level:3},{hero:false});assert.equal(L.hero,0);
   S.heroUntil.set('hero-u',Date.now()+1000);assert.ok(S.heroUntil.get('hero-u')>Date.now());
 });
+test('chests and sparkles: only server spots, only when the ship is next to them',()=>{
+  const c={sea:'sea-1-1',last:{x:0,y:0}};const l=S.lootFor(c);assert.ok(l);
+  assert.ok(l.ch.length>=3&&l.sp.length>=12);
+  const [id,x,y]=l.sp[0];
+  assert.equal(S.lootTake(c,'sp',id).err,'uzak');
+  assert.equal(S.lootTake(c,'sp',99999).err,'yok');
+  c.last={x,y};assert.ok(S.lootTake(c,'sp',id).ok);
+  assert.equal(S.lootTake(c,'sp',id).err,'yok');assert.ok(l.sp.length>=12);
+  const [cid,cx,cy]=l.ch[0];c.last={x:cx+100,y:cy};assert.ok(S.lootTake(c,'ch',cid).ok);
+});

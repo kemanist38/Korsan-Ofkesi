@@ -19,6 +19,7 @@ import {cumulativeEliteBonus,ELITE_CANNON_CAPACITY} from '../src/elite-progressi
 import {ACHIEVEMENTS,MAIN_COLLECTION} from '../src/achievements.ts';
 import {officerSlots,OFFICER_MAX_RANK,talentPoints,TALENTS} from '../src/crew.ts';
 import {MINE} from '../src/arsenal.ts';
+import {sparkleMult} from '../src/events.ts';
 import {HERO_DAMAGE,HERO_DAYS} from '../src/siege.ts';
 import {createChest} from '../src/loot.ts';
 import {fleetReward} from '../src/campaign.ts';
@@ -197,6 +198,18 @@ export function chestPicked(c,now,rand=Math.random){const map=seaMap(c.sea);if(!
 export function sparklePicked(c,now){const map=seaMap(c.sea);if(!map||!MAPS[map])return{err:'deniz'};c.spb??={pool:40,t:now};
   c.spb.pool=Math.min(40,c.spb.pool+Math.max(0,now-c.spb.t)*1.5/1000);c.spb.t=now;if(c.spb.pool<1)return{err:'hız'};c.spb.pool-=1;
   c.qk??={};const k='spk:'+map;c.qk[k]=Math.min(200,(c.qk[k]||0)+1);return{ok:true};}
+// Sandık ve pırıltı yerleri sunucuda (oyuncuya özel): alım yalnızca sunucunun verdiği yerde ve geminin yanındayken sayılır
+export const LOOT={chests:3,chestMax:4,chestRespawn:22_000,sparkles:12,chestR:46,sparkleR:40,slack:110};
+export function lootFor(c,rand=Math.random){const map=seaMap(c.sea);if(!map||!MAPS[map])return null;
+  if(c.loot?.map!==map){c.loot={map,ch:[],sp:[],seq:0,chT:Date.now()};for(let i=0;i<LOOT.chests;i++)lootAdd(c.loot,'ch',rand);for(let i=0;i<LOOT.sparkles*sparkleMult();i++)lootAdd(c.loot,'sp',rand);}
+  return c.loot;}
+function lootAdd(l,kind,rand=Math.random){const p=pickSpot(l.map,rand);l[kind].push([++l.seq,Math.round(p.x),Math.round(p.y)]);}
+export const lootInfo=l=>({ch:l.ch,sp:l.sp});
+// Alım: kimlik sunucunun listesinde olmalı ve gemi yanında olmalı
+export function lootTake(c,kind,id){const l=c.loot;if(!l||l.map!==seaMap(c.sea)||!c.last)return{err:'yok'};const list=l[kind],i=list.findIndex(x=>x[0]===Number(id));if(i<0)return{err:'yok'};
+  const [,x,y]=list[i];if(Math.hypot(x-c.last.x,y-c.last.y)>(kind==='ch'?LOOT.chestR:LOOT.sparkleR)+LOOT.slack)return{err:'uzak'};
+  list.splice(i,1);if(kind==='sp')lootAdd(l,'sp');return{ok:true};}
+export function lootTick(c,now){const l=c.loot;if(!l||now-l.chT<LOOT.chestRespawn)return false;l.chT=now;if(l.ch.length>=LOOT.chestMax)return false;lootAdd(l,'ch');return true;}
 // Sandık ve pırıltı içeriğini sunucu belirler; içerik kazanç hakkı (inci doğrudan cüzdana) olarak yazılır ve oyuna gönderilir
 export function chestReward(c,gilded,rand=Math.random){const map=seaMap(c.sea);const ch=createChest('drift',0,0,Math.max(0,Math.min(.24,Number(gilded)||0)),MAPS[map]?.tier??1,rand);
   const out={kind:ch.kind,pearls:ch.pearls,powder:ch.powder,shield:ch.shield,ammo:ch.ammo,ammoQty:ch.ammoQty,speed:ch.speed,mine:ch.mine};
@@ -474,7 +487,7 @@ export function buildBatch(rec,room,tick){const out=[];if(!rec.seen)rec.seen=new
     const near=!rec.last||!o.last||Math.abs(o.last.x-rec.last.x)+Math.abs(o.last.y-rec.last.y)<NEAR;if(!near&&!far)continue;
     const d={...o.state};if(seen.i!==o.identVer&&o.ident){Object.assign(d,o.ident);seen.i=o.identVer;}seen.s=o.stateVer;rec.seen.set(o,seen);out.push(d);}
   return out;}
-setInterval(()=>{tickNo++;if(tickNo%2===0){npcTick(Date.now());void mineTick(Date.now());}if(tickNo%3===0){const now=Date.now();bossTick(now);islandTick(now);siegeTick(now);}for(const room of seas.values()){if(room.size<2)continue;for(const rec of room){const b=buildBatch(rec,room,tickNo);if(b.length)send(rec,{t:'batch',d:b});}}},TICK_MS).unref();
+setInterval(()=>{tickNo++;if(tickNo%2===0){npcTick(Date.now());void mineTick(Date.now());}if(tickNo%10===0){const now=Date.now();for(const c of all)if(c.sea&&lootTick(c,now))send(c,{t:'loot',d:lootInfo(c.loot)});}if(tickNo%3===0){const now=Date.now();bossTick(now);islandTick(now);siegeTick(now);}for(const room of seas.values()){if(room.size<2)continue;for(const rec of room){const b=buildBatch(rec,room,tickNo);if(b.length)send(rec,{t:'batch',d:b});}}},TICK_MS).unref();
 
 // NPC'ler: oyuncu olan denizlerde 0,2 sn'de bir hareket ve can güncellemesi; boş denizin NPC'leri silinir
 function npcTick(now){for(const [sea,st] of seaNpcs){const room=seas.get(sea);if(!room||!room.size){seaNpcs.delete(sea);continue;}
@@ -589,6 +602,7 @@ wss.on('connection',ws=>{
         const room=seas.get(name)??new Set();if(room.size>=LIMITS.maxPerSea){send(c,{t:'full'});return;}room.add(c);seas.set(name,room);c.sea=name;c.seen=null;send(c,{t:'joined',sea:name});
         if(seaMap(name)){const fresh=npcFill(name,now);const st=seaNpcs.get(name);send(c,{t:'nlist',d:[...(st?.list.values()??[])].map(npcInfo)});
           if(fresh.length){const m=JSON.stringify({t:'nlist',d:[...st.list.values()].map(npcInfo)});for(const x of room)if(x!==c)send(x,m);}}
+        {const l=lootFor(c);if(l)send(c,{t:'loot',d:lootInfo(l)});}
         const b=bossSeas.get(name)?.boss;if(b)send(c,{t:'boss',d:bossInfo(name,b)});
         const isle=islands.get(islandOfSea(name));if(isle)send(c,{t:'isle',d:islandInfo(isle)});
         if(name===SIEGE_ROOM){const r=siegeJoin(c.uid,c.nick,now);if(r)send(c,{t:'sstate',d:siegeInfo(r,c.uid)});}return;}
@@ -617,8 +631,8 @@ wss.on('connection',ws=>{
         if(id==='mine'&&(c.econ!==before||!SERVER_SECRET||(process.env.BENCH_AUTH==='1'&&c.uid.startsWith('b')))){const mn=placeMine(c,Number(m.d?.x),Number(m.d?.y),now);if(mn)toSea(c,{t:'mine',d:{id:mn.id,x:mn.x,y:mn.y,by:c.netId}});}return;}
       case'qdone':{if(!c.uid||!c.rKill.hit(now))return;const id=String(m.d?.id||'');const r=questCredit(c,id,now);
         if(r.err){if(r.err==='bekleme')suspect(c,'görev bekleme',id);send(c,{t:'qres',d:{id,ok:false,err:r.err}});return;}addCredit(c,r.add);send(c,{t:'qres',d:{id,ok:true}});return;}
-      case'spk':{if(!c.sea||!c.rUse.hit(now))return;const r=sparklePicked(c,now);if(r.err){if(r.err==='hız')suspect(c,'pırıltı hızı');return;}const sr=sparkleReward(c);addCredit(c,sr.add);send(c,{t:'spkr',d:sr.out});return;}
-      case'chest':{if(!c.sea||!c.rKill.hit(now))return;const r=chestPicked(c,now);if(r.err){if(r.err==='hız')suspect(c,'sandık hızı');return;}{const cr=chestReward(c,m.d?.g);addCredit(c,cr.add);send(c,{t:'chestr',d:cr.out});}if(r.found)send(c,{t:'tstate',d:{parts:r.parts,spot:treOf(c.uid).spot,part:true}});return;}
+      case'spk':{if(!c.sea||!c.rUse.hit(now))return;{const t=lootTake(c,'sp',m.d?.id);if(t.err){if(t.err==='uzak')suspect(c,'uzak pırıltı');return;}send(c,{t:'loot',d:lootInfo(c.loot)});}const r=sparklePicked(c,now);if(r.err){if(r.err==='hız')suspect(c,'pırıltı hızı');return;}const sr=sparkleReward(c);addCredit(c,sr.add);send(c,{t:'spkr',d:sr.out});return;}
+      case'chest':{if(!c.sea||!c.rKill.hit(now))return;{const t=lootTake(c,'ch',m.d?.id);if(t.err){if(t.err==='uzak')suspect(c,'uzak sandık');return;}send(c,{t:'loot',d:lootInfo(c.loot)});}const r=chestPicked(c,now);if(r.err){if(r.err==='hız')suspect(c,'sandık hızı');return;}{const cr=chestReward(c,m.d?.g);addCredit(c,cr.add);send(c,{t:'chestr',d:cr.out});}if(r.found)send(c,{t:'tstate',d:{parts:r.parts,spot:treOf(c.uid).spot,part:true}});return;}
       case'tdig':{if(!c.sea||!c.rKill.hit(now))return;const r=treasureDig(c);if(r.err){send(c,{t:'tdig',d:{ok:false,err:r.err}});return;}addCredit(c,r.add);send(c,{t:'tdig',d:{ok:true,reward:r.reward}});return;}
       case'spy':{if(!c.rKill.hit(now))return;await onSpy(c,m.d?.nick);return;}
       case'thit':return; // kule hasarı ve tamiri yalnız sunucu atışıyla

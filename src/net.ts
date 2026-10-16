@@ -27,7 +27,8 @@ export type NetTreasure={parts:number;spot:{map:string;x:number;y:number;label:s
 export type NetDig={ok:boolean;err?:string;reward?:{gold:number;pearls:number;ammo:string;ammoQty:number;powder:number;shield:number}};
 export type NetLoot={kind?:string;pearls?:number;powder?:number;shield?:number;ammo?:string;ammoQty?:number;speed?:number;mine?:number};
 export type NetNpc={id:string;d:string;x:number;y:number;hp:number;max:number};
-export type NetHandlers={npcList?:(l:NetNpc[])=>void;npcSpawn?:(n:NetNpc)=>void;mine?:(d:{id:string;x:number;y:number;by:string})=>void;mboom?:(d:{id:string;x:number;y:number})=>void;mhit?:(d:{dmg:number;by:string})=>void;npcPos?:(d:{p:[string,number,number][];h:[string,number][];f?:[string,string,number][]})=>void;npcShare?:(d:{id:string;share:number})=>void;npcDie?:(id:string)=>void;chestReward?:(r:NetLoot)=>void;sparkleReward?:(r:NetLoot)=>void;treasure?:(t:NetTreasure)=>void;dig?:(d:NetDig)=>void;spy?:(r:NetSpy)=>void;pos?:(p:{x:number;y:number})=>void;forceSink?:(d:{by:string;byNick:string})=>void;siegeState?:(s:NetSiege)=>void;siegeHp?:(l:[number,number,number][])=>void;siegeDown?:(i:number)=>void;siegeRank?:(d:{n:number;top:[string,number][];mine:number})=>void;siegeEnd?:(d:NetSiegeEnd)=>void;island?:(i:NetIsland)=>void;towerHp?:(key:string,s:[number,number][])=>void;towerDown?:(key:string,slot:number,by:string)=>void;
+export type NetLootSpots={ch:[number,number,number][];sp:[number,number,number][]};
+export type NetHandlers={loot?:(d:NetLootSpots)=>void;npcList?:(l:NetNpc[])=>void;npcSpawn?:(n:NetNpc)=>void;mine?:(d:{id:string;x:number;y:number;by:string})=>void;mboom?:(d:{id:string;x:number;y:number})=>void;mhit?:(d:{dmg:number;by:string})=>void;npcPos?:(d:{p:[string,number,number][];h:[string,number][];f?:[string,string,number][]})=>void;npcShare?:(d:{id:string;share:number})=>void;npcDie?:(id:string)=>void;chestReward?:(r:NetLoot)=>void;sparkleReward?:(r:NetLoot)=>void;treasure?:(t:NetTreasure)=>void;dig?:(d:NetDig)=>void;spy?:(r:NetSpy)=>void;pos?:(p:{x:number;y:number})=>void;forceSink?:(d:{by:string;byNick:string})=>void;siegeState?:(s:NetSiege)=>void;siegeHp?:(l:[number,number,number][])=>void;siegeDown?:(i:number)=>void;siegeRank?:(d:{n:number;top:[string,number][];mine:number})=>void;siegeEnd?:(d:NetSiegeEnd)=>void;island?:(i:NetIsland)=>void;towerHp?:(key:string,s:[number,number][])=>void;towerDown?:(key:string,slot:number,by:string)=>void;
   islandCaptured?:(d:{key:string;tag:string;by:string;nick:string})=>void;islandAlert?:(key:string)=>void;boss?:(b:NetBoss)=>void;bossHp?:(id:string,hp:number)=>void;bossDown?:(d:NetBossDown)=>void;bossGone?:(id:string)=>void;state:(s:NetState)=>void;leave:(id:string)=>void;fire:(f:NetFire)=>void;sunk:(s:NetSunk)=>void;chat:(c:NetChat)=>void;bid?:(b:NetBid)=>void;bidAsk?:(hour:number)=>void;bidKnown?:(bids:NetBid[])=>void};
 
 const ID_KEY='yedi-deniz-net-id';
@@ -61,6 +62,7 @@ async function connectWs(){const sb=supa();if(!sb||!session.account){netStatus='
       case'mine':handlers?.mine?.(m.d as {id:string;x:number;y:number;by:string});break;
       case'mboom':handlers?.mboom?.(m.d as {id:string;x:number;y:number});break;
       case'mhit':handlers?.mhit?.(m.d as {dmg:number;by:string});break;
+      case'loot':handlers?.loot?.(m.d as NetLootSpots);break;
       case'npos':handlers?.npcPos?.(m.d as {p:[string,number,number][];h:[string,number][];f?:[string,string,number][]});break;
       case'nkilled':handlers?.npcShare?.(m.d as {id:string;share:number});break;
       case'ndie':handlers?.npcDie?.((m.d as {id:string}).id);break;
@@ -113,8 +115,8 @@ export const sendKill=(id:string)=>wsSend('nkill',{id});
 export const sendSalvo=(a:string,n:number,i:number,p:number)=>wsSend('salvo',{a,n,i,p});
 export const sendUse=(id:string,extra:Record<string,number>={})=>wsSend('use',{id,...extra});
 export const sendQuestDone=(id:string)=>wsSend('qdone',{id});
-export const sendChest=(g=0)=>wsSend('chest',{g});
-export const sendSparkle=()=>wsSend('spk');
+export const sendChest=(g=0,id=0)=>wsSend('chest',{g,id});
+export const sendSparkle=(id=0)=>wsSend('spk',{id});
 export const sendNpcHits=(h:[string,number][])=>wsSend('nhit',{h});
 // Sunucu atışı: donanım bildirimi ve hedefe atış (hasarı sunucu hesaplar)
 export const sendLoadout=(d:unknown)=>wsSend('ld',d);
