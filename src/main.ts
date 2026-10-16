@@ -1380,10 +1380,16 @@ function placeChatAboveDock(){const chat=document.querySelector<HTMLElement>('.c
   requestAnimationFrame(()=>{const r=main.getBoundingClientRect();chat.style.left=`${Math.max(4,r.left+r.width/2-22)}px`;chat.style.bottom=`${innerHeight-r.top+22}px`;});}
 addEventListener('resize',()=>{if(MOBILE_HUD)placeChatAboveDock();});
 // Mobil dokunmatik: tüm gülle ve malzemeler tek sırada, soldaki büyük düğme seçili gülleyi gösterir ve sırayı açıp kapatır
-let mobileTrayOpen=false;
-function renderMobileDock(){if(document.body.classList.contains('captain-hud'))return;if(!MOBILE_HUD)return;let dock=document.getElementById('mobileDock');
+let mobileTrayOpen=false,dockDragged=false;
+// Gülle düğmesi basılı tutup sürüklenerek taşınır; yeri hatırlanır
+function dockDraggable(dock:HTMLElement){const main=ui('mobMain');try{const p=JSON.parse(localStorage.getItem('pr-dock-pos')||'null');if(p){dock.style.left=`${p.x}px`;dock.style.bottom=`${p.y}px`;}}catch{}
+  main.addEventListener('pointerdown',e=>{const sx=e.clientX,sy=e.clientY,ox=dock.offsetLeft,ob=innerHeight-dock.offsetTop-dock.offsetHeight;let moved=false;main.setPointerCapture(e.pointerId);
+    const mv=(m:PointerEvent)=>{const dx=m.clientX-sx,dy=m.clientY-sy;if(!moved&&Math.hypot(dx,dy)<10)return;moved=true;dock.style.left=`${Math.max(0,Math.min(innerWidth-80,ox+dx))}px`;dock.style.bottom=`${Math.max(0,Math.min(innerHeight-90,ob-dy))}px`;placeChatAboveDock();};
+    const up=()=>{main.removeEventListener('pointermove',mv);main.removeEventListener('pointerup',up);main.removeEventListener('pointercancel',up);if(moved){dockDragged=true;try{localStorage.setItem('pr-dock-pos',JSON.stringify({x:parseInt(dock.style.left),y:parseInt(dock.style.bottom)}));}catch{}}};
+    main.addEventListener('pointermove',mv);main.addEventListener('pointerup',up);main.addEventListener('pointercancel',up);});}
+function renderMobileDock(){if(!MOBILE_HUD)return;let dock=document.getElementById('mobileDock');
   if(!dock){ui('ammoBar').parentElement!.insertAdjacentHTML('beforeend','<div class="mobile-dock" id="mobileDock"><button class="mob-main" id="mobMain"></button><div class="mob-tray" id="mobTray"></div></div>');dock=ui('mobileDock');
-    ui('mobMain').onclick=()=>{mobileTrayOpen=!mobileTrayOpen;renderMobileDock();};document.body.classList.add('touch-ui');}
+    ui('mobMain').onclick=()=>{if(dockDragged){dockDragged=false;return;}mobileTrayOpen=!mobileTrayOpen;renderMobileDock();};dockDraggable(dock);document.body.classList.add('touch-ui');}
   placeChatAboveDock();
   ui('mobMain').innerHTML=`${itemAsset(state.ammo)}<b>${quickCount(state.ammo)}</b>`;dock.classList.toggle('open',mobileTrayOpen);
   ui('mobTray').innerHTML=quickSlots.map((item,i)=>item?`<button class="${item===state.ammo||((item==='powder'||item==='shield')&&consumableOn[item])?'active':''}" data-mob-slot="${i}" data-quick-item="${item}" title="${QUICK_ITEMS[item].name}">${itemAsset(item)}<b>${quickCount(item)}</b></button>`:'').join('');
