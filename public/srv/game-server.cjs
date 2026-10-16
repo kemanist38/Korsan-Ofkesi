@@ -4109,6 +4109,7 @@ var eliteLevelFromEp = (ep) => {
   return l;
 };
 var MINE = { armSeconds: 1, triggerRadius: 46, blastRadius: 95, baseDamage: 4e3, damagePerLevel: 400, maxActive: 5, icon: "/assets/icon-mine-v2.webp" };
+var IRON_EP_PER_BALL = 0.1;
 var ELITE_POINTS_PER_BALL = { chain: 1, fire: 1, breaker: 1, explosive: 2, leech: 2, heal: 2 };
 
 // src/rage.ts
@@ -5040,6 +5041,8 @@ async function applyUsage(c, salvo, item, now) {
   if (item === null) {
     const a = String(salvo?.a || ""), n = Number(use[ITEM_OF[a] ?? "a_" + a]) || 0;
     if (n > 0 && ELITE_POINTS_PER_BALL[a]) addCredit(c, { ep: Math.round(n * ELITE_POINTS_PER_BALL[a] * epMult()), st_eliteBalls: n });
+    const ni = Number(use.iron) || 0;
+    if (ni > 0) addCredit(c, { ep: Math.round(ni * IRON_EP_PER_BALL * epMult()) });
   }
 }
 var seas = /* @__PURE__ */ new Map();
