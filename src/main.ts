@@ -2042,7 +2042,9 @@ function showSiegeResult(won:boolean,dmg:number,rank:number,order:[string,number
     <button data-close>LİMANA DÖN</button></section>`;
   document.querySelector('.hud')!.append(el);(el.querySelector('[data-close]') as HTMLButtonElement).onclick=()=>{el.remove();leaveSiege();};}
 function canEnterSiege(){return siegeWindow().open||ELITE_TEST_MODE;}
-function enterSiege(){if(siege)return;if(!canEnterSiege()){toast('Büyük Kuşatma her Cuma 20:00–22:00 arasında açılır');return;}if(inCombat()){toast('Savaş sırasında kuşatmaya geçilemez');return;}
+function enterSiege(){if(siege)return;if(!canEnterSiege()){toast('Büyük Kuşatma her Cuma 20:00–22:00 arasında açılır');return;}
+  // Kuşatma yalnızca oyun sunucusu (VPS) üzerinden: herkes aynı kaleyi görür; bağlantı yoksa tek kişilik kuşatma açılmaz
+  if(!sharedBosses()){toast('Kuşatma için oyun sunucusuna bağlantı gerekli · bağlantı kurulunca tekrar dene');return;}if(inCombat()){toast('Savaş sırasında kuşatmaya geçilemez');return;}
   const w=siegeWindow(),id=w.open?w.id:`test-${w.id}`;let s=loadSiege();
   if(sharedBosses())s=newSiege(id,w.open?w.end:Date.now()+SIEGE_MS);
   else if(!s||s.id!==id||(!w.open&&(s.result||Date.now()>s.end)))s=newSiege(id,w.open?w.end:Date.now()+SIEGE_MS);
