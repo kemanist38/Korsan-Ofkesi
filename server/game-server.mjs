@@ -10,7 +10,7 @@ import {BOSS_HP,SIEGE_HP_PER_CAPTAIN} from '../src/pve-balance.ts';
 import {fleetTowerStats,playerBaseHp} from '../src/fleetBalance.ts';
 import {pvpClamp,newPvpBudget} from '../src/pvp.ts';
 import {RIVAL_SP,RIVAL_DAILY_LIMIT} from '../src/battle.ts';
-import {NPCS,MONSTERS,MAPS,QUESTS,QUEST_COOLDOWN_MS,bossFor,BOSS_KILLS,FLEET,WORLD_WIDTH,WORLD_HEIGHT,coordLabel} from '../src/campaign.ts';
+import {NPCS,MAPS,QUESTS,QUEST_COOLDOWN_MS,bossFor,BOSS_KILLS,FLEET,WORLD_WIDTH,WORLD_HEIGHT,coordLabel} from '../src/campaign.ts';
 import {TREASURE_PARTS,PART_CHANCE,DIG_RADIUS,treasureReward} from '../src/treasure.ts';
 import {questEp,bossEp,ELITE_POINTS_PER_BALL,eliteLevelFromEp} from '../src/arsenal.ts';
 import {CANNONS,salvoDamage,reloadTime,rangeOf,targetFactor} from '../src/combat.ts';
@@ -149,15 +149,15 @@ export function noteUse(c,id,now){if(!(id in USE_COOLDOWN))return{err:'tür'};c.
   if(!c.econ||stockOf(c.econ,'a_'+id)<1)return{err:'stok'};
   c.uses[id]=now;
   return{use:{['cn_a_'+id]:1},early};}
-export function killCredit(c,id,now){const map=seaMap(c.sea);if(!map||!MAPS[map])return{err:'deniz'};const m=MAPS[map],npc=NPCS[id],mon=MONSTERS[id];
-  if(npc?!m.npcs.includes(id):!(mon&&m.monsters.includes(id)))return{err:'hedef'};const def=npc??mon;
+export function killCredit(c,id,now){const map=seaMap(c.sea);if(!map||!MAPS[map])return{err:'deniz'};const m=MAPS[map],npc=NPCS[id];
+  if(!npc||!m.npcs.includes(id))return{err:'hedef'};const def=npc;
   // Batırma bütçesi: saniyelik hasar sınırı kadar dolar, 30 saniyelik birikir (büyük gemi uzun sürer); canın yarısı karşılanmalı
   const rate=dpsCap(c.econ?.level??8);c.kb??={pool:rate*30,t:now,miss:0};const b=c.kb;b.pool=Math.min(rate*30,b.pool+Math.max(0,now-b.t)/1000*rate);b.t=now;
   if(b.pool<def.hp*.5){b.miss++;return{err:'hız',flag:b.miss>=10};}
   if((c.sb?.pool??0)<def.hp*.6){b.miss++;return{err:'mermi',flag:b.miss>=10};}
   sbTake(c,def.hp*.6);b.pool=Math.max(0,b.pool-def.hp);b.miss=0;
   const add={gold:Math.round(def.gold*KILL_CREDIT_MULT),xp:Math.round(def.xp*KILL_CREDIT_MULT)};
-  if(npc){add.st_npc=1;if(npc.role==='heavy')add.st_heavy=1;}else add.st_monster=1;
+  add.st_npc=1;if(npc.role==='heavy')add.st_heavy=1;
   c.qk??={};c.qk[id]=(c.qk[id]||0)+1;
   const lvl=Math.round(Number(c.econ?.level)||1);if(npc&&lvl>=2&&map===levelQuestMap(lvl)&&levelQuestTargets(lvl).ships.includes(id))add.lqk=1;
   return{add};}
@@ -169,7 +169,7 @@ export function questCredit(c,id,now){const q=QUESTS.find(x=>x.id===id);if(!q)re
   if(!c.econ||Number(c.econ.level)<q.tier||seaMap(c.sea)!==q.map)return{err:'deniz'};
   const cd=questCooldowns.get(c.uid)??new Map();questCooldowns.set(c.uid,cd);if(now-(cd.get(id)??-1e15)<QUEST_COOLDOWN_MS*.95)return{err:'bekleme'};
   if(q.kind==='sparkle'){c.qk??={};const k='spk:'+q.map;if((c.qk[k]||0)<q.required)return{err:'sayı',have:c.qk[k]||0};c.qk[k]-=q.required;}
-  if(q.kind==='npc'||q.kind==='monster'){c.qk??={};const have=q.ids.reduce((a,k)=>a+(c.qk[k]||0),0);if(have<q.required)return{err:'sayı',have};
+  if(q.kind==='npc'){c.qk??={};const have=q.ids.reduce((a,k)=>a+(c.qk[k]||0),0);if(have<q.required)return{err:'sayı',have};
     let need=q.required;for(const k of q.ids){const t=Math.min(need,c.qk[k]||0);c.qk[k]-=t;need-=t;}}
   cd.set(id,now);return{add:{pearls:q.pearls,gold:Math.round(q.gold*KILL_CREDIT_MULT),xp:Math.round(q.xp*KILL_CREDIT_MULT),ep:Math.round(questEp(q.tier)*1.5),st_quest:1}};}
 // Boss ödülü: payı sunucu bilir; katılımcıya oyunun formülüyle (havuz × pay) kazanç hakkı yazılır
@@ -623,9 +623,7 @@ wss.on('connection',ws=>{
       case'ld':{const d={...(m.d&&typeof m.d==='object'?m.d:{}),hero:(heroUntil.get(c.uid)??0)>now};c.ld=buildLoadout(c.econ,d);c.ldRaw=d;return;}
       case'atk':{if(!c.sea||!c.rSalvo.hit(now))return;await onAttack(c,m.d,now);return;}
       case'nhit':return; // oyuncunun bildirdiği hasar kabul edilmez (sunucu atışı ve mayın)
-      case'nkill':{if(NPCS[String(m.d?.id||'')])return;if(!c.sea||!c.rKill.hit(now))return;const r=killCredit(c,String(m.d?.id||''),now);
-        if(r.err){if((r.err!=='hız'&&r.err!=='mermi')||r.flag){suspect(c,'batırma',`${r.err} ${m.d?.id}`);if(c.kb)c.kb.miss=0;}return;}addCredit(c,r.add);
-        const map=seaMap(c.sea);if(map&&String(m.d?.id)===bossFor(map).trigger){const b=bossKill(c.sea,BOSS_KILLS,now);if(b)toSea(c,{t:'boss',d:bossInfo(c.sea,b)},true);}return;}
+      case'nkill':return; // NPC batırmasını sunucu kendisi sayar (npcDeath); oyuncunun bildirdiği batırma kabul edilmez
       case'salvo':{if(!c.rSalvo.hit(now)){suspect(c,'salvo hızı');return;}await applyUsage(c,m.d,null,now);return;}
       case'use':{if(!c.rUse.hit(now))return;const id=String(m.d?.id||''),before=c.econ;await applyUsage(c,null,id,now);
         if(id==='mine'&&(c.econ!==before||!SERVER_SECRET||(process.env.BENCH_AUTH==='1'&&c.uid.startsWith('b')))){const mn=placeMine(c,Number(m.d?.x),Number(m.d?.y),now);if(mn)toSea(c,{t:'mine',d:{id:mn.id,x:mn.x,y:mn.y,by:c.netId}});}return;}

@@ -34,13 +34,6 @@ export function drawNpcShip(ctx:CanvasRenderingContext2D,sprite:string,span:numb
 
 // Canavarlar: 8 karelik döngü, 4 × 2, 256 px kare; geçişli çizilir.
 // Canavar: tek kare (256 px, güneybatıya bakan); yön değiştirmez, yalnızca hafifçe süzülür.
-export function drawMonsterSheet(ctx:CanvasRenderingContext2D,def:{sprite:string;span:number;anchorY:number;radius:number},x:number,y:number,phase:number){
-  if(!def.sprite)return false;
-  const img=load(def.sprite);if(!ready(img))return false;
-  const size=def.span*def.radius/55,k=size/256;
-  ctx.drawImage(img,x-size/2,y-def.anchorY*k+Math.sin(phase*1.3)*1.5,size,size);
-  return true;
-}
 
 // Eight themed sheets, each with six supplied islands in a 3 × 2 grid.
 const ISLAND_SHEETS:Record<string,string>={

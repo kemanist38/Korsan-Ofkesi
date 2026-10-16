@@ -41,13 +41,13 @@ function simulate(modeName='normal',targets=null){const mode=modes[modeName],due
    if(mode.max){
     const farms=c.MAP_KEYS.filter(k=>c.MAPS[k].tier<=level).flatMap(k=>c.MAPS[k].npcs.map(id=>c.NPCS[id]).map(t=>({key:k,target:t,rate:t.xp/action(t,level,mode).seconds})));
     bestFarm=farms.sort((a,b)=>b.rate-a.rate)[0];
-    const rate=q=>{const sparkle=q.kind==='sparkle',t=q.kind==='monster'?c.MONSTERS[q.ids[0]]:sparkle?c.NPCS[c.MAPS[q.map].npcs[0]]:c.NPCS[q.ids[0]],v=action(t,level,mode,sparkle);return(v.xp*q.required+q.xp)/(v.seconds*q.required+(q.map===lastMap?0:120));};
+    const rate=q=>{const sparkle=q.kind==='sparkle',t=sparkle?c.NPCS[c.MAPS[q.map].npcs[0]]:c.NPCS[q.ids[0]],v=action(t,level,mode,sparkle);return(v.xp*q.required+q.xp)/(v.seconds*q.required+(q.map===lastMap?0:120));};
     q=available.sort((a,b)=>rate(b)-rate(a))[0];if(q&&rate(q)<bestFarm.rate)q=null;
    }
    let key=q?.map||bestFarm?.key||`${level}/1`;
    if(key!==lastMap){seconds+=120;lastMap=key;}
    let target,sparkle=false,count=1;
-   if(q){sparkle=q.kind==='sparkle';target=q.kind==='monster'?c.MONSTERS[q.ids[0]]:sparkle?c.NPCS[c.MAPS[key].npcs[0]]:c.NPCS[q.ids[0]];count=q.required;}
+   if(q){sparkle=q.kind==='sparkle';target=sparkle?c.NPCS[c.MAPS[key].npcs[0]]:c.NPCS[q.ids[0]];count=q.required;}
    else{const choices=c.MAPS[key].npcs.map(id=>c.NPCS[id]);target=bestFarm?.target||choices.sort((a,b)=>{const x=action(a,level,mode),y=action(b,level,mode);return y.xp/y.seconds-x.xp/x.seconds;})[0];}
    for(let i=0;i<count;i++){
     const v=action(target,level,mode,sparkle);seconds+=v.seconds;const reward=v.xp*(sparkle?1:mult());xp+=reward;gained+=reward;

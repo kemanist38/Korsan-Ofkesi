@@ -23,8 +23,8 @@ const setup=e.ELITE_ENTRY_PRICE+a.priceOf(e.CANNON_COSTS.heavy,315)+Object.value
   const guns=hours<4?50:hours<12?100:315,speed=(128+up*5)*(1+(hours>=60?.16:0)+b.speed),hpMax=fb.playerBaseHp(tier,up)*(1+armor+b.hp);
   // Every fifth action is a 20-sparkle quest/collection route, not a firing window.
   if(index%5===4){time+=20*(700/speed+2);index++;continue;}
-  const slot=[0,1,0,2,0,1,3,0,2,1,0,3,1,2,0,1][index%16],monster=slot===3;
-  let target=monster?c.MONSTERS[c.MONSTER_OF_TIER[tier]]:c.NPCS[`n${tier}-${slot===2?'2-heavy':slot===1?'1-heavy':'1-light'}`],kind=monster?'monster':'npc';
+  const slot=[0,1,0,2,0,1,3,0,2,1,0,3,1,2,0,1][index%16],monster=false;
+  let target=c.NPCS[`n${tier}-${slot===2?'2-heavy':slot===1?'1-heavy':'1-light'}`],kind=monster?'monster':'npc';
   // One PvP exchange per 25 encounters; outgoing damage reduced by armor/shield.
   const pvp=index>0&&index%25===0;
   if(pvp){target={hp:2700000,damage:400000,reload:2.5,gold:0,xp:0};kind='pvp';}
