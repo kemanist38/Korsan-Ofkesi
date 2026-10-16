@@ -13,6 +13,7 @@ delete from public.guilds;
 delete from public.saves;
 delete from public.economy;
 delete from public.economy_flags;
+delete from public.economy_claims;
 update public.islands set guild_id = null, towers = '[]'::jsonb, ruins = '{}'::jsonb;
 delete from auth.users where id not in (select user_id from public.admins);
 commit;

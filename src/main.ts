@@ -14,7 +14,7 @@ import {ACTIONS,loadSettings,saveSettings,keyLabel,normalizeKey,DEFAULT_BINDS,ty
 import {playBossMusic,stopBossMusic,playBossHorn,setAudio,unlockAudio,playCannon,playEnemyCannon,playHit,playExplosion,playCoins,playSpeed,playRage,playShield,playSplash,playLevelUp,playMapJump,playSink,playHeal,playClick} from './audio';
 import {drawSeaSparkle,drawNpcShip,drawMonsterSheet,drawChestSprite,drawIslandSprite,drawFleetBase,drawBastion,drawBuiltTower,drawMineSprite,seaTilePattern,islandSheetUrl,shipLabelOffset,shipDrawSize,portraitStyle,preload,fleetBaseUrl,fleetTowerUrl,setTowerTheme,TOWER_LABEL_OFFSET,FLEET_ART,drawFleetOccluder} from './sprites';
 import {MAPS,GRID,THEMES,NPCS,MONSTERS,QUESTS,QUEST_COOLDOWN_MS,FLEET,FLEET_SCALE,WORLD_WIDTH,WORLD_HEIGHT,MAX_LEVEL,xpNeed,neighbor,bossFor,BOSS_KILLS,BOSS_ATLAS,BOSS_ATLAS_COLS,MAP_KEYS,type BossDef,type MapDef,tierOf,fleetTower,fleetReward,PORTRAIT_COUNT,PORTRAIT_COLS,PORTRAIT_ATLAS,coordLabel,GRID_COLS,GRID_ROWS,CELL_W,CELL_H,colName,rowName,type MapKey,type WorldIsland,type NpcDef,type MonsterDef,type Dir,type QuestDef} from './campaign';
-import {ACHIEVEMENTS,loadAchievements,saveAchievements,unlockReached,achievementBonus,bonusText,badgeStyle,type AchStat} from './achievements';
+import {ACHIEVEMENTS,loadAchievements,saveAchievements,unlockReached,achievementBonus,bonusText,badgeStyle,MAIN_COLLECTION,type AchStat} from './achievements';
 import {loadDaily,saveDaily,dailyStatus,claimDaily,dailyReward} from './daily';
 import {TREASURE_PARTS,PART_CHANCE,DIG_RADIUS,DIG_SECONDS,TREASURE_ICON,loadTreasure,saveTreasure,treasureReward} from './treasure';
 import {EQUIPMENT,EQUIP_SLOTS,RARITY_NAMES,equipById,equipStatText,equipTotals,equipIconStyle,type EquipSlot} from './equipment';
@@ -1610,7 +1610,7 @@ const TEST_RANKERS:RankPlayer[]=[
   {nick:'ADM_DOGAN',tag:'KRK',fleet:'Kara Kartallar',level:6,xp:900_000,ep:640_000,sp:9_800,npc:3_300,monster:120,boss:3,treasure:9},
 ];
 function rankData(){const me:RankPlayer={nick:profile.nick,tag:guild?.tag??null,fleet:guild?.name??null,level:state.level,xp:state.fame,ep:state.elitePoints,sp:state.battlePoints,npc:ach.stats.npc,monster:ach.stats.monster,boss:ach.stats.boss,treasure:ach.stats.treasure,me:true};
-  const players=[me,...(ELITE_TEST_MODE?TEST_RANKERS:[])],fleets:RankFleet[]=[];
+  const players=serverRanks?(serverRanks.some(p=>p.me)?serverRanks.map(p=>p.me?{...p,...me}:p):[me,...serverRanks]):[me,...(ELITE_TEST_MODE?TEST_RANKERS:[])],fleets:RankFleet[]=[];
   for(const p of players){if(!p.tag||!p.fleet)continue;let f=fleets.find(x=>x.tag===p.tag);if(!f){f={tag:p.tag,name:p.fleet,members:[]};fleets.push(f);}f.members.push(p);if(p.me)f.me=true;}
   return{players,fleets};}
 // Her sayfada 100 sıra; liste pencere içinde kayar, altta sayfa düğmeleri ve "Sıram" kısayolu
@@ -1625,7 +1625,12 @@ function renderRanks(){const {players,fleets}=rankData(),board=BOARDS.find(b=>b.
   ui('rankPanel').querySelectorAll<HTMLButtonElement>('[data-board]').forEach(b=>b.onclick=()=>{rankBoard=b.dataset.board as BoardId;rankPageNo=0;renderRanks();});
   ui('rankPanel').querySelectorAll<HTMLButtonElement>('[data-page]').forEach(b=>b.onclick=()=>{rankPageNo=Number(b.dataset.page);renderRanks();
     const me=ui('rankTable').querySelector<HTMLElement>('.rank-row.me');if(b.classList.contains('rank-mine')&&me)me.scrollIntoView({block:'center'});else ui('rankTable').scrollTop=0;});}
-function openRanks(){rankPageNo=0;renderRanks();ui('rankOverlay').classList.add('open');}
+// Hesapla oynarken sıralama sunucudaki değerlerden gelir (rank_players); bağlantı yoksa yalnız bu kaptan görünür
+let serverRanks:RankPlayer[]|null=null;
+async function loadServerRanks(){const sb=supa();if(!sb||!session.account)return;const {data,error}=await sb.rpc('rank_players');if(error||!Array.isArray(data))return;
+  serverRanks=(data as (RankPlayer&{me:boolean})[]).map(r=>({nick:r.nick,tag:r.tag,fleet:r.fleet,level:Number(r.level),xp:Number(r.xp),ep:Number(r.ep),sp:Number(r.sp),npc:Number(r.npc),monster:Number(r.monster),boss:Number(r.boss),treasure:Number(r.treasure),me:r.me}));
+  if(ui('rankOverlay').classList.contains('open'))renderRanks();}
+function openRanks(){rankPageNo=0;renderRanks();ui('rankOverlay').classList.add('open');void loadServerRanks();}
 function closeRanks(){ui('rankOverlay').classList.remove('open');}
 // ---------------------------------------------------------------- Kupon kodu
 const redeemedCoupons=loadRedeemed();
@@ -1637,12 +1642,14 @@ session.pearlSyncOff=ELITE_TEST_MODE;
 // ---------------------------------------------------------------- Sunucu ekonomisi
 // Altın, TP, EP, SP, seviye, gülleler, malzemeler, toplar, geliştirmeler, donanım ve elit gemi sunucuda tutulur (010_economy.sql).
 // Oyun her değişimi kazanç (g) ya da harcama (s) olarak biriktirir; eşitlemede sunucu kabul ettiği değerleri döner, fark buraya uygulanır.
+const ECON_STATS=['npc','heavy','monster','boss','chest','treasure','quest','eliteBalls'] as const;
 const ECON_AMMO=['fire','explosive','breaker','leech','heal','mine','powder','shield','speed','compass','spyShield'] as const;
 function econFlat():Record<string,number>{const f:Record<string,number>={gold:state.gold,xp:state.fame,ep:state.elitePoints,sp:state.battlePoints,level:state.level,chain:state.chainAmmo,iron:state.ironAmmo,elite:elitePurchased?1:0};
   for(const c of Object.keys(cannonInventory) as CannonKind[])f['c_'+c]=cannonInventory[c]+mountedCannons[c];
   for(const u of Object.keys(upgrades) as UpgradeKind[])f['u_'+u]=upgrades[u];
   for(const q of EQUIPMENT)f['e_'+q.id]=(equipOwned[q.id]??0)+Object.values(equipped).filter(x=>x===q.id).length;
   for(const a of ECON_AMMO)f['a_'+a]=arsenal[a];
+  f.design=designOwned?1:0;for(const o of Object.keys(OFFICERS) as OfficerId[])f['o_'+o]=crew.officers[o]??0;for(const t of ECON_STATS)f['st_'+t]=ach.stats[t]??0;
   for(const k in f)f[k]=Math.max(0,Math.round(f[k]||0));return f;}
 function econAdjust(k:string,d:number){if(!d)return;
   if(k==='gold')state.gold=Math.max(0,state.gold+d);else if(k==='xp')state.fame=Math.max(0,state.fame+d);else if(k==='ep')state.elitePoints=Math.max(0,state.elitePoints+d);
@@ -1651,13 +1658,21 @@ function econAdjust(k:string,d:number){if(!d)return;
   else if(k.startsWith('c_')){const c=k.slice(2) as CannonKind;if(!(c in cannonInventory))return;if(d>0)cannonInventory[c]+=d;else{const a=Math.min(cannonInventory[c],-d);cannonInventory[c]-=a;mountedCannons[c]=Math.max(0,mountedCannons[c]-(-d-a));}}
   else if(k.startsWith('u_')){const u=k.slice(2) as UpgradeKind;if(u in upgrades){upgrades[u]=Math.max(0,Math.min(10,upgrades[u]+d));if(u==='hull')state.maxHp=baseMaxHp();}}
   else if(k.startsWith('e_')){const id=k.slice(2);let left=(equipOwned[id]??0)+d;if(left<0){for(const sl of Object.keys(equipped) as EquipSlot[])if(left<0&&equipped[sl]===id){equipped[sl]=null;left++;}}equipOwned[id]=Math.max(0,left);}
-  else if(k.startsWith('a_')){const a=k.slice(2) as typeof ECON_AMMO[number];if(a in arsenal)arsenal[a]=Math.max(0,arsenal[a]+d);}}
+  else if(k.startsWith('a_')){const a=k.slice(2) as typeof ECON_AMMO[number];if(a in arsenal)arsenal[a]=Math.max(0,arsenal[a]+d);}
+  else if(k==='design'){designOwned=designOwned?d>-1:d>0;saveDesignOwned();}
+  else if(k.startsWith('o_')){const o=k.slice(2) as OfficerId;if(o in OFFICERS){crew.officers[o]=Math.max(0,Math.min(OFFICER_MAX_RANK,(crew.officers[o]??0)+d));if(!crew.officers[o])crew.active=crew.active.filter(x=>x!==o);saveCrew(crew);bonus=computeBonus(crew);}}
+  else if(k.startsWith('st_')){const t=k.slice(3) as typeof ECON_STATS[number];if(t in ach.stats){ach.stats[t]=Math.max(0,(ach.stats[t]??0)+d);saveAchievements(ach);}}}
 let econOn=false,econLast:Record<string,number>={},econG:Record<string,number>={},econS:Record<string,number>={},pearlLast=state.pearls,pearlG=0,pearlS=0;
 function econTick(){if(!econOn)return;const f=econFlat();for(const k in f){const d=f[k]-(econLast[k]??f[k]);if(d>0)econG[k]=(econG[k]??0)+d;else if(d<0)econS[k]=(econS[k]??0)-d;}econLast=f;
   const dp=state.pearls-pearlLast;if(dp>0)pearlG+=dp;else if(dp<0)pearlS-=dp;pearlLast=state.pearls;}
 function econSettle(){econLast=econFlat();pearlLast=state.pearls;saveAccount();saveArsenal(arsenal);updateUI();renderQuickSlots();}
 if(session.account&&session.econStart&&!ELITE_TEST_MODE){econOn=true;const st=session.econStart.state,cur=econFlat();
-  for(const k in st)econAdjust(k,Math.round(st[k])-(cur[k]??0));state.pearls=session.econStart.pearls;econSettle();setInterval(econTick,250);
+  for(const k in st)econAdjust(k,Math.round(st[k])-(cur[k]??0));state.pearls=session.econStart.pearls;
+  // Başarımlar ve yetenekler sunucudaki değerlerden türetilir: elle eklenen açılmış başarım ya da fazla yetenek puanı silinir
+  ach.unlocked=ach.unlocked.filter(id=>{const d=ACHIEVEMENTS.find(a=>a.id===id);return!!d&&(d.stat==='level'||d.stat==='daily'||ach.stats[d.stat]>=d.goal);});if(!MAIN_COLLECTION.every(id=>ach.unlocked.includes(id)))ach.collectionComplete=false;saveAchievements(ach);achBonusCache=achievementBonus(ach);
+  void loadServerClaims();
+  if(spentPoints(crew)>talentPoints(state.level)){crew.talents={};saveCrew(crew);}crew.active=crew.active.filter(o=>(crew.officers[o]??0)>0).slice(0,officerSlots(state.level));saveCrew(crew);bonus=computeBonus(crew);
+  econSettle();setInterval(econTick,250);
   session.pearlServerAdd=n=>{pearlLast+=n;};
   session.econCollect=()=>{econTick();const items:Record<string,{v:number;g:number;s:number}>={};for(const k in econLast)items[k]={v:econLast[k],g:econG[k]??0,s:econS[k]??0};
     const b={items,pearlG,pearlS,sent:{...econLast},pearlSent:state.pearls};econG={};econS={};pearlG=0;pearlS=0;return b;};
@@ -2307,8 +2322,22 @@ function renderDaily(){
   ui('dailyNote').textContent=st.canClaim?'Bugünün ödülü hazır. Yarın gelmezsen takvim 1. güne döner.':'Bugünün ödülünü aldın. Yarın yeni ödül seni bekliyor.';
   const b=document.getElementById('claimDaily');if(b)b.onclick=claimToday;
 }
-function claimToday(){
-  const st=dailyStatus(daily);if(!st.canClaim)return;const r=dailyReward(st.day,state.level);daily=claimDaily(daily);saveDaily(daily);setAch('daily',daily.streak);
+// Hesapla oynarken günlük ve festival ödülünü sunucu hesaplar ve verir (011_economy_hardening.sql)
+let claimRpc=true;
+async function serverClaim(kind:'daily'|'festival'):Promise<{day:number;reward:BundleReward}|null|undefined>{const sb=supa();if(!sb)return null;
+  const {data,error}=await sb.rpc('economy_claim',{p_kind:kind});if(error?.code==='PGRST202'){claimRpc=false;return undefined;}if(error||!data){const msg=error?.message.replace(/^.*?: /,'')||'Ödül alınamadı';toast(msg);if(/zaten/.test(msg))void loadServerClaims();return null;}
+  const d=data as {day:number;reward:BundleReward};if(d.reward.pearls){session.pearlServerAdd?.(d.reward.pearls);}return d;}
+async function loadServerClaims(){const sb=supa();if(!sb)return;const {data,error}=await sb.rpc('economy_claims_get');if(error?.code==='PGRST202')claimRpc=false;if(error||!data)return;
+  const d=data as {today:string;festivalStart:string|null;claims:{kind:string;day:string;n:number}[]};
+  const last=d.claims.filter(c=>c.kind==='daily').pop();daily=last?{last:last.day===d.today?dayKey(new Date()):last.day,streak:last.n}:{last:null,streak:0};saveDaily(daily);
+  if(d.festivalStart){const f=d.claims.filter(c=>c.kind==='festival'&&c.day>=d.festivalStart!).map(c=>c.n);festival={start:d.festivalStart,claimed:f};saveFestival(festival);}else festival=null;
+  if(ui('dailyOverlay').classList.contains('open'))renderDaily();}
+let claimBusy=false;
+async function claimToday(){
+  const st=dailyStatus(daily);if(!st.canClaim||claimBusy)return;
+  if(econOn&&claimRpc){claimBusy=true;const res=await serverClaim('daily').finally(()=>{claimBusy=false;});if(res===null)return;if(res){daily={last:dayKey(new Date()),streak:res.day};saveDaily(daily);setAch('daily',daily.streak);
+    const eq=giveBundle(res.reward);playCoins();renderDaily();rewardNotice(`Günlük ödül · ${res.day}. gün · ${dailyText(res.reward).map(t=>t.endsWith(' Donanım')&&eq?eq:t).join(' · ')}`);return;}}
+  const r=dailyReward(st.day,state.level);daily=claimDaily(daily);saveDaily(daily);setAch('daily',daily.streak);
   const eq=giveBundle(r);
   playCoins();renderDaily();
   rewardNotice(`Günlük ödül · ${st.day}. gün · ${dailyText(r).map(t=>t.endsWith(' Donanım')&&eq?eq:t).join(' · ')}`);
@@ -2327,8 +2356,10 @@ function renderFestival(){
   box.innerHTML=`<h3>AÇILIŞ FESTİVALİ</h3><div class="daily-grid">${days}</div><p class="daily-note">${note}</p><h3 class="festival-sub">GÜNLÜK ÖDÜL</h3>`;
   const b=document.getElementById('claimFestival');if(b)b.onclick=claimFestivalToday;
 }
-function claimFestivalToday(){
-  if(!festival)return;const r=claimFestival(festival);if(!r)return;saveFestival(festival);
+async function claimFestivalToday(){
+  if(!festival||claimBusy)return;let r:FestivalReward|null;
+  if(econOn&&claimRpc){if(!festivalStatus(festival).canClaim)return;claimBusy=true;const res=await serverClaim('festival').finally(()=>{claimBusy=false;});if(!res)return;festival.claimed.push(res.day);r=res.reward as FestivalReward;}
+  else r=claimFestival(festival);if(!r)return;saveFestival(festival);
   giveBundle(r);playCoins();renderDaily();
   rewardNotice(`Açılış Festivali · ${festival.claimed.length}. ödül · ${festivalText(r).join(' · ')}`);
   if(r.design)toast('PIRATE RAGE özel gemisi senin! Tersane → Özel Gemiler');
