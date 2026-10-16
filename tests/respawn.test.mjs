@@ -36,6 +36,6 @@ for(const [count,index] of [[1,0],[6,5],[6,2]])test(`lethal shot ${index} among 
   assert.equal(c.state.attacking,false);assert.equal(c.player.speed,0);
   assert.equal(c.shots.length,0);assert.equal(c.salvoQueue.length,0);
   assert.equal(c.destination,null);assert.equal(c.routeTarget,null);assert.equal(c.selected,null);
-  assert.equal(c.enemies[0].aggro,false);assert.equal(c.monsters[0].aggro,false);
+  assert.equal(c.enemies[0].aggro,false);
   assert.doesNotThrow(()=>vm.runInContext('tick(.016)',c));
 });

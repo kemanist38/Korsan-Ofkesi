@@ -21,7 +21,7 @@ for(const ammo of [null,'fire']){
 console.log(`\n================ ${ammo?'ATEŞ GÜLLESİ':'DEMİR GÜLLE'} ================`);
 for(let L=1;L<=8;L++){const s=ship(L,ammo),key=`${L}/1`,m=c.MAPS[key];
  console.log(`\n--- Seviye ${L} (${key}) · oyuncu: ${fmt(s.damage)} hasar/salvo, ${s.reload.toFixed(2)} sn, DPS ${fmt(s.damage/s.reload)}, can ${fmt(s.hp)}`);
- const bs=c.bossFor(key),boss={...bs,name:bs.name+' (boss)',damage:bs.damage*1.5};const targets=[...m.npcs.map(id=>c.NPCS[id]),c.MONSTERS[c.MONSTER_OF_TIER[L]],boss].filter(Boolean);
+ const bs=c.bossFor(key),boss={...bs,name:bs.name+' (boss)',damage:bs.damage*1.5};const targets=[...m.npcs.map(id=>c.NPCS[id]),boss].filter(Boolean);
  for(const t of targets){const f=fight(s,t),cycle=f.sec+TRAVEL+(f.taken/(s.hp*s.repair));
   console.log(`${t.name.padEnd(22)} can ${fmt(t.hp).padStart(9)} · vuruş ${fmt(t.damage).padStart(6)}/${t.reload.toFixed(1)}sn · ${String(f.salvos).padStart(3)} salvo ${f.sec.toFixed(0).padStart(3)} sn · alınan %${f.pct.toFixed(0).padStart(3)} · ${fmt(t.xp*3600/cycle).padStart(9)} TP/sa · ${fmt(t.gold*3600/cycle).padStart(8)} altın/sa`);
   if(!ammo){if(f.pct>100)warn.push(`Sev ${L}: ${t.name} oyuncuyu tek çatışmada batırıyor (%${f.pct.toFixed(0)})`);if(f.sec<3&&t.hp>20000)warn.push(`Sev ${L}: ${t.name} çok çabuk ölüyor (${f.sec.toFixed(1)} sn)`);if(f.sec>120)warn.push(`Sev ${L}: ${t.name} çok uzun sürüyor (${f.sec.toFixed(0)} sn)`);}}

@@ -43,10 +43,10 @@ test('actual edge detection uses width for east/west and height for north/south'
   }
 });
 test('NPC HP and XP come from the PvE tables, grow with the sea and give only XP and gold',()=>{
-  const {NPCS,MONSTERS,npcSize}=world,{PVE_HP,PVE_XP}=pve;
+  const {NPCS,npcSize}=world,{PVE_HP,PVE_XP}=pve;
   for(const d of Object.values(NPCS)){const size=['small','medium','large'].indexOf(npcSize(d.id));
     assert.equal(d.hp,PVE_HP[d.tier][size]);assert.equal(d.xp,PVE_XP[d.tier][size]);assert.ok(d.gold>0);}
-  for(const d of [...Object.values(NPCS),...Object.values(MONSTERS)])assert.ok(!('wood' in d)&&!('pearls' in d),`${d.id} gives only XP and gold`);
+  for(const d of Object.values(NPCS))assert.ok(!('wood' in d)&&!('pearls' in d),`${d.id} gives only XP and gold`);
   for(let t=2;t<=8;t++)for(let s=0;s<4;s++){assert.ok(PVE_HP[t][s]>PVE_HP[t-1][s]);assert.ok(PVE_XP[t][s]>PVE_XP[t-1][s]);}
   // 1. deniz NPC canları: küçük 8.000, orta 18.000, büyük 35.000
   assert.equal(NPCS['n1-1-light'].hp,8000);assert.equal(NPCS['n1-1-heavy'].hp,18000);assert.equal(NPCS['n1-2-heavy'].hp,35000);

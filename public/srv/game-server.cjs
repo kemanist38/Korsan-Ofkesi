@@ -3895,22 +3895,6 @@ var NPC_LIST = [
   npc("n8-2-heavy", "Cehennem Kalyonu", "heavy", 8, "/assets/lava-galleon-dir16-v1.webp")
 ];
 var NPCS = Object.fromEntries(NPC_LIST.map((n, i) => [n.id, { ...n, portrait: i }]));
-var mon = (id, name, tier, radius = 54, sprite = "", span = 140, anchorY = 133.4) => {
-  const t = tier - 1, hp = PVE_HP[tier][3], r = { xp: PVE_XP[tier][3], gold: killReward(Math.round(19500 * hpScale(tier)), tier).gold };
-  return { id, name, sprite, span, frame: 256, anchorY, radius, tier, hp, damage: Math.round(1500 * dmgScale(tier) * damageScale(tier)), reload: 2.8 - t * 0.04, gold: r.gold, xp: r.xp };
-};
-var MONSTER_LIST = [
-  { ...mon("m1-2", "Dev Mavi Y\u0131lan", 1, 56), slot: 1 },
-  { ...mon("m2-1", "Pembe Resif Yengeci", 2, 54), slot: 2 },
-  { ...mon("m3-2", "Kadim Orman Leviathan\u0131", 3, 56), slot: 5 },
-  { ...mon("m4-1", "Kemik Bal\u0131\u011F\u0131", 4, 54), slot: 6 },
-  { ...mon("m5-2", "Dev Donmu\u015F Mors", 5, 60), slot: 9 },
-  { ...mon("m6-1", "Elektrik Y\u0131lan\u0131", 6, 54), slot: 10 },
-  { ...mon("m7-2", "U\xE7urum Krakeni", 7, 62), slot: 13 },
-  { ...mon("m8-2", "Alev Leviathan\u0131", 8, 58), slot: 15 }
-];
-var MONSTER_OF_TIER = Object.fromEntries(MONSTER_LIST.map((m) => [m.tier, m.id]));
-var MONSTERS = Object.fromEntries(MONSTER_LIST.map(({ slot, ...m }) => [m.id, { ...m, portrait: NPC_LIST.length + slot }]));
 var PORTRAIT_COUNT = NPC_LIST.length + 16;
 var BOSS_KILLS = 200;
 var BOSS_NAMES = {
@@ -4000,8 +3984,6 @@ function sea(key, name, description, opts) {
     description,
     safe: !!opts.safe,
     npcs: [`n${tier}-${sub}-light`, `n${tier}-${sub}-heavy`, ...tier <= 8 ? [sub === "1" ? `n${tier}-2-heavy` : `n${tier}-1-light`] : []],
-    monster: MONSTER_OF_TIER[tier],
-    monsters: [MONSTER_OF_TIER[tier]],
     npcCount: opts.safe ? 12 : 16,
     heavyShare: opts.heavy ?? 0.3 + tier * 0.03,
     islands: opts.islands.map(([x, y, r, n, v, f]) => I(x, y, r, n, look, v, !!f)),
@@ -4572,9 +4554,9 @@ function noteUse(c, id, now) {
 function killCredit(c, id, now) {
   const map = seaMap(c.sea);
   if (!map || !MAPS[map]) return { err: "deniz" };
-  const m = MAPS[map], npc2 = NPCS[id], mon2 = MONSTERS[id];
-  if (npc2 ? !m.npcs.includes(id) : !(mon2 && m.monsters.includes(id))) return { err: "hedef" };
-  const def = npc2 ?? mon2;
+  const m = MAPS[map], npc2 = NPCS[id];
+  if (!npc2 || !m.npcs.includes(id)) return { err: "hedef" };
+  const def = npc2;
   const rate = dpsCap(c.econ?.level ?? 8);
   c.kb ??= { pool: rate * 30, t: now, miss: 0 };
   const b = c.kb;
@@ -4592,10 +4574,8 @@ function killCredit(c, id, now) {
   b.pool = Math.max(0, b.pool - def.hp);
   b.miss = 0;
   const add = { gold: Math.round(def.gold * KILL_CREDIT_MULT), xp: Math.round(def.xp * KILL_CREDIT_MULT) };
-  if (npc2) {
-    add.st_npc = 1;
-    if (npc2.role === "heavy") add.st_heavy = 1;
-  } else add.st_monster = 1;
+  add.st_npc = 1;
+  if (npc2.role === "heavy") add.st_heavy = 1;
   c.qk ??= {};
   c.qk[id] = (c.qk[id] || 0) + 1;
   const lvl = Math.round(Number(c.econ?.level) || 1);
@@ -4616,7 +4596,7 @@ function questCredit(c, id, now) {
     if ((c.qk[k] || 0) < q.required) return { err: "say\u0131", have: c.qk[k] || 0 };
     c.qk[k] -= q.required;
   }
-  if (q.kind === "npc" || q.kind === "monster") {
+  if (q.kind === "npc") {
     c.qk ??= {};
     const have = q.ids.reduce((a, k) => a + (c.qk[k] || 0), 0);
     if (have < q.required) return { err: "say\u0131", have };
@@ -6067,25 +6047,9 @@ wss.on("connection", (ws) => {
       case "nhit":
         return;
       // oyuncunun bildirdiği hasar kabul edilmez (sunucu atışı ve mayın)
-      case "nkill": {
-        if (NPCS[String(m.d?.id || "")]) return;
-        if (!c.sea || !c.rKill.hit(now)) return;
-        const r = killCredit(c, String(m.d?.id || ""), now);
-        if (r.err) {
-          if (r.err !== "h\u0131z" && r.err !== "mermi" || r.flag) {
-            suspect(c, "bat\u0131rma", `${r.err} ${m.d?.id}`);
-            if (c.kb) c.kb.miss = 0;
-          }
-          return;
-        }
-        addCredit(c, r.add);
-        const map = seaMap(c.sea);
-        if (map && String(m.d?.id) === bossFor(map).trigger) {
-          const b = bossKill(c.sea, BOSS_KILLS, now);
-          if (b) toSea(c, { t: "boss", d: bossInfo(c.sea, b) }, true);
-        }
+      case "nkill":
         return;
-      }
+      // NPC batırmasını sunucu kendisi sayar (npcDeath); oyuncunun bildirdiği batırma kabul edilmez
       case "salvo": {
         if (!c.rSalvo.hit(now)) {
           suspect(c, "salvo h\u0131z\u0131");

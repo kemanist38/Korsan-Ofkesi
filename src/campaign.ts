@@ -91,24 +91,6 @@ const NPC_LIST:Omit<NpcDef,'portrait'>[]=[
 export const NPCS:Record<string,NpcDef>=Object.fromEntries(NPC_LIST.map((n,i)=>[n.id,{...n,portrait:i}]));
 
 // ---------------------------------------------------------------- Canavarlar
-export type MonsterDef={id:string;name:string;sprite:string;span:number;frame:number;anchorY:number;radius:number;tier:number;hp:number;damage:number;reload:number;gold:number;xp:number;portrait:number};
-// Canavar, aynı denizin ağır NPC'sinden yaklaşık 2,2 kat daha dayanıklıdır (Seafight'ta canavarlar ağır NPC'lerin 1,5–2 katı).
-const mon=(id:string,name:string,tier:number,radius=54,sprite='',span=140,anchorY=133.4):Omit<MonsterDef,'portrait'>=>{const t=tier-1,hp=PVE_HP[tier][3],r={xp:PVE_XP[tier][3],gold:killReward(Math.round(19500*hpScale(tier)),tier).gold};
-  return{id,name,sprite,span,frame:256,anchorY,radius,tier,hp,damage:Math.round(1500*dmgScale(tier)*damageScale(tier)),reload:2.8-t*.04,gold:r.gold,xp:r.xp};};
-// Canavarlar oyundan kaldırıldı (görselleri silindi). Tanımlar yalnızca eski kayıt/sıralama alanları ve portre sıraları için duruyor.
-const MONSTER_LIST:(Omit<MonsterDef,'portrait'>&{slot:number})[]=[
-  {...mon('m1-2','Dev Mavi Yılan',1,56),slot:1},
-  {...mon('m2-1','Pembe Resif Yengeci',2,54),slot:2},
-  {...mon('m3-2','Kadim Orman Leviathanı',3,56),slot:5},
-  {...mon('m4-1','Kemik Balığı',4,54),slot:6},
-  {...mon('m5-2','Dev Donmuş Mors',5,60),slot:9},
-  {...mon('m6-1','Elektrik Yılanı',6,54),slot:10},
-  {...mon('m7-2','Uçurum Krakeni',7,62),slot:13},
-  {...mon('m8-2','Alev Leviathanı',8,58),slot:15},
-];
-/** Seviye başına haritada kalan canavar. */
-export const MONSTER_OF_TIER:Record<number,string>=Object.fromEntries(MONSTER_LIST.map(m=>[m.tier,m.id]));
-export const MONSTERS:Record<string,MonsterDef>=Object.fromEntries(MONSTER_LIST.map(({slot,...m})=>[m.id,{...m,portrait:NPC_LIST.length+slot}]));
 // Portre atlasının son karesi (eski Hayalet Amiral) şimdilik kullanılmıyor; yeni boss eklenince kullanılabilir.
 // Atlas 16 canavar karesiyle üretildi; kaldırılan canavarların kareleri boş kalır.
 export const PORTRAIT_COUNT=NPC_LIST.length+16;
@@ -162,11 +144,11 @@ export {fleetTowerStats as fleetTower} from './fleetBalance';
 export const fleetReward=(tier:number)=>({gold:300*tier,xp:Math.round(500*Math.pow(tier,1.2))});
 
 // ---------------------------------------------------------------- Denizler
-export type MapDef={key:MapKey;tier:number;name:string;description:string;safe:boolean;npcs:string[];monster:string;monsters:string[];npcCount:number;heavyShare:number;islands:WorldIsland[];fleet:{x:number;y:number;name:string};labels:{text:string;x:number;y:number}[];spawn:{x:number;y:number}};
+export type MapDef={key:MapKey;tier:number;name:string;description:string;safe:boolean;npcs:string[];npcCount:number;heavyShare:number;islands:WorldIsland[];fleet:{x:number;y:number;name:string};labels:{text:string;x:number;y:number}[];spawn:{x:number;y:number}};
 const I=(x:number,y:number,r:number,name:string,look:IslandLook,variant:0|1|2|3|4|5,flip=false):WorldIsland=>({x,y,r,name,look,variant,flip});
 function sea(key:MapKey,name:string,description:string,opts:{islands:[number,number,number,string,0|1,boolean?][];fleet:[number,number,string];labels?:[string,number,number][];safe?:boolean;look?:IslandLook;count?:number;heavy?:number}):MapDef{
   const tier=tierOf(key),look=opts.look??THEMES[tier].look,sub=key.split('/')[1];
-  return{key,tier,name,description,safe:!!opts.safe,npcs:[`n${tier}-${sub}-light`,`n${tier}-${sub}-heavy`,...(tier<=8?[sub==='1'?`n${tier}-2-heavy`:`n${tier}-1-light`]:[])],monster:MONSTER_OF_TIER[tier],monsters:[MONSTER_OF_TIER[tier]],npcCount:opts.safe?12:16,heavyShare:opts.heavy??(.3+tier*.03),
+  return{key,tier,name,description,safe:!!opts.safe,npcs:[`n${tier}-${sub}-light`,`n${tier}-${sub}-heavy`,...(tier<=8?[sub==='1'?`n${tier}-2-heavy`:`n${tier}-1-light`]:[])],npcCount:opts.safe?12:16,heavyShare:opts.heavy??(.3+tier*.03),
     islands:opts.islands.map(([x,y,r,n,v,f])=>I(x,y,r,n,look,v,!!f)),fleet:{x:opts.fleet[0],y:opts.fleet[1],name:opts.fleet[2]},labels:(opts.labels??[]).map(([text,x,y])=>({text,x,y})),spawn:{x:opts.fleet[0],y:opts.fleet[1]+530}};
 }
 export const MAPS:Record<MapKey,MapDef>={
@@ -230,7 +212,7 @@ for(const key of MAP_KEYS){
 // Görevler haritaya özeldir: her haritanın 4 görevi o haritanın NPC ve canavarlarıyla yapılır.
 // Oyuncu hangi haritadaysa (kendi seviyesine kadar her harita açık) o haritanın görevlerini alır.
 // Ek görev TP ödülü, batırmaların normal ödülünün yarısıdır; böylece harita seviyesi arttıkça ödül de artar. İnci ödülü seviyeyle büyür.
-export type QuestDef={id:string;map:MapKey;tier:number;title:string;description:string;kind:'npc'|'monster'|'chest'|'sparkle';ids:string[];required:number;gold:number;xp:number;pearls:number};
+export type QuestDef={id:string;map:MapKey;tier:number;title:string;description:string;kind:'npc'|'chest'|'sparkle';ids:string[];required:number;gold:number;xp:number;pearls:number};
 export const QUEST_BONUS=.5;
 export const QUESTS:QuestDef[]=MAP_KEYS.flatMap(key=>{
   const m=MAPS[key],t=m.tier,L=NPCS[m.npcs[0]],H=NPCS[m.npcs[1]],pay=(n:number,u:{gold:number;xp:number},k=QUEST_BONUS)=>({gold:Math.round(n*u.gold*k),xp:Math.round(n*u.xp*k)});
