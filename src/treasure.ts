@@ -1,5 +1,5 @@
-// Hazine avı: denizde sürüklenen sandıklardan hazine haritası parçası düşer. 4 parça birleşince harita, oyuncunun
-// açabildiği denizlerden birinde bir koordinat gösterir (ör. "4/1 · 22BK"). Oraya gidip KAZ'a basınca 3 saniyelik kazıdan
+// Hazine avı: denizde sürüklenen sandıklardan hazine haritası parçası düşer. 4 parça birleşince harita, son parçanın
+// bulunduğu denizde bir koordinat gösterir (ör. "4/1 · 22BK"). Oraya gidip KAZ'a basınca 3 saniyelik kazıdan
 // sonra hazine çıkar: altın, inci, özel gülle, kara barut ve kalkan.
 import type {MapKey} from './campaign';
 export const TREASURE_PARTS=4,PART_CHANCE=.15,DIG_RADIUS=70,DIG_SECONDS=3;
