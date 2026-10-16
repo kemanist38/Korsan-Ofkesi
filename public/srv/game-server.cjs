@@ -3694,8 +3694,8 @@ var import_websocket_server = __toESM(require_websocket_server(), 1);
 var BOSS_HP = [0, 165e3, 41e4, 98e4, 22e5, 3e6, 45e5, 58e5, 63e5];
 
 // src/fleetBalance.ts
-var PLAYER_LEVEL_HP = [0, 9e4, 18e4, 38e4, 9e5, 115e4, 13e5, 155e4, 175e4];
-var HULL_HP = 25e3;
+var PLAYER_LEVEL_HP = [0, 54e3, 108e3, 228e3, 54e4, 69e4, 78e4, 93e4, 105e4];
+var HULL_HP = 15e3;
 var playerBaseHp = (level, hull) => PLAYER_LEVEL_HP[Math.max(1, Math.min(8, Math.round(level)))] + hull * HULL_HP;
 var REF_HULL = [0, 0, 1, 2, 4, 6, 8, 10, 10];
 var damageScale = (tier) => {

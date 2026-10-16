@@ -80,7 +80,7 @@ const CANNONS:Record<CannonKind,{name:string;damage:number;range:number;reload:n
   heavy:{name:'Ağır',damage:1.38,range:365,reload:2.65}
 };
 const UPGRADES:Record<UpgradeKind,{name:string;description:string;effect:string;pearls:number}>={
-  hull:{name:'Güçlendirilmiş Gövde',description:'Geminin azami gövde dayanıklılığını artırır.',effect:'+25.000 gövde · top kapasitesi sabit',pearls:8},
+  hull:{name:'Güçlendirilmiş Gövde',description:'Geminin azami gövde dayanıklılığını artırır.',effect:'+15.000 gövde · top kapasitesi sabit',pearls:8},
   damage:{name:'Top Güvertesi',description:'Her borda atışının verdiği hasarı artırır.',effect:'+%11 hasar',pearls:10},
   range:{name:'Uzun Namlular',description:'Tüm top türlerinin etkili menzilini artırır.',effect:'+18 menzil',pearls:9},
   reload:{name:'Tecrübeli Topçular',description:'Topların yeniden dolma süresini azaltır.',effect:'-%4 dolum',pearls:12},
@@ -281,7 +281,7 @@ const earnedEliteLevel=()=>ELITE_TEST_MODE?15:elitePurchased?eliteLevelFromEp(st
 const eliteBonus=()=>cumulativeEliteBonus(earnedEliteLevel());
 // Elit ilerlemesi tasarımdan bağımsızdır; kaptan ve gövde seviyesi +2.500 can verir.
 const baseMaxHp=()=>playerBaseHp(state.level,upgrades.hull);
-// Oyuncu–oyuncu savaşında bu geminin hasar bütçesi (en az 30 sn'de batırılabilir)
+// Oyuncu–oyuncu savaşında bu geminin hasar bütçesi (en az 20 sn'de batırılabilir)
 const playerPvp:PvpBudget={pool:Infinity,t:0};
 const effectiveMaxHp=()=>Math.round(state.maxHp*(1+equipBonus().hp+achBonus().hp+eliteBonus().hp));
 if(!Number.isFinite(state.hp)||state.hp>effectiveMaxHp())state.hp=effectiveMaxHp();
