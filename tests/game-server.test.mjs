@@ -229,3 +229,11 @@ test('savaş puanı sunucudan: aynı rakipten günde 3, kendini batırmak yok',(
   assert.ok(S.spCredit(k,'v2',now+6).sp>0);// başka rakip
   assert.ok(S.spCredit(k,'v1',now+86_400_000).sp>0);// ertesi gün
 });
+test('karaya çıkma: ada içindeki konum reddedilir, kıyıdaki ve açık deniz kabul',async()=>{
+  const {loadTs}=await import('./load.mjs');const {MAPS}=await loadTs('campaign.ts');
+  let n=0;for(const key of Object.keys(MAPS)){for(const is of MAPS[key].islands){n++;
+    assert.ok(S.onLand(key,is.x,is.y),`${key} ${is.name} merkezi kara`);
+    assert.equal(S.onLand(key,is.x+is.r*.72+28,is.y),null);// tam kıyı çizgisi (oyunun ittiği yer) serbest
+  }}
+  assert.ok(n>10);assert.equal(S.onLand('9/9',0,0),null);
+});

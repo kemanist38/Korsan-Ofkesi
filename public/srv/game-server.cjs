@@ -3667,6 +3667,7 @@ __export(game_server_exports, {
   PVP_RANGE: () => PVP_RANGE,
   RUIN_MS: () => RUIN_MS,
   Rate: () => Rate,
+  SHORE_SLACK: () => SHORE_SLACK,
   SIEGE_HIT_CAP: () => SIEGE_HIT_CAP,
   SIEGE_PIECES: () => SIEGE_PIECES,
   SIEGE_ROOM: () => SIEGE_ROOM,
@@ -3711,6 +3712,7 @@ __export(game_server_exports, {
   npcInfo: () => npcInfo,
   npcMove: () => npcMove,
   npcSpawn: () => npcSpawn,
+  onLand: () => onLand,
   osbMatch: () => osbMatch,
   parseForm: () => parseForm,
   parseOsb: () => parseOsb,
@@ -4269,6 +4271,15 @@ function checkState(prev, s, now) {
     if (d / dt > LIMITS.maxSpeed * 1.6 + 200) return "speed";
   }
   return "ok";
+}
+var SHORE_SLACK = 25;
+function onLand(map, x, y) {
+  const m = MAPS[map];
+  if (!m) return null;
+  for (const is of m.islands) {
+    if (Math.hypot(x - is.x, y - is.y) < is.r * 0.72 + 28 - SHORE_SLACK) return is.name;
+  }
+  return null;
 }
 function checkFire(f) {
   if (!f || !num(f.damage) || !num(f.x) || !num(f.y) || typeof f.to !== "string") return "bad";
@@ -5525,6 +5536,15 @@ wss.on("connection", (ws) => {
           if (c.last) send(c, { t: "pos", d: { x: c.last.x, y: c.last.y } });
           return;
         }
+        {
+          const land = onLand(seaMap(c.sea), s.x, s.y);
+          if (land) {
+            c.landHits = (c.landHits || 0) + 1;
+            if (c.landHits % 10 === 1) suspect(c, "karaya \xE7\u0131kma", land);
+            if (c.last) send(c, { t: "pos", d: { x: c.last.x, y: c.last.y } });
+            return;
+          }
+        }
         if (num(s.maxHp)) {
           const cap = hpCap(c.econ);
           if (s.maxHp > cap * 1.02) {
@@ -5859,6 +5879,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   PVP_RANGE,
   RUIN_MS,
   Rate,
+  SHORE_SLACK,
   SIEGE_HIT_CAP,
   SIEGE_PIECES,
   SIEGE_ROOM,
@@ -5903,6 +5924,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   npcInfo,
   npcMove,
   npcSpawn,
+  onLand,
   osbMatch,
   parseForm,
   parseOsb,

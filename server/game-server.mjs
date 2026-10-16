@@ -83,6 +83,9 @@ export function checkState(prev,s,now){
     if(d/dt>LIMITS.maxSpeed*1.6+200)return'speed';}
   return'ok';
 }
+// Karaya çıkma: denizin adalarının kıyı çizgisinin (oyundaki gibi yarıçap×0,72+28) 25 birim içine giren konum kabul edilmez
+export const SHORE_SLACK=25;
+export function onLand(map,x,y){const m=MAPS[map];if(!m)return null;for(const is of m.islands){if(Math.hypot(x-is.x,y-is.y)<is.r*.72+28-SHORE_SLACK)return is.name;}return null;}
 export function checkFire(f){if(!f||!num(f.damage)||!num(f.x)||!num(f.y)||typeof f.to!=='string')return'bad';if(f.damage<0||f.damage>LIMITS.maxHit)return'damage';return'ok';}
 // ---------------------------------------------------------------- PvP denetimi (saf fonksiyonlar, testli)
 // Can sınırı: sunucudaki seviye ve gövde geliştirmesinden; donanım, elit gemi ve madalya bonusları için ×1,8 pay
@@ -504,6 +507,7 @@ wss.on('connection',ws=>{
         const isle=islands.get(islandOfSea(name));if(isle)send(c,{t:'isle',d:islandInfo(isle)});
         if(name===SIEGE_ROOM){const r=siegeJoin(c.uid,c.nick,now);if(r)send(c,{t:'sstate',d:siegeInfo(r,c.uid)});}return;}
       case'state':{if(!c.sea||!c.rState.hit(now))return;const s=m.d;let v=checkState(c.last,s,now);if(v==='bad')return;if(v==='speed'&&s.tp&&now-(c.tpAt||0)>8000){c.tpAt=now;v='ok';}delete s.tp;if(v==='bad')return;if(v==='speed'){suspect(c,'hız',`${Math.round(s.x)},${Math.round(s.y)}`);if(c.last)send(c,{t:'pos',d:{x:c.last.x,y:c.last.y}});return;}
+        {const land=onLand(seaMap(c.sea),s.x,s.y);if(land){c.landHits=(c.landHits||0)+1;if(c.landHits%10===1)suspect(c,'karaya çıkma',land);if(c.last)send(c,{t:'pos',d:{x:c.last.x,y:c.last.y}});return;}}
         if(num(s.maxHp)){const cap=hpCap(c.econ);if(s.maxHp>cap*1.02){suspect(c,'can sınırı',`${Math.round(s.maxHp)}>${cap}`);s.maxHp=cap;}c.maxHp=s.maxHp;}
         if(c.maxHp&&s.hp>c.maxHp)s.hp=c.maxHp;noteHp(c,s.hp,now);
         c.last={x:s.x,y:s.y,at:now};s.id=c.netId;queueState(c,s);return;}
