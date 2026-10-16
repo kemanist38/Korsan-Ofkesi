@@ -4109,7 +4109,7 @@ var eliteLevelFromEp = (ep) => {
   return l;
 };
 var MINE = { armSeconds: 1, triggerRadius: 46, blastRadius: 95, baseDamage: 4e3, damagePerLevel: 400, maxActive: 5, icon: "/assets/icon-mine-v2.webp" };
-var IRON_EP_PER_BALL = 0.1;
+var IRON_EP_PER_BALL = 0.2;
 var ELITE_POINTS_PER_BALL = { chain: 1, fire: 1, breaker: 1, explosive: 2, leech: 2, heal: 2 };
 
 // src/rage.ts
