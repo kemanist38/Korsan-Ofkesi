@@ -3671,6 +3671,8 @@ __export(game_server_exports, {
   buildBatch: () => buildBatch,
   checkFire: () => checkFire,
   checkState: () => checkState,
+  dpsCap: () => dpsCap,
+  dpsTake: () => dpsTake,
   godCheck: () => godCheck,
   guildOf: () => guildOf,
   hpCap: () => hpCap,
@@ -3901,6 +3903,21 @@ function pvpReset(t) {
     t.pvp.hp = null;
     t.pvp.from.clear();
   }
+}
+function dpsCap(level) {
+  const l = Math.max(1, Math.min(8, Math.round(Number(level) || 1)));
+  return BOSS_HP[l] / 40;
+}
+function dpsTake(c, dmg, now) {
+  const rate = dpsCap(c.econ?.level ?? 8);
+  c.dps ??= { pool: rate * 3, t: now, over: 0 };
+  const d = c.dps;
+  d.pool = Math.min(rate * 3, d.pool + Math.max(0, now - d.t) / 1e3 * rate);
+  d.t = now;
+  const ok = Math.max(0, Math.min(dmg, d.pool));
+  d.pool -= ok;
+  d.over = dmg > ok ? d.over + (dmg - ok) : Math.max(0, d.over - ok);
+  return { ok, flag: d.over > rate * 6 };
 }
 var Rate = class {
   constructor(perWindow, windowMs) {
@@ -4172,9 +4189,19 @@ function islandTick(now) {
   }
 }
 async function onTowerHit(c, m, now) {
-  const key = islandOfSea(c.sea), d = m.d || {}, slot = Number(d.slot), dmg = Number(d.dmg), heal = !!d.heal;
+  const key = islandOfSea(c.sea), d = m.d || {}, slot = Number(d.slot), heal = !!d.heal;
+  let dmg = Number(d.dmg);
   if (!key || !Number.isInteger(slot) || slot < 0 || slot >= TOWER_SLOTS || !num(dmg) || dmg <= 0) return;
   if (!heal && dmg > TOWER_HIT_CAP) suspect(c, "kule hasar\u0131", String(dmg));
+  if (!heal) {
+    const t = dpsTake(c, dmg, now);
+    if (t.flag) {
+      suspect(c, "saniyelik hasar", "kule");
+      c.dps.over = 0;
+    }
+    dmg = t.ok;
+    if (dmg <= 0) return;
+  }
   const r = towerHit(key, slot, c.guildId, dmg, heal, now);
   if (!r?.destroyed) return;
   const i = islands.get(key);
@@ -4464,9 +4491,18 @@ wss.on("connection", (ws) => {
       case "state": {
         if (!c.sea || !c.rState.hit(now)) return;
         const s = m.d;
-        const v = checkState(c.last, s, now);
+        let v = checkState(c.last, s, now);
+        if (v === "speed" && s.tp && now - (c.tpAt || 0) > 8e3) {
+          c.tpAt = now;
+          v = "ok";
+        }
+        delete s.tp;
         if (v === "bad") return;
-        if (v === "speed") suspect(c, "h\u0131z", `${Math.round(s.x)},${Math.round(s.y)}`);
+        if (v === "speed") {
+          suspect(c, "h\u0131z", `${Math.round(s.x)},${Math.round(s.y)}`);
+          if (c.last) send(c, { t: "pos", d: { x: c.last.x, y: c.last.y } });
+          return;
+        }
         if (num(s.maxHp)) {
           const cap = hpCap(c.econ);
           if (s.maxHp > cap * 1.02) {
@@ -4543,9 +4579,18 @@ wss.on("connection", (ws) => {
       }
       case "bhit": {
         if (!c.sea || !c.rBoss.hit(now)) return;
-        const dmg = Number(m.d?.dmg);
+        let dmg = Number(m.d?.dmg);
         if (!num(dmg) || dmg <= 0) return;
         if (dmg > BOSS_HIT_CAP) suspect(c, "boss hasar\u0131", String(dmg));
+        {
+          const t = dpsTake(c, dmg, now);
+          if (t.flag) {
+            suspect(c, "saniyelik hasar", "boss");
+            c.dps.over = 0;
+          }
+          dmg = t.ok;
+          if (dmg <= 0) return;
+        }
         const r = bossHit(c.sea, c.uid, dmg);
         if (!r) return;
         const room = seas.get(c.sea);
@@ -4555,9 +4600,18 @@ wss.on("connection", (ws) => {
       }
       case "shit": {
         if (c.sea !== SIEGE_ROOM || !c.rTower.hit(now)) return;
-        const dmg = Number(m.d?.dmg);
+        let dmg = Number(m.d?.dmg);
         if (!num(dmg) || dmg <= 0) return;
         if (dmg > SIEGE_HIT_CAP) suspect(c, "ku\u015Fatma hasar\u0131", String(dmg));
+        {
+          const t = dpsTake(c, dmg, now);
+          if (t.flag) {
+            suspect(c, "saniyelik hasar", "ku\u015Fatma");
+            c.dps.over = 0;
+          }
+          dmg = t.ok;
+          if (dmg <= 0) return;
+        }
         const r = siegeHitPiece(c.uid, c.nick, Number(m.d?.i), dmg);
         if (!r?.down && r?.down !== 0) return;
         toSea(c, { t: "sdown", d: { i: r.down } }, true);
@@ -4664,6 +4718,8 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   buildBatch,
   checkFire,
   checkState,
+  dpsCap,
+  dpsTake,
   godCheck,
   guildOf,
   hpCap,

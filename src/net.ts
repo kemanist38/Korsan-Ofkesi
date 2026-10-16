@@ -8,7 +8,7 @@ const GAME_WS='wss://game.piraterage.com/ws';
 
 // Kalabalık haritada trafik az olsun diye kimlik bilgileri (nick, tag, gemi, can üst sınırı, rütbe) yalnızca ara sıra gelen tam
 // mesajda bulunur; sık gelen kısa mesaj sadece konum/yön/can taşır.
-export type NetState={id:string;nick?:string;tag?:string|null;ship?:string;x:number;y:number;east:boolean;north:boolean;hp:number;maxHp?:number;sp?:number;level?:number;t:number;vx?:number;vy?:number;d16?:number};
+export type NetState={tp?:number;id:string;nick?:string;tag?:string|null;ship?:string;x:number;y:number;east:boolean;north:boolean;hp:number;maxHp?:number;sp?:number;level?:number;t:number;vx?:number;vy?:number;d16?:number};
 export type NetFire={from:string;to:string;x:number;y:number;tx:number;ty:number;damage:number;ammo:string};
 export type NetSunk={victim:string;by:string;victimNick:string;byNick:string};
 export type NetChat={nick:string;text:string;at:number};
@@ -22,7 +22,7 @@ export type NetIsland={key:string;guild:number;tag:string;towers:([number,number
 // Ortak kuşatma: tam durum, can güncellemesi, yıkılan parça, sıralama ve sonuç
 export type NetSiege={id:string;end:number;n:number;hp:number[];max:number[];result:'won'|'lost'|null;top:[string,number][];mine:number};
 export type NetSiegeEnd={won:boolean;n:number;top:[string,number][];mine:number;share:number};
-export type NetHandlers={forceSink?:(d:{by:string;byNick:string})=>void;siegeState?:(s:NetSiege)=>void;siegeHp?:(l:[number,number,number][])=>void;siegeDown?:(i:number)=>void;siegeRank?:(d:{n:number;top:[string,number][];mine:number})=>void;siegeEnd?:(d:NetSiegeEnd)=>void;island?:(i:NetIsland)=>void;towerHp?:(key:string,s:[number,number][])=>void;towerDown?:(key:string,slot:number,by:string)=>void;
+export type NetHandlers={pos?:(p:{x:number;y:number})=>void;forceSink?:(d:{by:string;byNick:string})=>void;siegeState?:(s:NetSiege)=>void;siegeHp?:(l:[number,number,number][])=>void;siegeDown?:(i:number)=>void;siegeRank?:(d:{n:number;top:[string,number][];mine:number})=>void;siegeEnd?:(d:NetSiegeEnd)=>void;island?:(i:NetIsland)=>void;towerHp?:(key:string,s:[number,number][])=>void;towerDown?:(key:string,slot:number,by:string)=>void;
   islandCaptured?:(d:{key:string;tag:string;by:string;nick:string})=>void;islandAlert?:(key:string)=>void;boss?:(b:NetBoss)=>void;bossHp?:(id:string,hp:number)=>void;bossDown?:(d:NetBossDown)=>void;bossGone?:(id:string)=>void;state:(s:NetState)=>void;leave:(id:string)=>void;fire:(f:NetFire)=>void;sunk:(s:NetSunk)=>void;chat:(c:NetChat)=>void;bid?:(b:NetBid)=>void;bidAsk?:(hour:number)=>void;bidKnown?:(bids:NetBid[])=>void};
 
 const ID_KEY='yedi-deniz-net-id';
@@ -51,6 +51,7 @@ async function connectWs(){const sb=supa();if(!sb||!session.account){netStatus='
       case'leave':handlers?.leave(String(m.id));break;
       case'fire':handlers?.fire(m.d as NetFire);break;
       case'sunk':handlers?.sunk(m.d as NetSunk);break;
+      case'pos':handlers?.pos?.(m.d as {x:number;y:number});break;
       case'forceSink':handlers?.forceSink?.(m.d as {by:string;byNick:string});break;
       case'chat':handlers?.chat(m.d as NetChat);break;
       case'boss':handlers?.boss?.(m.d as NetBoss);break;
