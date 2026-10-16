@@ -508,3 +508,5 @@ html.touch .info-strip{gap:10px}
 @keyframes logoutPulse{50%{color:#fff}}
 /* Sunucu bağlantısı uyarısı */
 .net-warn{position:fixed;left:50%;top:96px;z-index:80;transform:translateX(-50%);padding:8px 16px;border:1px solid #d9763f;border-radius:8px;background:#2a120ccc;color:#ffd7b0;font:700 13px Inter,sans-serif;box-shadow:0 4px 14px #000a;pointer-events:none}
+/* Uzun can yazısı (milyonlar) sığsın diye küçülür */
+.top-status .status-line b.long,.status-line b#hpHudText.long{font-size:10.5px;letter-spacing:-.03em}
