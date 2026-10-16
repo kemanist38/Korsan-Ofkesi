@@ -582,7 +582,7 @@ const netHandlers:NetHandlers={
     if(k.by===myNetId){gainRage(rage,RAGE_PER_RIVAL);const sp=claimRivalSp(rivalLog,k.victimNick)?gainSp(RIVAL_SP*spMult()):0;sinkNotice(k.victimNick,sp);rivalSinks++;saveRivalSinks(rivalSinks);saveAccount();}
     else if(k.victim!==myNetId)rewardNotice(`${k.byNick}, ${k.victimNick} kaptanını batırdı`,'battle');},
   spy:r=>onSpyReport(r),
-  npcList:l=>onNpcList(l),npcSpawn:n=>{if(!netNpcs()||npcById(n.id))return;const e=npcFromNet(n);if(e)enemies.push(e);},npcPos:d=>onNpcPos(d),npcShare:d=>{const e=npcById(d.id);if(e)e.share=d.share;},npcDie:id=>onNpcDie(id),
+  npcList:l=>onNpcList(l),npcSpawn:n=>{if(!netNpcs()||npcById(n.id))return;const e=npcFromNet(n);if(e)enemies.push(e);},npcPos:d=>onNpcPos(d),mine:d=>{if(d.by!==myNetId)mines.push({x:d.x,y:d.y,life:ABILITIES.mine.duration,arm:MINE.armSeconds});},mboom:d=>onMineBoom(d.x,d.y),mhit:d=>{if(state.invulnerable>0)return;shots.push({x:player.x,y:player.y,vx:0,vy:0,life:.1,owner:'enemy',damage:d.dmg,hit:false,ammo:'iron',noHome:true});},npcShare:d=>{const e=npcById(d.id);if(e)e.share=d.share;},npcDie:id=>onNpcDie(id),
   chestReward:r=>applyLoot(r,r.kind==='gilded'?'Yaldızlı sandık':'Ahşap sandık'),
   sparkleReward:r=>applyLoot(r,'Pırıltı'),
   treasure:t=>onTreasureState(t),
@@ -611,7 +611,7 @@ function netTick(dt:number){joinSea(siege?(sharedBosses()?'siege':null):currentM
   const msg:NetState={id:myNetId,x:Math.round(player.x),y:Math.round(player.y),east:f.east,north:f.north,hp,t:Date.now(),vx:Math.round(netVel.x),vy:Math.round(netVel.y),d16};
   if(netFullClock<=0||ident!==netIdent){netFullClock=2;netIdent=ident;Object.assign(msg,{nick:profile.nick,tag:guild?.tag??null,ship,maxHp:effectiveMaxHp(),sp:state.battlePoints,level:state.level});}
   // Donanım: değişince ya da 10 sn'de bir sunucuya (atış hasarını sunucu bununla hesaplar)
-  {const ld={mt:mountedCannons,type:state.cannonType,eq:equipped,act:crew.active,hero:!!heroTitle,ach:!!ach.collectionComplete},k=JSON.stringify(ld);ldClock-=1;if(k!==ldKey||ldClock<=0){ldKey=k;ldClock=30;sendLoadout(ld);}}
+  {const ld={mt:mountedCannons,type:state.cannonType,eq:equipped,act:crew.active,hero:!!heroTitle,ach:!!ach.collectionComplete,tal:crew.talents},k=JSON.stringify(ld);ldClock-=1;if(k!==ldKey||ldClock<=0){ldKey=k;ldClock=30;sendLoadout(ld);}}
   // Yeniden doğma, liman ya da harita geçişi gibi ani konum değişimi: sunucuya ışınlanma olarak bildirilir
   if(Math.hypot(player.x-netSent.x,player.y-netSent.y)>700)msg.tp=1;netSent.x=player.x;netSent.y=player.y;
   sendState(msg);
@@ -786,7 +786,7 @@ function defeatBoss(e:Enemy){
 // Sunucu NPC'leri: yerel kopyada verilen hasar (salvo, yanma, mayın) biriktirilip 0,25 sn'de bir gönderilir; can ve batış sunucudan
 const netNpcs=()=>!!session.account&&!siege;
 let npcHitClock=0;const npcHitPending=new Map<string,number>();
-function npcNetTick(dt:number){if(!netNpcs())return;for(const e of enemies){if(!e.net)continue;if(e.lastHp!==undefined&&e.hp<e.lastHp)npcHitPending.set(e.net.id,(npcHitPending.get(e.net.id)??0)+e.lastHp-e.hp);e.lastHp=e.hp;}
+function npcNetTick(dt:number){if(!netNpcs()||session.account){npcHitPending.clear();return;}for(const e of enemies){if(!e.net)continue;if(e.lastHp!==undefined&&e.hp<e.lastHp)npcHitPending.set(e.net.id,(npcHitPending.get(e.net.id)??0)+e.lastHp-e.hp);e.lastHp=e.hp;}
   npcHitClock-=dt;if(npcHitClock<=0&&npcHitPending.size){npcHitClock=.25;sendNpcHits([...npcHitPending].map(([id,d])=>[id,Math.round(d)]));npcHitPending.clear();}}
 function npcFromNet(n:NetNpc):Enemy|null{const def=NPCS[n.d];if(!def)return null;const e=makeShip(def,n.x,n.y,Math.random()*Math.PI*2);e.net={id:n.id,tx:n.x,ty:n.y};e.hp=n.hp;e.maxHp=n.max;e.lastHp=n.hp;e.homeX=n.x;e.homeY=n.y;return e;}
 const npcById=(id:string)=>enemies.find(e=>e.net?.id===id);
@@ -800,13 +800,13 @@ function onNpcPos(d:{p:[string,number,number][];h:[string,number][];f?:[string,s
 function onNpcDie(id:string){const e=npcById(id);if(!e)return;e.serverDown=true;e.hp=0;e.lastHp=0;npcHitPending.delete(id);sinkEnemy(e);}
 // Paylaşılan boss: yerel kopyada verilen hasar biriktirilip sunucuya gönderilir; can sunucudan gelir, batışı sunucu bildirir
 let bossHitPending=0,bossHitClock=0;
-function sharedBossTick(dt:number){const e=activeBoss();if(!e?.shared){bossHitPending=0;return;}
+function sharedBossTick(dt:number){const e=activeBoss();if(!e?.shared||session.account){bossHitPending=0;return;}
   if(e.lastHp!==undefined&&e.hp<e.lastHp)bossHitPending+=e.lastHp-e.hp;e.lastHp=e.hp;
   bossHitClock-=dt;if(bossHitClock<=0&&bossHitPending>0){bossHitClock=.3;const d=Math.min(80000,bossHitPending);bossHitPending-=d;sendBossHit(d);}}
 const seaKey=()=>`sea-${currentMap.replace('/','-')}`;
 // Paylaşılan ada kuleleri: yerelde verilen hasar kaide kaide biriktirilip sunucuya gönderilir
 const towerPending=new Map<number,number>();let towerSendClock=0;
-function sharedTowerTick(dt:number){if(siege||!netIsland(currentMap)){towerPending.clear();return;}
+function sharedTowerTick(dt:number){if(siege||!netIsland(currentMap)||session.account){towerPending.clear();return;}
   for(const e of enemies){if(!e.tower||e.siege||e.towerIndex===undefined)continue;if(e.lastHp!==undefined&&e.hp<e.lastHp)towerPending.set(e.towerIndex,(towerPending.get(e.towerIndex)??0)+e.lastHp-e.hp);e.lastHp=e.hp;}
   towerSendClock-=dt;if(towerSendClock>0||!towerPending.size)return;towerSendClock=.3;
   for(const [slot,d] of towerPending){const n=Math.min(400000,d);sendTowerHit(slot,n);if(d>n)towerPending.set(slot,d-n);else towerPending.delete(slot);}}
@@ -821,9 +821,9 @@ function towerHealTick(dt:number){if(towerHealSlot===null)return;const slot=towe
   if(dist(player,at)>effectiveRange()+80){return;}
   towerHealClock-=dt;if(towerHealClock>0)return;const cannon=CANNONS[state.cannonType];towerHealClock=cannon.reload;
   const loaded=Math.min(state.cannon,arsenal.heal);if(loaded<=0){stopTowerHeal('Şifa güllesi tükendi');renderQuickSlots();return;}
-  arsenal.heal-=loaded;sendSalvo('heal',loaded,0,0);saveArsenal(arsenal);renderQuickSlots();
+  arsenal.heal-=loaded;if(session.account)sendAttack({k:'t',id:String(slot),a:'heal',n:loaded,i:0,p:0,r:0});else sendSalvo('heal',loaded,0,0);saveArsenal(arsenal);renderQuickSlots();
   const amount=Math.round(loaded*BALL_DAMAGE*(1+upgrades.damage*.11)*cannon.damage*bonus.damage*(1+equipBonus().damage+achBonus().damage+eliteBonus().damage)*2.6);
-  sendTowerHit(slot,amount,true);healText(at.x,at.y-40,amount);playHeal();}
+  if(!session.account)sendTowerHit(slot,amount,true);healText(at.x,at.y-40,amount);playHeal();}
 function populateMap(){
   stopBossMusic();abilityQueue.length=0;
   const map=mapDef();islands.splice(0,islands.length,...map.islands.map(i=>({...i})));
@@ -2070,7 +2070,7 @@ function applySiegeState(d:NetSiege){if(!siege)return;siegeOnline=true;SIEGE_PAR
   siege.destroyed=d.hp.slice(0,16).map((h,i)=>h<=0?i:-1).filter(i=>i>=0);siege.commanderHp=d.hp[16];siege.contrib=Object.fromEntries(d.top);siege.contrib[profile.nick]=d.mine;siege.paid=Math.min(siege.paid,d.mine);
   enemies.splice(0,enemies.length,...enemies.filter(e=>!e.siege&&!(e.captain&&!e.remote)));spawnSiegeTowers();siegeApplyHp(d.hp.map((h,i)=>[i,h,d.max[i]]));saveSiege(siege);renderSiegeHud();}
 function siegeApplyHp(list:[number,number,number][]){for(const [i,hp,max] of list){const e=enemies.find(x=>x.siege&&siegePiece(x)===i);if(!e)continue;e.maxHp=max;if(hp>0){e.hp=Math.max(1,hp);e.lastHp=e.hp;}}}
-function siegeNetTick(dt:number){if(!siege||!siegeOnline||siege.result){siegePending.clear();return;}
+function siegeNetTick(dt:number){if(!siege||!siegeOnline||siege.result||session.account){siegePending.clear();return;}
   for(const e of enemies){if(!e.siege||(!e.tower&&!e.commander))continue;const i=siegePiece(e);if(i===undefined)continue;if(e.lastHp!==undefined&&e.hp<e.lastHp)siegePending.set(i,(siegePending.get(i)??0)+e.lastHp-e.hp);e.lastHp=e.hp;}
   siegeSendClock-=dt;if(siegeSendClock>0||!siegePending.size)return;siegeSendClock=.3;
   for(const [i,d] of siegePending){const n=Math.min(400000,d);sendSiegeHit(i,n);if(d>n)siegePending.set(i,d-n);else siegePending.delete(i);}}
@@ -2336,9 +2336,12 @@ function dropMine(){
   if(arsenal.mine<=0){toast('Deniz mayını kalmadı — marketten alabilirsin');return;}
   if(t.cooldown>0){toast(`Mayın ${Math.ceil(t.cooldown)} sn sonra hazır`);return;}
   if(mines.length>=MINE.maxActive){toast(`Aynı anda en fazla ${MINE.maxActive} mayın`);return;}
-  arsenal.mine-=1;sendUse('mine');saveArsenal(arsenal);renderQuickSlots();t.cooldown=ABILITIES.mine.cooldown*bonus.cooldown;
-  playSplash();mines.push({x:player.x-Math.sin(player.angle)*42,y:player.y+Math.cos(player.angle)*42,life:ABILITIES.mine.duration,arm:MINE.armSeconds});toast('Mayın bırakıldı');
+  const mx=player.x-Math.sin(player.angle)*42,my=player.y+Math.cos(player.angle)*42;
+  arsenal.mine-=1;sendUse('mine',{x:Math.round(mx),y:Math.round(my)});saveArsenal(arsenal);renderQuickSlots();t.cooldown=ABILITIES.mine.cooldown*bonus.cooldown;
+  playSplash();mines.push({x:mx,y:my,life:ABILITIES.mine.duration,arm:MINE.armSeconds});toast('Mayın bırakıldı');
 }
+// Hesaplı oyunda mayın sunucuda patlar: burada yalnızca görüntü
+function onMineBoom(x:number,y:number){let bi=-1,bd=40;mines.forEach((m,i)=>{const d=Math.hypot(m.x-x,m.y-y);if(d<bd){bd=d;bi=i;}});if(bi>=0)mines.splice(bi,1);if(dist(player,{x,y})<1400){playExplosion();burst(x,y,true);burst(x,y,true);}}
 function detonateMine(index:number){
   const mine=mines[index];mines.splice(index,1);playExplosion();burst(mine.x,mine.y,true);burst(mine.x,mine.y,true);
   const damage=Math.round((MINE.baseDamage+state.level*MINE.damagePerLevel)*bonus.mine);
@@ -2352,7 +2355,7 @@ function updateArsenal(dt:number){
     const fx=Math.sin(player.angle),fy=-Math.cos(player.angle),back=30+Math.random()*30,side=(Math.random()-.5)*36,r=Math.random();
     particles.push({x:player.x-fx*back-fy*side,y:player.y-fy*back*.5+fx*side*.5,vx:-fx*12+(Math.random()-.5)*10,vy:-fy*6-6-Math.random()*8,life:.55+Math.random()*.45,maxLife:1,kind:'glint',z:4+Math.random()*34,size:8+Math.random()*14,color:r<.62?'#5ff3ff':r<.86?'#ffffff':'#ffe08a',rot:Math.random()*Math.PI});}}
   for(let i=mines.length-1;i>=0;i--){const m=mines[i];m.life-=dt;m.arm=Math.max(0,m.arm-dt);if(m.life<=0){mines.splice(i,1);continue;}
-    if(m.arm<=0&&(enemies.some(e=>dist(e,m)<MINE.triggerRadius)||monsters.some(x=>dist(x,m)<MINE.triggerRadius+x.radius*.6)))detonateMine(i);}
+    if(!session.account&&m.arm<=0&&(enemies.some(e=>dist(e,m)<MINE.triggerRadius)||monsters.some(x=>dist(x,m)<MINE.triggerRadius+x.radius*.6)))detonateMine(i);}
   const burnDps=(SPECIAL_AMMO.fire.burnDps+state.level*30)*bonus.burn;
   for(const e of [...enemies])if(e.burnTimer&&e.burnTimer>0){e.burnTimer-=dt;e.hp-=(e.burnDps||burnDps)*dt;if(e.burnTimer<=0)e.burnDps=0;if(e.hp<=0)sinkEnemy(e);}
   for(const m of monsters)if(m.burnTimer&&m.burnTimer>0){m.burnTimer-=dt;m.hp-=(m.burnDps||burnDps)*dt;if(m.burnTimer<=0)m.burnDps=0;if(m.hp<=0)defeatMonster(m);}
