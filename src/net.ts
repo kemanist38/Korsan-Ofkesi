@@ -92,6 +92,7 @@ export const sendState=(s:NetState)=>wsSend('state',s);
 export const sendFire=(f:NetFire)=>wsSend('fire',f);
 export const sendSunk=(s:NetSunk)=>wsSend('sunk',s);
 export const sendSpyNet=(nick:string)=>wsSend('spy',{nick});
+export const sendKill=(id:string)=>wsSend('nkill',{id});
 export const sendChat=(c:NetChat)=>wsSend('chat',c);
 export const sendBid=(b:NetBid)=>wsSend('bid',b);
 export const sendKnownBids=(bids:NetBid[])=>wsSend('known',{bids});
