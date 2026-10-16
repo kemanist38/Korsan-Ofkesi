@@ -139,7 +139,9 @@ test('görev, boss ve kuşatma ödülü sunucuda: batırma sayısı, bekleme sü
   assert.equal(S.questCredit(c,'q2/1-sparkle',0).err,'sayı');
   for(let i=0;i<20;i++)assert.equal(S.sparklePicked(c,1_000_000+i*1500).ok,true);
   assert.ok(S.questCredit(c,'q2/1-sparkle',2_000_000).add);
-  const sp={sea:'sea-2-1'};let bad=0;for(let i=0;i<40;i++)if(S.sparklePicked(sp,i).err)bad++;assert.ok(bad>=27);
+  // Normal hızda (inci günü öbek süpürme dahil) hiç reddedilmez; saniyede 10 bildiren program reddedilir
+  const ok={sea:'sea-2-1'};for(let i=0;i<300;i++)assert.equal(S.sparklePicked(ok,i<30?i*200:6000+i*700).ok,true);
+  const sp={sea:'sea-2-1'};let bad=0;for(let i=0;i<200;i++)if(S.sparklePicked(sp,i*100).err)bad++;assert.ok(bad>=100);
   // Boss: pay yoksa ödül yok, %3 altı EP yok
   assert.equal(S.bossCredit('2/1',0,3),null);assert.equal(S.bossCredit('2/1',.02,3).ep,undefined);assert.ok(S.bossCredit('2/1',.5,3).ep>0);
   assert.ok(S.siegeCredit(100000,4,8).gold>0);

@@ -180,9 +180,9 @@ export function chestPicked(c,now,rand=Math.random){const map=seaMap(c.sea);if(!
   if(rand()>=PART_CHANCE)return{parts:t.parts};t.parts++;
   if(t.parts>=TREASURE_PARTS&&!t.spot){t.parts-=TREASURE_PARTS;t.spot=pickSpot(map,rand);return{parts:t.parts,spot:t.spot,found:true};}
   return{parts:t.parts,found:true};}
-// Pırıltı: denizde en çok 12 tane, birkaç saniyede bir yenisi → kova 12, 1,5 sn'de bir dolar. Görev sayacına yazılır.
-export function sparklePicked(c,now){const map=seaMap(c.sea);if(!map||!MAPS[map])return{err:'deniz'};c.spb??={pool:12,t:now};
-  c.spb.pool=Math.min(12,c.spb.pool+Math.max(0,now-c.spb.t)/1500);c.spb.t=now;if(c.spb.pool<1)return{err:'hız'};c.spb.pool-=1;
+// Pırıltı toplama sınırsızdır; yalnız imkânsız hız reddedilir: art arda 40 (inci gününde haritada 24 pırıltı olur), sonra saniyede 1,5.
+export function sparklePicked(c,now){const map=seaMap(c.sea);if(!map||!MAPS[map])return{err:'deniz'};c.spb??={pool:40,t:now};
+  c.spb.pool=Math.min(40,c.spb.pool+Math.max(0,now-c.spb.t)*1.5/1000);c.spb.t=now;if(c.spb.pool<1)return{err:'hız'};c.spb.pool-=1;
   c.qk??={};const k='spk:'+map;c.qk[k]=Math.min(200,(c.qk[k]||0)+1);return{ok:true};}
 // Sandık ve pırıltı içeriğini sunucu belirler; içerik kazanç hakkı (inci doğrudan cüzdana) olarak yazılır ve oyuna gönderilir
 export function chestReward(c,gilded,rand=Math.random){const map=seaMap(c.sea);const ch=createChest('drift',0,0,Math.max(0,Math.min(.24,Number(gilded)||0)),MAPS[map]?.tier??1,rand);
