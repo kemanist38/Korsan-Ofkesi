@@ -4082,9 +4082,6 @@ function treasureReward(tier, lightGold, rand = Math.random) {
   return { gold: Math.round(lightGold * 30), pearls: 8 + 4 * tier, ammo: TREASURE_AMMO[Math.floor(rand() * TREASURE_AMMO.length)], ammoQty: 150 + 50 * tier, powder: 20 + 5 * tier, shield: 20 + 5 * tier };
 }
 
-// src/economy.ts
-var ELITE_THRESHOLD_SCALE = 0.72;
-
 // src/arsenal.ts
 var CONSUMABLES = {
   powder: { name: "Kara Barut", factor: 1.1, icon: "/assets/icon-powder-v4.webp", description: "A\xE7\u0131kken her salvoda 1 adet harcar; top hasar\u0131 %10 artar." },
@@ -4102,10 +4099,10 @@ var SPECIAL_AMMO = {
 };
 var FIRE_NPC_FACTOR = 1.4;
 var EXPLOSIVE_PLAYER_FACTOR = 1.4;
-var ELITE_EP = [0, 0, 7e3, 3e4, 8e4, 2e5, 36e4, 53e4, 75e4, 102e4, 136e4, 178e4, 23e5, 295e4, 385e4, 5e6].map((n) => Math.round(n * ELITE_THRESHOLD_SCALE));
+var ELITE_EP = [0, 0, 5e4, 22e4, 58e4, 145e4, 26e5, 38e5, 54e5, 73e5, 98e5, 128e5, 166e5, 212e5, 277e5, 36e6];
 var ELITE_MAX_LEVEL = 15;
-var questEp = (tier) => 20 * tier;
-var bossEp = (tier) => 500 * tier;
+var questEp = (tier) => 300 * tier;
+var bossEp = (tier) => 7500 * tier;
 var eliteLevelEp = (level) => ELITE_EP[Math.max(1, Math.min(ELITE_MAX_LEVEL, level))];
 var eliteLevelFromEp = (ep) => {
   let l = 1;
@@ -4113,10 +4110,7 @@ var eliteLevelFromEp = (ep) => {
   return l;
 };
 var MINE = { armSeconds: 1, triggerRadius: 46, blastRadius: 95, baseDamage: 4e3, damagePerLevel: 400, maxActive: 5, icon: "/assets/icon-mine-v2.webp" };
-var AMMO_PRICES = { chain: { amount: 3, currency: "pearls", per: 300 }, fire: { amount: 4, currency: "pearls", per: 300 }, breaker: { amount: 5, currency: "pearls", per: 300 }, explosive: { amount: 6, currency: "pearls", per: 300 }, leech: { amount: 8, currency: "pearls", per: 300 }, heal: { amount: 6, currency: "pearls", per: 300 } };
-var EP_PER_PEARL = 5.75;
-var epPerBall = (p2) => Math.round(p2.amount / (p2.per ?? 1) * EP_PER_PEARL * 1e4) / 1e4;
-var ELITE_POINTS_PER_BALL = { chain: epPerBall(AMMO_PRICES.chain), fire: epPerBall(AMMO_PRICES.fire), breaker: epPerBall(AMMO_PRICES.breaker), explosive: epPerBall(AMMO_PRICES.explosive), leech: epPerBall(AMMO_PRICES.leech), heal: epPerBall(AMMO_PRICES.heal) };
+var ELITE_POINTS_PER_BALL = { chain: 1, fire: 1, breaker: 1, explosive: 2, leech: 2, heal: 2 };
 
 // src/rage.ts
 var RAGE_DAMAGE = 1.25;
@@ -4608,7 +4602,7 @@ function questCredit(c, id, now) {
     }
   }
   cd.set(id, now);
-  return { add: { pearls: q.pearls, gold: Math.round(q.gold * KILL_CREDIT_MULT), xp: Math.round(q.xp * KILL_CREDIT_MULT), ep: Math.round(questEp(q.tier) * 1.5), st_quest: 1 } };
+  return { add: { pearls: q.pearls, gold: Math.round(q.gold * KILL_CREDIT_MULT), xp: Math.round(q.xp * KILL_CREDIT_MULT), ep: questEp(q.tier), st_quest: 1 } };
 }
 var bossPool = (n) => 1 + 0.6 * (Math.min(5, Math.max(1, n)) - 1);
 function bossCredit(map, share, n) {
@@ -4616,7 +4610,7 @@ function bossCredit(map, share, n) {
   const b = bossFor(map), pool = bossPool(n);
   const add = { gold: Math.round(NPCS[b.trigger].gold * 20 * pool * share * KILL_CREDIT_MULT), xp: Math.round(b.xp * pool * share * KILL_CREDIT_MULT) };
   if (share >= 0.03) {
-    add.ep = Math.round(bossEp(b.tier) * 1.5);
+    add.ep = bossEp(b.tier);
     add.st_boss = 1;
     add.pearls = b.pearls;
   }
@@ -5045,7 +5039,7 @@ async function applyUsage(c, salvo, item, now) {
   if (r.over) suspect(c, "top say\u0131s\u0131");
   if (item === null) {
     const a = String(salvo?.a || ""), n = Number(use[ITEM_OF[a] ?? "a_" + a]) || 0;
-    if (n > 0 && ELITE_POINTS_PER_BALL[a]) addCredit(c, { ep: Math.ceil(n * ELITE_POINTS_PER_BALL[a] * 1.5), st_eliteBalls: n });
+    if (n > 0 && ELITE_POINTS_PER_BALL[a]) addCredit(c, { ep: n * ELITE_POINTS_PER_BALL[a], st_eliteBalls: n });
   }
 }
 var seas = /* @__PURE__ */ new Map();

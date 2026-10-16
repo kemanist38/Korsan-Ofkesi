@@ -10,7 +10,7 @@ const next=m.migrateQuestRules(old);assert.equal(next.cooldowns['q1/1-sparkle'],
 // Execute the real quest-progress handler with isolated state: wrong map/kind cannot count.
 const main=fs.readFileSync('src/main.ts','utf8'),start=main.indexOf('function recordQuestProgress('),end=main.indexOf('\nfunction ',start+10);
 const q=c.QUESTS.find(q=>q.map==='1/1'&&q.kind==='sparkle');let paid=0;
-const context={state:{activeQuest:q.id,gold:0,fame:0,pearls:0},currentMap:'1/2',questById:()=>q,questProgress:{},questCooldownUntil:{},QUEST_COOLDOWN_MS:c.QUEST_COOLDOWN_MS,saveQuestState:()=>{},saveAccount:()=>{},goldGainAch:n=>n,xpGain:n=>n,questEp:()=>0,fmt:n=>String(n),updateUI:()=>{},gainElitePoints:()=>{},bumpAch:()=>paid++,rewardNotice:()=>{},toast:()=>{},matchMedia:()=>({matches:false,addEventListener(){},addListener(){}})};
+const context={state:{activeQuest:q.id,gold:0,fame:0,pearls:0},currentMap:'1/2',questById:()=>q,questProgress:{},questCooldownUntil:{},QUEST_COOLDOWN_MS:c.QUEST_COOLDOWN_MS,saveQuestState:()=>{},saveAccount:()=>{},goldGainAch:n=>n,xpGain:n=>n,questEp:()=>0,fmt:n=>String(n),updateUI:()=>{},gainElitePoints:()=>{},sendQuestDone:()=>{},serverPearls:()=>{},session:{},bumpAch:()=>paid++,rewardNotice:()=>{},toast:()=>{},matchMedia:()=>({matches:false,addEventListener(){},addListener(){}})};
 vm.createContext(context);vm.runInContext(ts.transpileModule(main.slice(start,end),{}).outputText,context);
 context.recordQuestProgress('sparkle','1/1');assert.equal(context.questProgress[q.id],undefined);context.currentMap='1/1';
 context.recordQuestProgress('chest','1/1');assert.equal(context.questProgress[q.id],undefined);

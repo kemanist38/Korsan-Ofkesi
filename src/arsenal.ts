@@ -1,4 +1,3 @@
-import {ELITE_THRESHOLD_SCALE} from './economy';
 // Özel yetenekler ve yeni mühimmatlar. Hesap kaydına dokunmamak için ayrı anahtarda saklanır.
 export type AbilityId='speed'|'mine';
 export type ArsenalStock={fire:number;grape:number;mine:number;powder:number;shield:number;speed:number;compass:number;spyShield:number;explosive:number;breaker:number;leech:number;heal:number;seeded:boolean;seededV2:boolean;ballsV1:boolean};
@@ -51,10 +50,11 @@ export const REPAIR_PER_SEC=4000,REPAIR_BONUS_CAP=1.7;
 export const repairAmount=(mult:number,maxHp=163_000)=>Math.round(Math.max(REPAIR_PER_SEC,maxHp*REPAIR_PER_SEC/163_000)*Math.min(REPAIR_BONUS_CAP,Math.max(1,mult)));
 // Elit sınıf (1–15) yalnızca elit puanla (EP) yükselir. Eşikler toplam EP'dir ve her basamak bir öncekinden pahalıdır.
 // Toplam EP eşikleri. Elit 15: 3,6 milyon EP; hedef bazlı tüketim modeli tools/simulate-economy.cjs içinde.
-export const ELITE_EP=[0,0,7000,30000,80000,200000,360000,530000,750000,1020000,1360000,1780000,2300000,2950000,3850000,5000000].map(n=>Math.round(n*ELITE_THRESHOLD_SCALE));
+// Elit puan tam sayıdır: her özel gülle 1 ya da 2 EP verir (aşağıda). Eşikler toplam EP'dir, okunur olsun diye yuvarlak.
+export const ELITE_EP=[0,0,50_000,220_000,580_000,1_450_000,2_600_000,3_800_000,5_400_000,7_300_000,9_800_000,12_800_000,16_600_000,21_200_000,27_700_000,36_000_000];
 export const ELITE_MAX_LEVEL=15;
 // Gülle dışında EP yalnızca görev ve bossdan gelir (NPC/canavar EP vermez): emek isteyen küçük bir ücretsiz kaynak
-export const questEp=(tier:number)=>20*tier,bossEp=(tier:number)=>500*tier;
+export const questEp=(tier:number)=>300*tier,bossEp=(tier:number)=>7500*tier;
 export const eliteLevelEp=(level:number)=>ELITE_EP[Math.max(1,Math.min(ELITE_MAX_LEVEL,level))];
 export const eliteLevelFromEp=(ep:number)=>{let l=1;while(l<ELITE_MAX_LEVEL&&ep>=eliteLevelEp(l+1))l++;return l;};
 export const MINE={armSeconds:1,triggerRadius:46,blastRadius:95,baseDamage:4000,damagePerLevel:400,maxActive:5,icon:'/assets/icon-mine-v2.webp'};
@@ -68,11 +68,8 @@ export const IRON_START=20000;
 export const priceOf=(p:Price,qty:number)=>Math.ceil(qty*p.amount/(p.per??1));
 // Fiyatlar yarıya indirildi (oyuncu harcamaktan korkmasın); 300 gülle başına inci
 export const AMMO_PRICES={chain:{amount:3,currency:'pearls',per:300},fire:{amount:4,currency:'pearls',per:300},breaker:{amount:5,currency:'pearls',per:300},explosive:{amount:6,currency:'pearls',per:300},leech:{amount:8,currency:'pearls',per:300},heal:{amount:6,currency:'pearls',per:300}} as const satisfies Record<string,Price>;
-// Elit puan gülleye harcanan inciyle orantılı: her inci EP_PER_PEARL EP eder. Pahalı gülle atan, gülle başına daha çok EP alır
-// (zincir 0,0575 · ateş 0,077 · kule kırıcı 0,096 · patlayıcı/şifa 0,115 · can emici 0,153). Simülasyonda Elit 15 ≈ 8.000 ₺ (~207 saat).
-export const EP_PER_PEARL=5.75;
-const epPerBall=(p:Price)=>Math.round(p.amount/(p.per??1)*EP_PER_PEARL*10_000)/10_000;
-export const ELITE_POINTS_PER_BALL={chain:epPerBall(AMMO_PRICES.chain),fire:epPerBall(AMMO_PRICES.fire),breaker:epPerBall(AMMO_PRICES.breaker),explosive:epPerBall(AMMO_PRICES.explosive),leech:epPerBall(AMMO_PRICES.leech),heal:epPerBall(AMMO_PRICES.heal)} as const;
+// Elit puan: zincir, ateş ve kule kırıcı gülle 1 EP; patlayıcı, şifa ve can emici gülle 2 EP (oyuncu kolayca hesaplar).
+export const ELITE_POINTS_PER_BALL={chain:1,fire:1,breaker:1,explosive:2,leech:2,heal:2} as const;
 // Barut ve kalkan altınla; birikmiş altını harcatmak için pahalı
 export const SUPPLY_PRICES={powder:{amount:10,currency:'gold'},shield:{amount:10,currency:'gold'},speed:{amount:2,currency:'pearls'},mine:{amount:5,currency:'pearls'},compass:{amount:1,currency:'pearls'}} as const satisfies Record<string,Price>;
 export type SupplyId=keyof typeof SUPPLY_PRICES;
