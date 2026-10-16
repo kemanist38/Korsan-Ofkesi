@@ -72,7 +72,7 @@ type QuickItemId = 'iron'|'chain'|SpecialAmmo|'mine'|'powder'|'shield'|'repairki
 type ShipSelection='starter'|EliteShipId;
 const ELITE_ONE_PRICE=ELITE_ENTRY_PRICE;
 // Test süresince elit gemiler ve 8. seviyeye kadar tüm haritalar açık.
-const ELITE_TEST_MODE=true;
+const ELITE_TEST_MODE=false;
 const CANNONS:Record<CannonKind,{name:string;damage:number;range:number;reload:number}>={
   cast:{name:'Döküm',damage:1,range:390,reload:1.65},
   long:{name:'Uzun',damage:.82,range:470,reload:2.05},

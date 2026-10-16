@@ -171,7 +171,8 @@ async function onTowerHit(c,m,now){const key=islandOfSea(c.sea),d=m.d||{},slot=N
 // ---------------------------------------------------------------- Ortak kuşatma (Cuma 20:00–22:00, Türkiye saati)
 // Kara Kale tek: 12 sur kulesi (0–11), 4 iç kule (12–15), komutan (16). Can, katılan kaptan sayısıyla büyür (oran korunur).
 // Sırayla açılır: iç kuleler surlar düşmeden, komutan iç kuleler düşmeden vurulamaz. Katkı sunucuda tutulur.
-// Pencere dışında (test dönemi) giren olursa 2 saatlik deneme kuşatması açılır.
+// Pencere dışında kuşatma kapalıdır; yalnızca SIEGE_TRIAL=1 ortam değişkeniyle 2 saatlik deneme kuşatması açılır.
+const SIEGE_TRIAL=process.env.SIEGE_TRIAL==='1';
 export const SIEGE_ROOM='sea-siege',SIEGE_PIECES=17,SIEGE_HIT_CAP=400_000;
 const SIEGE_GRACE_MS=10*60_000;
 const pieceBase=i=>i<12?SIEGE_HP_PER_CAPTAIN.wall:i<16?SIEGE_HP_PER_CAPTAIN.inner:SIEGE_HP_PER_CAPTAIN.commander;
@@ -179,7 +180,7 @@ export function siegeWindowAt(now){const t=new Date(now+3*3600_000),day=t.getUTC
   return{open:day===5&&h>=20&&h<22,id:`w-${t.toISOString().slice(0,10)}`,end:start+2*3600_000};}
 export let siegeRun=null;
 export function resetSiege(){siegeRun=null;}
-export function siegeJoin(uid,nick,now=Date.now()){const w=siegeWindowAt(now);
+export function siegeJoin(uid,nick,now=Date.now()){const w=siegeWindowAt(now);if(!w.open&&!SIEGE_TRIAL)return null;
   const reuse=siegeRun&&(w.open?siegeRun.id===w.id:(!siegeRun.result&&now<siegeRun.end));
   if(!reuse){if(w.open||!siegeRun||siegeRun.result||now>=siegeRun.end){siegeRun={id:w.open?w.id:`t-${now}`,end:w.open?w.end:now+2*3600_000,hp:Array.from({length:SIEGE_PIECES},(_,i)=>pieceBase(i)),max:Array.from({length:SIEGE_PIECES},(_,i)=>pieceBase(i)),
     caps:new Set(),contrib:new Map(),result:null,dirty:new Set(),rankDirty:true};}}
@@ -249,7 +250,7 @@ wss.on('connection',ws=>{
         const room=seas.get(name)??new Set();if(room.size>=LIMITS.maxPerSea){send(c,{t:'full'});return;}room.add(c);seas.set(name,room);c.sea=name;c.seen=null;send(c,{t:'joined',sea:name});
         const b=bossSeas.get(name)?.boss;if(b)send(c,{t:'boss',d:bossInfo(name,b)});
         const isle=islands.get(islandOfSea(name));if(isle)send(c,{t:'isle',d:islandInfo(isle)});
-        if(name===SIEGE_ROOM){const r=siegeJoin(c.uid,c.nick,now);send(c,{t:'sstate',d:siegeInfo(r,c.uid)});}return;}
+        if(name===SIEGE_ROOM){const r=siegeJoin(c.uid,c.nick,now);if(r)send(c,{t:'sstate',d:siegeInfo(r,c.uid)});}return;}
       case'state':{if(!c.sea||!c.rState.hit(now))return;const s=m.d;const v=checkState(c.last,s,now);if(v==='bad')return;if(v==='speed')suspect(c,'hız',`${Math.round(s.x)},${Math.round(s.y)}`);
         c.last={x:s.x,y:s.y,at:now};s.id=c.netId;queueState(c,s);return;}
       case'fire':{if(!c.sea||!c.rFire.hit(now)){suspect(c,'atış hızı');return;}const f=m.d;const v=checkFire(f);if(v!=='ok'){suspect(c,'hasar',String(f?.damage));return;}f.from=c.netId;toNear(c,{t:'fire',d:f},f.to);return;}
