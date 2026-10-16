@@ -23,7 +23,9 @@ export type NetIsland={key:string;guild:number;tag:string;towers:([number,number
 export type NetSiege={id:string;end:number;n:number;hp:number[];max:number[];result:'won'|'lost'|null;top:[string,number][];mine:number};
 export type NetSiegeEnd={won:boolean;n:number;top:[string,number][];mine:number;share:number};
 export type NetSpy={status:'found'|'blocked'|'unknown'|'poor'|'error';nick?:string;online?:boolean;map?:string|null;x?:number|null;y?:number|null;shieldLeft?:number};
-export type NetHandlers={spy?:(r:NetSpy)=>void;pos?:(p:{x:number;y:number})=>void;forceSink?:(d:{by:string;byNick:string})=>void;siegeState?:(s:NetSiege)=>void;siegeHp?:(l:[number,number,number][])=>void;siegeDown?:(i:number)=>void;siegeRank?:(d:{n:number;top:[string,number][];mine:number})=>void;siegeEnd?:(d:NetSiegeEnd)=>void;island?:(i:NetIsland)=>void;towerHp?:(key:string,s:[number,number][])=>void;towerDown?:(key:string,slot:number,by:string)=>void;
+export type NetTreasure={parts:number;spot:{map:string;x:number;y:number;label:string}|null;part?:boolean};
+export type NetDig={ok:boolean;err?:string;reward?:{gold:number;pearls:number;ammo:string;ammoQty:number;powder:number;shield:number}};
+export type NetHandlers={treasure?:(t:NetTreasure)=>void;dig?:(d:NetDig)=>void;spy?:(r:NetSpy)=>void;pos?:(p:{x:number;y:number})=>void;forceSink?:(d:{by:string;byNick:string})=>void;siegeState?:(s:NetSiege)=>void;siegeHp?:(l:[number,number,number][])=>void;siegeDown?:(i:number)=>void;siegeRank?:(d:{n:number;top:[string,number][];mine:number})=>void;siegeEnd?:(d:NetSiegeEnd)=>void;island?:(i:NetIsland)=>void;towerHp?:(key:string,s:[number,number][])=>void;towerDown?:(key:string,slot:number,by:string)=>void;
   islandCaptured?:(d:{key:string;tag:string;by:string;nick:string})=>void;islandAlert?:(key:string)=>void;boss?:(b:NetBoss)=>void;bossHp?:(id:string,hp:number)=>void;bossDown?:(d:NetBossDown)=>void;bossGone?:(id:string)=>void;state:(s:NetState)=>void;leave:(id:string)=>void;fire:(f:NetFire)=>void;sunk:(s:NetSunk)=>void;chat:(c:NetChat)=>void;bid?:(b:NetBid)=>void;bidAsk?:(hour:number)=>void;bidKnown?:(bids:NetBid[])=>void};
 
 const ID_KEY='yedi-deniz-net-id';
@@ -52,6 +54,8 @@ async function connectWs(){const sb=supa();if(!sb||!session.account){netStatus='
       case'leave':handlers?.leave(String(m.id));break;
       case'fire':handlers?.fire(m.d as NetFire);break;
       case'sunk':handlers?.sunk(m.d as NetSunk);break;
+      case'tstate':handlers?.treasure?.(m.d as NetTreasure);break;
+      case'tdig':handlers?.dig?.(m.d as NetDig);break;
       case'spyr':handlers?.spy?.(m.d as NetSpy);break;
       case'pos':handlers?.pos?.(m.d as {x:number;y:number});break;
       case'forceSink':handlers?.forceSink?.(m.d as {by:string;byNick:string});break;
@@ -97,6 +101,8 @@ export const sendKill=(id:string)=>wsSend('nkill',{id});
 export const sendSalvo=(a:string,n:number,i:number,p:number)=>wsSend('salvo',{a,n,i,p});
 export const sendUse=(id:string)=>wsSend('use',{id});
 export const sendQuestDone=(id:string)=>wsSend('qdone',{id});
+export const sendChest=()=>wsSend('chest');
+export const sendDig=()=>wsSend('tdig');
 export const sendChat=(c:NetChat)=>wsSend('chat',c);
 export const sendBid=(b:NetBid)=>wsSend('bid',b);
 export const sendKnownBids=(bids:NetBid[])=>wsSend('known',{bids});

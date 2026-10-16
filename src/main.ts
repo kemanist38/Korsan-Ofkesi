@@ -25,7 +25,7 @@ import {supa} from './supabase';
 import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
 import {loadLevelQuest,saveLevelQuest,levelQuestDone,levelQuestKill,levelQuestGoal,needsLevelQuest,levelQuestMap} from './level-quest';
 import {SPY_COST,SPY_SHIELD_PRICE,loadSpy,sendSpy,type SpyRival} from './spy';
-import {netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,sendSalvo,sendUse,sendQuestDone,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
+import {netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,sendSalvo,sendUse,sendQuestDone,sendChest,sendDig,type NetTreasure,type NetDig,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
 import {AUCTION_MS,loadAuction,saveAuction,emptyAuction,auctionHour,auctionEnds,lotsFor,minNextBid,applyBid,wonLots,auctionId,type LotDef,type Bid} from './auction';
 import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,claimReward,GRADUATE_LEVEL,MAX_APPRENTICES,TOGETHER_XP_BONUS,APPRENTICE_MAX_LEVEL} from './mentorship';
 import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
@@ -586,6 +586,8 @@ const netHandlers:NetHandlers={
     if(k.by===myNetId){gainRage(rage,RAGE_PER_RIVAL);const sp=claimRivalSp(rivalLog,k.victimNick)?gainSp(RIVAL_SP*spMult()):0;sinkNotice(k.victimNick,sp);rivalSinks++;saveRivalSinks(rivalSinks);saveAccount();}
     else if(k.victim!==myNetId)rewardNotice(`${k.byNick}, ${k.victimNick} kaptanını batırdı`,'battle');},
   spy:r=>onSpyReport(r),
+  treasure:t=>onTreasureState(t),
+  dig:d=>onDig(d),
   // Sunucu imkânsız hızı kabul etmez: gemi son geçerli konumuna döner
   pos:p=>{player.x=p.x;player.y=p.y;player.speed=0;destination=null;routeTarget=null;},
   // Sunucu ölümsüz kalan gemiyi batırır (canı hasara rağmen düşmüyorsa)
@@ -2414,6 +2416,8 @@ setTimeout(()=>{if(dailyStatus(daily).canClaim||(festival&&festivalStatus(festiv
 // ---------------------------------------------------------------- Hazine avı
 const treasure=loadTreasure();let dig:{t:number;x:number;y:number}|null=null;
 function rollTreasurePart(){
+  // Hesapla oynarken parça zarını, hazine yerini ve kazıyı oyun sunucusu yönetir
+  if(session.account){sendChest();return;}
   if(Math.random()>=PART_CHANCE)return;treasure.parts++;
   if(treasure.parts>=TREASURE_PARTS&&!treasure.active){treasure.parts-=TREASURE_PARTS;treasure.active=pickTreasureSpot(currentMap);rewardNotice(`Hazine haritası tamamlandı · ${treasure.active.map} · ${treasure.active.label}`);toast(`Hazine ${MAPS[treasure.active.map].name} denizinde, ${treasure.active.label} koordinatında!`);}
   else toast(`Hazine haritası parçası bulundu (${Math.min(treasure.parts,TREASURE_PARTS)}/${TREASURE_PARTS})`);
@@ -2436,11 +2440,19 @@ function updateTreasure(dt:number){
   dig.t+=dt;(ui('digBar') as HTMLElement).style.width=`${Math.min(100,dig.t/DIG_SECONDS*100)}%`;
   if(Math.random()<dt*10)particles.push({x:treasure.active!.x+(Math.random()-.5)*30,y:treasure.active!.y+(Math.random()-.5)*20,vx:(Math.random()-.5)*60,vy:-40-Math.random()*40,life:.6,maxLife:.6,kind:'foam'});
   if(dig.t<DIG_SECONDS)return;
-  const spot=treasure.active!,m=MAPS[spot.map],r=treasureReward(m.tier,NPCS[m.npcs[0]].gold);dig=null;treasure.active=null;treasure.found++;saveTreasure(treasure);bumpAch('treasure');
+  if(session.account){dig=null;sendDig();toast('Hazine açılıyor…');return;}
+  const spot=treasure.active!,m=MAPS[spot.map],r=treasureReward(m.tier,NPCS[m.npcs[0]].gold);dig=null;giveTreasure(spot,r);}
+function giveTreasure(spot:{x:number;y:number},r:ReturnType<typeof treasureReward>){
+  treasure.active=null;treasure.found++;saveTreasure(treasure);bumpAch('treasure');
   state.gold+=r.gold;state.pearls+=r.pearls;if(r.ammo==='chain')state.chainAmmo+=r.ammoQty;else arsenal[r.ammo]+=r.ammoQty;arsenal.powder+=r.powder;arsenal.shield+=r.shield;saveArsenal(arsenal);renderQuickSlots();saveAccount();playCoins();playLevelUp();
   for(let n=0;n<3;n++)burst(spot.x+(Math.random()-.5)*30,spot.y+(Math.random()-.5)*20,false);
   rewardNotice(`Hazine bulundu · +${fmt(r.gold)} altın · +${fmt(r.pearls)} inci · +${fmt(r.ammoQty)} ${QUICK_ITEMS[r.ammo].name} · +${fmt(r.powder)} kara barut · +${fmt(r.shield)} kalkan`,'gain',{gold:r.gold});
 }
+// Sunucudan hazine durumu ve kazı sonucu
+function onTreasureState(t:NetTreasure){const was=treasure.parts,had=!!treasure.active;treasure.parts=t.parts;treasure.active=t.spot?{...t.spot,map:t.spot.map as MapKey}:null;saveTreasure(treasure);
+  if(!t.part)return;if(treasure.active&&!had){rewardNotice(`Hazine haritası tamamlandı · ${treasure.active.map} · ${treasure.active.label}`);toast(`Hazine ${treasure.active.map} denizinde · ${treasure.active.label}`);}
+  else if(t.parts!==was)toast(`Hazine haritası parçası bulundu (${Math.min(t.parts,TREASURE_PARTS)}/${TREASURE_PARTS})`);}
+function onDig(d:NetDig){if(!d.ok||!d.reward){toast(d.err==='yer'?'Hazine burada değil':'Hazine açılamadı');return;}const spot=treasure.active??player;giveTreasure(spot,d.reward as ReturnType<typeof treasureReward>);}
 function drawTreasureMark(){
   const a=treasure.active;if(!a||a.map!==currentMap||dist(player,a)>380)return;const s=worldToScreen(a),t=performance.now()/1000;
   ctx.save();ctx.strokeStyle=`rgba(241,198,98,${.35+Math.sin(t*3)*.2})`;ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(s.x,s.y,DIG_RADIUS*camera.zoom,DIG_RADIUS*camera.zoom*.6,0,0,Math.PI*2);ctx.stroke();

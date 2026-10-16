@@ -3677,6 +3677,7 @@ __export(game_server_exports, {
   cannonsOf: () => cannonsOf,
   checkFire: () => checkFire,
   checkState: () => checkState,
+  chestPicked: () => chestPicked,
   dpsCap: () => dpsCap,
   dpsTake: () => dpsTake,
   godCheck: () => godCheck,
@@ -3695,12 +3696,14 @@ __export(game_server_exports, {
   parseForm: () => parseForm,
   parseOsb: () => parseOsb,
   perBall: () => perBall,
+  pickSpot: () => pickSpot,
   pvpGuard: () => pvpGuard,
   pvpHeal: () => pvpHeal,
   pvpReset: () => pvpReset,
   questCooldowns: () => questCooldowns,
   questCredit: () => questCredit,
   resetSiege: () => resetSiege,
+  saveServerState: () => saveServerState,
   sbTake: () => sbTake,
   seaMap: () => seaMap,
   seaTier: () => seaTier,
@@ -3711,6 +3714,8 @@ __export(game_server_exports, {
   siegeRun: () => siegeRun,
   siegeWindowAt: () => siegeWindowAt,
   towerHit: () => towerHit,
+  treasureDig: () => treasureDig,
+  treasures: () => treasures,
   verifyOsb: () => verifyOsb,
   verifyToken: () => verifyToken
 });
@@ -3908,6 +3913,13 @@ var GRID_COLS = 61;
 var GRID_ROWS = 78;
 var CELL_W = WORLD_WIDTH / GRID_COLS;
 var CELL_H = WORLD_HEIGHT / GRID_ROWS;
+var colName = (c) => String(c).padStart(2, "0");
+var rowName = (r) => String.fromCharCode(65 + Math.floor(r / 26)) + String.fromCharCode(65 + r % 26);
+var gridCell = (p) => ({ c: Math.max(0, Math.min(GRID_COLS - 1, Math.floor(p.x / CELL_W))), r: Math.max(0, Math.min(GRID_ROWS - 1, Math.floor(p.y / CELL_H))) });
+function coordLabel(p) {
+  const g = gridCell(p);
+  return `${colName(g.c)}${rowName(g.r)}`;
+}
 var FLEET_SCALE = 0.8;
 var FLEET_TOWERS_RAW = [
   [-577, -76],
@@ -4033,6 +4045,15 @@ var QUESTS = MAP_KEYS.flatMap((key) => {
   ];
 });
 var QUEST_COOLDOWN_MS = 8 * 60 * 60 * 1e3;
+
+// src/treasure.ts
+var TREASURE_PARTS = 4;
+var PART_CHANCE = 0.15;
+var DIG_RADIUS = 70;
+var TREASURE_AMMO = ["chain", "fire", "explosive", "breaker", "leech"];
+function treasureReward(tier, lightGold, rand = Math.random) {
+  return { gold: Math.round(lightGold * 30), pearls: 8 + 4 * tier, ammo: TREASURE_AMMO[Math.floor(rand() * TREASURE_AMMO.length)], ammoQty: 150 + 50 * tier, powder: 20 + 5 * tier, shield: 20 + 5 * tier };
+}
 
 // src/economy.ts
 var ELITE_THRESHOLD_SCALE = 0.72;
@@ -4368,6 +4389,80 @@ function siegeCredit(dmg, n, level) {
   const r = contribReward(dmg, Math.max(1, n), Math.max(1, Math.min(8, Math.round(Number(level) || 8))));
   return { gold: Math.round(r.gold * KILL_CREDIT_MULT), xp: Math.round(r.xp * KILL_CREDIT_MULT) };
 }
+var treasures = /* @__PURE__ */ new Map();
+var treOf = (uid) => {
+  let t = treasures.get(uid);
+  if (!t) {
+    t = { parts: 0, spot: null, chest: { pool: 4, t: 0 } };
+    treasures.set(uid, t);
+  }
+  return t;
+};
+function pickSpot(map, rand = Math.random) {
+  const m = MAPS[map];
+  for (let i = 0; i < 80; i++) {
+    const x = 300 + rand() * (WORLD_WIDTH - 600), y = 300 + rand() * (WORLD_HEIGHT - 600);
+    if (m.islands.some((is) => Math.hypot(x - is.x, y - is.y) < is.r + 90)) continue;
+    if (Math.hypot(x - m.fleet.x, y - m.fleet.y) < FLEET.islandR + 160) continue;
+    return { map, x: Math.round(x), y: Math.round(y), label: coordLabel({ x, y }) };
+  }
+  return { map, x: Math.round(WORLD_WIDTH / 2), y: Math.round(WORLD_HEIGHT - 400), label: coordLabel({ x: WORLD_WIDTH / 2, y: WORLD_HEIGHT - 400 }) };
+}
+function chestPicked(c, now, rand = Math.random) {
+  const map = seaMap(c.sea);
+  if (!map || !MAPS[map]) return { err: "deniz" };
+  const t = treOf(c.uid);
+  t.chest.pool = Math.min(6, t.chest.pool + Math.max(0, now - t.chest.t) / 18e3);
+  t.chest.t = now;
+  if (t.chest.pool < 1) return { err: "h\u0131z" };
+  t.chest.pool -= 1;
+  if (rand() >= PART_CHANCE) return { parts: t.parts };
+  t.parts++;
+  if (t.parts >= TREASURE_PARTS && !t.spot) {
+    t.parts -= TREASURE_PARTS;
+    t.spot = pickSpot(map, rand);
+    return { parts: t.parts, spot: t.spot, found: true };
+  }
+  return { parts: t.parts, found: true };
+}
+function treasureDig(c) {
+  const t = treOf(c.uid);
+  if (!t.spot) return { err: "harita" };
+  const map = seaMap(c.sea);
+  if (map !== t.spot.map || !c.last || Math.hypot(c.last.x - t.spot.x, c.last.y - t.spot.y) > DIG_RADIUS + 60) return { err: "yer" };
+  const m = MAPS[map], r = treasureReward(m.tier, NPCS[m.npcs[0]].gold);
+  t.spot = null;
+  return { reward: r, add: { gold: Math.round(r.gold * KILL_CREDIT_MULT), st_treasure: 1, [r.ammo === "chain" ? "chain" : "a_" + r.ammo]: r.ammoQty, a_powder: r.powder, a_shield: r.shield } };
+}
+var STATE_FILE = process.env.STATE_FILE || "/opt/game/state.json";
+var qkByUid = /* @__PURE__ */ new Map();
+function saveServerState() {
+  if (process.env.NODE_ENV === "test") return;
+  try {
+    import_node_fs.default.writeFileSync(STATE_FILE, JSON.stringify({ q: [...questCooldowns].map(([u, m]) => [u, [...m]]), k: [...qkByUid], t: [...treasures] }));
+  } catch {
+  }
+}
+function loadServerState() {
+  if (process.env.NODE_ENV === "test") return;
+  try {
+    const d = JSON.parse(import_node_fs.default.readFileSync(STATE_FILE, "utf8"));
+    for (const [u, m] of d.q || []) questCooldowns.set(u, new Map(m));
+    for (const [u, k] of d.k || []) qkByUid.set(u, k);
+    for (const [u, t] of d.t || []) treasures.set(u, t);
+  } catch {
+  }
+}
+loadServerState();
+setInterval(saveServerState, 6e4).unref();
+process.on("SIGTERM", () => {
+  saveServerState();
+  process.exit(0);
+});
+process.on("SIGINT", () => {
+  saveServerState();
+  process.exit(0);
+});
 function addCredit(c, add) {
   c.credit ??= {};
   for (const k in add) c.credit[k] = (c.credit[k] || 0) + add[k];
@@ -4953,6 +5048,12 @@ wss.on("connection", (ws) => {
       send(c, { t: "hello", id: c.netId, nick: c.nick, playerNo: c.playerNo });
       log("G\u0130R\u0130\u015E", `#${c.playerNo}`, c.nick);
       void loadEcon(c);
+      if (!qkByUid.has(c.uid)) qkByUid.set(c.uid, {});
+      c.qk = qkByUid.get(c.uid);
+      {
+        const t = treasures.get(c.uid);
+        if (t) send(c, { t: "tstate", d: { parts: t.parts, spot: t.spot } });
+      }
       return;
     }
     if (!c.uid) return;
@@ -5168,6 +5269,27 @@ wss.on("connection", (ws) => {
         send(c, { t: "qres", d: { id, ok: true } });
         return;
       }
+      case "chest": {
+        if (!c.sea || !c.rKill.hit(now)) return;
+        const r = chestPicked(c, now);
+        if (r.err) {
+          if (r.err === "h\u0131z") suspect(c, "sand\u0131k h\u0131z\u0131");
+          return;
+        }
+        if (r.found) send(c, { t: "tstate", d: { parts: r.parts, spot: treOf(c.uid).spot, part: true } });
+        return;
+      }
+      case "tdig": {
+        if (!c.sea || !c.rKill.hit(now)) return;
+        const r = treasureDig(c);
+        if (r.err) {
+          send(c, { t: "tdig", d: { ok: false, err: r.err } });
+          return;
+        }
+        addCredit(c, r.add);
+        send(c, { t: "tdig", d: { ok: true, reward: r.reward } });
+        return;
+      }
       case "spy": {
         if (!c.rKill.hit(now)) return;
         await onSpy(c, m.d?.nick);
@@ -5282,6 +5404,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   cannonsOf,
   checkFire,
   checkState,
+  chestPicked,
   dpsCap,
   dpsTake,
   godCheck,
@@ -5300,12 +5423,14 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   parseForm,
   parseOsb,
   perBall,
+  pickSpot,
   pvpGuard,
   pvpHeal,
   pvpReset,
   questCooldowns,
   questCredit,
   resetSiege,
+  saveServerState,
   sbTake,
   seaMap,
   seaTier,
@@ -5316,6 +5441,8 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   siegeRun,
   siegeWindowAt,
   towerHit,
+  treasureDig,
+  treasures,
   verifyOsb,
   verifyToken
 });
