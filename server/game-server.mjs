@@ -9,6 +9,7 @@ import {WebSocketServer} from 'ws';
 import {BOSS_HP,SIEGE_HP_PER_CAPTAIN} from '../src/pve-balance.ts';
 import {fleetTowerStats,playerBaseHp} from '../src/fleetBalance.ts';
 import {pvpClamp,newPvpBudget} from '../src/pvp.ts';
+import {RIVAL_SP,RIVAL_DAILY_LIMIT} from '../src/battle.ts';
 import {NPCS,MONSTERS,MAPS,QUESTS,QUEST_COOLDOWN_MS,bossFor,BOSS_KILLS,FLEET,WORLD_WIDTH,WORLD_HEIGHT,coordLabel} from '../src/campaign.ts';
 import {TREASURE_PARTS,PART_CHANCE,DIG_RADIUS,treasureReward} from '../src/treasure.ts';
 import {questEp,bossEp,ELITE_POINTS_PER_BALL} from '../src/arsenal.ts';
@@ -209,6 +210,11 @@ export function saveServerState(){if(process.env.NODE_ENV==='test')return;try{fo
   fs.writeFileSync(STATE_FILE+'.tmp',JSON.stringify({g:[...pendingCredits.values()].map(c=>({uid:c.uid,grant:c.grant,credit:c.credit})),q:[...questCooldowns].map(([u,m])=>[u,[...m]]),k:[...qkByUid],t:[...treasures]}));fs.renameSync(STATE_FILE+'.tmp',STATE_FILE);}catch(e){log('DURUM kayıt hatası',e?.code);}}
 function loadServerState(){if(process.env.NODE_ENV==='test')return;try{const d=JSON.parse(fs.readFileSync(STATE_FILE,'utf8'));for(const c of d.g||[])if(c.grant?.id)pendingCredits.set(c.grant.id,c);for(const [u,m] of d.q||[])questCooldowns.set(u,new Map(m));for(const [u,k] of d.k||[])qkByUid.set(u,k);for(const [u,t] of d.t||[])treasures.set(u,t);}catch{}}
 loadServerState();setInterval(saveServerState,60_000).unref();process.on('SIGTERM',()=>{saveServerState();process.exit(0);});process.on('SIGINT',()=>{saveServerState();process.exit(0);});
+// Savaş puanı: sunucunun doğruladığı oyuncu batırmasından (aynı rakipten günde en çok 3 kez; etkinlik günü ×2 payı)
+export const spByUid=new Map(); // batıran → Map(rakip → {gün, sayı})
+export function spCredit(killer,victimUid,now){if(!killer?.uid||!victimUid||killer.uid===victimUid)return null;const day=new Date(now+3*3600_000).toISOString().slice(0,10);
+  const m=spByUid.get(killer.uid)??new Map();spByUid.set(killer.uid,m);const r=m.get(victimUid);const n=r&&r.day===day?r.n:0;if(n>=RIVAL_DAILY_LIMIT)return null;
+  m.set(victimUid,{day,n:n+1});return{sp:RIVAL_SP*2};}
 export function addCredit(c,add){c.credit??={};for(const k in add)c.credit[k]=(c.credit[k]||0)+add[k];}
 // ---------------------------------------------------------------- Sunucu NPC'leri
 // Her denizin normal NPC'lerini oyun sunucusu yaşatır: yer, hareket ve can sunucudadır, herkes aynı NPC'yi görür.
@@ -511,6 +517,7 @@ wss.on('connection',ws=>{
       case'sunk':{if(!c.sea)return;const s=m.d||{};s.victim=c.netId;s.victimNick=c.nick;
         // Batıran yalnızca son 60 sn'de bu oyuncuya ateş etmiş biri olabilir (arkadaşa SP yazdırma engeli)
         if(s.by&&!(now-(c.pvp?.from.get(String(s.by))??-1e12)<60_000)){suspect(c,'sahte batırma',String(s.by));s.by=null;s.byNick=null;}
+        if(s.by){const k=[...(seas.get(c.sea)||[])].find(x=>x.netId===String(s.by));const add=spCredit(k,c.uid,now);if(add)addCredit(k,add);}
         pvpReset(c);toSea(c,{t:'sunk',d:s});return;}
       case'bkill':return; // Only accepted nkill events advance the boss counter.
       case'bhit':{if(!c.sea||!c.rBoss.hit(now))return;let dmg=Number(m.d?.dmg);if(!num(dmg)||dmg<=0)return;if(dmg>BOSS_HIT_CAP)suspect(c,'boss hasarı',String(dmg));

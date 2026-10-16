@@ -221,3 +221,11 @@ test('NPC ateşi sunucuda: menzil, bekleme, güvenli deniz, yeniden doğma korum
   for(let i=1;i<200&&!dead;i++){const p=g.pvp;p.hp-=8000*S.NPC_DMG_MODEL;S.noteHp(g,100000,i*1000);if(S.godCheck(g))dead=true;}
   assert.ok(dead);
 });
+test('savaş puanı sunucudan: aynı rakipten günde 3, kendini batırmak yok',()=>{
+  const k={uid:'k1'},now=Date.UTC(2026,9,20,12);
+  assert.equal(S.spCredit(k,'k1',now),null);
+  for(let i=0;i<3;i++)assert.ok(S.spCredit(k,'v1',now+i).sp>0);
+  assert.equal(S.spCredit(k,'v1',now+5),null);// 4. kez yok
+  assert.ok(S.spCredit(k,'v2',now+6).sp>0);// başka rakip
+  assert.ok(S.spCredit(k,'v1',now+86_400_000).sp>0);// ertesi gün
+});
