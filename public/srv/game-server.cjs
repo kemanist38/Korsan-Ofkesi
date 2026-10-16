@@ -3655,6 +3655,10 @@ __export(game_server_exports, {
   KILL_CREDIT_MULT: () => KILL_CREDIT_MULT,
   LIMITS: () => LIMITS,
   NEAR: () => NEAR,
+  NPC_KILL_SHARE: () => NPC_KILL_SHARE,
+  NPC_LEASH: () => NPC_LEASH,
+  NPC_RANGE: () => NPC_RANGE,
+  NPC_RESPAWN_MS: () => NPC_RESPAWN_MS,
   PVP_RANGE: () => PVP_RANGE,
   RUIN_MS: () => RUIN_MS,
   Rate: () => Rate,
@@ -3695,6 +3699,12 @@ __export(game_server_exports, {
   noteHp: () => noteHp,
   noteSalvo: () => noteSalvo,
   noteUse: () => noteUse,
+  npcDeathCredit: () => npcDeathCredit,
+  npcFill: () => npcFill,
+  npcHit: () => npcHit,
+  npcInfo: () => npcInfo,
+  npcMove: () => npcMove,
+  npcSpawn: () => npcSpawn,
   osbMatch: () => osbMatch,
   parseForm: () => parseForm,
   parseOsb: () => parseOsb,
@@ -3710,6 +3720,7 @@ __export(game_server_exports, {
   saveServerState: () => saveServerState,
   sbTake: () => sbTake,
   seaMap: () => seaMap,
+  seaNpcs: () => seaNpcs,
   seaTier: () => seaTier,
   siegeCredit: () => siegeCredit,
   siegeHitPiece: () => siegeHitPiece,
@@ -4566,6 +4577,103 @@ function addCredit(c, add) {
   c.credit ??= {};
   for (const k in add) c.credit[k] = (c.credit[k] || 0) + add[k];
 }
+var NPC_RANGE = 900;
+var NPC_LEASH = 680;
+var NPC_RESPAWN_MS = 3e3;
+var NPC_KILL_SHARE = 0.3;
+var seaNpcs = /* @__PURE__ */ new Map();
+var npcPick = (m, list) => {
+  const defs = m.npcs.map((id) => NPCS[id]).filter((d) => d && d.sprite);
+  const missing = defs.filter((d) => ![...list.values()].some((n) => n.def.id === d.id));
+  const pool = missing.length ? missing : defs;
+  return pool[Math.floor(Math.random() * pool.length)];
+};
+function npcSpawn(sea2, now = Date.now(), rand = Math.random) {
+  const map = seaMap(sea2), m = MAPS[map];
+  if (!m) return null;
+  let st = seaNpcs.get(sea2);
+  if (!st) {
+    st = { list: /* @__PURE__ */ new Map(), seq: 0, respawn: [] };
+    seaNpcs.set(sea2, st);
+  }
+  const def = npcPick(m, st.list);
+  if (!def) return null;
+  const p = pickSpot(map, rand), id = `${map}:${++st.seq}`;
+  const n = { id, def, x: p.x, y: p.y, hx: p.x, hy: p.y, hp: def.hp, max: def.hp, wx: p.x, wy: p.y, aggro: null, aggroUntil: 0, dmg: /* @__PURE__ */ new Map(), moved: true, hpDirty: false };
+  st.list.set(id, n);
+  return n;
+}
+function npcFill(sea2, now = Date.now()) {
+  const m = MAPS[seaMap(sea2)];
+  if (!m) return [];
+  let st = seaNpcs.get(sea2);
+  const out = [];
+  while ((st?.list.size ?? 0) + (st?.respawn.length ?? 0) < m.npcCount) {
+    const n = npcSpawn(sea2, now);
+    if (!n) break;
+    out.push(n);
+    st = seaNpcs.get(sea2);
+  }
+  return out;
+}
+var npcInfo = (n) => ({ id: n.id, d: n.def.id, x: Math.round(n.x), y: Math.round(n.y), hp: Math.round(n.hp), max: n.max });
+function npcMove(n, dt, players, now) {
+  let tx = n.wx, ty = n.wy, v = n.def.speed * 0.45 * 1.4;
+  const foe = n.aggro && now < n.aggroUntil ? players.find((p) => p.uid === n.aggro && p.last) : null;
+  if (foe && Math.hypot(n.x - n.hx, n.y - n.hy) < NPC_LEASH) {
+    tx = foe.last.x;
+    ty = foe.last.y;
+    v = n.def.speed * 1.4;
+    if (Math.hypot(tx - n.x, ty - n.y) < 240) return;
+  } else {
+    n.aggro = null;
+    if (Math.hypot(n.wx - n.x, n.wy - n.y) < 20) {
+      const a = Math.random() * Math.PI * 2, r = 60 + Math.random() * 240;
+      n.wx = Math.max(80, Math.min(WORLD_WIDTH - 80, n.hx + Math.cos(a) * r));
+      n.wy = Math.max(80, Math.min(WORLD_HEIGHT - 80, n.hy + Math.sin(a) * r));
+      tx = n.wx;
+      ty = n.wy;
+    }
+  }
+  const d = Math.hypot(tx - n.x, ty - n.y);
+  if (d < 1) return;
+  const st = Math.min(d, v * dt);
+  n.x += (tx - n.x) / d * st;
+  n.y += (ty - n.y) / d * st;
+  n.moved = true;
+}
+function npcHit(c, sea2, id, dmg, now) {
+  const n = seaNpcs.get(sea2)?.list.get(String(id));
+  if (!n || !(dmg > 0)) return null;
+  if (!c.last || Math.hypot(c.last.x - n.x, c.last.y - n.y) > NPC_RANGE) return { err: "menzil" };
+  const t = dpsTake(c, dmg, now);
+  let d = sbTake(c, t.ok);
+  d = Math.min(d, n.hp);
+  if (d <= 0) return { err: "b\xFCt\xE7e", flag: t.flag };
+  n.hp -= d;
+  n.hpDirty = true;
+  n.dmg.set(c.uid, (n.dmg.get(c.uid) || 0) + d);
+  n.aggro = c.uid;
+  n.aggroUntil = now + 12e3;
+  if (n.hp > 0) return { dealt: d, flag: t.flag };
+  const st = seaNpcs.get(sea2);
+  st.list.delete(n.id);
+  st.respawn.push(now + NPC_RESPAWN_MS);
+  const total = [...n.dmg.values()].reduce((a, v) => a + v, 0) || 1;
+  return { dealt: d, dead: n, shares: [...n.dmg].map(([uid, v]) => [uid, v / total]) };
+}
+function npcDeathCredit(c, def, map, share) {
+  const add = { gold: Math.round(def.gold * share * KILL_CREDIT_MULT), xp: Math.round(def.xp * share * KILL_CREDIT_MULT) };
+  if (share >= NPC_KILL_SHARE) {
+    add.st_npc = 1;
+    if (def.role === "heavy") add.st_heavy = 1;
+    c.qk ??= {};
+    c.qk[def.id] = (c.qk[def.id] || 0) + 1;
+    const lvl = Math.round(Number(c.econ?.level) || 1);
+    if (lvl >= 2 && map === levelQuestMap(lvl) && levelQuestTargets(lvl).ships.includes(def.id)) add.lqk = 1;
+  }
+  return add;
+}
 var Rate = class {
   constructor(perWindow, windowMs) {
     this.n = perWindow;
@@ -5090,6 +5198,7 @@ function buildBatch(rec, room, tick) {
 }
 setInterval(() => {
   tickNo++;
+  if (tickNo % 2 === 0) npcTick(Date.now());
   if (tickNo % 3 === 0) {
     const now = Date.now();
     bossTick(now);
@@ -5104,6 +5213,68 @@ setInterval(() => {
     }
   }
 }, TICK_MS).unref();
+function npcTick(now) {
+  for (const [sea2, st] of seaNpcs) {
+    const room = seas.get(sea2);
+    if (!room || !room.size) {
+      seaNpcs.delete(sea2);
+      continue;
+    }
+    const players = [...room];
+    st.respawn = st.respawn.filter((t) => {
+      if (t > now) return true;
+      const n = npcSpawn(sea2, now);
+      if (n) {
+        const m = JSON.stringify({ t: "nspawn", d: npcInfo(n) });
+        for (const x of room) send(x, m);
+      }
+      return false;
+    });
+    const pos = [], hp = [];
+    for (const n of st.list.values()) {
+      npcMove(n, 0.2, players, now);
+      if (n.moved) {
+        n.moved = false;
+        pos.push([n.id, Math.round(n.x), Math.round(n.y)]);
+      }
+      if (n.hpDirty) {
+        n.hpDirty = false;
+        hp.push([n.id, Math.round(n.hp)]);
+      }
+    }
+    if (pos.length || hp.length) {
+      const m = JSON.stringify({ t: "npos", d: { p: pos, h: hp } });
+      for (const x of room) send(x, m);
+    }
+  }
+}
+function onNpcHit(c, list, now) {
+  const map = seaMap(c.sea);
+  if (!map || !Array.isArray(list)) return;
+  for (const it of list.slice(0, 40)) {
+    if (!Array.isArray(it)) continue;
+    const r = npcHit(c, c.sea, it[0], Number(it[1]), now);
+    if (!r) continue;
+    if (r.flag) {
+      suspect(c, "saniyelik hasar", "npc");
+      if (c.dps) c.dps.over = 0;
+    }
+    if (!r.dead) continue;
+    const room = seas.get(c.sea) || /* @__PURE__ */ new Set(), def = r.dead.def;
+    for (const [uid, share] of r.shares) {
+      const x = [...room].find((p) => p.uid === uid) ?? [...all].find((p) => p.uid === uid);
+      if (!x) continue;
+      addCredit(x, npcDeathCredit(x, def, map, share));
+      send(x, { t: "nkilled", d: { id: r.dead.id, share } });
+    }
+    const m = JSON.stringify({ t: "ndie", d: { id: r.dead.id } });
+    for (const x of room) send(x, m);
+    if (def.id === bossFor(map).trigger) {
+      const b = bossKill(c.sea, BOSS_KILLS, now);
+      if (b) toSea(c, { t: "boss", d: bossInfo(c.sea, b) }, true);
+    }
+  }
+}
 async function flushCredit(c) {
   if (c.flushing || !c.uid) return;
   c.flushing = true;
@@ -5249,6 +5420,15 @@ wss.on("connection", (ws) => {
         c.sea = name;
         c.seen = null;
         send(c, { t: "joined", sea: name });
+        if (seaMap(name)) {
+          const fresh = npcFill(name, now);
+          const st = seaNpcs.get(name);
+          send(c, { t: "nlist", d: [...st?.list.values() ?? []].map(npcInfo) });
+          if (fresh.length) {
+            const m2 = JSON.stringify({ t: "nlist", d: [...st.list.values()].map(npcInfo) });
+            for (const x of room) if (x !== c) send(x, m2);
+          }
+        }
         const b = bossSeas.get(name)?.boss;
         if (b) send(c, { t: "boss", d: bossInfo(name, b) });
         const isle = islands.get(islandOfSea(name));
@@ -5396,7 +5576,13 @@ wss.on("connection", (ws) => {
         if (r.won) siegeFinish();
         return;
       }
+      case "nhit": {
+        if (!c.sea || !c.rBoss.hit(now)) return;
+        onNpcHit(c, m.d?.h, now);
+        return;
+      }
       case "nkill": {
+        if (NPCS[String(m.d?.id || "")]) return;
         if (!c.sea || !c.rKill.hit(now)) return;
         const r = killCredit(c, String(m.d?.id || ""), now);
         if (r.err) {
@@ -5586,6 +5772,10 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   KILL_CREDIT_MULT,
   LIMITS,
   NEAR,
+  NPC_KILL_SHARE,
+  NPC_LEASH,
+  NPC_RANGE,
+  NPC_RESPAWN_MS,
   PVP_RANGE,
   RUIN_MS,
   Rate,
@@ -5626,6 +5816,12 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   noteHp,
   noteSalvo,
   noteUse,
+  npcDeathCredit,
+  npcFill,
+  npcHit,
+  npcInfo,
+  npcMove,
+  npcSpawn,
   osbMatch,
   parseForm,
   parseOsb,
@@ -5641,6 +5837,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   saveServerState,
   sbTake,
   seaMap,
+  seaNpcs,
   seaTier,
   siegeCredit,
   siegeHitPiece,

@@ -194,3 +194,16 @@ test('sandık, pırıltı, boss ve görev incisi sunucudan',()=>{
   // Boss %3 üstü pay inci verir; görev incisi
   assert.ok(S.bossCredit('3/1',.5,2).pearls>0);assert.equal(S.bossCredit('3/1',.01,2).pearls,undefined);
 });
+test('sunucu NPC: doğma, menzil, bütçe, paylı ödül, yeniden doğma',()=>{
+  const sea='sea-2-1';S.seaNpcs.delete(sea);const fresh=S.npcFill(sea,0);assert.ok(fresh.length>=3);const n=fresh[0];
+  const a={uid:'a1',econ:{level:2,c_cast:100},last:{x:n.x+50,y:n.y},sb:{pool:0}},b={uid:'b1',econ:{level:2,c_cast:100},last:{x:n.x,y:n.y+50},sb:{pool:1e9}};
+  assert.equal(S.npcHit(a,sea,n.id,1000,0).err,'bütçe');// salvo yok
+  const far={uid:'f',econ:{level:2},last:{x:n.x+5000,y:n.y},sb:{pool:1e9}};assert.equal(S.npcHit(far,sea,n.id,1000,0).err,'menzil');
+  a.sb.pool=1e9;let t=0,r;
+  // a %75, b %25 hasar → a'ya sayaç, b'ye yalnız paylı altın/TP
+  while(!(r=S.npcHit(t%4===3?b:a,sea,n.id,n.max/20,t*1000))?.dead)t++;
+  const sh=Object.fromEntries(r.shares);assert.ok(sh.a1>sh.b1);
+  const ca=S.npcDeathCredit(a,n.def,'2/1',sh.a1),cb=S.npcDeathCredit(b,n.def,'2/1',sh.b1);
+  assert.equal(ca.st_npc,1);assert.equal(cb.st_npc,undefined);assert.ok(cb.gold>0&&cb.gold<ca.gold);
+  assert.equal(S.seaNpcs.get(sea).list.has(n.id),false);assert.equal(S.seaNpcs.get(sea).respawn.length,1);
+});

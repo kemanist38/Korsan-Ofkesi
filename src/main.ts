@@ -25,7 +25,7 @@ import {supa} from './supabase';
 import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
 import {loadLevelQuest,saveLevelQuest,levelQuestDone,levelQuestKill,levelQuestGoal,needsLevelQuest,levelQuestMap} from './level-quest';
 import {SPY_COST,SPY_SHIELD_PRICE,loadSpy,sendSpy,type SpyRival} from './spy';
-import {netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,sendSalvo,sendUse,sendQuestDone,sendChest,sendDig,sendSparkle,type NetTreasure,type NetDig,type NetLoot,type NetSiegeEnd,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
+import {netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,sendSalvo,sendUse,sendQuestDone,sendChest,sendDig,sendSparkle,sendNpcHits,type NetNpc,type NetTreasure,type NetDig,type NetLoot,type NetSiegeEnd,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
 import {AUCTION_MS,loadAuction,saveAuction,emptyAuction,auctionHour,auctionEnds,lotsFor,minNextBid,applyBid,wonLots,auctionId,type LotDef,type Bid} from './auction';
 import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,claimReward,GRADUATE_LEVEL,MAX_APPRENTICES,TOGETHER_XP_BONUS,APPRENTICE_MAX_LEVEL} from './mentorship';
 import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
@@ -59,7 +59,7 @@ type SalvoRound = { powder?:boolean; delay:number; target:Target; side:number; s
 type EnemyRole='light'|'heavy';
 // Test kaptanı: elit gemili, oyuncu gibi savaşan yapay rakip (yalnız test modunda 1/1'de)
 type Captain={elite:EliteShipId;ammo:AmmoKind;ammoClock:number;foe:Enemy|null;orbit:Vec|null;orbitClock:number};
-type Enemy = Vec & { kind:'ship'; dir16?:number; remoteShip?:string; remote?:{id:string;tx:number;ty:number;vx:number;vy:number;seen:number;sp:number;tag:string|null}; captain?:Captain; pvp?:PvpBudget; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; shared?:string; share?:number; shareN?:number; serverDown?:boolean; lastHp?:number; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number; lastHitBy?:'player'|'captain'; siege?:boolean; commander?:boolean;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
+type Enemy = Vec & { kind:'ship'; net?:{id:string;tx:number;ty:number}; dir16?:number; remoteShip?:string; remote?:{id:string;tx:number;ty:number;vx:number;vy:number;seen:number;sp:number;tag:string|null}; captain?:Captain; pvp?:PvpBudget; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; shared?:string; share?:number; shareN?:number; serverDown?:boolean; lastHp?:number; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number; lastHitBy?:'player'|'captain'; siege?:boolean; commander?:boolean;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
 type ParticleKind='flare'|'ember'|'glint'|'wisp'|'foam'|'smoke'|'spark'|'damage'|'flash'|'splinter'|'bubble'|'plank'|'firePuff'|'target'|'poison'|'soul'|'shock';
 // z: su üstünden yükseklik (ekranda yukarı kayar); vz ile savrulan parçalar suya düşer
 type Particle = Vec & { vx:number; vy:number; life:number; maxLife:number; kind:ParticleKind; text?:string; color?:string; z?:number; vz?:number; rot?:number; vr?:number; size?:number; variant?:number };
@@ -586,6 +586,7 @@ const netHandlers:NetHandlers={
     if(k.by===myNetId){gainRage(rage,RAGE_PER_RIVAL);const sp=claimRivalSp(rivalLog,k.victimNick)?gainSp(RIVAL_SP*spMult()):0;sinkNotice(k.victimNick,sp);rivalSinks++;saveRivalSinks(rivalSinks);saveAccount();}
     else if(k.victim!==myNetId)rewardNotice(`${k.byNick}, ${k.victimNick} kaptanını batırdı`,'battle');},
   spy:r=>onSpyReport(r),
+  npcList:l=>onNpcList(l),npcSpawn:n=>{if(!netNpcs()||npcById(n.id))return;const e=npcFromNet(n);if(e)enemies.push(e);},npcPos:d=>onNpcPos(d),npcShare:d=>{const e=npcById(d.id);if(e)e.share=d.share;},npcDie:id=>onNpcDie(id),
   chestReward:r=>applyLoot(r,r.kind==='gilded'?'Yaldızlı sandık':'Ahşap sandık'),
   sparkleReward:r=>applyLoot(r,'Pırıltı'),
   treasure:t=>onTreasureState(t),
@@ -694,6 +695,7 @@ ui('openMenuQuests').onclick=openQuestLog;ui('openMenuWorld').onclick=openWorldM
 document.querySelectorAll<HTMLButtonElement>('.menu-grid button').forEach(b=>b.addEventListener('click',closeMenu));
 
 function spawnEnemy(){
+  if(netNpcs())return; // hesapla oynarken NPC'ler oyun sunucusundan gelir
   const map=mapDef();if(regularEnemyCount()>=map.npcCount)return;
   const available=map.npcs.map(id=>NPCS[id]).filter(def=>!!def.sprite);if(!available.length)return;
   const missing=available.filter(def=>!enemies.some(e=>!e.tower&&!e.boss&&e.def?.id===def.id));
@@ -783,6 +785,17 @@ function defeatBoss(e:Enemy){
   const part=e.shared&&(e.shareN??1)>1?` · payın %${Math.round(share*100)} (${e.shareN} kaptan)`:'';
   rewardNotice(`${b.name} batırıldı${part} · +${fmt(xp)} TP · +${fmt(gold)} altın${full?` · +${fmt(b.pearls)} inci · +${fmt(bEp)} EP`:''} kazanıldı`,'battle',{xp,gold,sink:true});
 }
+// Sunucu NPC'leri: yerel kopyada verilen hasar (salvo, yanma, mayın) biriktirilip 0,25 sn'de bir gönderilir; can ve batış sunucudan
+const netNpcs=()=>!!session.account&&!siege;
+let npcHitClock=0;const npcHitPending=new Map<string,number>();
+function npcNetTick(dt:number){if(!netNpcs())return;for(const e of enemies){if(!e.net)continue;if(e.lastHp!==undefined&&e.hp<e.lastHp)npcHitPending.set(e.net.id,(npcHitPending.get(e.net.id)??0)+e.lastHp-e.hp);e.lastHp=e.hp;}
+  npcHitClock-=dt;if(npcHitClock<=0&&npcHitPending.size){npcHitClock=.25;sendNpcHits([...npcHitPending].map(([id,d])=>[id,Math.round(d)]));npcHitPending.clear();}}
+function npcFromNet(n:NetNpc):Enemy|null{const def=NPCS[n.d];if(!def)return null;const e=makeShip(def,n.x,n.y,Math.random()*Math.PI*2);e.net={id:n.id,tx:n.x,ty:n.y};e.hp=n.hp;e.maxHp=n.max;e.lastHp=n.hp;e.homeX=n.x;e.homeY=n.y;return e;}
+const npcById=(id:string)=>enemies.find(e=>e.net?.id===id);
+function onNpcList(list:NetNpc[]){if(!netNpcs())return;for(let i=enemies.length-1;i>=0;i--){const e=enemies[i];if(e.net||(!e.tower&&!e.boss&&!e.captain&&!e.remote&&!e.commander&&e.def)){if(selected===enemies[i]){selected=null;state.attacking=false;}enemies.splice(i,1);}}
+  for(const n of list){const e=npcFromNet(n);if(e)enemies.push(e);}}
+function onNpcPos(d:{p:[string,number,number][];h:[string,number][]}){for(const [id,x,y] of d.p){const e=npcById(id);if(e?.net){e.net.tx=x;e.net.ty=y;}}for(const [id,hp] of d.h){const e=npcById(id);if(e){e.hp=Math.max(1,hp);e.lastHp=e.hp;}}}
+function onNpcDie(id:string){const e=npcById(id);if(!e)return;e.serverDown=true;e.hp=0;e.lastHp=0;npcHitPending.delete(id);sinkEnemy(e);}
 // Paylaşılan boss: yerel kopyada verilen hasar biriktirilip sunucuya gönderilir; can sunucudan gelir, batışı sunucu bildirir
 let bossHitPending=0,bossHitClock=0;
 function sharedBossTick(dt:number){const e=activeBoss();if(!e?.shared){bossHitPending=0;return;}
@@ -1951,6 +1964,10 @@ function update(dt:number){updateHealFlights(dt);{const rc=document.getElementBy
     if(e.tower){if(siege)updateSiegeTower(e,dt);else updateTower(e,dt);continue;}
     if(e.remote){const r=e.remote,age=Math.min(.6,(performance.now()-r.seen)/1000),px=r.tx+r.vx*age,py=r.ty+r.vy*age,k=Math.min(1,dt*18);
       if(Math.hypot(px-e.x,py-e.y)>400){e.x=px;e.y=py;}else{e.x+=(px-e.x)*k;e.y+=(py-e.y)*k;}continue;}
+    if(e.net){const n=e.net,dx=n.tx-e.x,dy=n.ty-e.y,dd=Math.hypot(dx,dy);if(dd>400){e.x=n.tx;e.y=n.ty;}else if(dd>.5){const k=Math.min(1,dt*6);e.x+=dx*k;e.y+=dy*k;}
+      if(dd>3){e.face={east:dx>0,north:dy<0};e.dir16=dir16Toward(dx,dy);e.angle=Math.atan2(dx,-dy);}
+      const d=dist(e,player);e.slowTimer=Math.max(0,e.slowTimer-dt);proximityAggro(e,d);if(e.aggro){e.combatTimer-=dt;if(e.combatTimer<=0)e.aggro=false;}
+      if(e.aggro&&d<NPC_FIRE_RANGE&&e.cooldown<=0)enemyFire(e);e.cooldown-=dt;continue;}
     if(e.captain){if(siege)updateSiegeCaptain(e,dt);else updateCaptain(e,dt);continue;}
     if(e.commander){updateCommander(e,dt);continue;}
     if((e.frozen??0)>0){e.frozen=Math.max(0,e.frozen!-dt);e.cooldown=Math.max(e.cooldown,.5);continue;}
@@ -2172,7 +2189,7 @@ function leaveSiege(){if(!siege)return;siegeOnline=false;SIEGE_PARTICIPANTS=4;co
 function sinkEnemy(e:Enemy){
   const j=enemies.indexOf(e);if(j<0)return;
   // Paylaşılan boss ve ada kulesi: batışı sunucu bildirir; o zamana kadar 1 canla ayakta kalır
-  if(((e.boss&&e.shared)||(e.tower&&!e.siege&&!!session.account)||(e.siege&&siegeOnline&&(e.tower||e.commander)))&&!e.serverDown){e.hp=1;e.lastHp=1;return;}
+  if(((e.boss&&e.shared)||(e.net&&!e.serverDown)||(e.tower&&!e.siege&&!!session.account)||(e.siege&&siegeOnline&&(e.tower||e.commander)))&&!e.serverDown){if(e.net&&!e.serverDown){e.hp=Math.max(1,e.hp);return;}e.hp=1;e.lastHp=1;return;}
   if(!e.tower)spawnWreck(e);
   if(e.captain){enemies.splice(j,1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}burst(e.x,e.y,true);playExplosion();playSink(earGain(e));splashAt(e.x,e.y,190);if(e.lastHitBy!=='captain'){gainRage(rage,RAGE_PER_RIVAL);const sp=claimRivalSp(rivalLog,e.name)?gainSp(RIVAL_SP*spMult()):0;sinkNotice(e.name,sp);rivalSinks++;saveRivalSinks(rivalSinks);saveAccount();}e.lastHitBy=undefined;
     const map=currentMap,inst=siege;later(5,()=>{if(currentMap!==map||siege!==inst)return;const a=Math.random()*Math.PI*2,p={x:clamp(e.homeX+Math.cos(a)*450,80,WORLD_WIDTH-80),y:clamp(e.homeY+Math.sin(a)*260,80,WORLD_HEIGHT-80)};Object.assign(e,{x:p.x,y:p.y,hp:e.maxHp,frozen:0,burnTimer:0,slowTimer:0});e.captain!.foe=null;enemies.push(e);spawnText(e,`${e.name} YENİDEN DENİZDE`,'#f1d08a');});return;}
@@ -2181,9 +2198,11 @@ function sinkEnemy(e:Enemy){
   if(e.tower){destroyTower(e);return;}
   if(e.commander){siegeWon(e);return;}
   if(e.boss){defeatBoss(e);return;}
+  // Sunucu NPC'si: ödül yalnız hasar payına göre; katkısı olmayan yalnız batışı görür
+  if(e.net&&!((e.share??0)>0))return;
   // NPC tecrübe puanı ve altın verir; savaş puanı (SP) yalnızca rakip oyuncu batırınca gelir (src/battle.ts).
-    const goldGain=goldGainAch(e.rewardGold*(1+bonus.bounty)),fame=xpGain(e.rewardFame);state.gold+=goldGain;state.fame+=fame;saveAccount();bumpAch('npc');if(e.role==='heavy')bumpAch('heavy');
-  rewardNotice(`${e.name} batırıldı · +${fmt(goldGain)} altın · +${fmt(fame)} TP kazanıldı`,'battle',{xp:fame,gold:goldGain,sink:true});if(e.def){if(!siege)sendKill(e.def.id);recordQuestProgress('npc',e.def.id);levelQuestHit('npc',e.def.id,e.def.tier);}countBossKill(e);if(!e.summoned)setTimeout(spawnEnemy,1800);
+    const share=e.net?e.share??0:1,full=share>=.3,goldGain=goldGainAch(e.rewardGold*share*(1+bonus.bounty)),fame=xpGain(e.rewardFame*share);state.gold+=goldGain;state.fame+=fame;saveAccount();if(full){bumpAch('npc');if(e.role==='heavy')bumpAch('heavy');}
+  rewardNotice(`${e.name} batırıldı · +${fmt(goldGain)} altın · +${fmt(fame)} TP kazanıldı`,'battle',{xp:fame,gold:goldGain,sink:true});if(e.def){if(!siege&&!e.net)sendKill(e.def.id);if(full){recordQuestProgress('npc',e.def.id);levelQuestHit('npc',e.def.id,e.def.tier);}}countBossKill(e);if(!e.summoned)setTimeout(spawnEnemy,1800);
 }
 // Savaş puanı kazancı; rütbe atlanırsa duyurulur
 const spText=()=>{const r=battleRank(state.battlePoints);return r.next?`${fmt(state.battlePoints)} / ${fmt(r.next.sp)}`:fmt(state.battlePoints);};
@@ -2261,7 +2280,7 @@ function activateRage(){
   for(let n=0;n<14;n++){const a=Math.random()*Math.PI*2,sp=60+Math.random()*90;particles.push({x:player.x,y:player.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp*.5,life:.6+Math.random()*.4,maxLife:1,kind:'ember',z:10+Math.random()*30,size:10+Math.random()*14,color:n%2?'#ff6a1a':'#ffd27a'});}
 }
 function updateRage(dt:number){
-  playerHitClock+=dt;tickLogout();sharedBossTick(dt);siegeNetTick(dt);sharedTowerTick(dt);towerHealTick(dt);
+  playerHitClock+=dt;tickLogout();sharedBossTick(dt);npcNetTick(dt);siegeNetTick(dt);sharedTowerTick(dt);towerHealTick(dt);
   for(let i=abilityQueue.length-1;i>=0;i--){const q=abilityQueue[i];q.t-=dt;if(q.t<=0){abilityQueue.splice(i,1);q.fn();}}
   const was=rageActive(rage);tickRage(rage,dt);
   // Öfke açıkken: Hız İksiri izinin kırmızı hali (gemi giderken)
