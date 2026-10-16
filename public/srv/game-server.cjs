@@ -3667,9 +3667,11 @@ __export(game_server_exports, {
   TOWER_SLOTS: () => TOWER_SLOTS,
   USE_COOLDOWN: () => USE_COOLDOWN,
   addCredit: () => addCredit,
+  bossCredit: () => bossCredit,
   bossHit: () => bossHit,
   bossInfo: () => bossInfo,
   bossKill: () => bossKill,
+  bossPool: () => bossPool,
   bossSeas: () => bossSeas,
   buildBatch: () => buildBatch,
   cannonsOf: () => cannonsOf,
@@ -3696,10 +3698,13 @@ __export(game_server_exports, {
   pvpGuard: () => pvpGuard,
   pvpHeal: () => pvpHeal,
   pvpReset: () => pvpReset,
+  questCooldowns: () => questCooldowns,
+  questCredit: () => questCredit,
   resetSiege: () => resetSiege,
   sbTake: () => sbTake,
   seaMap: () => seaMap,
   seaTier: () => seaTier,
+  siegeCredit: () => siegeCredit,
   siegeHitPiece: () => siegeHitPiece,
   siegeInfo: () => siegeInfo,
   siegeJoin: () => siegeJoin,
@@ -3859,6 +3864,46 @@ var MONSTER_LIST = [
 var MONSTER_OF_TIER = Object.fromEntries(MONSTER_LIST.map((m) => [m.tier, m.id]));
 var MONSTERS = Object.fromEntries(MONSTER_LIST.map(({ slot, ...m }) => [m.id, { ...m, portrait: NPC_LIST.length + slot }]));
 var PORTRAIT_COUNT = NPC_LIST.length + 16;
+var BOSS_NAMES = {
+  "1/1": "\u0130mparatorluk F\u0131rkateyni",
+  "1/2": "\u0130mparatorluk F\u0131rkateyni",
+  "2/1": "\u0130nci Krali\xE7esi",
+  "2/2": "\u0130nci Krali\xE7esi",
+  "3/1": "Kadim Azur \u0130mparatoru",
+  "3/2": "Kadim Azur \u0130mparatoru",
+  "4/1": "Gece Deh\u015Fet \u0130mparatoru",
+  "4/2": "Gece Deh\u015Fet \u0130mparatoru",
+  "5/1": "K\u0131\u015F Z\u0131pk\u0131n \u0130mparatoru",
+  "5/2": "K\u0131\u015F Z\u0131pk\u0131n \u0130mparatoru",
+  "6/1": "\u015Eim\u015Fek \u0130mparatoru",
+  "6/2": "\u015Eim\u015Fek \u0130mparatoru",
+  "7/1": "Hi\xE7lik \u0130mparatoru",
+  "7/2": "Hi\xE7lik \u0130mparatoru",
+  "8/1": "Cehennem Lordu",
+  "8/2": "Cehennem Lordu"
+};
+var BOSS_DAMAGE = 0.25;
+var bossFor = (key) => {
+  const m = MAPS[key], h = NPCS[`n${m.tier}-2-heavy`], hp = BOSS_HP[m.tier], i = MAP_KEYS.indexOf(key);
+  return {
+    key,
+    id: `boss-${key.replace("/", "-")}`,
+    name: BOSS_NAMES[key],
+    sprite: `/assets/boss-t${m.tier}-dir16-v2.webp`,
+    span: 260,
+    role: "heavy",
+    tier: m.tier,
+    hp,
+    damage: Math.round(h.damage * BOSS_DAMAGE),
+    reload: 2.2,
+    speed: Math.round(h.speed * 0.8),
+    gold: 0,
+    xp: h.xp * 20,
+    pearls: 50 * m.tier,
+    portrait: i,
+    trigger: h.id
+  };
+};
 var GRID_COLS = 61;
 var GRID_ROWS = 78;
 var CELL_W = WORLD_WIDTH / GRID_COLS;
@@ -3988,6 +4033,49 @@ var QUESTS = MAP_KEYS.flatMap((key) => {
   ];
 });
 var QUEST_COOLDOWN_MS = 8 * 60 * 60 * 1e3;
+
+// src/economy.ts
+var ELITE_THRESHOLD_SCALE = 0.72;
+
+// src/arsenal.ts
+var ELITE_EP = [0, 0, 7e3, 3e4, 8e4, 2e5, 36e4, 53e4, 75e4, 102e4, 136e4, 178e4, 23e5, 295e4, 385e4, 5e6].map((n) => Math.round(n * ELITE_THRESHOLD_SCALE));
+var questEp = (tier) => 20 * tier;
+var bossEp = (tier) => 500 * tier;
+var AMMO_PRICES = { chain: { amount: 3, currency: "pearls", per: 300 }, fire: { amount: 4, currency: "pearls", per: 300 }, breaker: { amount: 5, currency: "pearls", per: 300 }, explosive: { amount: 6, currency: "pearls", per: 300 }, leech: { amount: 8, currency: "pearls", per: 300 }, heal: { amount: 6, currency: "pearls", per: 300 } };
+var EP_PER_PEARL = 5.75;
+var epPerBall = (p) => Math.round(p.amount / (p.per ?? 1) * EP_PER_PEARL * 1e4) / 1e4;
+var ELITE_POINTS_PER_BALL = { chain: epPerBall(AMMO_PRICES.chain), fire: epPerBall(AMMO_PRICES.fire), breaker: epPerBall(AMMO_PRICES.breaker), explosive: epPerBall(AMMO_PRICES.explosive), leech: epPerBall(AMMO_PRICES.leech), heal: epPerBall(AMMO_PRICES.heal) };
+
+// src/siege.ts
+var SIEGE_START_H = 20;
+var SIEGE_END_H = 22;
+var SIEGE_TIER = 8;
+var SIEGE_MS = (SIEGE_END_H - SIEGE_START_H) * 36e5;
+var WALL_TOWERS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+var INNER_TOWERS = [12, 13, 14, 15];
+function siegeStats(participants = 4) {
+  const k = Math.max(1, participants), t = fleetTowerStats(SIEGE_TIER);
+  return { wallHp: SIEGE_HP_PER_CAPTAIN.wall * k, innerHp: SIEGE_HP_PER_CAPTAIN.inner * k, commanderHp: SIEGE_HP_PER_CAPTAIN.commander * k, towerDamage: t.damage, commanderDamage: Math.round(t.damage * 1.6), range: 460 };
+}
+function siegeTotalHp(participants = 4) {
+  const s = siegeStats(participants);
+  return s.wallHp * WALL_TOWERS.length + s.innerHp * INNER_TOWERS.length + s.commanderHp;
+}
+var SIEGE_LEVEL_XP = [0, 2e4, 2e5, 5e5, 15e5, 32e5, 58e5, 114e5, 114e5];
+function contribBase(level) {
+  const l = Math.max(1, Math.min(8, Math.round(level)));
+  return { xp: Math.round(SIEGE_LEVEL_XP[l] * 0.05), gold: Math.round(1500 * Math.pow(1.6, l - 1) * 4), pearls: 500 + 250 * l };
+}
+var CONTRIB_MIN = 0.25;
+var CONTRIB_CAP = 3;
+function contribMult(damage, participants = 4) {
+  const fair = siegeTotalHp(participants) / Math.max(1, participants), rel = Math.max(0, damage) / fair;
+  return rel < CONTRIB_MIN ? 0.4 * rel / CONTRIB_MIN : 0.4 + 0.6 * Math.min(CONTRIB_CAP, rel);
+}
+function contribReward(damage, participants = 4, level = 8) {
+  const b = contribBase(level), m = contribMult(damage, participants);
+  return { xp: Math.round(b.xp * m), gold: Math.round(b.gold * m), pearls: Math.round(b.pearls * m) };
+}
 
 // src/level-quest.ts
 var levelQuestTargets = (level) => ({ ships: [`n${level}-1-heavy`, `n${level}-2-heavy`], tier: level });
@@ -4238,9 +4326,47 @@ function killCredit(c, id, now) {
     add.st_npc = 1;
     if (npc2.role === "heavy") add.st_heavy = 1;
   } else add.st_monster = 1;
+  c.qk ??= {};
+  c.qk[id] = (c.qk[id] || 0) + 1;
   const lvl = Math.round(Number(c.econ?.level) || 1);
   if (npc2 && lvl >= 2 && map === levelQuestMap(lvl) && levelQuestTargets(lvl).ships.includes(id)) add.lqk = 1;
   return { add };
+}
+var questCooldowns = /* @__PURE__ */ new Map();
+function questCredit(c, id, now) {
+  const q = QUESTS.find((x) => x.id === id);
+  if (!q) return { err: "g\xF6rev" };
+  const cd = questCooldowns.get(c.uid) ?? /* @__PURE__ */ new Map();
+  questCooldowns.set(c.uid, cd);
+  if (now - (cd.get(id) ?? -1e15) < QUEST_COOLDOWN_MS * 0.95) return { err: "bekleme" };
+  if (q.kind === "npc" || q.kind === "monster") {
+    c.qk ??= {};
+    const have = q.ids.reduce((a, k) => a + (c.qk[k] || 0), 0);
+    if (have < q.required) return { err: "say\u0131", have };
+    let need = q.required;
+    for (const k of q.ids) {
+      const t = Math.min(need, c.qk[k] || 0);
+      c.qk[k] -= t;
+      need -= t;
+    }
+  }
+  cd.set(id, now);
+  return { add: { gold: Math.round(q.gold * KILL_CREDIT_MULT), xp: Math.round(q.xp * KILL_CREDIT_MULT), ep: Math.round(questEp(q.tier) * 1.5), st_quest: 1 } };
+}
+var bossPool = (n) => 1 + 0.6 * (Math.min(5, Math.max(1, n)) - 1);
+function bossCredit(map, share, n) {
+  if (!MAPS[map] || !(share > 0)) return null;
+  const b = bossFor(map), pool = bossPool(n);
+  const add = { gold: Math.round(NPCS[b.trigger].gold * 20 * pool * share * KILL_CREDIT_MULT), xp: Math.round(b.xp * pool * share * KILL_CREDIT_MULT) };
+  if (share >= 0.03) {
+    add.ep = Math.round(bossEp(b.tier) * 1.5);
+    add.st_boss = 1;
+  }
+  return add;
+}
+function siegeCredit(dmg, n, level) {
+  const r = contribReward(dmg, Math.max(1, n), Math.max(1, Math.min(8, Math.round(Number(level) || 8))));
+  return { gold: Math.round(r.gold * KILL_CREDIT_MULT), xp: Math.round(r.xp * KILL_CREDIT_MULT) };
 }
 function addCredit(c, add) {
   c.credit ??= {};
@@ -4965,6 +5091,15 @@ wss.on("connection", (ws) => {
         if (!r) return;
         const room = seas.get(c.sea);
         log("BOSS BATTI", c.sea, r.n, "kaptan");
+        {
+          const map = seaMap(c.sea);
+          for (const x of all) {
+            const sh = r.shares[x.uid];
+            if (!sh) continue;
+            const add = bossCredit(map, sh.share, r.n);
+            if (add) addCredit(x, add);
+          }
+        }
         for (const x of room || []) send(x, { t: "bdown", d: { id: r.id, n: r.n, ...r.shares[x.uid] ?? { share: 0, dmg: 0 } } });
         return;
       }
@@ -4983,6 +5118,7 @@ wss.on("connection", (ws) => {
           if (dmg <= 0) return;
         }
         const r = siegeHitPiece(c.uid, c.nick, Number(m.d?.i), dmg);
+        if (siegeRun && !siegeRun.result) addCredit(c, siegeCredit(dmg, siegeRun.caps.size, c.econ?.level));
         if (!r?.down && r?.down !== 0) return;
         toSea(c, { t: "sdown", d: { i: r.down } }, true);
         if (r.won) siegeFinish();
@@ -5017,6 +5153,19 @@ wss.on("connection", (ws) => {
         if (r.err) return;
         if (r.early) suspect(c, "bekleme s\xFCresi", String(m.d?.id));
         addCredit(c, r.use);
+        return;
+      }
+      case "qdone": {
+        if (!c.uid || !c.rKill.hit(now)) return;
+        const id = String(m.d?.id || "");
+        const r = questCredit(c, id, now);
+        if (r.err) {
+          if (r.err === "bekleme") suspect(c, "g\xF6rev bekleme", id);
+          send(c, { t: "qres", d: { id, ok: false, err: r.err } });
+          return;
+        }
+        addCredit(c, r.add);
+        send(c, { t: "qres", d: { id, ok: true } });
         return;
       }
       case "spy": {
@@ -5123,9 +5272,11 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   TOWER_SLOTS,
   USE_COOLDOWN,
   addCredit,
+  bossCredit,
   bossHit,
   bossInfo,
   bossKill,
+  bossPool,
   bossSeas,
   buildBatch,
   cannonsOf,
@@ -5152,10 +5303,13 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   pvpGuard,
   pvpHeal,
   pvpReset,
+  questCooldowns,
+  questCredit,
   resetSiege,
   sbTake,
   seaMap,
   seaTier,
+  siegeCredit,
   siegeHitPiece,
   siegeInfo,
   siegeJoin,

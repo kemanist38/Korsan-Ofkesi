@@ -25,7 +25,7 @@ import {supa} from './supabase';
 import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
 import {loadLevelQuest,saveLevelQuest,levelQuestDone,levelQuestKill,levelQuestGoal,needsLevelQuest,levelQuestMap} from './level-quest';
 import {SPY_COST,SPY_SHIELD_PRICE,loadSpy,sendSpy,type SpyRival} from './spy';
-import {netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,sendSalvo,sendUse,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
+import {netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,sendSalvo,sendUse,sendQuestDone,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
 import {AUCTION_MS,loadAuction,saveAuction,emptyAuction,auctionHour,auctionEnds,lotsFor,minNextBid,applyBid,wonLots,auctionId,type LotDef,type Bid} from './auction';
 import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,claimReward,GRADUATE_LEVEL,MAX_APPRENTICES,TOGETHER_XP_BONUS,APPRENTICE_MAX_LEVEL} from './mentorship';
 import {INSIGNIA_SHEET,INSIGNIA_W,INSIGNIA_H,insigniaTier,loadRivalSinks,saveRivalSinks} from './insignia';
@@ -1815,7 +1815,7 @@ function recordQuestProgress(kind:QuestDef['kind'],id:string){
   if(!quest||quest.map!==currentMap||quest.kind!==kind||!quest.ids.includes(id))return;
   questProgress[quest.id]=(questProgress[quest.id]??0)+1;saveQuestState();
   if(questProgress[quest.id]<quest.required)return;
-  state.gold+=goldGainAch(quest.gold);state.fame+=xpGain(quest.xp);state.pearls+=quest.pearls;bumpAch('quest');const qEp=questEp(quest.tier);gainElitePoints(qEp);
+  sendQuestDone(quest.id);state.gold+=goldGainAch(quest.gold);state.fame+=xpGain(quest.xp);state.pearls+=quest.pearls;bumpAch('quest');const qEp=questEp(quest.tier);gainElitePoints(qEp);
   rewardNotice(`Görev tamamlandı: ${quest.title} · +${fmt(quest.gold)} altın · +${fmt(quest.pearls)} inci · +${fmt(quest.xp)} TP · +${fmt(qEp)} EP`,'gain',{xp:quest.xp,gold:quest.gold});
   toast(`${quest.title} tamamlandı`);questProgress[quest.id]=0;questCooldownUntil[quest.id]=Date.now()+QUEST_COOLDOWN_MS;state.activeQuest=null;saveQuestState();saveAccount();
 }

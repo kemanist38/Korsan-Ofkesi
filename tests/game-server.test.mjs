@@ -123,3 +123,18 @@ test('salvo bütçesi ve kullanım sayımı: salvosuz batırma sayılmaz, top sa
   // Bütçeden hasar düşümü
   const d={sb:{pool:1000}};assert.equal(S.sbTake(d,5000),1000);assert.equal(S.sbTake(d,5000),0);
 });
+test('görev, boss ve kuşatma ödülü sunucuda: batırma sayısı, bekleme süresi, pay',()=>{
+  const c={uid:'q1',sea:'sea-2-1',econ:{level:2,c_cast:100},sb:{pool:1e12}};
+  const q='q2/1-light';
+  assert.equal(S.questCredit(c,q,0).err,'sayı');// batırma yok
+  for(let i=0;i<20;i++){const r=S.killCredit(c,'n2-1-light',i*20_000);assert.ok(r.add,String(r.err));}
+  const ok=S.questCredit(c,q,500_000);assert.ok(ok.add);assert.equal(ok.add.st_quest,1);
+  for(let i=0;i<20;i++)S.killCredit(c,'n2-1-light',600_000+i*20_000);
+  assert.equal(S.questCredit(c,q,1_100_000).err,'bekleme');// 8 saat dolmadı
+  assert.ok(S.questCredit(c,q,500_000+8*3600_000).add);
+  // Pırıltı görevi: sayı yok, yalnız bekleme süresi
+  assert.ok(S.questCredit(c,'q2/1-sparkle',0).add);
+  // Boss: pay yoksa ödül yok, %3 altı EP yok
+  assert.equal(S.bossCredit('2/1',0,3),null);assert.equal(S.bossCredit('2/1',.02,3).ep,undefined);assert.ok(S.bossCredit('2/1',.5,3).ep>0);
+  assert.ok(S.siegeCredit(100000,4,8).gold>0);
+});

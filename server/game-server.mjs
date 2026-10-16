@@ -9,7 +9,9 @@ import {WebSocketServer} from 'ws';
 import {BOSS_HP,SIEGE_HP_PER_CAPTAIN} from '../src/pve-balance.ts';
 import {fleetTowerStats,playerBaseHp} from '../src/fleetBalance.ts';
 import {pvpClamp,newPvpBudget} from '../src/pvp.ts';
-import {NPCS,MONSTERS,MAPS} from '../src/campaign.ts';
+import {NPCS,MONSTERS,MAPS,QUESTS,QUEST_COOLDOWN_MS,bossFor} from '../src/campaign.ts';
+import {questEp,bossEp} from '../src/arsenal.ts';
+import {contribReward} from '../src/siege.ts';
 import {levelQuestGoal,levelQuestTargets,levelQuestMap} from '../src/level-quest.ts';
 
 const PORT=Number(process.env.PORT||3000);
@@ -131,8 +133,25 @@ export function killCredit(c,id,now){const map=seaMap(c.sea);if(!map||!MAPS[map]
   sbTake(c,def.hp*.6);b.pool=Math.max(0,b.pool-def.hp);b.miss=0;
   const add={gold:Math.round(def.gold*KILL_CREDIT_MULT),xp:Math.round(def.xp*KILL_CREDIT_MULT)};
   if(npc){add.st_npc=1;if(npc.role==='heavy')add.st_heavy=1;}else add.st_monster=1;
+  c.qk??={};c.qk[id]=(c.qk[id]||0)+1;
   const lvl=Math.round(Number(c.econ?.level)||1);if(npc&&lvl>=2&&map===levelQuestMap(lvl)&&levelQuestTargets(lvl).ships.includes(id))add.lqk=1;
   return{add};}
+// Görev: bitiş bildirimi sunucunun saydığı batırmalarla ve 8 saatlik bekleme süresiyle denetlenir.
+// Geçerliyse ödülü (altın/TP ×2,5 pay, EP, sayaç) kazanç hakkı olarak yazılır. Sayaç ve süreler bellektedir; sunucu yeniden
+// başlarsa yarım görevin batırmaları sayılmaz (görev yine biter, ödülü genel saatlik haktan geçer).
+export const questCooldowns=new Map(); // uid → Map(görev → zaman)
+export function questCredit(c,id,now){const q=QUESTS.find(x=>x.id===id);if(!q)return{err:'görev'};
+  const cd=questCooldowns.get(c.uid)??new Map();questCooldowns.set(c.uid,cd);if(now-(cd.get(id)??-1e15)<QUEST_COOLDOWN_MS*.95)return{err:'bekleme'};
+  if(q.kind==='npc'||q.kind==='monster'){c.qk??={};const have=q.ids.reduce((a,k)=>a+(c.qk[k]||0),0);if(have<q.required)return{err:'sayı',have};
+    let need=q.required;for(const k of q.ids){const t=Math.min(need,c.qk[k]||0);c.qk[k]-=t;need-=t;}}
+  cd.set(id,now);return{add:{gold:Math.round(q.gold*KILL_CREDIT_MULT),xp:Math.round(q.xp*KILL_CREDIT_MULT),ep:Math.round(questEp(q.tier)*1.5),st_quest:1}};}
+// Boss ödülü: payı sunucu bilir; katılımcıya oyunun formülüyle (havuz × pay) kazanç hakkı yazılır
+export const bossPool=n=>1+.6*(Math.min(5,Math.max(1,n))-1);
+export function bossCredit(map,share,n){if(!MAPS[map]||!(share>0))return null;const b=bossFor(map),pool=bossPool(n);
+  const add={gold:Math.round(NPCS[b.trigger].gold*20*pool*share*KILL_CREDIT_MULT),xp:Math.round(b.xp*pool*share*KILL_CREDIT_MULT)};
+  if(share>=.03){add.ep=Math.round(bossEp(b.tier)*1.5);add.st_boss=1;}return add;}
+// Kuşatma: kabul edilen her hasar için katkı ödülü (oyunun formülüyle) kazanç hakkı olarak
+export function siegeCredit(dmg,n,level){const r=contribReward(dmg,Math.max(1,n),Math.max(1,Math.min(8,Math.round(Number(level)||8))));return{gold:Math.round(r.gold*KILL_CREDIT_MULT),xp:Math.round(r.xp*KILL_CREDIT_MULT)};}
 export function addCredit(c,add){c.credit??={};for(const k in add)c.credit[k]=(c.credit[k]||0)+add[k];}
 export class Rate{constructor(perWindow,windowMs){this.n=perWindow;this.w=windowMs;this.t=[];}hit(now){while(this.t.length&&now-this.t[0]>this.w)this.t.shift();if(this.t.length>=this.n)return false;this.t.push(now);return true;}}
 
@@ -348,14 +367,17 @@ wss.on('connection',ws=>{
       case'bhit':{if(!c.sea||!c.rBoss.hit(now))return;let dmg=Number(m.d?.dmg);if(!num(dmg)||dmg<=0)return;if(dmg>BOSS_HIT_CAP)suspect(c,'boss hasarı',String(dmg));
         {const t=dpsTake(c,dmg,now);if(t.flag){suspect(c,'saniyelik hasar','boss');c.dps.over=0;}dmg=sbTake(c,t.ok);if(dmg<=0)return;}
         const r=bossHit(c.sea,c.uid,dmg);if(!r)return;const room=seas.get(c.sea);log('BOSS BATTI',c.sea,r.n,'kaptan');
+        {const map=seaMap(c.sea);for(const x of all){const sh=r.shares[x.uid];if(!sh)continue;const add=bossCredit(map,sh.share,r.n);if(add)addCredit(x,add);}}
         for(const x of room||[])send(x,{t:'bdown',d:{id:r.id,n:r.n,...(r.shares[x.uid]??{share:0,dmg:0})}});return;}
       case'shit':{if(c.sea!==SIEGE_ROOM||!c.rTower.hit(now))return;let dmg=Number(m.d?.dmg);if(!num(dmg)||dmg<=0)return;if(dmg>SIEGE_HIT_CAP)suspect(c,'kuşatma hasarı',String(dmg));
         {const t=dpsTake(c,dmg,now);if(t.flag){suspect(c,'saniyelik hasar','kuşatma');c.dps.over=0;}dmg=sbTake(c,t.ok);if(dmg<=0)return;}
-        const r=siegeHitPiece(c.uid,c.nick,Number(m.d?.i),dmg);if(!r?.down&&r?.down!==0)return;toSea(c,{t:'sdown',d:{i:r.down}},true);if(r.won)siegeFinish();return;}
+        const r=siegeHitPiece(c.uid,c.nick,Number(m.d?.i),dmg);if(siegeRun&&!siegeRun.result)addCredit(c,siegeCredit(dmg,siegeRun.caps.size,c.econ?.level));if(!r?.down&&r?.down!==0)return;toSea(c,{t:'sdown',d:{i:r.down}},true);if(r.won)siegeFinish();return;}
       case'nkill':{if(!c.sea||!c.rKill.hit(now))return;const r=killCredit(c,String(m.d?.id||''),now);
         if(r.err){if((r.err!=='hız'&&r.err!=='mermi')||r.flag){suspect(c,'batırma',`${r.err} ${m.d?.id}`);if(c.kb)c.kb.miss=0;}return;}addCredit(c,r.add);return;}
       case'salvo':{if(!c.rSalvo.hit(now)){suspect(c,'salvo hızı');return;}const r=noteSalvo(c,m.d);if(r.over)suspect(c,'top sayısı',String(m.d?.n));addCredit(c,r.use);return;}
       case'use':{if(!c.rUse.hit(now))return;const r=noteUse(c,String(m.d?.id||''),now);if(r.err)return;if(r.early)suspect(c,'bekleme süresi',String(m.d?.id));addCredit(c,r.use);return;}
+      case'qdone':{if(!c.uid||!c.rKill.hit(now))return;const id=String(m.d?.id||'');const r=questCredit(c,id,now);
+        if(r.err){if(r.err==='bekleme')suspect(c,'görev bekleme',id);send(c,{t:'qres',d:{id,ok:false,err:r.err}});return;}addCredit(c,r.add);send(c,{t:'qres',d:{id,ok:true}});return;}
       case'spy':{if(!c.rKill.hit(now))return;await onSpy(c,m.d?.nick);return;}
       case'thit':{if(!c.sea||!c.rTower.hit(now))return;await onTowerHit(c,m,now);return;}
       // Kule dikildi (veritabanında): önce canlar yazılır, sonra ada yeniden okunup denize gönderilir
