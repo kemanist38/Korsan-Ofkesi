@@ -1,0 +1,74 @@
+/* Captain HUD: live controls, compact red steel and brass frames. */
+body.captain-hud{--strip:0px;--hud-brass:#b7824a;--hud-dark:#150d10}
+.captain-hud .hud{top:0!important;height:calc(100% / var(--ui,1))!important}
+.captain-hud .info-strip{background:none!important;box-shadow:none!important;border:0!important;height:0;padding:0!important;overflow:visible}
+.captain-hud .info-strip::after{display:none}
+.captain-hud .strip-res{top:12px;right:16px!important;height:30px;gap:4px!important}
+.captain-hud .strip-res b{font-size:13px;padding:5px 10px;border-radius:0 14px 14px 0;background:linear-gradient(#291414,#09090c);border-color:var(--hud-brass)}
+.captain-hud .strip-res button{width:25px;height:25px;background:#3b1010;border-color:var(--hud-brass)}
+.captain-hud .net-pill{position:fixed;right:18px;top:51px}
+.captain-hud .map-cluster{left:14px;top:12px;width:210px;height:250px;box-sizing:border-box;background:linear-gradient(145deg,#402221,#100d11 45%,#211216);border:3px ridge var(--hud-brass);border-radius:13px;box-shadow:inset 0 0 0 3px #09080c,inset 0 0 0 5px #6a2623,0 5px 15px #0009}
+.captain-hud .map-cluster::before,.captain-hud .map-cluster::after{content:'◆';position:absolute;top:-10px;color:#d04a35;font-size:20px;text-shadow:0 0 2px #ffe0a6,0 2px 3px #000;pointer-events:none}
+.captain-hud .map-cluster::before{left:4px}.captain-hud .map-cluster::after{right:4px}
+.captain-hud .map-cluster #minimap{left:8px;top:10px;width:188px;height:133px;border:1px solid #8e603c;border-radius:4px}
+.captain-hud .map-badge{position:absolute;left:10px;top:116px;width:184px;pointer-events:none;background:#070d13bb;text-align:center}
+.captain-hud .map-badge strong,.captain-hud .map-badge small{display:none}
+.captain-hud .map-badge .map-coord{position:static;font-size:10px;color:#f3d8a6}
+.captain-hud .map-cluster .zoom-controls{position:absolute;left:8px;top:149px;width:188px;height:28px;padding:0;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(#331c19,#120d10);border:1px solid var(--hud-brass);border-radius:6px;box-shadow:inset 0 1px #e8c58b55}
+.captain-hud .map-cluster .zoom-controls button{position:static;width:35px;height:24px;background:linear-gradient(#6c241d,#260a0b);border:1px solid #a87545;border-radius:5px;color:#ffe3a7;font-size:20px}
+.captain-hud .map-cluster #zoomValue{position:static;transform:none;font-size:12px;color:#fff}
+.captain-hud .map-cluster .coord-go{position:absolute;left:9px;top:183px;height:26px;width:186px;gap:5px}
+.captain-hud .coord-go>span{display:none}
+.captain-hud .coord-go::before{content:'⌖';color:#e7bd77;font-size:23px;width:20px;text-align:center}
+.captain-hud .spy-go::before{content:'♟';font-size:21px}
+.captain-hud .map-cluster .spy-go{top:214px}
+.captain-hud .map-cluster .coord-go input{height:26px!important;min-width:0;width:34px!important;font-size:12px!important;box-sizing:border-box}
+.captain-hud .map-cluster .spy-go input{flex:1;width:93px!important}
+.captain-hud .map-cluster .coord-go button{height:26px!important;flex:1;padding:0 7px;font-size:10px}
+.captain-hud .world-map-button,.captain-hud .quest-bust{position:absolute;left:217px;right:auto;width:58px;height:67px;top:10px;border:2px ridge #b7824a;border-radius:50%;background:radial-gradient(circle,#592522,#120c11 70%);box-shadow:0 0 0 3px #1c0b0e,0 4px 8px #0008}
+.captain-hud .quest-bust{top:94px}
+.captain-hud .world-map-button img,.captain-hud .quest-bust img{width:85%;height:80%;object-fit:contain}
+.captain-hud .world-map-button span,.captain-hud .quest-bust span{bottom:-7px;font-size:9px;background:#1a0b0c;border:1px solid #98673c;border-radius:4px;padding:3px}
+.captain-hud .day-badge{left:214px;top:184px;font-size:9px;padding:4px 6px}
+.captain-hud .day-pop{left:215px;top:214px}
+.captain-hud .top-status.four-bars{top:12px!important;left:52%;width:440px;height:76px;aspect-ratio:auto;background:linear-gradient(#3d1b1c,#100c10);border:3px ridge #a87748;border-radius:18px;box-shadow:inset 0 0 0 3px #180b0d,0 4px 12px #0008;filter:none}
+.captain-hud .top-status.four-bars .status-line{height:27px;width:175px;top:5px;left:8px}
+.captain-hud .top-status.four-bars .elite-line{top:37px;left:8px}
+.captain-hud .top-status.four-bars .hp-line{top:5px;left:auto;right:8px}
+.captain-hud .top-status.four-bars .battle-line{top:37px;left:auto;right:8px}
+.captain-hud .top-status .status-line>i{inset:0;border:1px solid #a47749;border-radius:14px;background:#05080b}
+.captain-hud .top-status .status-line>i>em{border-radius:14px}
+.captain-hud .top-status .status-line b{left:25px;right:4px;font-size:11px;text-shadow:0 1px 3px #000}
+.captain-hud .top-status .status-line span{left:7px;font-size:11px}
+.captain-hud .top-status .xp-line>i>em{background:linear-gradient(#ffcc65,#a65d0e)}
+.captain-hud .top-status .elite-line>i>em{background:linear-gradient(#379cfc,#124a9e)}
+.captain-hud .top-status .hp-line>i>em{background:linear-gradient(#51d975,#147336)}
+.captain-hud .top-status .battle-line>i>em{background:linear-gradient(#bb5bee,#652099)}
+.captain-hud .top-status .battle-line b{color:#efd5ff}
+.captain-hud .top-status .top-level{width:56px;height:56px;top:50%;left:50%;color:#ffe2a4!important;font:800 28px Cinzel,serif!important;background:radial-gradient(circle,#6d2d22,#180b0e)!important;border:3px ridge #d0a062;box-shadow:0 0 0 5px #381216;display:grid;place-items:center;text-shadow:0 2px 3px #000!important}
+.captain-hud .top-status .top-level::after{display:none}
+.captain-hud .top-status .top-level::before{inset:-15%}
+.captain-hud .slot-bar{--slot:42px;left:16px;transform:none;border:3px ridge #b7824a;background:linear-gradient(#341a1d,#110d11);padding:5px;gap:4px;border-radius:8px;box-shadow:inset 0 0 0 2px #421b1c,0 3px 12px #0009}
+.captain-hud #ammoBar{bottom:68px}.captain-hud #itemBar{bottom:12px}
+.captain-hud .slot-bar.moved{bottom:auto}
+.captain-hud .slot-bar .quick-slot{background:radial-gradient(ellipse at 50% 25%,#422329,#0a0c10);border:1px solid #b7824a;border-radius:6px;box-shadow:inset 0 0 0 2px #09090c}
+.captain-hud .slot-bar .quick-slot>b,.captain-hud .slot-bar .quick-slot>kbd{display:none}
+.captain-hud .chat{left:calc(50% - 32px * var(--ui,1));bottom:14px}
+.captain-hud .chat-toggle{width:64px;height:64px;border:3px ridge #d0a062;background:radial-gradient(circle at 50% 30%,#6c2823,#180c10 70%);box-shadow:0 0 0 4px #43151a,0 0 0 6px #96603e,0 5px 12px #0009}
+.captain-hud .chat-toggle svg{width:32px;height:32px;fill:#efc780}
+.captain-hud .chat-toggle>span{position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);background:#1c0c0d;border:1px solid #b7824a;border-radius:5px;padding:3px 10px;font:700 10px Cinzel,serif;color:#ffe0a0}
+.captain-hud .chat-box{left:-130px;bottom:84px;height:min(260px,55vh)}
+.captain-hud #centerCamera{position:absolute;left:-70px;bottom:4px;width:48px;height:48px;pointer-events:auto;border:2px ridge #b7824a;border-radius:50%;background:radial-gradient(circle,#522626,#100d11);box-shadow:0 0 0 3px #3b1719;cursor:pointer}
+.captain-hud #centerCamera>b{position:absolute;inset:4px;display:grid;place-items:center;background:none;border:0;box-shadow:none}
+.captain-hud .combat-controls{right:18px;bottom:14px;width:248px;height:184px}
+.captain-hud .combat-controls .combat-action>b{border:2px ridge #b7824a;background:radial-gradient(circle,#482328,#110b0e);box-shadow:0 0 0 3px #44171a}
+.captain-hud .combat-controls .combat-action>span{background:#190c0e;border:1px solid #a57245;border-radius:5px;padding:3px 7px;color:#ffe1a8;white-space:nowrap;font-size:9px}
+.captain-hud .combat-controls .combat-action>small{display:none}
+.captain-hud .combat-controls .combat-action.recenter-btn{background:radial-gradient(circle,#543023,#100d11);border:2px ridge #b7824a}
+html.touch .captain-hud .corner-buttons{top:90px!important;right:16px;gap:6px}
+.captain-hud .corner-buttons .round-button{width:34px;height:34px}
+html.touch .captain-hud .event-panel{top:139px!important}
+@media(max-width:1100px){.captain-hud .top-status.four-bars{left:54%;top:10px!important;width:360px}.captain-hud .top-status.four-bars .status-line{width:139px}.captain-hud .strip-res{top:94px}.captain-hud .net-pill{top:125px}html.touch .captain-hud .corner-buttons{top:140px!important}html.touch .captain-hud .event-panel{top:185px!important}.captain-hud .top-status .status-line b{font-size:9px}.captain-hud .top-status .status-line b.long{font-size:8px}}
+/* Target cards must stay below the taller minimap rather than cover its forms. */
+html.touch .captain-hud .combat-targets{top:278px!important}
+.captain-hud .chat{z-index:48}
