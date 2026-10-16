@@ -237,3 +237,17 @@ test('karaya çıkma: ada içindeki konum reddedilir, kıyıdaki ve açık deniz
   }}
   assert.ok(n>10);assert.equal(S.onLand('9/9',0,0),null);
 });
+test('sunucu atışı: donanım sahip olunanla sınırlı, hasar formülü, dolum ve menzil',()=>{
+  const st={level:8,elite:1,ep:0,c_cast:50,c_heavy:315,u_damage:10,u_reload:5,u_range:3,o_gunner:5,o_lookout:5,'e_sail-0':1};
+  // 999 ağır top istenir: sahip olunan ve yuva sınırı (elit 315)
+  const L=S.buildLoadout(st,{mt:{heavy:999,cast:50},type:'heavy',eq:{sail:'sail-0',armor:'armor-2'},act:['gunner','lookout'],ach:true});
+  assert.equal(L.cannons,315);assert.equal(L.type,'heavy');assert.equal(L.crewDamage,1.25);assert.equal(L.crewRange,60);
+  assert.equal(L.achDamage,0);// sayaçlar yetmiyor
+  // Sahip olunmayan donanım sayılmaz
+  const L2=S.buildLoadout(st,{mt:{cast:10},type:'cast',eq:{armor:'armor-2'}});assert.equal(L2.equipDamage+L2.equipRange+L2.equipReload,0);
+  // Dolum: hemen ikinci atış reddedilir; menzil dışı reddedilir
+  const c={};assert.equal(S.shotCheck(c,L,'fire',100,10_000,false),null);assert.equal(S.shotCheck(c,L,'fire',100,10_100,false),'dolum');
+  assert.equal(S.shotCheck(c,L,'fire',99999,99_000,false),'menzil');
+  // Öfke 30 sn'de en çok 2 salvo
+  const r={};assert.equal(S.shotCheck(r,L,'iron',10,1e6,true),null);assert.equal(S.shotCheck(r,L,'iron',10,1e6+5000,true),null);assert.equal(S.shotCheck(r,L,'iron',10,1e6+10000,true),'öfke');
+});
