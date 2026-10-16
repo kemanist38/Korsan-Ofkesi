@@ -3679,6 +3679,7 @@ __export(game_server_exports, {
   checkFire: () => checkFire,
   checkState: () => checkState,
   chestPicked: () => chestPicked,
+  chestReward: () => chestReward,
   dpsCap: () => dpsCap,
   dpsTake: () => dpsTake,
   flushCredit: () => flushCredit,
@@ -3717,6 +3718,7 @@ __export(game_server_exports, {
   siegeRun: () => siegeRun,
   siegeWindowAt: () => siegeWindowAt,
   sparklePicked: () => sparklePicked,
+  sparkleReward: () => sparkleReward,
   towerHit: () => towerHit,
   treasureDig: () => treasureDig,
   treasures: () => treasures,
@@ -3950,6 +3952,7 @@ var FLEET = {
   gap: 0.6,
   towers: FLEET_TOWERS_RAW.map(([x, y]) => [Math.round(x * FLEET_SCALE), Math.round(y * FLEET_SCALE)])
 };
+var fleetReward = (tier) => ({ gold: 300 * tier, xp: Math.round(500 * Math.pow(tier, 1.2)) });
 var I = (x, y, r, name, look, variant, flip = false) => ({ x, y, r, name, look, variant, flip });
 function sea(key, name, description, opts) {
   const tier = tierOf(key), look = opts.look ?? THEMES[tier].look, sub = key.split("/")[1];
@@ -4072,6 +4075,23 @@ var EP_PER_PEARL = 5.75;
 var epPerBall = (p) => Math.round(p.amount / (p.per ?? 1) * EP_PER_PEARL * 1e4) / 1e4;
 var ELITE_POINTS_PER_BALL = { chain: epPerBall(AMMO_PRICES.chain), fire: epPerBall(AMMO_PRICES.fire), breaker: epPerBall(AMMO_PRICES.breaker), explosive: epPerBall(AMMO_PRICES.explosive), leech: epPerBall(AMMO_PRICES.leech), heal: epPerBall(AMMO_PRICES.heal) };
 
+// src/loot.ts
+var CHEST_AMMO = ["fire", "explosive", "breaker", "leech"];
+var LOOT_TABLES = {
+  drift: { gildedChance: 0.06, pearls: [2, 3], powder: [3, 6], shield: [3, 6], life: Infinity }
+};
+function createChest(source, x, y, gildedBonus = 0, tier = 1, rand = Math.random) {
+  const table = LOOT_TABLES[source], gilded = rand() < table.gildedChance + gildedBonus, k = gilded ? 2 : 1, r = ([a, b]) => a + Math.floor(rand() * (b - a + 1)), roll = rand();
+  const c = { x, y, source, kind: gilded ? "gilded" : "wood", life: table.life, maxLife: table.life, pearls: 0, powder: 0, shield: 0, ammo: CHEST_AMMO[Math.floor(rand() * CHEST_AMMO.length)], ammoQty: 0, speed: 0, mine: 0 };
+  if (roll < 0.5) c.pearls = r(table.pearls) * k;
+  else if (roll < 0.65) c.powder = r(table.powder) * k;
+  else if (roll < 0.8) c.shield = r(table.shield) * k;
+  else if (roll < 0.95) c.ammoQty = (50 + 20 * Math.max(1, Math.min(8, tier))) * k;
+  else if (roll < 0.99) c.speed = 2 * k;
+  else c.mine = k;
+  return c;
+}
+
 // src/siege.ts
 var SIEGE_START_H = 20;
 var SIEGE_END_H = 22;
@@ -4101,6 +4121,14 @@ function contribMult(damage, participants = 4) {
 function contribReward(damage, participants = 4, level = 8) {
   const b = contribBase(level), m = contribMult(damage, participants);
   return { xp: Math.round(b.xp * m), gold: Math.round(b.gold * m), pearls: Math.round(b.pearls * m) };
+}
+var CHEST_SHARE = 0.02;
+var earnsChest = (damage, participants = 4) => damage >= siegeTotalHp(participants) * CHEST_SHARE;
+var CHEST_AMMO2 = ["explosive", "breaker", "leech", "fire"];
+function victoryChest(rand = Math.random, level = 8) {
+  const l = Math.max(1, Math.min(8, Math.round(level)));
+  const a = Math.floor(rand() * CHEST_AMMO2.length), b = (a + 1 + Math.floor(rand() * (CHEST_AMMO2.length - 1))) % CHEST_AMMO2.length, q = 1500 + 500 * l;
+  return { pearls: 300 + 100 * l, ammo: { [CHEST_AMMO2[a]]: q, [CHEST_AMMO2[b]]: q }, speed: 20, mine: 5 + l, powder: 100 * l, shield: 100 * l };
 }
 
 // src/level-quest.ts
@@ -4391,7 +4419,7 @@ function questCredit(c, id, now) {
     }
   }
   cd.set(id, now);
-  return { add: { gold: Math.round(q.gold * KILL_CREDIT_MULT), xp: Math.round(q.xp * KILL_CREDIT_MULT), ep: Math.round(questEp(q.tier) * 1.5), st_quest: 1 } };
+  return { add: { pearls: q.pearls, gold: Math.round(q.gold * KILL_CREDIT_MULT), xp: Math.round(q.xp * KILL_CREDIT_MULT), ep: Math.round(questEp(q.tier) * 1.5), st_quest: 1 } };
 }
 var bossPool = (n) => 1 + 0.6 * (Math.min(5, Math.max(1, n)) - 1);
 function bossCredit(map, share, n) {
@@ -4401,12 +4429,13 @@ function bossCredit(map, share, n) {
   if (share >= 0.03) {
     add.ep = Math.round(bossEp(b.tier) * 1.5);
     add.st_boss = 1;
+    add.pearls = b.pearls;
   }
   return add;
 }
 function siegeCredit(dmg, n, level) {
   const r = contribReward(dmg, Math.max(1, n), Math.max(1, Math.min(8, Math.round(Number(level) || 8))));
-  return { gold: Math.round(r.gold * KILL_CREDIT_MULT), xp: Math.round(r.xp * KILL_CREDIT_MULT) };
+  return { gold: Math.round(r.gold * KILL_CREDIT_MULT), xp: Math.round(r.xp * KILL_CREDIT_MULT), pearls: r.pearls };
 }
 var treasures = /* @__PURE__ */ new Map();
 var treOf = (uid) => {
@@ -4457,6 +4486,35 @@ function sparklePicked(c, now) {
   c.qk[k] = Math.min(200, (c.qk[k] || 0) + 1);
   return { ok: true };
 }
+function chestReward(c, gilded, rand = Math.random) {
+  const map = seaMap(c.sea);
+  const ch = createChest("drift", 0, 0, Math.max(0, Math.min(0.24, Number(gilded) || 0)), MAPS[map]?.tier ?? 1, rand);
+  const out = { kind: ch.kind, pearls: ch.pearls, powder: ch.powder, shield: ch.shield, ammo: ch.ammo, ammoQty: ch.ammoQty, speed: ch.speed, mine: ch.mine };
+  const add = { pearls: ch.pearls, a_powder: ch.powder, a_shield: ch.shield, ["a_" + ch.ammo]: ch.ammoQty, a_speed: ch.speed, a_mine: ch.mine, st_chest: 1 };
+  for (const k in add) if (!add[k]) delete add[k];
+  return { out, add };
+}
+function sparkleReward(c, rand = Math.random) {
+  const tier = MAPS[seaMap(c.sea)]?.tier ?? 1, roll = rand(), r = (a, b) => a + Math.floor(rand() * (b - a + 1)), kinds = ["fire", "explosive", "breaker", "leech"];
+  if (roll < 0.5) {
+    const n = r(1, 2);
+    return { out: { pearls: n }, add: { pearls: n } };
+  }
+  if (roll < 0.65) {
+    const n = r(2, 5);
+    return { out: { powder: n }, add: { a_powder: n } };
+  }
+  if (roll < 0.8) {
+    const n = r(2, 5);
+    return { out: { shield: n }, add: { a_shield: n } };
+  }
+  if (roll < 0.95) {
+    const k = kinds[Math.floor(rand() * kinds.length)], n = 30 + 15 * tier;
+    return { out: { ammo: k, ammoQty: n }, add: { ["a_" + k]: n } };
+  }
+  if (roll < 0.99) return { out: { speed: 1 }, add: { a_speed: 1 } };
+  return { out: { pearls: 5, mine: 1 }, add: { pearls: 5, a_mine: 1 } };
+}
 function treasureDig(c) {
   const t = treOf(c.uid);
   if (!t.spot) return { err: "harita" };
@@ -4464,7 +4522,7 @@ function treasureDig(c) {
   if (map !== t.spot.map || !c.last || Math.hypot(c.last.x - t.spot.x, c.last.y - t.spot.y) > DIG_RADIUS + 60) return { err: "yer" };
   const m = MAPS[map], r = treasureReward(m.tier, NPCS[m.npcs[0]].gold);
   t.spot = null;
-  return { reward: r, add: { gold: Math.round(r.gold * KILL_CREDIT_MULT), st_treasure: 1, [r.ammo === "chain" ? "chain" : "a_" + r.ammo]: r.ammoQty, a_powder: r.powder, a_shield: r.shield } };
+  return { reward: r, add: { gold: Math.round(r.gold * KILL_CREDIT_MULT), pearls: r.pearls, st_treasure: 1, [r.ammo === "chain" ? "chain" : "a_" + r.ammo]: r.ammoQty, a_powder: r.powder, a_shield: r.shield } };
 }
 var pendingCredits = /* @__PURE__ */ new Map();
 var STATE_FILE = process.env.STATE_FILE || "/opt/game/state.json";
@@ -4550,6 +4608,10 @@ async function applyUsage(c, salvo, item, now) {
   c.sb = shadow.sb;
   c.uses = shadow.uses;
   if (r.over) suspect(c, "top say\u0131s\u0131");
+  if (item === null) {
+    const a = String(salvo?.a || ""), n = Number(use[ITEM_OF[a] ?? "a_" + a]) || 0;
+    if (n > 0 && ELITE_POINTS_PER_BALL[a]) addCredit(c, { ep: Math.ceil(n * ELITE_POINTS_PER_BALL[a] * 1.5), st_eliteBalls: n });
+  }
 }
 var seas = /* @__PURE__ */ new Map();
 var all = /* @__PURE__ */ new Set();
@@ -4868,6 +4930,10 @@ async function onTowerHit(c, m, now) {
     await dbRpc("island_capture", { p_map: key, p_guild: i.guild }).catch(() => {
     });
     sendRoom(key, { t: "isle", d: islandInfo(i) });
+    {
+      const rw = fleetReward(Number(String(key).split("/")[0]) || 1);
+      addCredit(c, { gold: Math.round(rw.gold * KILL_CREDIT_MULT), xp: Math.round(rw.xp * KILL_CREDIT_MULT) });
+    }
     const msg = JSON.stringify({ t: "icap", d: { key, tag: i.tag, by: c.netId, nick: c.nick } });
     for (const x of all) if (x.uid) send(x, msg);
   } else await dbRpc("island_destroy", { p_map: key, p_slot: slot, p_at: now }).catch(() => {
@@ -4947,7 +5013,16 @@ var siegeInfo = (r, uid) => ({ id: r.id, end: r.end, n: r.caps.size, hp: r.hp.ma
 function siegeFinish() {
   const r = siegeRun, room = seas.get(SIEGE_ROOM), total = [...r.contrib.values()].reduce((a, c) => a + c.dmg, 0) || 1;
   log("KU\u015EATMA B\u0130TT\u0130", r.result, r.caps.size, "kaptan");
-  for (const x of room || []) send(x, { t: "send", d: { won: r.result === "won", n: r.caps.size, top: siegeTop(r), mine: Math.round(r.contrib.get(x.uid)?.dmg ?? 0), share: (r.contrib.get(x.uid)?.dmg ?? 0) / total } });
+  const chests = /* @__PURE__ */ new Map();
+  if (r.result === "won") for (const x of all) {
+    const dmg = r.contrib.get(x.uid)?.dmg ?? 0;
+    if (!x.uid || !earnsChest(dmg, r.caps.size)) continue;
+    const ch = victoryChest(Math.random, Number(x.econ?.level) || 8), add = { pearls: ch.pearls, a_speed: ch.speed, a_mine: ch.mine, a_powder: ch.powder, a_shield: ch.shield };
+    for (const [k, n] of Object.entries(ch.ammo)) add["a_" + k] = (add["a_" + k] || 0) + n;
+    addCredit(x, add);
+    chests.set(x.uid, ch);
+  }
+  for (const x of room || []) send(x, { t: "send", d: { won: r.result === "won", n: r.caps.size, top: siegeTop(r), mine: Math.round(r.contrib.get(x.uid)?.dmg ?? 0), share: (r.contrib.get(x.uid)?.dmg ?? 0) / total, chest: chests.get(x.uid) ?? null } });
 }
 var siegeTickNo = 0;
 function siegeTick(now) {
@@ -5368,7 +5443,13 @@ wss.on("connection", (ws) => {
       case "spk": {
         if (!c.sea || !c.rUse.hit(now)) return;
         const r = sparklePicked(c, now);
-        if (r.err === "h\u0131z") suspect(c, "p\u0131r\u0131lt\u0131 h\u0131z\u0131");
+        if (r.err) {
+          if (r.err === "h\u0131z") suspect(c, "p\u0131r\u0131lt\u0131 h\u0131z\u0131");
+          return;
+        }
+        const sr = sparkleReward(c);
+        addCredit(c, sr.add);
+        send(c, { t: "spkr", d: sr.out });
         return;
       }
       case "chest": {
@@ -5377,6 +5458,11 @@ wss.on("connection", (ws) => {
         if (r.err) {
           if (r.err === "h\u0131z") suspect(c, "sand\u0131k h\u0131z\u0131");
           return;
+        }
+        {
+          const cr = chestReward(c, m.d?.g);
+          addCredit(c, cr.add);
+          send(c, { t: "chestr", d: cr.out });
         }
         if (r.found) send(c, { t: "tstate", d: { parts: r.parts, spot: treOf(c.uid).spot, part: true } });
         return;
@@ -5524,6 +5610,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   checkFire,
   checkState,
   chestPicked,
+  chestReward,
   dpsCap,
   dpsTake,
   flushCredit,
@@ -5562,6 +5649,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   siegeRun,
   siegeWindowAt,
   sparklePicked,
+  sparkleReward,
   towerHit,
   treasureDig,
   treasures,
