@@ -3674,12 +3674,14 @@ __export(game_server_exports, {
   bossPool: () => bossPool,
   bossSeas: () => bossSeas,
   buildBatch: () => buildBatch,
+  canJoin: () => canJoin,
   cannonsOf: () => cannonsOf,
   checkFire: () => checkFire,
   checkState: () => checkState,
   chestPicked: () => chestPicked,
   dpsCap: () => dpsCap,
   dpsTake: () => dpsTake,
+  flushCredit: () => flushCredit,
   godCheck: () => godCheck,
   guildOf: () => guildOf,
   hpCap: () => hpCap,
@@ -3695,6 +3697,7 @@ __export(game_server_exports, {
   osbMatch: () => osbMatch,
   parseForm: () => parseForm,
   parseOsb: () => parseOsb,
+  pendingCredits: () => pendingCredits,
   perBall: () => perBall,
   pickSpot: () => pickSpot,
   pvpGuard: () => pvpGuard,
@@ -3713,6 +3716,7 @@ __export(game_server_exports, {
   siegeJoin: () => siegeJoin,
   siegeRun: () => siegeRun,
   siegeWindowAt: () => siegeWindowAt,
+  sparklePicked: () => sparklePicked,
   towerHit: () => towerHit,
   treasureDig: () => treasureDig,
   treasures: () => treasures,
@@ -3869,6 +3873,7 @@ var MONSTER_LIST = [
 var MONSTER_OF_TIER = Object.fromEntries(MONSTER_LIST.map((m) => [m.tier, m.id]));
 var MONSTERS = Object.fromEntries(MONSTER_LIST.map(({ slot, ...m }) => [m.id, { ...m, portrait: NPC_LIST.length + slot }]));
 var PORTRAIT_COUNT = NPC_LIST.length + 16;
+var BOSS_KILLS = 200;
 var BOSS_NAMES = {
   "1/1": "\u0130mparatorluk F\u0131rkateyni",
   "1/2": "\u0130mparatorluk F\u0131rkateyni",
@@ -4202,14 +4207,15 @@ async function handleOsb(body, ctype) {
   });
   const st = r.ok ? await r.json() : `hata ${r.status} ${await r.text()}`;
   log("SHOPIER sonu\xE7", o.order, st);
-  return true;
+  return r.ok && st !== null && !(typeof st === "object" && st.error);
 }
 var num = (v) => typeof v === "number" && Number.isFinite(v);
 function checkState(prev, s, now) {
-  if (!s || !num(s.x) || !num(s.y) || !num(s.hp)) return "bad";
+  if (!s || typeof s !== "object" || Array.isArray(s) || !num(s.x) || !num(s.y) || !num(s.hp) || s.hp < 0) return "bad";
+  if (s.x < 0 || s.x > WORLD_WIDTH || s.y < 0 || s.y > WORLD_HEIGHT) return "bad";
   if (prev && prev.x !== void 0) {
     const dt = Math.max(0.05, (now - prev.at) / 1e3), d = Math.hypot(s.x - prev.x, s.y - prev.y);
-    if (d < 3e3 && d / dt > LIMITS.maxSpeed * 1.6 + 200) return "speed";
+    if (d / dt > LIMITS.maxSpeed * 1.6 + 200) return "speed";
   }
   return "ok";
 }
@@ -4223,7 +4229,7 @@ var HEAL_SECONDS = 40;
 var GOD_MARGIN = 0.3;
 var PVP_RANGE = 1500;
 function hpCap(st) {
-  if (!st) return Infinity;
+  if (!st) return 0;
   return Math.round(playerBaseHp(Number(st.level) || 1, Number(st.u_hull) || 0) * HP_BONUS_MAX);
 }
 var pvpOf = (t) => t.pvp ??= { budget: null, heal: null, hp: null, at: 0, from: /* @__PURE__ */ new Map() };
@@ -4279,12 +4285,14 @@ function perBall(ammo, st) {
   return 20 * 1.38 * (1 + (st ? Number(st.u_damage) || 0 : 10) * 0.11) * (AMMO_MULT[ammo] ?? 1) * 1.4 * 2.2;
 }
 function cannonsOf(st) {
-  if (!st) return Infinity;
-  return ["cast", "long", "rapid", "heavy"].reduce((a, k) => a + (Number(st["c_" + k]) || 0), 0);
+  if (!st) return 0;
+  return Math.min(315, ["cast", "long", "rapid", "heavy"].reduce((a, k) => a + Math.max(0, Number(st["c_" + k]) || 0), 0));
 }
 var ITEM_OF = { iron: "iron", chain: "chain" };
+var stockOf = (st, k) => Math.max(0, Number(st?.[k]) || 0) + Math.max(0, (Number(st?.["cu_" + k]) || 0) - (Number(st?.["cn_" + k]) || 0));
 function noteSalvo(c, d) {
   const a = String(d?.a || "iron");
+  if (!Object.hasOwn(AMMO_MULT, a) || !c.econ || ![d?.n, d?.i ?? 0].every((x) => Number.isSafeInteger(x) && x >= 0 && x <= 1e4)) return { err: "salvo" };
   let n = Math.max(0, Math.floor(Number(d?.n) || 0)), i = Math.max(0, Math.floor(Number(d?.i) || 0));
   const cap = cannonsOf(c.econ), over = n + i > cap * 1.05 + 5;
   if (over) {
@@ -4292,6 +4300,8 @@ function noteSalvo(c, d) {
     n = Math.floor(n * k);
     i = Math.floor(i * k);
   }
+  const key = ITEM_OF[a] ?? "a_" + a;
+  if (n + i === 0 || stockOf(c.econ, key) < n + (a === "iron" ? i : 0) || a !== "iron" && stockOf(c.econ, "iron") < i || d?.p && stockOf(c.econ, "a_powder") < 1) return { err: "stok" };
   const dmg = n * perBall(a, c.econ) + i * perBall("iron", c.econ);
   c.sb ??= { pool: 0 };
   c.sb.pool = Math.min(c.sb.pool + dmg, Math.max(dmg, 1) * 40);
@@ -4313,6 +4323,8 @@ function noteUse(c, id, now) {
   if (!(id in USE_COOLDOWN)) return { err: "t\xFCr" };
   c.uses ??= {};
   const last = c.uses[id] ?? -1e12, early = now - last < USE_COOLDOWN[id];
+  if (early) return { err: "bekleme", early: true };
+  if (!c.econ || stockOf(c.econ, "a_" + id) < 1) return { err: "stok" };
   c.uses[id] = now;
   if (id === "mine") {
     c.sb ??= { pool: 0 };
@@ -4357,9 +4369,16 @@ var questCooldowns = /* @__PURE__ */ new Map();
 function questCredit(c, id, now) {
   const q = QUESTS.find((x) => x.id === id);
   if (!q) return { err: "g\xF6rev" };
+  if (!c.econ || Number(c.econ.level) < q.tier || seaMap(c.sea) !== q.map) return { err: "deniz" };
   const cd = questCooldowns.get(c.uid) ?? /* @__PURE__ */ new Map();
   questCooldowns.set(c.uid, cd);
   if (now - (cd.get(id) ?? -1e15) < QUEST_COOLDOWN_MS * 0.95) return { err: "bekleme" };
+  if (q.kind === "sparkle") {
+    c.qk ??= {};
+    const k = "spk:" + q.map;
+    if ((c.qk[k] || 0) < q.required) return { err: "say\u0131", have: c.qk[k] || 0 };
+    c.qk[k] -= q.required;
+  }
   if (q.kind === "npc" || q.kind === "monster") {
     c.qk ??= {};
     const have = q.ids.reduce((a, k) => a + (c.qk[k] || 0), 0);
@@ -4425,6 +4444,19 @@ function chestPicked(c, now, rand = Math.random) {
   }
   return { parts: t.parts, found: true };
 }
+function sparklePicked(c, now) {
+  const map = seaMap(c.sea);
+  if (!map || !MAPS[map]) return { err: "deniz" };
+  c.spb ??= { pool: 12, t: now };
+  c.spb.pool = Math.min(12, c.spb.pool + Math.max(0, now - c.spb.t) / 1500);
+  c.spb.t = now;
+  if (c.spb.pool < 1) return { err: "h\u0131z" };
+  c.spb.pool -= 1;
+  c.qk ??= {};
+  const k = "spk:" + map;
+  c.qk[k] = Math.min(200, (c.qk[k] || 0) + 1);
+  return { ok: true };
+}
 function treasureDig(c) {
   const t = treOf(c.uid);
   if (!t.spot) return { err: "harita" };
@@ -4434,19 +4466,28 @@ function treasureDig(c) {
   t.spot = null;
   return { reward: r, add: { gold: Math.round(r.gold * KILL_CREDIT_MULT), st_treasure: 1, [r.ammo === "chain" ? "chain" : "a_" + r.ammo]: r.ammoQty, a_powder: r.powder, a_shield: r.shield } };
 }
+var pendingCredits = /* @__PURE__ */ new Map();
 var STATE_FILE = process.env.STATE_FILE || "/opt/game/state.json";
 var qkByUid = /* @__PURE__ */ new Map();
 function saveServerState() {
   if (process.env.NODE_ENV === "test") return;
   try {
-    import_node_fs.default.writeFileSync(STATE_FILE, JSON.stringify({ q: [...questCooldowns].map(([u, m]) => [u, [...m]]), k: [...qkByUid], t: [...treasures] }));
-  } catch {
+    for (const c of all) if (c.credit && !c.grant) {
+      c.grant = { id: import_node_crypto.default.randomUUID(), add: c.credit };
+      c.credit = null;
+      pendingCredits.set(c.grant.id, c);
+    }
+    import_node_fs.default.writeFileSync(STATE_FILE + ".tmp", JSON.stringify({ g: [...pendingCredits.values()].map((c) => ({ uid: c.uid, grant: c.grant, credit: c.credit })), q: [...questCooldowns].map(([u, m]) => [u, [...m]]), k: [...qkByUid], t: [...treasures] }));
+    import_node_fs.default.renameSync(STATE_FILE + ".tmp", STATE_FILE);
+  } catch (e) {
+    log("DURUM kay\u0131t hatas\u0131", e?.code);
   }
 }
 function loadServerState() {
   if (process.env.NODE_ENV === "test") return;
   try {
     const d = JSON.parse(import_node_fs.default.readFileSync(STATE_FILE, "utf8"));
+    for (const c of d.g || []) if (c.grant?.id) pendingCredits.set(c.grant.id, c);
     for (const [u, m] of d.q || []) questCooldowns.set(u, new Map(m));
     for (const [u, k] of d.k || []) qkByUid.set(u, k);
     for (const [u, t] of d.t || []) treasures.set(u, t);
@@ -4480,6 +4521,36 @@ var Rate = class {
     return true;
   }
 };
+function canJoin(c, name, now = Date.now()) {
+  if (!name) return true;
+  if (!c.econ) return false;
+  if (name === SIEGE_ROOM) return siegeWindowAt(now).open || SIEGE_TRIAL;
+  const map = MAPS[seaMap(name)];
+  return !!map && Number(c.econ.level) >= map.tier;
+}
+async function applyUsage(c, salvo, item, now) {
+  const shadow = { ...c, sb: { ...c.sb || { pool: 0 } }, uses: { ...c.uses || {} } };
+  let r = item === null ? noteSalvo(shadow, salvo) : noteUse(shadow, item, now);
+  if (r.err === "stok") {
+    await loadEcon(c);
+    shadow.econ = c.econ;
+    r = item === null ? noteSalvo(shadow, salvo) : noteUse(shadow, item, now);
+  }
+  if (r.err) {
+    send(c, { t: "usageDenied", reason: r.err });
+    return;
+  }
+  const use = Object.fromEntries(Object.entries(r.use).map(([k, v]) => [k.slice(3), v]));
+  const st = process.env.BENCH_AUTH === "1" && c.uid.startsWith("b") ? c.econ : await dbRpcJson("economy_reserve_usage", { p_uid: c.uid, p_use: use });
+  if (!st || st.error) {
+    send(c, { t: "usageDenied", reason: "stok do\u011Frulanamad\u0131" });
+    return;
+  }
+  c.econ = st;
+  c.sb = shadow.sb;
+  c.uses = shadow.uses;
+  if (r.over) suspect(c, "top say\u0131s\u0131");
+}
 var seas = /* @__PURE__ */ new Map();
 var all = /* @__PURE__ */ new Set();
 var log = (...a) => console.log((/* @__PURE__ */ new Date()).toISOString(), ...a);
@@ -4693,6 +4764,10 @@ async function onSpy(c, nick) {
   send(c, { t: "spyr", d: r });
 }
 async function loadEcon(c) {
+  if (process.env.BENCH_AUTH === "1" && c.uid?.startsWith("b")) {
+    c.econ = { level: 8, c_cast: 315, iron: 1e9, a_fire: 1e9 };
+    return;
+  }
   if (!SERVER_SECRET || !c.uid) return;
   try {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/economy_peek`, { method: "POST", headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${SUPABASE_ANON}`, "content-type": "application/json" }, body: JSON.stringify({ p_secret: SERVER_SECRET, p_uid: c.uid }) });
@@ -4702,9 +4777,11 @@ async function loadEcon(c) {
     }
   } catch {
   }
-  if (all.has(c)) setTimeout(() => {
+  if (all.has(c) && !c.econTimer) c.econTimer = setTimeout(() => {
+    c.econTimer = null;
     void loadEcon(c);
-  }, 5 * 6e4).unref?.();
+  }, 5 * 6e4);
+  c.econTimer?.unref?.();
 }
 async function guildTag(id) {
   if (!id) return "";
@@ -4858,12 +4935,12 @@ function siegeHitPiece(uid, nick, i, dmg) {
   r.contrib.set(uid, c);
   r.dirty.add(i);
   r.rankDirty = true;
-  if (r.hp[i] > 0) return {};
+  if (r.hp[i] > 0) return { damage: d };
   if (i === 16) {
     r.result = "won";
-    return { down: i, won: true };
+    return { down: i, won: true, damage: d };
   }
-  return { down: i };
+  return { down: i, damage: d };
 }
 var siegeTop = (r) => [...r.contrib.values()].filter((c) => c.dmg > 0).sort((a, b) => b.dmg - a.dmg).slice(0, 10).map((c) => [c.nick, Math.round(c.dmg)]);
 var siegeInfo = (r, uid) => ({ id: r.id, end: r.end, n: r.caps.size, hp: r.hp.map(Math.round), max: r.max, result: r.result, top: siegeTop(r), mine: Math.round(r.contrib.get(uid)?.dmg ?? 0) });
@@ -4953,14 +5030,33 @@ setInterval(() => {
   }
 }, TICK_MS).unref();
 async function flushCredit(c) {
-  const add = c.credit;
-  if (!add || !c.uid) return;
-  c.credit = null;
-  const st = await dbRpcJson("economy_grant", { p_uid: c.uid, p_add: add }).catch(() => null);
-  if (st && typeof st === "object") c.econ = st;
+  if (c.flushing || !c.uid) return;
+  c.flushing = true;
+  try {
+    if (!c.grant && c.credit) {
+      c.grant = { id: import_node_crypto.default.randomUUID(), add: c.credit };
+      c.credit = null;
+      pendingCredits.set(c.grant.id, c);
+    }
+    if (!c.grant) return;
+    const st = await dbRpcJson("economy_grant_once", { p_uid: c.uid, p_event: c.grant.id, p_add: c.grant.add });
+    if (st && typeof st === "object") {
+      c.econ = st;
+      pendingCredits.delete(c.grant.id);
+      c.grant = null;
+      if (c.credit) {
+        c.grant = { id: import_node_crypto.default.randomUUID(), add: c.credit };
+        c.credit = null;
+        pendingCredits.set(c.grant.id, c);
+      }
+    }
+  } catch {
+  } finally {
+    c.flushing = false;
+  }
 }
 setInterval(() => {
-  for (const c of all) if (c.credit) void flushCredit(c);
+  for (const c of /* @__PURE__ */ new Set([...all, ...pendingCredits.values()])) if (c.credit || c.grant) void flushCredit(c);
 }, 2e4).unref();
 var httpServer = import_node_http.default.createServer(async (q, r) => {
   const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization", "content-type": "application/json" };
@@ -5017,12 +5113,8 @@ wss.on("connection", (ws) => {
   const authTimer = setTimeout(() => {
     if (!c.uid) ws.close(4001, "giri\u015F yok");
   }, 1e4);
-  ws.on("message", async (raw) => {
+  const handleMessage = async (raw) => {
     const now = Date.now();
-    if (!c.rMsg.hit(now)) {
-      suspect(c, "mesaj seli");
-      return;
-    }
     let m;
     try {
       m = JSON.parse(String(raw));
@@ -5045,9 +5137,13 @@ wss.on("connection", (ws) => {
       Object.assign(c, who);
       c.netId = String(m.netId || "").slice(0, 16) || Math.random().toString(36).slice(2, 10);
       clearTimeout(authTimer);
+      await loadEcon(c);
+      if (!c.econ) {
+        ws.close(4003, "hesap verisi y\xFCklenemedi");
+        return;
+      }
       send(c, { t: "hello", id: c.netId, nick: c.nick, playerNo: c.playerNo });
       log("G\u0130R\u0130\u015E", `#${c.playerNo}`, c.nick);
-      void loadEcon(c);
       if (!qkByUid.has(c.uid)) qkByUid.set(c.uid, {});
       c.qk = qkByUid.get(c.uid);
       {
@@ -5056,12 +5152,17 @@ wss.on("connection", (ws) => {
       }
       return;
     }
-    if (!c.uid) return;
+    if (!c.uid || !c.econ) return;
     switch (m.t) {
       case "join": {
         const name = String(m.sea || "").slice(0, 40);
         if (name === c.sea) return;
+        if (!canJoin(c, name, now)) {
+          send(c, { t: "denied", reason: "harita kilitli" });
+          return;
+        }
         leaveSea(c);
+        c.last = null;
         if (!name) return;
         const room = seas.get(name) ?? /* @__PURE__ */ new Set();
         if (room.size >= LIMITS.maxPerSea) {
@@ -5087,6 +5188,7 @@ wss.on("connection", (ws) => {
         if (!c.sea || !c.rState.hit(now)) return;
         const s = m.d;
         let v = checkState(c.last, s, now);
+        if (v === "bad") return;
         if (v === "speed" && s.tp && now - (c.tpAt || 0) > 8e3) {
           c.tpAt = now;
           v = "ok";
@@ -5165,15 +5267,9 @@ wss.on("connection", (ws) => {
         toSea(c, { t: "sunk", d: s });
         return;
       }
-      case "bkill": {
-        if (!c.sea || !c.rKill.hit(now)) return;
-        const b = bossKill(c.sea, m.d?.need, now);
-        if (b) {
-          log("BOSS", c.sea);
-          toSea(c, { t: "boss", d: bossInfo(c.sea, b) }, true);
-        }
+      case "bkill":
         return;
-      }
+      // Only accepted nkill events advance the boss counter.
       case "bhit": {
         if (!c.sea || !c.rBoss.hit(now)) return;
         let dmg = Number(m.d?.dmg);
@@ -5219,7 +5315,7 @@ wss.on("connection", (ws) => {
           if (dmg <= 0) return;
         }
         const r = siegeHitPiece(c.uid, c.nick, Number(m.d?.i), dmg);
-        if (siegeRun && !siegeRun.result) addCredit(c, siegeCredit(dmg, siegeRun.caps.size, c.econ?.level));
+        if (r?.damage > 0) addCredit(c, siegeCredit(r.damage, siegeRun.caps.size, c.econ?.level));
         if (!r?.down && r?.down !== 0) return;
         toSea(c, { t: "sdown", d: { i: r.down } }, true);
         if (r.won) siegeFinish();
@@ -5236,6 +5332,11 @@ wss.on("connection", (ws) => {
           return;
         }
         addCredit(c, r.add);
+        const map = seaMap(c.sea);
+        if (map && String(m.d?.id) === bossFor(map).trigger) {
+          const b = bossKill(c.sea, BOSS_KILLS, now);
+          if (b) toSea(c, { t: "boss", d: bossInfo(c.sea, b) }, true);
+        }
         return;
       }
       case "salvo": {
@@ -5243,17 +5344,12 @@ wss.on("connection", (ws) => {
           suspect(c, "salvo h\u0131z\u0131");
           return;
         }
-        const r = noteSalvo(c, m.d);
-        if (r.over) suspect(c, "top say\u0131s\u0131", String(m.d?.n));
-        addCredit(c, r.use);
+        await applyUsage(c, m.d, null, now);
         return;
       }
       case "use": {
         if (!c.rUse.hit(now)) return;
-        const r = noteUse(c, String(m.d?.id || ""), now);
-        if (r.err) return;
-        if (r.early) suspect(c, "bekleme s\xFCresi", String(m.d?.id));
-        addCredit(c, r.use);
+        await applyUsage(c, null, String(m.d?.id || ""), now);
         return;
       }
       case "qdone": {
@@ -5267,6 +5363,12 @@ wss.on("connection", (ws) => {
         }
         addCredit(c, r.add);
         send(c, { t: "qres", d: { id, ok: true } });
+        return;
+      }
+      case "spk": {
+        if (!c.sea || !c.rUse.hit(now)) return;
+        const r = sparklePicked(c, now);
+        if (r.err === "h\u0131z") suspect(c, "p\u0131r\u0131lt\u0131 h\u0131z\u0131");
         return;
       }
       case "chest": {
@@ -5336,9 +5438,25 @@ wss.on("connection", (ws) => {
         return;
       }
     }
+  };
+  let queue = Promise.resolve(), pending = 0;
+  ws.on("message", (raw) => {
+    if (!c.rMsg.hit(Date.now()) || pending >= 64) {
+      suspect(c, "mesaj seli");
+      return;
+    }
+    pending++;
+    queue = queue.then(() => {
+      if (ws.readyState === 1) return handleMessage(raw);
+    }).catch((e) => {
+      log("PAKET reddedildi", c.playerNo, e?.name || "hata");
+    }).finally(() => {
+      pending--;
+    });
   });
   ws.on("close", () => {
     clearTimeout(authTimer);
+    clearTimeout(c.econTimer);
     void flushCredit(c);
     if (c.uid && c.last && seaMap(c.sea)) void dbRpc("spy_seen", { p_uid: c.uid, p_map: seaMap(c.sea), p_x: Math.round(c.last.x), p_y: Math.round(c.last.y) }).catch(() => {
     });
@@ -5401,12 +5519,14 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   bossPool,
   bossSeas,
   buildBatch,
+  canJoin,
   cannonsOf,
   checkFire,
   checkState,
   chestPicked,
   dpsCap,
   dpsTake,
+  flushCredit,
   godCheck,
   guildOf,
   hpCap,
@@ -5422,6 +5542,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   osbMatch,
   parseForm,
   parseOsb,
+  pendingCredits,
   perBall,
   pickSpot,
   pvpGuard,
@@ -5440,6 +5561,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   siegeJoin,
   siegeRun,
   siegeWindowAt,
+  sparklePicked,
   towerHit,
   treasureDig,
   treasures,

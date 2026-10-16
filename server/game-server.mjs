@@ -9,7 +9,7 @@ import {WebSocketServer} from 'ws';
 import {BOSS_HP,SIEGE_HP_PER_CAPTAIN} from '../src/pve-balance.ts';
 import {fleetTowerStats,playerBaseHp} from '../src/fleetBalance.ts';
 import {pvpClamp,newPvpBudget} from '../src/pvp.ts';
-import {NPCS,MONSTERS,MAPS,QUESTS,QUEST_COOLDOWN_MS,bossFor,FLEET,WORLD_WIDTH,WORLD_HEIGHT,coordLabel} from '../src/campaign.ts';
+import {NPCS,MONSTERS,MAPS,QUESTS,QUEST_COOLDOWN_MS,bossFor,BOSS_KILLS,FLEET,WORLD_WIDTH,WORLD_HEIGHT,coordLabel} from '../src/campaign.ts';
 import {TREASURE_PARTS,PART_CHANCE,DIG_RADIUS,treasureReward} from '../src/treasure.ts';
 import {questEp,bossEp} from '../src/arsenal.ts';
 import {contribReward} from '../src/siege.ts';
@@ -67,16 +67,17 @@ async function handleOsb(body,ctype){const form=parseForm(body,ctype),res=form.g
   const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/shopier_credit`,{method:'POST',headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`,'content-type':'application/json'},
     body:JSON.stringify({p_secret:SERVER_SECRET,p_order:o.order,p_email:o.email,p_note:o.note,p_price:o.price,p_test:o.test})});
   const st=r.ok?await r.json():`hata ${r.status} ${await r.text()}`;log('SHOPIER sonuç',o.order,st);
-  // İmza doğruysa Shopier'a başarı dönülür; veritabanı hatası olursa sipariş günlükte kalır, yönetici elle yükler
-  return true;}
+  // Acknowledge only after the order was persisted; failures remain retryable.
+  return r.ok && st !== null && !(typeof st==='object' && st.error);}
 
 // ---------------------------------------------------------------- Denetim (saf fonksiyonlar, testli)
 const num=v=>typeof v==='number'&&Number.isFinite(v);
 export function checkState(prev,s,now){
-  if(!s||!num(s.x)||!num(s.y)||!num(s.hp))return'bad';
+  if(!s||typeof s!=='object'||Array.isArray(s)||!num(s.x)||!num(s.y)||!num(s.hp)||s.hp<0)return'bad';
+  if(s.x<0||s.x>WORLD_WIDTH||s.y<0||s.y>WORLD_HEIGHT)return'bad';
   if(prev&&prev.x!==undefined){const dt=Math.max(.05,(now-prev.at)/1000),d=Math.hypot(s.x-prev.x,s.y-prev.y);
-    // Harita içi ışınlanma (yeniden doğma, liman) 3000 birimden uzun olur; arada kalan aşırı hız şüphelidir
-    if(d<3000&&d/dt>LIMITS.maxSpeed*1.6+200)return'speed';}
+    // Her aşırı hız şüphelidir; yeniden doğma ve liman gibi ışınlanmalar istemcinin tp işaretiyle 8 sn'de bir kabul edilir
+    if(d/dt>LIMITS.maxSpeed*1.6+200)return'speed';}
   return'ok';
 }
 export function checkFire(f){if(!f||!num(f.damage)||!num(f.x)||!num(f.y)||typeof f.to!=='string')return'bad';if(f.damage<0||f.damage>LIMITS.maxHit)return'damage';return'ok';}
@@ -86,7 +87,7 @@ export function checkFire(f){if(!f||!num(f.damage)||!num(f.x)||!num(f.y)||typeof
 // Oyuncu güllesi hedefini izlediği için gönderilen atış isabet demektir. Hasar hedefin bütçesiyle sınırlanır (20 sn'den önce batmaz).
 // Sunucudaki can, gecikme ve iyileşme payıyla birlikte canın %30'u kadar eksiye düşerse oyuncu ölümsüz sayılır ve batırılır.
 export const HP_BONUS_MAX=1.8,HEAL_SECONDS=40,GOD_MARGIN=.3,PVP_RANGE=1500;
-export function hpCap(st){if(!st)return Infinity;return Math.round(playerBaseHp(Number(st.level)||1,Number(st.u_hull)||0)*HP_BONUS_MAX);}
+export function hpCap(st){if(!st)return 0;return Math.round(playerBaseHp(Number(st.level)||1,Number(st.u_hull)||0)*HP_BONUS_MAX);}
 const pvpOf=t=>t.pvp??={budget:null,heal:null,hp:null,at:0,from:new Map()};
 export function pvpGuard(t,dmg,now){const p=pvpOf(t),max=t.maxHp||1;p.budget??=newPvpBudget(max,now/1000);
   const dealt=pvpClamp(p.budget,max,Math.max(0,dmg),now/1000);if(p.hp!==null)p.hp-=dealt;return Math.round(dealt);}
@@ -112,10 +113,14 @@ export const KILL_CREDIT_MULT=2.5;
 // gülle sayısı gemideki top sayısını aşamaz. Batırma, boss, kuşatma, kule ve PvP hasarı bu bütçeden düşer.
 const AMMO_MULT={iron:1,chain:1.25,fire:2.5*1.8,explosive:2.5,breaker:2.25*2.6,leech:3,heal:0};
 export function perBall(ammo,st){return 20*1.38*(1+(st?Number(st.u_damage)||0:10)*.11)*(AMMO_MULT[ammo]??1)*1.4*2.2;}
-export function cannonsOf(st){if(!st)return Infinity;return['cast','long','rapid','heavy'].reduce((a,k)=>a+(Number(st['c_'+k])||0),0);}
+export function cannonsOf(st){if(!st)return 0;return Math.min(315,['cast','long','rapid','heavy'].reduce((a,k)=>a+Math.max(0,Number(st['c_'+k])||0),0));}
 const ITEM_OF={iron:'iron',chain:'chain'};
-export function noteSalvo(c,d){const a=String(d?.a||'iron');let n=Math.max(0,Math.floor(Number(d?.n)||0)),i=Math.max(0,Math.floor(Number(d?.i)||0));
+const stockOf=(st,k)=>Math.max(0,Number(st?.[k])||0)+Math.max(0,(Number(st?.['cu_'+k])||0)-(Number(st?.['cn_'+k])||0));
+export function noteSalvo(c,d){const a=String(d?.a||'iron');
+  if(!Object.hasOwn(AMMO_MULT,a)||!c.econ||![d?.n,d?.i??0].every(x=>Number.isSafeInteger(x)&&x>=0&&x<=10000))return{err:'salvo'};let n=Math.max(0,Math.floor(Number(d?.n)||0)),i=Math.max(0,Math.floor(Number(d?.i)||0));
   const cap=cannonsOf(c.econ),over=n+i>cap*1.05+5;if(over){const k=cap/(n+i);n=Math.floor(n*k);i=Math.floor(i*k);}
+  const key=ITEM_OF[a]??'a_'+a;
+  if(n+i===0||stockOf(c.econ,key)<n+(a==='iron'?i:0)||(a!=='iron'&&stockOf(c.econ,'iron')<i)||(d?.p&&stockOf(c.econ,'a_powder')<1))return{err:'stok'};
   const dmg=n*perBall(a,c.econ)+i*perBall('iron',c.econ);c.sb??={pool:0};c.sb.pool=Math.min(c.sb.pool+dmg,Math.max(dmg,1)*40);
   const use={};if(n&&a!=='iron')use['cn_'+(ITEM_OF[a]??'a_'+a)]=n;if(i)use.cn_iron=(use.cn_iron||0)+i;if(n&&a==='iron')use.cn_iron=(use.cn_iron||0)+n;if(d?.p)use.cn_a_powder=1;
   return{use,over};}
@@ -123,7 +128,10 @@ export function noteSalvo(c,d){const a=String(d?.a||'iron');let n=Math.max(0,Mat
 export function sbTake(c,amount){c.sb??={pool:0};const ok=Math.max(0,Math.min(amount,c.sb.pool));c.sb.pool-=ok;return ok;}
 // İksir, mayın, pusula ve kalkan: bekleme süresi denetimi ve kullanım sayımı
 export const USE_COOLDOWN={speed:20_000,mine:20_000,compass:16_000,shield:0};
-export function noteUse(c,id,now){if(!(id in USE_COOLDOWN))return{err:'tür'};c.uses??={};const last=c.uses[id]??-1e12,early=now-last<USE_COOLDOWN[id];c.uses[id]=now;
+export function noteUse(c,id,now){if(!(id in USE_COOLDOWN))return{err:'tür'};c.uses??={};const last=c.uses[id]??-1e12,early=now-last<USE_COOLDOWN[id];
+  if(early)return{err:'bekleme',early:true};
+  if(!c.econ||stockOf(c.econ,'a_'+id)<1)return{err:'stok'};
+  c.uses[id]=now;
   if(id==='mine'){c.sb??={pool:0};c.sb.pool+=30_000;}return{use:{['cn_a_'+id]:1},early};}
 export function killCredit(c,id,now){const map=seaMap(c.sea);if(!map||!MAPS[map])return{err:'deniz'};const m=MAPS[map],npc=NPCS[id],mon=MONSTERS[id];
   if(npc?!m.npcs.includes(id):!(mon&&m.monsters.includes(id)))return{err:'hedef'};const def=npc??mon;
@@ -142,7 +150,9 @@ export function killCredit(c,id,now){const map=seaMap(c.sea);if(!map||!MAPS[map]
 // başlarsa yarım görevin batırmaları sayılmaz (görev yine biter, ödülü genel saatlik haktan geçer).
 export const questCooldowns=new Map(); // uid → Map(görev → zaman)
 export function questCredit(c,id,now){const q=QUESTS.find(x=>x.id===id);if(!q)return{err:'görev'};
+  if(!c.econ||Number(c.econ.level)<q.tier||seaMap(c.sea)!==q.map)return{err:'deniz'};
   const cd=questCooldowns.get(c.uid)??new Map();questCooldowns.set(c.uid,cd);if(now-(cd.get(id)??-1e15)<QUEST_COOLDOWN_MS*.95)return{err:'bekleme'};
+  if(q.kind==='sparkle'){c.qk??={};const k='spk:'+q.map;if((c.qk[k]||0)<q.required)return{err:'sayı',have:c.qk[k]||0};c.qk[k]-=q.required;}
   if(q.kind==='npc'||q.kind==='monster'){c.qk??={};const have=q.ids.reduce((a,k)=>a+(c.qk[k]||0),0);if(have<q.required)return{err:'sayı',have};
     let need=q.required;for(const k of q.ids){const t=Math.min(need,c.qk[k]||0);c.qk[k]-=t;need-=t;}}
   cd.set(id,now);return{add:{gold:Math.round(q.gold*KILL_CREDIT_MULT),xp:Math.round(q.xp*KILL_CREDIT_MULT),ep:Math.round(questEp(q.tier)*1.5),st_quest:1}};}
@@ -168,17 +178,41 @@ export function chestPicked(c,now,rand=Math.random){const map=seaMap(c.sea);if(!
   if(rand()>=PART_CHANCE)return{parts:t.parts};t.parts++;
   if(t.parts>=TREASURE_PARTS&&!t.spot){t.parts-=TREASURE_PARTS;t.spot=pickSpot(map,rand);return{parts:t.parts,spot:t.spot,found:true};}
   return{parts:t.parts,found:true};}
+// Pırıltı: denizde en çok 12 tane, birkaç saniyede bir yenisi → kova 12, 1,5 sn'de bir dolar. Görev sayacına yazılır.
+export function sparklePicked(c,now){const map=seaMap(c.sea);if(!map||!MAPS[map])return{err:'deniz'};c.spb??={pool:12,t:now};
+  c.spb.pool=Math.min(12,c.spb.pool+Math.max(0,now-c.spb.t)/1500);c.spb.t=now;if(c.spb.pool<1)return{err:'hız'};c.spb.pool-=1;
+  c.qk??={};const k='spk:'+map;c.qk[k]=Math.min(200,(c.qk[k]||0)+1);return{ok:true};}
 export function treasureDig(c){const t=treOf(c.uid);if(!t.spot)return{err:'harita'};const map=seaMap(c.sea);
   if(map!==t.spot.map||!c.last||Math.hypot(c.last.x-t.spot.x,c.last.y-t.spot.y)>DIG_RADIUS+60)return{err:'yer'};
   const m=MAPS[map],r=treasureReward(m.tier,NPCS[m.npcs[0]].gold);t.spot=null;
   return{reward:r,add:{gold:Math.round(r.gold*KILL_CREDIT_MULT),st_treasure:1,[r.ammo==='chain'?'chain':'a_'+r.ammo]:r.ammoQty,a_powder:r.powder,a_shield:r.shield}};}
 // Görev sayaçları, bekleme süreleri ve hazine durumu sunucu dosyasında saklanır (yeniden başlatmada kaybolmaz)
+export const pendingCredits=new Map();
 const STATE_FILE=process.env.STATE_FILE||'/opt/game/state.json';const qkByUid=new Map();
-export function saveServerState(){if(process.env.NODE_ENV==='test')return;try{fs.writeFileSync(STATE_FILE,JSON.stringify({q:[...questCooldowns].map(([u,m])=>[u,[...m]]),k:[...qkByUid],t:[...treasures]}));}catch{}}
-function loadServerState(){if(process.env.NODE_ENV==='test')return;try{const d=JSON.parse(fs.readFileSync(STATE_FILE,'utf8'));for(const [u,m] of d.q||[])questCooldowns.set(u,new Map(m));for(const [u,k] of d.k||[])qkByUid.set(u,k);for(const [u,t] of d.t||[])treasures.set(u,t);}catch{}}
+export function saveServerState(){if(process.env.NODE_ENV==='test')return;try{for(const c of all)if(c.credit&&!c.grant){c.grant={id:crypto.randomUUID(),add:c.credit};c.credit=null;pendingCredits.set(c.grant.id,c);}
+  fs.writeFileSync(STATE_FILE+'.tmp',JSON.stringify({g:[...pendingCredits.values()].map(c=>({uid:c.uid,grant:c.grant,credit:c.credit})),q:[...questCooldowns].map(([u,m])=>[u,[...m]]),k:[...qkByUid],t:[...treasures]}));fs.renameSync(STATE_FILE+'.tmp',STATE_FILE);}catch(e){log('DURUM kayıt hatası',e?.code);}}
+function loadServerState(){if(process.env.NODE_ENV==='test')return;try{const d=JSON.parse(fs.readFileSync(STATE_FILE,'utf8'));for(const c of d.g||[])if(c.grant?.id)pendingCredits.set(c.grant.id,c);for(const [u,m] of d.q||[])questCooldowns.set(u,new Map(m));for(const [u,k] of d.k||[])qkByUid.set(u,k);for(const [u,t] of d.t||[])treasures.set(u,t);}catch{}}
 loadServerState();setInterval(saveServerState,60_000).unref();process.on('SIGTERM',()=>{saveServerState();process.exit(0);});process.on('SIGINT',()=>{saveServerState();process.exit(0);});
 export function addCredit(c,add){c.credit??={};for(const k in add)c.credit[k]=(c.credit[k]||0)+add[k];}
 export class Rate{constructor(perWindow,windowMs){this.n=perWindow;this.w=windowMs;this.t=[];}hit(now){while(this.t.length&&now-this.t[0]>this.w)this.t.shift();if(this.t.length>=this.n)return false;this.t.push(now);return true;}}
+
+export function canJoin(c,name,now=Date.now()){
+  if(!name)return true;if(!c.econ)return false;
+  if(name===SIEGE_ROOM)return siegeWindowAt(now).open||SIEGE_TRIAL;
+  const map=MAPS[seaMap(name)];return !!map&&Number(c.econ.level)>=map.tier;
+}
+async function applyUsage(c,salvo,item,now){
+  const shadow={...c,sb:{...(c.sb||{pool:0})},uses:{...(c.uses||{})}};
+  let r=item===null?noteSalvo(shadow,salvo):noteUse(shadow,item,now);
+  if(r.err==='stok'){await loadEcon(c);shadow.econ=c.econ;r=item===null?noteSalvo(shadow,salvo):noteUse(shadow,item,now);}
+  if(r.err){send(c,{t:'usageDenied',reason:r.err});return;}
+  const use=Object.fromEntries(Object.entries(r.use).map(([k,v])=>[k.slice(3),v]));
+  const st=process.env.BENCH_AUTH==='1'&&c.uid.startsWith('b')?c.econ:
+    await dbRpcJson('economy_reserve_usage',{p_uid:c.uid,p_use:use});
+  if(!st||st.error){send(c,{t:'usageDenied',reason:'stok doğrulanamadı'});return;}
+  c.econ=st;c.sb=shadow.sb;c.uses=shadow.uses;
+  if(r.over)suspect(c,'top sayısı');
+}
 
 // ---------------------------------------------------------------- Sunucu
 const seas=new Map(); // ad → Set<Client>
@@ -257,9 +291,9 @@ async function onSpy(c,nick){const r=await dbRpcJson('spy_charge',{p_spy:c.uid,p
     send(c,{t:'spyr',d:{status:'found',nick:r.nick,online:false,map:r.map??null,x:r.x??null,y:r.y??null}});return;}
   send(c,{t:'spyr',d:r});}
 // Oyuncunun sunucudaki seviyesi ve geliştirmeleri (011 economy_peek); 5 dakikada bir tazelenir
-async function loadEcon(c){if(!SERVER_SECRET||!c.uid)return;try{const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/economy_peek`,{method:'POST',headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`,'content-type':'application/json'},body:JSON.stringify({p_secret:SERVER_SECRET,p_uid:c.uid})});
+async function loadEcon(c){if(process.env.BENCH_AUTH==='1'&&c.uid?.startsWith('b')){c.econ={level:8,c_cast:315,iron:1e9,a_fire:1e9};return;}if(!SERVER_SECRET||!c.uid)return;try{const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/economy_peek`,{method:'POST',headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`,'content-type':'application/json'},body:JSON.stringify({p_secret:SERVER_SECRET,p_uid:c.uid})});
   if(r.ok){const st=await r.json();if(st&&typeof st==='object')c.econ=st;}}catch{}
-  if(all.has(c))setTimeout(()=>{void loadEcon(c);},5*60_000).unref?.();}
+  if(all.has(c)&&!c.econTimer)c.econTimer=setTimeout(()=>{c.econTimer=null;void loadEcon(c);},5*60_000);c.econTimer?.unref?.();}
 async function guildTag(id){if(!id)return'';const r=await fetch(`${SUPABASE_URL}/rest/v1/guilds?id=eq.${id}&select=tag`,{headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`}});const rows=r.ok?await r.json():[];return rows[0]?.tag||'';}
 async function loadIsland(key){const r=await fetch(`${SUPABASE_URL}/rest/v1/islands?map_key=eq.${encodeURIComponent(key)}&select=*`,{headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`}});
   const row=(r.ok?await r.json():[])[0]??{map_key:key};const i=islandFromRow(row,await guildTag(row.guild_id).catch(()=>''));islands.set(key,i);return i;}
@@ -311,7 +345,7 @@ const siegePhaseOf=r=>r.hp.slice(0,12).some(h=>h>0)?1:r.hp.slice(12,16).some(h=>
 export function siegeHitPiece(uid,nick,i,dmg){const r=siegeRun;if(!r||r.result||!(dmg>0)||!Number.isInteger(i)||i<0||i>=SIEGE_PIECES||r.hp[i]<=0)return null;
   const ph=siegePhaseOf(r);if((i>=12&&i<16&&ph<2)||(i===16&&ph<3))return null;
   const d=Math.min(SIEGE_HIT_CAP,dmg,r.hp[i]);r.hp[i]-=d;const c=r.contrib.get(uid)??{nick,dmg:0};c.dmg+=d;c.nick=nick;r.contrib.set(uid,c);r.dirty.add(i);r.rankDirty=true;
-  if(r.hp[i]>0)return{};if(i===16){r.result='won';return{down:i,won:true};}return{down:i};}
+  if(r.hp[i]>0)return{damage:d};if(i===16){r.result='won';return{down:i,won:true,damage:d};}return{down:i,damage:d};}
 const siegeTop=r=>[...r.contrib.values()].filter(c=>c.dmg>0).sort((a,b)=>b.dmg-a.dmg).slice(0,10).map(c=>[c.nick,Math.round(c.dmg)]);
 export const siegeInfo=(r,uid)=>({id:r.id,end:r.end,n:r.caps.size,hp:r.hp.map(Math.round),max:r.max,result:r.result,top:siegeTop(r),mine:Math.round(r.contrib.get(uid)?.dmg??0)});
 function siegeFinish(){const r=siegeRun,room=seas.get(SIEGE_ROOM),total=[...r.contrib.values()].reduce((a,c)=>a+c.dmg,0)||1;log('KUŞATMA BİTTİ',r.result,r.caps.size,'kaptan');
@@ -340,8 +374,18 @@ export function buildBatch(rec,room,tick){const out=[];if(!rec.seen)rec.seen=new
 setInterval(()=>{tickNo++;if(tickNo%3===0){const now=Date.now();bossTick(now);islandTick(now);siegeTick(now);}for(const room of seas.values()){if(room.size<2)continue;for(const rec of room){const b=buildBatch(rec,room,tickNo);if(b.length)send(rec,{t:'batch',d:b});}}},TICK_MS).unref();
 
 // Doğrulanan kazançlar 20 saniyede bir veritabanına yazılır; dönen değerlerle oyuncunun seviyesi tazelenir
-async function flushCredit(c){const add=c.credit;if(!add||!c.uid)return;c.credit=null;const st=await dbRpcJson('economy_grant',{p_uid:c.uid,p_add:add}).catch(()=>null);if(st&&typeof st==='object')c.econ=st;}
-setInterval(()=>{for(const c of all)if(c.credit)void flushCredit(c);},20_000).unref();
+export async function flushCredit(c){
+  if(c.flushing||!c.uid)return;c.flushing=true;
+  try{
+    if(!c.grant&&c.credit){c.grant={id:crypto.randomUUID(),add:c.credit};c.credit=null;pendingCredits.set(c.grant.id,c);}
+    if(!c.grant)return;
+    const st=await dbRpcJson('economy_grant_once',{p_uid:c.uid,p_event:c.grant.id,p_add:c.grant.add});
+    if(st&&typeof st==='object'){c.econ=st;pendingCredits.delete(c.grant.id);c.grant=null;
+      if(c.credit){c.grant={id:crypto.randomUUID(),add:c.credit};c.credit=null;pendingCredits.set(c.grant.id,c);}}
+  }catch{ /* Keep the same event ID for a safe retry after an uncertain response. */ }
+  finally{c.flushing=false;}
+}
+setInterval(()=>{for(const c of new Set([...all,...pendingCredits.values()]))if(c.credit||c.grant)void flushCredit(c);},20_000).unref();
 const httpServer=http.createServer(async(q,r)=>{const cors={'access-control-allow-origin':'*','access-control-allow-headers':'authorization','content-type':'application/json'};
   if(q.method==='OPTIONS'){r.writeHead(204,cors);r.end();return;}
   if(q.method==='POST'&&q.url?.startsWith('/shopier/osb')){let body='';q.on('data',d=>{body+=d;if(body.length>100000)q.destroy();});
@@ -359,21 +403,22 @@ const wss=new WebSocketServer({server:httpServer,path:'/ws',maxPayload:16*1024,p
 wss.on('connection',ws=>{
   const c={ws,uid:'',nick:'',playerNo:0,netId:'',sea:'',last:null,strikes:0,rState:new Rate(LIMITS.statesPerSec,1000),rFire:new Rate(LIMITS.firesPerSec,1000),rChat:new Rate(LIMITS.chatPerMin,60000),rMsg:new Rate(60,1000),rBoss:new Rate(5,1000),rKill:new Rate(3,1000),rSalvo:new Rate(3,1000),rUse:new Rate(12,1000),rTower:new Rate(12,1000)};
   all.add(c);const authTimer=setTimeout(()=>{if(!c.uid)ws.close(4001,'giriş yok');},10000);
-  ws.on('message',async raw=>{const now=Date.now();if(!c.rMsg.hit(now)){suspect(c,'mesaj seli');return;}
+  const handleMessage=async raw=>{const now=Date.now();
     let m;try{m=JSON.parse(String(raw));}catch{return;}if(!m||typeof m.t!=='string')return;
     if(m.t==='auth'){if(c.uid)return;const who=await verifyToken(String(m.token||'')).catch(()=>null);
       if(!who){ws.close(4001,'giriş geçersiz');return;}if(who.banned){ws.close(4002,'hesap kapalı');return;}
       for(const x of all)if(x.uid===who.uid&&x!==c)x.ws.close(4004,'başka yerden bağlanıldı');
       Object.assign(c,who);c.netId=String(m.netId||'').slice(0,16)||Math.random().toString(36).slice(2,10);clearTimeout(authTimer);
-      send(c,{t:'hello',id:c.netId,nick:c.nick,playerNo:c.playerNo});log('GİRİŞ',`#${c.playerNo}`,c.nick);void loadEcon(c);if(!qkByUid.has(c.uid))qkByUid.set(c.uid,{});c.qk=qkByUid.get(c.uid);{const t=treasures.get(c.uid);if(t)send(c,{t:'tstate',d:{parts:t.parts,spot:t.spot}});}return;}
-    if(!c.uid)return;
+      await loadEcon(c);if(!c.econ){ws.close(4003,'hesap verisi yüklenemedi');return;}
+      send(c,{t:'hello',id:c.netId,nick:c.nick,playerNo:c.playerNo});log('GİRİŞ',`#${c.playerNo}`,c.nick);if(!qkByUid.has(c.uid))qkByUid.set(c.uid,{});c.qk=qkByUid.get(c.uid);{const t=treasures.get(c.uid);if(t)send(c,{t:'tstate',d:{parts:t.parts,spot:t.spot}});}return;}
+    if(!c.uid||!c.econ)return;
     switch(m.t){
-      case'join':{const name=String(m.sea||'').slice(0,40);if(name===c.sea)return;leaveSea(c);if(!name)return;
+      case'join':{const name=String(m.sea||'').slice(0,40);if(name===c.sea)return;if(!canJoin(c,name,now)){send(c,{t:'denied',reason:'harita kilitli'});return;}leaveSea(c);c.last=null;if(!name)return;
         const room=seas.get(name)??new Set();if(room.size>=LIMITS.maxPerSea){send(c,{t:'full'});return;}room.add(c);seas.set(name,room);c.sea=name;c.seen=null;send(c,{t:'joined',sea:name});
         const b=bossSeas.get(name)?.boss;if(b)send(c,{t:'boss',d:bossInfo(name,b)});
         const isle=islands.get(islandOfSea(name));if(isle)send(c,{t:'isle',d:islandInfo(isle)});
         if(name===SIEGE_ROOM){const r=siegeJoin(c.uid,c.nick,now);if(r)send(c,{t:'sstate',d:siegeInfo(r,c.uid)});}return;}
-      case'state':{if(!c.sea||!c.rState.hit(now))return;const s=m.d;let v=checkState(c.last,s,now);if(v==='speed'&&s.tp&&now-(c.tpAt||0)>8000){c.tpAt=now;v='ok';}delete s.tp;if(v==='bad')return;if(v==='speed'){suspect(c,'hız',`${Math.round(s.x)},${Math.round(s.y)}`);if(c.last)send(c,{t:'pos',d:{x:c.last.x,y:c.last.y}});return;}
+      case'state':{if(!c.sea||!c.rState.hit(now))return;const s=m.d;let v=checkState(c.last,s,now);if(v==='bad')return;if(v==='speed'&&s.tp&&now-(c.tpAt||0)>8000){c.tpAt=now;v='ok';}delete s.tp;if(v==='bad')return;if(v==='speed'){suspect(c,'hız',`${Math.round(s.x)},${Math.round(s.y)}`);if(c.last)send(c,{t:'pos',d:{x:c.last.x,y:c.last.y}});return;}
         if(num(s.maxHp)){const cap=hpCap(c.econ);if(s.maxHp>cap*1.02){suspect(c,'can sınırı',`${Math.round(s.maxHp)}>${cap}`);s.maxHp=cap;}c.maxHp=s.maxHp;}
         if(c.maxHp&&s.hp>c.maxHp)s.hp=c.maxHp;noteHp(c,s.hp,now);
         c.last={x:s.x,y:s.y,at:now};s.id=c.netId;queueState(c,s);return;}
@@ -388,7 +433,7 @@ wss.on('connection',ws=>{
         // Batıran yalnızca son 60 sn'de bu oyuncuya ateş etmiş biri olabilir (arkadaşa SP yazdırma engeli)
         if(s.by&&!(now-(c.pvp?.from.get(String(s.by))??-1e12)<60_000)){suspect(c,'sahte batırma',String(s.by));s.by=null;s.byNick=null;}
         pvpReset(c);toSea(c,{t:'sunk',d:s});return;}
-      case'bkill':{if(!c.sea||!c.rKill.hit(now))return;const b=bossKill(c.sea,m.d?.need,now);if(b){log('BOSS',c.sea);toSea(c,{t:'boss',d:bossInfo(c.sea,b)},true);}return;}
+      case'bkill':return; // Only accepted nkill events advance the boss counter.
       case'bhit':{if(!c.sea||!c.rBoss.hit(now))return;let dmg=Number(m.d?.dmg);if(!num(dmg)||dmg<=0)return;if(dmg>BOSS_HIT_CAP)suspect(c,'boss hasarı',String(dmg));
         {const t=dpsTake(c,dmg,now);if(t.flag){suspect(c,'saniyelik hasar','boss');c.dps.over=0;}dmg=sbTake(c,t.ok);if(dmg<=0)return;}
         const r=bossHit(c.sea,c.uid,dmg);if(!r)return;const room=seas.get(c.sea);log('BOSS BATTI',c.sea,r.n,'kaptan');
@@ -396,13 +441,15 @@ wss.on('connection',ws=>{
         for(const x of room||[])send(x,{t:'bdown',d:{id:r.id,n:r.n,...(r.shares[x.uid]??{share:0,dmg:0})}});return;}
       case'shit':{if(c.sea!==SIEGE_ROOM||!c.rTower.hit(now))return;let dmg=Number(m.d?.dmg);if(!num(dmg)||dmg<=0)return;if(dmg>SIEGE_HIT_CAP)suspect(c,'kuşatma hasarı',String(dmg));
         {const t=dpsTake(c,dmg,now);if(t.flag){suspect(c,'saniyelik hasar','kuşatma');c.dps.over=0;}dmg=sbTake(c,t.ok);if(dmg<=0)return;}
-        const r=siegeHitPiece(c.uid,c.nick,Number(m.d?.i),dmg);if(siegeRun&&!siegeRun.result)addCredit(c,siegeCredit(dmg,siegeRun.caps.size,c.econ?.level));if(!r?.down&&r?.down!==0)return;toSea(c,{t:'sdown',d:{i:r.down}},true);if(r.won)siegeFinish();return;}
+        const r=siegeHitPiece(c.uid,c.nick,Number(m.d?.i),dmg);if(r?.damage>0)addCredit(c,siegeCredit(r.damage,siegeRun.caps.size,c.econ?.level));if(!r?.down&&r?.down!==0)return;toSea(c,{t:'sdown',d:{i:r.down}},true);if(r.won)siegeFinish();return;}
       case'nkill':{if(!c.sea||!c.rKill.hit(now))return;const r=killCredit(c,String(m.d?.id||''),now);
-        if(r.err){if((r.err!=='hız'&&r.err!=='mermi')||r.flag){suspect(c,'batırma',`${r.err} ${m.d?.id}`);if(c.kb)c.kb.miss=0;}return;}addCredit(c,r.add);return;}
-      case'salvo':{if(!c.rSalvo.hit(now)){suspect(c,'salvo hızı');return;}const r=noteSalvo(c,m.d);if(r.over)suspect(c,'top sayısı',String(m.d?.n));addCredit(c,r.use);return;}
-      case'use':{if(!c.rUse.hit(now))return;const r=noteUse(c,String(m.d?.id||''),now);if(r.err)return;if(r.early)suspect(c,'bekleme süresi',String(m.d?.id));addCredit(c,r.use);return;}
+        if(r.err){if((r.err!=='hız'&&r.err!=='mermi')||r.flag){suspect(c,'batırma',`${r.err} ${m.d?.id}`);if(c.kb)c.kb.miss=0;}return;}addCredit(c,r.add);
+        const map=seaMap(c.sea);if(map&&String(m.d?.id)===bossFor(map).trigger){const b=bossKill(c.sea,BOSS_KILLS,now);if(b)toSea(c,{t:'boss',d:bossInfo(c.sea,b)},true);}return;}
+      case'salvo':{if(!c.rSalvo.hit(now)){suspect(c,'salvo hızı');return;}await applyUsage(c,m.d,null,now);return;}
+      case'use':{if(!c.rUse.hit(now))return;await applyUsage(c,null,String(m.d?.id||''),now);return;}
       case'qdone':{if(!c.uid||!c.rKill.hit(now))return;const id=String(m.d?.id||'');const r=questCredit(c,id,now);
         if(r.err){if(r.err==='bekleme')suspect(c,'görev bekleme',id);send(c,{t:'qres',d:{id,ok:false,err:r.err}});return;}addCredit(c,r.add);send(c,{t:'qres',d:{id,ok:true}});return;}
+      case'spk':{if(!c.sea||!c.rUse.hit(now))return;const r=sparklePicked(c,now);if(r.err==='hız')suspect(c,'pırıltı hızı');return;}
       case'chest':{if(!c.sea||!c.rKill.hit(now))return;const r=chestPicked(c,now);if(r.err){if(r.err==='hız')suspect(c,'sandık hızı');return;}if(r.found)send(c,{t:'tstate',d:{parts:r.parts,spot:treOf(c.uid).spot,part:true}});return;}
       case'tdig':{if(!c.sea||!c.rKill.hit(now))return;const r=treasureDig(c);if(r.err){send(c,{t:'tdig',d:{ok:false,err:r.err}});return;}addCredit(c,r.add);send(c,{t:'tdig',d:{ok:true,reward:r.reward}});return;}
       case'spy':{if(!c.rKill.hit(now))return;await onSpy(c,m.d?.nick);return;}
@@ -416,8 +463,16 @@ wss.on('connection',ws=>{
       case'bid':{const b=m.d||{};b.id=c.uid;b.nick=c.nick;toAll(c,{t:'bid',d:b});return;}
       case'known':case'ask':{toAll(c,{t:m.t,d:m.d});return;}
     }
+  };
+  // Serialize asynchronous handlers: stock reservation must finish before the following hit.
+  let queue=Promise.resolve(),pending=0;
+  ws.on('message',raw=>{
+    if(!c.rMsg.hit(Date.now())||pending>=64){suspect(c,'mesaj seli');return;}
+    pending++;queue=queue.then(()=>{if(ws.readyState===1)return handleMessage(raw);})
+      .catch(e=>{log('PAKET reddedildi',c.playerNo,e?.name||'hata');})
+      .finally(()=>{pending--;});
   });
-  ws.on('close',()=>{clearTimeout(authTimer);void flushCredit(c);if(c.uid&&c.last&&seaMap(c.sea))void dbRpc('spy_seen',{p_uid:c.uid,p_map:seaMap(c.sea),p_x:Math.round(c.last.x),p_y:Math.round(c.last.y)}).catch(()=>{});leaveSea(c);all.delete(c);if(c.uid)log('ÇIKIŞ',`#${c.playerNo}`,c.nick);});
+  ws.on('close',()=>{clearTimeout(authTimer);clearTimeout(c.econTimer);void flushCredit(c);if(c.uid&&c.last&&seaMap(c.sea))void dbRpc('spy_seen',{p_uid:c.uid,p_map:seaMap(c.sea),p_x:Math.round(c.last.x),p_y:Math.round(c.last.y)}).catch(()=>{});leaveSea(c);all.delete(c);if(c.uid)log('ÇIKIŞ',`#${c.playerNo}`,c.nick);});
   ws.on('error',()=>{});
 });
 // Ölü bağlantıları temizle
