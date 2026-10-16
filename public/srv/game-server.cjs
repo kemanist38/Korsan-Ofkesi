@@ -3689,6 +3689,7 @@ __export(game_server_exports, {
   pvpHeal: () => pvpHeal,
   pvpReset: () => pvpReset,
   resetSiege: () => resetSiege,
+  seaMap: () => seaMap,
   seaTier: () => seaTier,
   siegeHitPiece: () => siegeHitPiece,
   siegeInfo: () => siegeInfo,
@@ -4112,6 +4113,37 @@ async function dbRpc(fn, args) {
   if (!SERVER_SECRET) return;
   const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, { method: "POST", headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${SUPABASE_ANON}`, "content-type": "application/json" }, body: JSON.stringify({ p_secret: SERVER_SECRET, ...args }) });
   if (!r.ok) log("ADA kay\u0131t hatas\u0131", fn, r.status, await r.text());
+}
+async function dbRpcJson(fn, args) {
+  if (!SERVER_SECRET) return null;
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, { method: "POST", headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${SUPABASE_ANON}`, "content-type": "application/json" }, body: JSON.stringify({ p_secret: SERVER_SECRET, ...args }) });
+  if (!r.ok) {
+    log("RPC hatas\u0131", fn, r.status, await r.text());
+    return null;
+  }
+  return r.json();
+}
+var seaMap = (name) => {
+  const m = /^sea-(\d)-(\d)$/.exec(name || "");
+  return m ? `${m[1]}/${m[2]}` : null;
+};
+async function onSpy(c, nick) {
+  const r = await dbRpcJson("spy_charge", { p_spy: c.uid, p_nick: String(nick || "").slice(0, 24) }).catch(() => null);
+  if (!r) {
+    send(c, { t: "spyr", d: { status: "error" } });
+    return;
+  }
+  if (r.status === "found") {
+    const live = [...all].find((x) => x.uid === r.target && x.sea && x.last);
+    if (live) {
+      const map = seaMap(live.sea);
+      send(c, { t: "spyr", d: { status: "found", nick: r.nick, online: true, map: map ?? "kale", x: live.last.x, y: live.last.y } });
+      return;
+    }
+    send(c, { t: "spyr", d: { status: "found", nick: r.nick, online: false, map: r.map ?? null, x: r.x ?? null, y: r.y ?? null } });
+    return;
+  }
+  send(c, { t: "spyr", d: r });
 }
 async function loadEcon(c) {
   if (!SERVER_SECRET || !c.uid) return;
@@ -4618,6 +4650,11 @@ wss.on("connection", (ws) => {
         if (r.won) siegeFinish();
         return;
       }
+      case "spy": {
+        if (!c.rKill.hit(now)) return;
+        await onSpy(c, m.d?.nick);
+        return;
+      }
       case "thit": {
         if (!c.sea || !c.rTower.hit(now)) return;
         await onTowerHit(c, m, now);
@@ -4662,6 +4699,8 @@ wss.on("connection", (ws) => {
   });
   ws.on("close", () => {
     clearTimeout(authTimer);
+    if (c.uid && c.last && seaMap(c.sea)) void dbRpc("spy_seen", { p_uid: c.uid, p_map: seaMap(c.sea), p_x: Math.round(c.last.x), p_y: Math.round(c.last.y) }).catch(() => {
+    });
     leaveSea(c);
     all.delete(c);
     if (c.uid) log("\xC7IKI\u015E", `#${c.playerNo}`, c.nick);
@@ -4736,6 +4775,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   pvpHeal,
   pvpReset,
   resetSiege,
+  seaMap,
   seaTier,
   siegeHitPiece,
   siegeInfo,

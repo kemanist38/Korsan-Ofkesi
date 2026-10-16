@@ -17,6 +17,7 @@ delete from public.economy_claims;
 delete from public.mentor_claims;
 delete from public.mentor_requests;
 delete from public.mentor_links;
+delete from public.last_pos;
 update public.islands set guild_id = null, towers = '[]'::jsonb, ruins = '{}'::jsonb;
 delete from auth.users where id not in (select user_id from public.admins);
 commit;
