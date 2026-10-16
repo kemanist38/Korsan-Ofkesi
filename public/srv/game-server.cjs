@@ -4476,8 +4476,8 @@ function chestPicked(c, now, rand = Math.random) {
 function sparklePicked(c, now) {
   const map = seaMap(c.sea);
   if (!map || !MAPS[map]) return { err: "deniz" };
-  c.spb ??= { pool: 12, t: now };
-  c.spb.pool = Math.min(12, c.spb.pool + Math.max(0, now - c.spb.t) / 1500);
+  c.spb ??= { pool: 40, t: now };
+  c.spb.pool = Math.min(40, c.spb.pool + Math.max(0, now - c.spb.t) * 1.5 / 1e3);
   c.spb.t = now;
   if (c.spb.pool < 1) return { err: "h\u0131z" };
   c.spb.pool -= 1;
