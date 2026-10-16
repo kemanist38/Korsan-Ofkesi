@@ -995,6 +995,10 @@ function toggleRepair(){
   state.repairing=!state.repairing;toast(state.repairing?'Açık deniz tamiri başladı':'Tamir durduruldu');
 }
 
+// Hesapla oynarken hasarı oyun sunucusunun hesapladığı hedefler: NPC, paylaşılan boss, kuşatma, ada kulesi, oyuncu
+function netTarget(t:Target|null):{k:string;id:string}|null{if(!session.account||!t||t.kind!=='ship')return null;
+  if(t.net)return{k:'n',id:t.net.id};if(t.boss&&t.shared)return{k:'b',id:t.shared};if(t.siege&&siegeOnline&&(t.tower||t.commander))return{k:'s',id:String(siegePiece(t))};
+  if(t.tower&&!t.siege&&t.towerIndex!==undefined)return{k:'t',id:String(t.towerIndex)};if(t.remote)return{k:'p',id:t.remote.id};return null;}
 function fireAtTarget(){
   if(!selected||player.cooldown>0||dist(player,selected)>effectiveRange())return;
   // Şifa yalnız oyunculara (ve dost kulelere); hasar veren gülle dosta sıkılamaz
@@ -1012,7 +1016,7 @@ function fireAtTarget(){
   // Şifa salvosu en çok 13–15 bin can doldurur (top sayısına göre daha az olabilir)
   const amount=state.ammo==='heal'?Math.round(Math.min(damage,(selected.maxHp||163000)*(.08+Math.random()*.012))):damage;
   salvoQueue.push({delay:0,target:selected,side,slot:0,damage:amount,ammo:state.ammo,powder:powderF>1});
-  {const t=selected as Enemy;if(t.kind==='ship'&&t.net)sendAttack({id:t.net.id,a:state.ammo,n:loaded,i:ironUsed,p:powderF>1?1:0,r:rageF>1?1:0});else sendSalvo(state.ammo,loaded,ironUsed,powderF>1?1:0);}
+  {const tg=netTarget(selected);if(tg)sendAttack({...tg,a:state.ammo,n:loaded,i:ironUsed,p:powderF>1?1:0,r:rageF>1?1:0});else sendSalvo(state.ammo,loaded,ironUsed,powderF>1?1:0);}
   if(ironUsed){state.ironAmmo-=ironUsed;if(state.ironAmmo<=0)toast('Demir gülle bitti — marketten altınla alabilirsin');}
   if(state.ammo==='chain'){state.chainAmmo-=loaded;gainElitePoints(loaded*ELITE_POINTS_PER_BALL.chain);bumpAch('eliteBalls',loaded);}
   else if(isSpecial(state.ammo)){arsenal[state.ammo]-=loaded;saveArsenal(arsenal);gainElitePoints(loaded*ELITE_POINTS_PER_BALL[state.ammo]);bumpAch('eliteBalls',loaded);}
@@ -1035,8 +1039,8 @@ function releaseSalvo(round:SalvoRound){
   const tx=(round.target.x-player.x)/Math.max(1,d),ty=(round.target.y-player.y)/Math.max(1,d),forwardDot=fx*tx+fy*ty;
   const muzzle=forwardDot>.55?{x:fx*24,y:fy*24}:forwardDot<-.55?{x:-fx*20,y:-fy*20}:{x:rx*round.side*18,y:ry*round.side*18};
   const x=player.x+muzzle.x,y=player.y+muzzle.y;
-  {const t=round.target as Enemy;if(t.kind==='ship'&&t.remote)sendFire({from:myNetId,to:t.remote.id,x,y,tx:t.x,ty:t.y,damage:round.damage,ammo:round.ammo});}
-  shots.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life:Math.max(1.1,d/speed+.5),owner:'player',damage:round.damage,hit:false,ammo:round.ammo,target:round.target,powder:round.powder,net:!!(round.target as Enemy).net});
+  {const t=round.target as Enemy;if(!session.account&&t.kind==='ship'&&t.remote)sendFire({from:myNetId,to:t.remote.id,x,y,tx:t.x,ty:t.y,damage:round.damage,ammo:round.ammo});}
+  shots.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life:Math.max(1.1,d/speed+.5),owner:'player',damage:round.damage,hit:false,ammo:round.ammo,target:round.target,powder:round.powder,net:!!netTarget(round.target)});
   playCannon(state.cannonType,round.ammo==='heal'?'iron':round.ammo);
   muzzleFlash(x,y,Math.atan2(muzzle.y,muzzle.x));
 }
@@ -2009,7 +2013,7 @@ function update(dt:number){updateHealFlights(dt);{const rc=document.getElementBy
         if(s.ammo==='heal'){if(e!==s.target||dist(s,e)>=(e.hitRadius??25))continue;s.hit=true;s.life=0;const amt=Math.max(0,Math.min(s.damage,e.maxHp-e.hp));if(!e.remote)e.hp+=amt;healText(e.x,e.y,e.remote?s.damage:amt);playHeal();continue;}
         if(isAlly(e))continue;
         if(e.remote&&dist(s,e)<(e.hitRadius??25)){s.hit=true;s.life=0;burst(e.x,e.y);playHit();continue;}
-        if(e.net&&s.net&&dist(s,e)<(e.hitRadius??25)){s.hit=true;s.life=0;e.aggro=true;e.combatTimer=12;e.lastHitBy='player';burst(e.x,e.y);playHit();damageText(e.x,e.y,Math.round(s.damage*(s.ammo==='fire'?FIRE_NPC_FACTOR:1)),s.powder?DMG_GOLD:DMG_RED);continue;}
+        if(s.net&&!e.remote&&dist(s,e)<(e.hitRadius??25)){s.hit=true;s.life=0;e.aggro=true;e.combatTimer=12;e.lastHitBy='player';burst(e.x,e.y);playHit();damageText(e.x,e.y,Math.round(s.damage*(s.ammo==='fire'?FIRE_NPC_FACTOR:1)),s.powder?DMG_GOLD:DMG_RED);continue;}
         if(dist(s,e)<(e.hitRadius??25)){const rawHit=(s.damage*(s.ammo==='breaker'&&e.tower?SPECIAL_AMMO.breaker.towerFactor:1)*(s.ammo==='fire'&&!e.tower&&!e.captain?FIRE_NPC_FACTOR:1)*(s.ammo==='explosive'&&e.captain?EXPLOSIVE_PLAYER_FACTOR:1));const hit=e.captain?pvpClamp(e.pvp??=newPvpBudget(e.maxHp,performance.now()/1000),e.maxHp,rawHit,performance.now()/1000):rawHit;s.hit=true;if(s.slow)e.slowTimer=Math.max(e.slowTimer,s.slow);if(s.splash)towerSplash(s,e);e.aggro=true;e.lastHitBy='player';e.combatTimer=12;if(s.ammo==='chain'&&e.captain)e.slowTimer=CHAIN_SLOW.seconds;e.hp-=hit;siegeHit(e,hit,profile.nick);damageText(e.x,e.y,hit,s.powder?DMG_GOLD:DMG_RED);burst(e.x,e.y);playHit();ammoImpact(s,e,hit);s.life=0;
           if(e.hp<=0)sinkEnemy(e);
         }
