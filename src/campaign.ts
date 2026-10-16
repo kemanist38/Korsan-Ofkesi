@@ -211,16 +211,16 @@ for(const key of MAP_KEYS){
 // ---------------------------------------------------------------- Görevler (seviyeye göre)
 // Görevler haritaya özeldir: her haritanın 4 görevi o haritanın NPC ve canavarlarıyla yapılır.
 // Oyuncu hangi haritadaysa (kendi seviyesine kadar her harita açık) o haritanın görevlerini alır.
-// Ek görev TP ödülü, batırmaların normal ödülünün yarısıdır; böylece harita seviyesi arttıkça ödül de artar. İnci ödülü seviyeyle büyür.
+// Görev altın ve TP ödülü, istenen batırmaların normal ödülünün 3 katıdır; böylece harita seviyesi arttıkça ödül de artar. İnci ödülü seviyeyle büyür.
 export type QuestDef={id:string;map:MapKey;tier:number;title:string;description:string;kind:'npc'|'chest'|'sparkle';ids:string[];required:number;gold:number;xp:number;pearls:number};
-export const QUEST_BONUS=.5;
+export const QUEST_BONUS=3;
 export const QUESTS:QuestDef[]=MAP_KEYS.flatMap(key=>{
   const m=MAPS[key],t=m.tier,L=NPCS[m.npcs[0]],H=NPCS[m.npcs[1]],pay=(n:number,u:{gold:number;xp:number},k=QUEST_BONUS)=>({gold:Math.round(n*u.gold*k),xp:Math.round(n*u.xp*k)});
   const nL=20,nH=20,nC=20,head=`${key} ${m.name}`;
   return[
-    {id:`q${key}-light`,map:key,tier:t,title:`${head}: Devriye Avı`,description:`${L.name} gemilerinden ${nL} tanesini batır.`,kind:'npc',ids:[L.id],required:nL,...pay(nL,L),pearls:2+t},
-    {id:`q${key}-heavy`,map:key,tier:t,title:`${head}: Ağır Filo`,description:`${H.name} gemilerinden ${nH} tanesini denizin dibine gönder.`,kind:'npc',ids:[H.id],required:nH,...pay(nH,H),pearls:3+2*t},
-    {id:`q${key}-sparkle`,map:key,tier:t,title:`${head}: Pırıltı Avı`,description:`Bu denizde ${nC} inci pırıltısı topla.`,kind:'sparkle',ids:[key],required:nC,...pay(nC,{gold:L.gold,xp:Math.round(L.xp*.5)},1),pearls:4+2*t},
+    {id:`q${key}-light`,map:key,tier:t,title:`${head}: Devriye Avı`,description:`${L.name} gemilerinden ${nL} tanesini batır.`,kind:'npc',ids:[L.id],required:nL,...pay(nL,L),pearls:2*(2+t)},
+    {id:`q${key}-heavy`,map:key,tier:t,title:`${head}: Ağır Filo`,description:`${H.name} gemilerinden ${nH} tanesini denizin dibine gönder.`,kind:'npc',ids:[H.id],required:nH,...pay(nH,H),pearls:2*(3+2*t)},
+    {id:`q${key}-sparkle`,map:key,tier:t,title:`${head}: Pırıltı Avı`,description:`Bu denizde ${nC} inci pırıltısı topla.`,kind:'sparkle',ids:[key],required:nC,...pay(nC,{gold:L.gold,xp:Math.round(L.xp*.5)},6),pearls:2*(4+2*t)},
   ];
 });
 export const QUEST_COOLDOWN_MS=8*60*60*1000;

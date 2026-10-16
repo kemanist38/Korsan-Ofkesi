@@ -3654,7 +3654,6 @@ __export(game_server_exports, {
   HEAL_SECONDS: () => HEAL_SECONDS,
   HP_BONUS_MAX: () => HP_BONUS_MAX,
   ISLAND_KEYS: () => ISLAND_KEYS,
-  KILL_CREDIT_MULT: () => KILL_CREDIT_MULT,
   LIMITS: () => LIMITS,
   LOOT: () => LOOT,
   NEAR: () => NEAR,
@@ -4061,14 +4060,14 @@ for (const key of MAP_KEYS) {
   map.labels = [{ text: map.name.toLocaleUpperCase("tr"), x: WORLD_WIDTH / 2, y: WORLD_HEIGHT / 2 }];
   map.spawn = { x: map.fleet.x, y: Math.min(WORLD_HEIGHT - 200, map.fleet.y + 900) };
 }
-var QUEST_BONUS = 0.5;
+var QUEST_BONUS = 3;
 var QUESTS = MAP_KEYS.flatMap((key) => {
   const m = MAPS[key], t = m.tier, L = NPCS[m.npcs[0]], H = NPCS[m.npcs[1]], pay = (n, u, k = QUEST_BONUS) => ({ gold: Math.round(n * u.gold * k), xp: Math.round(n * u.xp * k) });
   const nL = 20, nH = 20, nC = 20, head = `${key} ${m.name}`;
   return [
-    { id: `q${key}-light`, map: key, tier: t, title: `${head}: Devriye Av\u0131`, description: `${L.name} gemilerinden ${nL} tanesini bat\u0131r.`, kind: "npc", ids: [L.id], required: nL, ...pay(nL, L), pearls: 2 + t },
-    { id: `q${key}-heavy`, map: key, tier: t, title: `${head}: A\u011F\u0131r Filo`, description: `${H.name} gemilerinden ${nH} tanesini denizin dibine g\xF6nder.`, kind: "npc", ids: [H.id], required: nH, ...pay(nH, H), pearls: 3 + 2 * t },
-    { id: `q${key}-sparkle`, map: key, tier: t, title: `${head}: P\u0131r\u0131lt\u0131 Av\u0131`, description: `Bu denizde ${nC} inci p\u0131r\u0131lt\u0131s\u0131 topla.`, kind: "sparkle", ids: [key], required: nC, ...pay(nC, { gold: L.gold, xp: Math.round(L.xp * 0.5) }, 1), pearls: 4 + 2 * t }
+    { id: `q${key}-light`, map: key, tier: t, title: `${head}: Devriye Av\u0131`, description: `${L.name} gemilerinden ${nL} tanesini bat\u0131r.`, kind: "npc", ids: [L.id], required: nL, ...pay(nL, L), pearls: 2 * (2 + t) },
+    { id: `q${key}-heavy`, map: key, tier: t, title: `${head}: A\u011F\u0131r Filo`, description: `${H.name} gemilerinden ${nH} tanesini denizin dibine g\xF6nder.`, kind: "npc", ids: [H.id], required: nH, ...pay(nH, H), pearls: 2 * (3 + 2 * t) },
+    { id: `q${key}-sparkle`, map: key, tier: t, title: `${head}: P\u0131r\u0131lt\u0131 Av\u0131`, description: `Bu denizde ${nC} inci p\u0131r\u0131lt\u0131s\u0131 topla.`, kind: "sparkle", ids: [key], required: nC, ...pay(nC, { gold: L.gold, xp: Math.round(L.xp * 0.5) }, 6), pearls: 2 * (4 + 2 * t) }
   ];
 });
 var QUEST_COOLDOWN_MS = 8 * 60 * 60 * 1e3;
@@ -4248,6 +4247,10 @@ var BY_WEEKDAY = {
 };
 var dayEvent = (d = /* @__PURE__ */ new Date()) => BY_WEEKDAY[d.getDay()] ?? null;
 var is = (id, d) => dayEvent(d)?.id === id;
+var spMult = (d) => is("sp", d) ? 2 : 1;
+var xpMult = (d) => is("tp", d) ? 1.5 : 1;
+var epMult = (d) => is("ep", d) ? 1.5 : 1;
+var goldMult = (d) => is("gold", d) ? 1.5 : 1;
 var sparkleMult = (d) => is("pearl", d) ? 2 : 1;
 
 // src/siege.ts
@@ -4496,7 +4499,9 @@ function dpsTake(c, dmg, now) {
   d.over = dmg > ok ? d.over + (dmg - ok) : Math.max(0, d.over - ok);
   return { ok, flag: d.over > rate * 6 };
 }
-var KILL_CREDIT_MULT = 2.5;
+var talentRank = (c, id) => Number(c?.ld?.tal?.[id]) || 0;
+var G = (n) => Math.round(n * goldMult());
+var X = (n) => Math.round(n * xpMult());
 var AMMO_MULT = { iron: 1, chain: 1.25, fire: 2.5 * 1.8, explosive: 2.5, breaker: 2.25 * 2.6, leech: 3, heal: 0 };
 function perBall(ammo, st) {
   return 20 * 1.38 * (1 + (st ? Number(st.u_damage) || 0 : 10) * 0.11) * (AMMO_MULT[ammo] ?? 1) * 1.4 * 2.2;
@@ -4567,7 +4572,7 @@ function killCredit(c, id, now) {
   sbTake(c, def.hp * 0.6);
   b.pool = Math.max(0, b.pool - def.hp);
   b.miss = 0;
-  const add = { gold: Math.round(def.gold * KILL_CREDIT_MULT), xp: Math.round(def.xp * KILL_CREDIT_MULT) };
+  const add = { gold: G(def.gold), xp: X(def.xp) };
   add.st_npc = 1;
   if (npc2.role === "heavy") add.st_heavy = 1;
   c.qk ??= {};
@@ -4602,15 +4607,15 @@ function questCredit(c, id, now) {
     }
   }
   cd.set(id, now);
-  return { add: { pearls: q.pearls, gold: Math.round(q.gold * KILL_CREDIT_MULT), xp: Math.round(q.xp * KILL_CREDIT_MULT), ep: questEp(q.tier), st_quest: 1 } };
+  return { add: { pearls: q.pearls, gold: G(q.gold), xp: X(q.xp), ep: Math.round(questEp(q.tier) * epMult()), st_quest: 1 } };
 }
 var bossPool = (n) => 1 + 0.6 * (Math.min(5, Math.max(1, n)) - 1);
 function bossCredit(map, share, n) {
   if (!MAPS[map] || !(share > 0)) return null;
   const b = bossFor(map), pool = bossPool(n);
-  const add = { gold: Math.round(NPCS[b.trigger].gold * 20 * pool * share * KILL_CREDIT_MULT), xp: Math.round(b.xp * pool * share * KILL_CREDIT_MULT) };
+  const add = { gold: G(Math.round(NPCS[b.trigger].gold * 20 * pool * share)), xp: X(Math.round(b.xp * pool * share)) };
   if (share >= 0.03) {
-    add.ep = bossEp(b.tier);
+    add.ep = Math.round(bossEp(b.tier) * epMult());
     add.st_boss = 1;
     add.pearls = b.pearls;
   }
@@ -4618,7 +4623,7 @@ function bossCredit(map, share, n) {
 }
 function siegeCredit(dmg, n, level) {
   const r = contribReward(dmg, Math.max(1, n), Math.max(1, Math.min(8, Math.round(Number(level) || 8))));
-  return { gold: Math.round(r.gold * KILL_CREDIT_MULT), xp: Math.round(r.xp * KILL_CREDIT_MULT), pearls: r.pearls };
+  return { gold: G(r.gold), xp: X(r.xp), pearls: r.pearls };
 }
 var treasures = /* @__PURE__ */ new Map();
 var treOf = (uid) => {
@@ -4706,7 +4711,7 @@ function lootTick(c, now) {
 }
 function chestReward(c, gilded, rand = Math.random) {
   const map = seaMap(c.sea);
-  const ch = createChest("drift", 0, 0, Math.max(0, Math.min(0.24, Number(gilded) || 0)), MAPS[map]?.tier ?? 1, rand);
+  const ch = createChest("drift", 0, 0, 0.08 * Math.min(3, talentRank(c, "scavenger")), MAPS[map]?.tier ?? 1, rand);
   const out = { kind: ch.kind, pearls: ch.pearls, powder: ch.powder, shield: ch.shield, ammo: ch.ammo, ammoQty: ch.ammoQty, speed: ch.speed, mine: ch.mine };
   const add = { pearls: ch.pearls, a_powder: ch.powder, a_shield: ch.shield, ["a_" + ch.ammo]: ch.ammoQty, a_speed: ch.speed, a_mine: ch.mine, st_chest: 1 };
   for (const k in add) if (!add[k]) delete add[k];
@@ -4740,7 +4745,7 @@ function treasureDig(c) {
   if (map !== t.spot.map || !c.last || Math.hypot(c.last.x - t.spot.x, c.last.y - t.spot.y) > DIG_RADIUS + 60) return { err: "yer" };
   const m = MAPS[map], r = treasureReward(m.tier, NPCS[m.npcs[0]].gold);
   t.spot = null;
-  return { reward: r, add: { gold: Math.round(r.gold * KILL_CREDIT_MULT), pearls: r.pearls, st_treasure: 1, [r.ammo === "chain" ? "chain" : "a_" + r.ammo]: r.ammoQty, a_powder: r.powder, a_shield: r.shield } };
+  return { reward: r, add: { gold: G(r.gold), pearls: r.pearls, st_treasure: 1, [r.ammo === "chain" ? "chain" : "a_" + r.ammo]: r.ammoQty, a_powder: r.powder, a_shield: r.shield } };
 }
 var pendingCredits = /* @__PURE__ */ new Map();
 var STATE_FILE = process.env.STATE_FILE || "/opt/game/state.json";
@@ -4792,7 +4797,7 @@ function spCredit(killer, victimUid, now) {
   const n = r && r.day === day ? r.n : 0;
   if (n >= RIVAL_DAILY_LIMIT) return null;
   m.set(victimUid, { day, n: n + 1 });
-  return { sp: RIVAL_SP * 2 };
+  return { sp: RIVAL_SP * spMult() };
 }
 function buildLoadout(st, d) {
   if (!st) return null;
@@ -4833,6 +4838,7 @@ function buildLoadout(st, d) {
   }
   if (spent > talentPoints(lvl)) tal = {};
   return {
+    tal,
     level: lvl,
     mineMult: 1 + 0.15 * (tal.sapper || 0),
     cannons: total,
@@ -4984,7 +4990,7 @@ function npcApply(c, sea2, n, d, now) {
   return { dealt: d, dead: n, shares: [...n.dmg].map(([uid, v]) => [uid, v / total]) };
 }
 function npcDeathCredit(c, def, map, share) {
-  const add = { gold: Math.round(def.gold * share * KILL_CREDIT_MULT), xp: Math.round(def.xp * share * KILL_CREDIT_MULT) };
+  const add = { gold: G(def.gold * share * (1 + 0.05 * talentRank(c, "bounty"))), xp: X(def.xp * share) };
   if (share >= NPC_KILL_SHARE) {
     add.st_npc = 1;
     if (def.role === "heavy") add.st_heavy = 1;
@@ -5039,7 +5045,7 @@ async function applyUsage(c, salvo, item, now) {
   if (r.over) suspect(c, "top say\u0131s\u0131");
   if (item === null) {
     const a = String(salvo?.a || ""), n = Number(use[ITEM_OF[a] ?? "a_" + a]) || 0;
-    if (n > 0 && ELITE_POINTS_PER_BALL[a]) addCredit(c, { ep: n * ELITE_POINTS_PER_BALL[a], st_eliteBalls: n });
+    if (n > 0 && ELITE_POINTS_PER_BALL[a]) addCredit(c, { ep: Math.round(n * ELITE_POINTS_PER_BALL[a] * epMult()), st_eliteBalls: n });
   }
 }
 var seas = /* @__PURE__ */ new Map();
@@ -5348,7 +5354,7 @@ async function towerApply(c, key, slot, dmg, heal, now) {
     sendRoom(key, { t: "isle", d: islandInfo(i) });
     {
       const rw = fleetReward(Number(String(key).split("/")[0]) || 1);
-      addCredit(c, { gold: Math.round(rw.gold * KILL_CREDIT_MULT), xp: Math.round(rw.xp * KILL_CREDIT_MULT) });
+      addCredit(c, { gold: rw.gold, xp: rw.xp });
     }
     const msg = JSON.stringify({ t: "icap", d: { key, tag: i.tag, by: c.netId, nick: c.nick } });
     for (const x of all) if (x.uid) send(x, msg);
@@ -6234,7 +6240,6 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   HEAL_SECONDS,
   HP_BONUS_MAX,
   ISLAND_KEYS,
-  KILL_CREDIT_MULT,
   LIMITS,
   LOOT,
   NEAR,

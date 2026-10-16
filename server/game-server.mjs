@@ -19,7 +19,7 @@ import {cumulativeEliteBonus,ELITE_CANNON_CAPACITY} from '../src/elite-progressi
 import {ACHIEVEMENTS,MAIN_COLLECTION} from '../src/achievements.ts';
 import {officerSlots,OFFICER_MAX_RANK,talentPoints,TALENTS} from '../src/crew.ts';
 import {MINE} from '../src/arsenal.ts';
-import {sparkleMult} from '../src/events.ts';
+import {sparkleMult,goldMult,xpMult,epMult,spMult} from '../src/events.ts';
 import {HERO_DAMAGE,HERO_DAYS} from '../src/siege.ts';
 import {createChest} from '../src/loot.ts';
 import {fleetReward} from '../src/campaign.ts';
@@ -123,7 +123,10 @@ export function dpsTake(c,dmg,now){const rate=dpsCap(c.econ?.level??8);c.dps??={
 // NPC ve canavar batırma doğrulaması (014): hedef bu denizin hedefi mi, oyuncunun saniyelik hasar bütçesi canına yetiyor mu.
 // Doğrulanan batırmanın altın ve TP'si (bonuslar için ×2,5 pay) ve sayaçları ekonomiye bonus hakkı olarak yazılır.
 // Seviye görevi: oyuncunun seviyesinin ilk haritasındaki görev ağır gemileri sayılır (lqk); seviye atlama buna bağlıdır.
-export const KILL_CREDIT_MULT=2.5;
+// Ödülü sunucu kesin hesaplar (oyunla aynı formül): etkinlik günü çarpanları ve Ödül Avcısı yeteneği sunucuda.
+// Ekonomi eşitlemesi sunucunun verdiğini olduğu gibi yazar; oyuncunun kendi hesapladığı kazanç sayılmaz.
+const talentRank=(c,id)=>Number(c?.ld?.tal?.[id])||0;
+const G=n=>Math.round(n*goldMult()),X=n=>Math.round(n*xpMult());
 // Salvo bütçesi (015): oyuncunun bildirdiği salvolar en çok ne kadar hasar verebilir. Gülle başına üst sınır: top hasarı
 // (en güçlü top) × geliştirme × gülle çarpanı × hedef türü (1,4) × ateş yanması (1,8) × diğer bonuslar (2,2). Bildirilen
 // gülle sayısı gemideki top sayısını aşamaz. Batırma, boss, kuşatma, kule ve PvP hasarı bu bütçeden düşer.
@@ -156,7 +159,7 @@ export function killCredit(c,id,now){const map=seaMap(c.sea);if(!map||!MAPS[map]
   if(b.pool<def.hp*.5){b.miss++;return{err:'hız',flag:b.miss>=10};}
   if((c.sb?.pool??0)<def.hp*.6){b.miss++;return{err:'mermi',flag:b.miss>=10};}
   sbTake(c,def.hp*.6);b.pool=Math.max(0,b.pool-def.hp);b.miss=0;
-  const add={gold:Math.round(def.gold*KILL_CREDIT_MULT),xp:Math.round(def.xp*KILL_CREDIT_MULT)};
+  const add={gold:G(def.gold),xp:X(def.xp)};
   add.st_npc=1;if(npc.role==='heavy')add.st_heavy=1;
   c.qk??={};c.qk[id]=(c.qk[id]||0)+1;
   const lvl=Math.round(Number(c.econ?.level)||1);if(npc&&lvl>=2&&map===levelQuestMap(lvl)&&levelQuestTargets(lvl).ships.includes(id))add.lqk=1;
@@ -171,14 +174,14 @@ export function questCredit(c,id,now){const q=QUESTS.find(x=>x.id===id);if(!q)re
   if(q.kind==='sparkle'){c.qk??={};const k='spk:'+q.map;if((c.qk[k]||0)<q.required)return{err:'sayı',have:c.qk[k]||0};c.qk[k]-=q.required;}
   if(q.kind==='npc'){c.qk??={};const have=q.ids.reduce((a,k)=>a+(c.qk[k]||0),0);if(have<q.required)return{err:'sayı',have};
     let need=q.required;for(const k of q.ids){const t=Math.min(need,c.qk[k]||0);c.qk[k]-=t;need-=t;}}
-  cd.set(id,now);return{add:{pearls:q.pearls,gold:Math.round(q.gold*KILL_CREDIT_MULT),xp:Math.round(q.xp*KILL_CREDIT_MULT),ep:questEp(q.tier),st_quest:1}};}
+  cd.set(id,now);return{add:{pearls:q.pearls,gold:G(q.gold),xp:X(q.xp),ep:Math.round(questEp(q.tier)*epMult()),st_quest:1}};}
 // Boss ödülü: payı sunucu bilir; katılımcıya oyunun formülüyle (havuz × pay) kazanç hakkı yazılır
 export const bossPool=n=>1+.6*(Math.min(5,Math.max(1,n))-1);
 export function bossCredit(map,share,n){if(!MAPS[map]||!(share>0))return null;const b=bossFor(map),pool=bossPool(n);
-  const add={gold:Math.round(NPCS[b.trigger].gold*20*pool*share*KILL_CREDIT_MULT),xp:Math.round(b.xp*pool*share*KILL_CREDIT_MULT)};
-  if(share>=.03){add.ep=bossEp(b.tier);add.st_boss=1;add.pearls=b.pearls;}return add;}
+  const add={gold:G(Math.round(NPCS[b.trigger].gold*20*pool*share)),xp:X(Math.round(b.xp*pool*share))};
+  if(share>=.03){add.ep=Math.round(bossEp(b.tier)*epMult());add.st_boss=1;add.pearls=b.pearls;}return add;}
 // Kuşatma: kabul edilen her hasar için katkı ödülü (oyunun formülüyle) kazanç hakkı olarak
-export function siegeCredit(dmg,n,level){const r=contribReward(dmg,Math.max(1,n),Math.max(1,Math.min(8,Math.round(Number(level)||8))));return{gold:Math.round(r.gold*KILL_CREDIT_MULT),xp:Math.round(r.xp*KILL_CREDIT_MULT),pearls:r.pearls};}
+export function siegeCredit(dmg,n,level){const r=contribReward(dmg,Math.max(1,n),Math.max(1,Math.min(8,Math.round(Number(level)||8))));return{gold:G(r.gold),xp:X(r.xp),pearls:r.pearls};}
 // Hazine avı: oyun yalnız toplanan sandığı bildirir; parça zarını sunucu atar, 4 parçada hazine yerini sunucu seçer,
 // kazıyı (oyuncu o denizde ve noktada mı) ve ödülü sunucu onaylar. Sandık bildirimi sandık çıkma hızıyla sınırlıdır.
 export const treasures=new Map(); // uid → {parts, spot, chest:{pool,t}}
@@ -211,7 +214,7 @@ export function lootTake(c,kind,id){const l=c.loot;if(!l||l.map!==seaMap(c.sea)|
   list.splice(i,1);if(kind==='sp')lootAdd(l,'sp');return{ok:true};}
 export function lootTick(c,now){const l=c.loot;if(!l||now-l.chT<LOOT.chestRespawn)return false;l.chT=now;if(l.ch.length>=LOOT.chestMax)return false;lootAdd(l,'ch');return true;}
 // Sandık ve pırıltı içeriğini sunucu belirler; içerik kazanç hakkı (inci doğrudan cüzdana) olarak yazılır ve oyuna gönderilir
-export function chestReward(c,gilded,rand=Math.random){const map=seaMap(c.sea);const ch=createChest('drift',0,0,Math.max(0,Math.min(.24,Number(gilded)||0)),MAPS[map]?.tier??1,rand);
+export function chestReward(c,gilded,rand=Math.random){const map=seaMap(c.sea);const ch=createChest('drift',0,0,.08*Math.min(3,talentRank(c,'scavenger')),MAPS[map]?.tier??1,rand);
   const out={kind:ch.kind,pearls:ch.pearls,powder:ch.powder,shield:ch.shield,ammo:ch.ammo,ammoQty:ch.ammoQty,speed:ch.speed,mine:ch.mine};
   const add={pearls:ch.pearls,a_powder:ch.powder,a_shield:ch.shield,['a_'+ch.ammo]:ch.ammoQty,a_speed:ch.speed,a_mine:ch.mine,st_chest:1};
   for(const k in add)if(!add[k])delete add[k];return{out,add};}
@@ -225,7 +228,7 @@ export function sparkleReward(c,rand=Math.random){const tier=MAPS[seaMap(c.sea)]
 export function treasureDig(c){const t=treOf(c.uid);if(!t.spot)return{err:'harita'};const map=seaMap(c.sea);
   if(map!==t.spot.map||!c.last||Math.hypot(c.last.x-t.spot.x,c.last.y-t.spot.y)>DIG_RADIUS+60)return{err:'yer'};
   const m=MAPS[map],r=treasureReward(m.tier,NPCS[m.npcs[0]].gold);t.spot=null;
-  return{reward:r,add:{gold:Math.round(r.gold*KILL_CREDIT_MULT),pearls:r.pearls,st_treasure:1,[r.ammo==='chain'?'chain':'a_'+r.ammo]:r.ammoQty,a_powder:r.powder,a_shield:r.shield}};}
+  return{reward:r,add:{gold:G(r.gold),pearls:r.pearls,st_treasure:1,[r.ammo==='chain'?'chain':'a_'+r.ammo]:r.ammoQty,a_powder:r.powder,a_shield:r.shield}};}
 // Görev sayaçları, bekleme süreleri ve hazine durumu sunucu dosyasında saklanır (yeniden başlatmada kaybolmaz)
 export const pendingCredits=new Map();
 const STATE_FILE=process.env.STATE_FILE||'/opt/game/state.json';const qkByUid=new Map();
@@ -239,7 +242,7 @@ loadServerState();setInterval(saveServerState,60_000).unref();process.on('SIGTER
 export const spByUid=new Map(); // batıran → Map(rakip → {gün, sayı})
 export function spCredit(killer,victimUid,now){if(!killer?.uid||!victimUid||killer.uid===victimUid)return null;const day=new Date(now+3*3600_000).toISOString().slice(0,10);
   const m=spByUid.get(killer.uid)??new Map();spByUid.set(killer.uid,m);const r=m.get(victimUid);const n=r&&r.day===day?r.n:0;if(n>=RIVAL_DAILY_LIMIT)return null;
-  m.set(victimUid,{day,n:n+1});return{sp:RIVAL_SP*2};}
+  m.set(victimUid,{day,n:n+1});return{sp:RIVAL_SP*spMult()};}
 // ---------------------------------------------------------------- Sunucu atışı
 // Oyuncu donanımını bildirir (ld); sunucu her kalemi sahip olduklarıyla sınırlar ve atışı (atk) kendisi hesaplar:
 // dolum süresi, menzil, stok ve hasar oyunun formülüyle (src/combat.ts) sunucuda. Oyuncu hasar bildirmez.
@@ -255,7 +258,7 @@ export function buildLoadout(st,d){if(!st)return null;const lvl=Math.max(1,Math.
   const el=cumulativeEliteBonus(elite);
   // Yetenekler: toplam puan seviyeyi, her biri kendi sınırını aşamaz; yalnız Mayın Uzmanı savaşı etkiler
   let tal={},spent=0;for(const [id,r] of Object.entries(d?.tal||{})){const t=TALENTS[id];const n=Math.max(0,Math.min(t?.max??0,Math.floor(Number(r)||0)));if(t&&n){tal[id]=n;spent+=n;}}if(spent>talentPoints(lvl))tal={};
-  return{level:lvl,mineMult:1+.15*(tal.sapper||0),cannons:total,type,upDamage:Number(st.u_damage)||0,upReload:Number(st.u_reload)||0,upRange:Number(st.u_range)||0,crewDamage:1+.05*rank('gunner'),crewReload:1,crewRange:12*rank('lookout'),
+  return{tal,level:lvl,mineMult:1+.15*(tal.sapper||0),cannons:total,type,upDamage:Number(st.u_damage)||0,upReload:Number(st.u_reload)||0,upRange:Number(st.u_range)||0,crewDamage:1+.05*rank('gunner'),crewReload:1,crewRange:12*rank('lookout'),
     equipDamage:et.damage,equipReload:et.reload,equipRange:et.range,achDamage:achOk?.05:0,eliteDamage:el.damage,eliteReload:el.reload,hero:d?.hero?HERO_DAMAGE:0};}
 // Atış denetimi: dolum süresi (%15 pay) ve menzil (150 birim gecikme payı); öfke 30 sn'de en çok 2 salvo
 export function shotCheck(c,L,a,dist,now,rage){const rl=reloadTime(L,a)*1000*.85;if(now-(c.lastAtk??-1e12)<rl)return'dolum';if(dist>rangeOf(L)+150)return'menzil';
@@ -299,7 +302,7 @@ export function npcApply(c,sea,n,d,now){d=Math.min(d,n.hp);n.hp-=d;n.hpDirty=tru
   const st=seaNpcs.get(sea);st.list.delete(n.id);st.respawn.push(now+NPC_RESPAWN_MS);
   const total=[...n.dmg.values()].reduce((a,v)=>a+v,0)||1;return{dealt:d,dead:n,shares:[...n.dmg].map(([uid,v])=>[uid,v/total])};}
 // Batış ödülü: altın/TP payla (×2,5 bonus payı), batırma sayaçları payı %30 üstündekilere
-export function npcDeathCredit(c,def,map,share){const add={gold:Math.round(def.gold*share*KILL_CREDIT_MULT),xp:Math.round(def.xp*share*KILL_CREDIT_MULT)};
+export function npcDeathCredit(c,def,map,share){const add={gold:G(def.gold*share*(1+.05*talentRank(c,'bounty'))),xp:X(def.xp*share)};
   if(share>=NPC_KILL_SHARE){add.st_npc=1;if(def.role==='heavy')add.st_heavy=1;c.qk??={};c.qk[def.id]=(c.qk[def.id]||0)+1;
     const lvl=Math.round(Number(c.econ?.level)||1);if(lvl>=2&&map===levelQuestMap(lvl)&&levelQuestTargets(lvl).ships.includes(def.id))add.lqk=1;}
   return add;}
@@ -322,7 +325,7 @@ async function applyUsage(c,salvo,item,now){
   c.econ=st;c.sb=shadow.sb;c.uses=shadow.uses;
   if(r.over)suspect(c,'top sayısı');
   // Elit gülle EP'si ve sayacı sunucudan (pazartesi %50 EP etkinliği için ×1,5 pay)
-  if(item===null){const a=String(salvo?.a||''),n=Number(use[ITEM_OF[a]??'a_'+a])||0;if(n>0&&ELITE_POINTS_PER_BALL[a])addCredit(c,{ep:n*ELITE_POINTS_PER_BALL[a],st_eliteBalls:n});}
+  if(item===null){const a=String(salvo?.a||''),n=Number(use[ITEM_OF[a]??'a_'+a])||0;if(n>0&&ELITE_POINTS_PER_BALL[a])addCredit(c,{ep:Math.round(n*ELITE_POINTS_PER_BALL[a]*epMult()),st_eliteBalls:n});}
 }
 
 // ---------------------------------------------------------------- Sunucu
@@ -430,7 +433,7 @@ async function onTowerHit(c,m,now){const key=islandOfSea(c.sea),d=m.d||{},slot=N
 async function towerApply(c,key,slot,dmg,heal,now){const r=towerHit(key,slot,c.guildId,dmg,heal,now);if(!r?.destroyed)return;const i=islands.get(key);
   sendRoom(key,{t:'tdown',d:{key,slot,by:c.netId}});
   if(r.captured){log('ADA ELE GEÇİRİLDİ',key,c.nick);i.tag=await guildTag(i.guild).catch(()=>'');await dbRpc('island_capture',{p_map:key,p_guild:i.guild}).catch(()=>{});
-    sendRoom(key,{t:'isle',d:islandInfo(i)});{const rw=fleetReward(Number(String(key).split('/')[0])||1);addCredit(c,{gold:Math.round(rw.gold*KILL_CREDIT_MULT),xp:Math.round(rw.xp*KILL_CREDIT_MULT)});}const msg=JSON.stringify({t:'icap',d:{key,tag:i.tag,by:c.netId,nick:c.nick}});for(const x of all)if(x.uid)send(x,msg);}
+    sendRoom(key,{t:'isle',d:islandInfo(i)});{const rw=fleetReward(Number(String(key).split('/')[0])||1);addCredit(c,{gold:rw.gold,xp:rw.xp});}const msg=JSON.stringify({t:'icap',d:{key,tag:i.tag,by:c.netId,nick:c.nick}});for(const x of all)if(x.uid)send(x,msg);}
   else await dbRpc('island_destroy',{p_map:key,p_slot:slot,p_at:now}).catch(()=>{});}
 
 // ---------------------------------------------------------------- Ortak kuşatma (Cuma 20:00–22:00, Türkiye saati)
