@@ -1377,7 +1377,7 @@ function placeBid(l:LotDef,amount:number){auctionTick();const top=auction.top[l.
   commitBid(l,amount,cost);}
 function commitBid(l:LotDef,amount:number,cost:number){if(state.gold<cost){toast('Yeterli altın yok');return;}
   const b:Bid={hour:auction.hour,lot:l.key,amount,id:bidderId,nick:profile.nick,at:Date.now()};if(!applyBid(auction,b,bidderId).accepted){toast('Teklif geçersiz');return;}
-  state.gold-=cost;auction.mine[l.key]=amount;saveAuction(auction);saveAccount();sendBid(b);playCoins();updateUI();renderAuction();toast(`${fmt(amount)} altın teklif verdin · ${lotName(l)}`);}
+  state.gold-=cost;econServerSpent('gold',cost);auction.mine[l.key]=amount;saveAuction(auction);saveAccount();sendBid(b);playCoins();updateUI();renderAuction();toast(`${fmt(amount)} altın teklif verdin · ${lotName(l)}`);}
 // Bir önceki saatin ihalesini kazananlar (lot başına kaptan adı)
 let lastWinners:{hour:number;rows:{lot:string;nick:string}[]}|null=null;
 async function loadLastWinners(){const sb=supa();if(!sb||!session.account)return;const h=auction.hour-1;if(lastWinners?.hour===h)return;
@@ -1704,6 +1704,8 @@ function econAdjust(k:string,d:number){if(!d)return;
   else if(k.startsWith('st_')){const t=k.slice(3) as typeof ECON_STATS[number];if(t in ach.stats){ach.stats[t]=Math.max(0,(ach.stats[t]??0)+d);saveAchievements(ach);}}}
 // Sunucunun saydığı seviye görevi batırmaları (014): seviye ancak sunucu onaylayınca atlanır, TP boşa gitmez
 let serverLqk:number|null=null;
+// Veritabanının kendisi düştüğü harcama (ihale teklifi): yerelde de düşülür ama eşitlemede ikinci kez bildirilmez
+function econServerSpent(k:string,n:number){if(econOn&&session.account)econLast[k]=(econLast[k]??0)-n;}
 let econOn=false,econLast:Record<string,number>={},econG:Record<string,number>={},econS:Record<string,number>={},pearlLast=state.pearls,pearlG=0,pearlS=0;
 function econTick(){if(!econOn)return;const f=econFlat();for(const k in f){const d=f[k]-(econLast[k]??f[k]);if(d>0)econG[k]=(econG[k]??0)+d;else if(d<0)econS[k]=(econS[k]??0)-d;}econLast=f;
   const dp=state.pearls-pearlLast;if(dp>0)pearlG+=dp;else if(dp<0)pearlS-=dp;pearlLast=state.pearls;}

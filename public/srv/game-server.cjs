@@ -3734,6 +3734,8 @@ __export(game_server_exports, {
   siegeJoin: () => siegeJoin,
   siegeRun: () => siegeRun,
   siegeWindowAt: () => siegeWindowAt,
+  spByUid: () => spByUid,
+  spCredit: () => spCredit,
   sparklePicked: () => sparklePicked,
   sparkleReward: () => sparkleReward,
   towerHit: () => towerHit,
@@ -3812,6 +3814,10 @@ function pvpClamp(b, maxHp, hit, now) {
   b.pool -= dealt;
   return dealt;
 }
+
+// src/battle.ts
+var RIVAL_SP = 25;
+var RIVAL_DAILY_LIMIT = 3;
 
 // src/campaign.ts
 var WORLD_WIDTH = 6e3;
@@ -4582,6 +4588,18 @@ process.on("SIGINT", () => {
   saveServerState();
   process.exit(0);
 });
+var spByUid = /* @__PURE__ */ new Map();
+function spCredit(killer, victimUid, now) {
+  if (!killer?.uid || !victimUid || killer.uid === victimUid) return null;
+  const day = new Date(now + 3 * 36e5).toISOString().slice(0, 10);
+  const m = spByUid.get(killer.uid) ?? /* @__PURE__ */ new Map();
+  spByUid.set(killer.uid, m);
+  const r = m.get(victimUid);
+  const n = r && r.day === day ? r.n : 0;
+  if (n >= RIVAL_DAILY_LIMIT) return null;
+  m.set(victimUid, { day, n: n + 1 });
+  return { sp: RIVAL_SP * 2 };
+}
 function addCredit(c, add) {
   c.credit ??= {};
   for (const k in add) c.credit[k] = (c.credit[k] || 0) + add[k];
@@ -5570,6 +5588,11 @@ wss.on("connection", (ws) => {
           s.by = null;
           s.byNick = null;
         }
+        if (s.by) {
+          const k = [...seas.get(c.sea) || []].find((x) => x.netId === String(s.by));
+          const add = spCredit(k, c.uid, now);
+          if (add) addCredit(k, add);
+        }
         pvpReset(c);
         toSea(c, { t: "sunk", d: s });
         return;
@@ -5903,6 +5926,8 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   siegeJoin,
   siegeRun,
   siegeWindowAt,
+  spByUid,
+  spCredit,
   sparklePicked,
   sparkleReward,
   towerHit,
