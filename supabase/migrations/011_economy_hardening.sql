@@ -160,7 +160,7 @@ alter table public.economy_claims enable row level security;
 drop policy if exists "claims read own" on public.economy_claims;
 create policy "claims read own" on public.economy_claims for select using (auth.uid() = user_id);
 
--- Festival başlangıç günü (Türkiye tarihi). Açılışta tarih yazılır: ... select '2026-11-01'::date $$
+-- Festival başlangıç günü (Türkiye tarihi). Açılışta null yerine tarih yazılır, örnek: '2026-11-01'::date
 create or replace function public.festival_start() returns date language sql immutable as $$ select null::date $$;
 
 create or replace function public.economy_claim(p_kind text) returns jsonb language plpgsql security definer set search_path = public as $$
