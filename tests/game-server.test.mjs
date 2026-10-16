@@ -10,7 +10,7 @@ test('normal movement passes, impossible speed is flagged, teleports (respawn) a
   const prev={x:0,y:0,at:0};
   assert.equal(S.checkState(prev,{x:50,y:0,hp:1},100),'ok');
   assert.equal(S.checkState(prev,{x:1500,y:0,hp:1},500),'speed');
-  assert.equal(S.checkState(prev,{x:9000,y:0,hp:1},100),'ok');
+  assert.equal(S.checkState(prev,{x:9000,y:0,hp:1},100),'bad');
   assert.equal(S.checkState(prev,{x:'a',y:0,hp:1},100),'bad');
 });
 test('fire damage above the cap is rejected',()=>{
@@ -71,7 +71,7 @@ test('shared siege: hp scales with captains, order enforced, win by commander',(
   assert.equal(S.siegeWindowAt(Date.UTC(2026,9,16,17,30)).open,true);// Cuma 20:30 TR
 });
 test('pvp: can sınırı sunucudaki seviyeden, hasar bütçesi ve ölümsüzlük denetimi',()=>{
-  assert.equal(S.hpCap(null),Infinity);
+  assert.equal(S.hpCap(null),0);
   assert.equal(S.hpCap({level:1,u_hull:0}),Math.round(54_000*1.8));
   // Bütçe: 1.000.000 canlı hedefe tek atışta en çok %6 gider; dev hasar kırpılır, 1 sn'de 50.000 dolar
   const t={maxHp:1_000_000};const now=1_000_000;S.noteHp(t,1_000_000,now);
@@ -109,7 +109,7 @@ test('npc batırma doğrulaması: yanlış deniz/hedef reddedilir, hız bütçes
   const f={sea:'sea-3-1',econ:{level:3},sb:{pool:1e9}};let bad=0;for(let i=0;i<40;i++)if(S.killCredit(f,'n3-1-heavy',1000+i*10).err)bad++;assert.ok(bad>30);
 });
 test('salvo bütçesi ve kullanım sayımı: salvosuz batırma sayılmaz, top sayısı sınırı, bekleme süresi',()=>{
-  const st={level:3,u_damage:0,c_cast:100};const c={sea:'sea-3-1',econ:st};
+  const st={level:3,u_damage:0,c_cast:100,a_fire:1000,iron:1000,a_powder:10,a_speed:10};const c={sea:'sea-3-1',econ:st};
   // Salvo bildirmeden batırma: mermi yok
   assert.equal(S.killCredit(c,'n3-1-light',0).err,'mermi');
   // 100 ateş güllesi salvosu: kullanım sayılır, bütçe dolar
@@ -119,7 +119,7 @@ test('salvo bütçesi ve kullanım sayımı: salvosuz batırma sayılmaz, top sa
   const big=S.noteSalvo(c,{a:'iron',n:1000,i:0});assert.equal(big.over,true);assert.ok(big.use.cn_iron<=105);
   // Bekleme süresi: hız iksiri 20 sn dolmadan (yetenekle en kısa 21 sn) ikinci kez erken sayılır
   assert.equal(S.noteUse(c,'speed',0).early,false);assert.equal(S.noteUse(c,'speed',5000).early,true);assert.equal(S.noteUse(c,'speed',40000).early,false);
-  assert.equal(S.noteUse(c,'speed',40000).use.cn_a_speed,1);
+  assert.equal(S.noteUse(c,'speed',60001).use.cn_a_speed,1);
   // Bütçeden hasar düşümü
   const d={sb:{pool:1000}};assert.equal(S.sbTake(d,5000),1000);assert.equal(S.sbTake(d,5000),0);
 });
@@ -149,4 +149,29 @@ test('hazine avı sunucuda: sandık hızı, parça zarı, yer seçimi, kazı yer
   assert.equal(S.treasureDig(c).err,'yer');
   c.last={x:spot.x+10,y:spot.y};const d=S.treasureDig(c);assert.ok(d.reward);assert.equal(d.add.st_treasure,1);
   assert.equal(S.treasureDig(c).err,'harita');// ikinci kazı yok
+});
+
+test('empty ammo, missing account and early mine cannot mint damage budgets',()=>{
+  const c={econ:{level:1,c_cast:315,a_fire:0,a_mine:2}};
+  assert.equal(S.noteSalvo(c,{a:'fire',n:315,i:0}).err,'stok');assert.equal(c.sb,undefined);
+  assert.equal(S.noteSalvo({}, {a:'iron',n:1}).err,'salvo');
+  assert.equal(S.noteSalvo(c,{a:'__proto__',n:1}).err,'salvo');
+  assert.equal(S.noteSalvo(c,{a:'fire',n:Infinity}).err,'salvo');
+  assert.ok(S.noteUse(c,'mine',0).use);const before=c.sb.pool;
+  assert.equal(S.noteUse(c,'mine',1).err,'bekleme');assert.equal(c.sb.pool,before);
+  assert.equal(c.uses.mine,0);
+});
+test('invalid state payloads and locked sea joins fail closed',()=>{
+  for(const s of [null,undefined,[],0,{x:1,y:2,hp:-1},{x:-1,y:2,hp:1}])assert.equal(S.checkState(null,s,0),'bad');
+  const c={econ:{level:1}};
+  assert.equal(S.canJoin(c,'sea-1-1'),true);assert.equal(S.canJoin(c,'sea-8-2'),false);
+  assert.equal(S.canJoin(c,'sea-9-9'),false);assert.equal(S.canJoin({},'sea-1-1'),false);
+  assert.equal(S.questCredit({...c,sea:'sea-1-1',uid:'blocked'},'q8/1-sparkle',0).err,'deniz');
+});
+test('siege reward basis is actual damage; blocked pieces have none',()=>{
+  S.resetSiege();S.siegeJoin('audit','Audit',Date.UTC(2026,9,16,18));
+  assert.equal(S.siegeHitPiece('audit','Audit',16,1000),null);
+  const before=S.siegeRun.hp[0];const hit=S.siegeHitPiece('audit','Audit',0,1e9);
+  assert.equal(hit.damage,before-S.siegeRun.hp[0]);assert.ok(hit.damage<=S.SIEGE_HIT_CAP);
+  S.resetSiege();
 });
