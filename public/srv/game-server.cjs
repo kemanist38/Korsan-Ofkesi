@@ -3653,6 +3653,9 @@ __export(game_server_exports, {
   NEAR: () => NEAR,
   RUIN_MS: () => RUIN_MS,
   Rate: () => Rate,
+  SIEGE_HIT_CAP: () => SIEGE_HIT_CAP,
+  SIEGE_PIECES: () => SIEGE_PIECES,
+  SIEGE_ROOM: () => SIEGE_ROOM,
   TICK_MS: () => TICK_MS,
   TOWER_HEAL_CAP: () => TOWER_HEAL_CAP,
   TOWER_HIT_CAP: () => TOWER_HIT_CAP,
@@ -3673,7 +3676,13 @@ __export(game_server_exports, {
   osbMatch: () => osbMatch,
   parseForm: () => parseForm,
   parseOsb: () => parseOsb,
+  resetSiege: () => resetSiege,
   seaTier: () => seaTier,
+  siegeHitPiece: () => siegeHitPiece,
+  siegeInfo: () => siegeInfo,
+  siegeJoin: () => siegeJoin,
+  siegeRun: () => siegeRun,
+  siegeWindowAt: () => siegeWindowAt,
   towerHit: () => towerHit,
   verifyOsb: () => verifyOsb,
   verifyToken: () => verifyToken
@@ -3692,6 +3701,7 @@ var import_websocket_server = __toESM(require_websocket_server(), 1);
 
 // src/pve-balance.ts
 var BOSS_HP = [0, 165e3, 41e4, 98e4, 22e5, 3e6, 45e5, 58e5, 63e5];
+var SIEGE_HP_PER_CAPTAIN = { wall: 78e5, inner: 196e5, commander: 78e6 };
 
 // src/fleetBalance.ts
 var PLAYER_LEVEL_HP = [0, 54e3, 108e3, 228e3, 54e4, 69e4, 78e4, 93e4, 105e4];
@@ -4103,6 +4113,102 @@ async function onTowerHit(c, m, now) {
   } else await dbRpc("island_destroy", { p_map: key, p_slot: slot, p_at: now }).catch(() => {
   });
 }
+var SIEGE_ROOM = "sea-siege";
+var SIEGE_PIECES = 17;
+var SIEGE_HIT_CAP = 4e5;
+var SIEGE_GRACE_MS = 10 * 6e4;
+var pieceBase = (i) => i < 12 ? SIEGE_HP_PER_CAPTAIN.wall : i < 16 ? SIEGE_HP_PER_CAPTAIN.inner : SIEGE_HP_PER_CAPTAIN.commander;
+function siegeWindowAt(now) {
+  const t = new Date(now + 3 * 36e5), day = t.getUTCDay(), h = t.getUTCHours();
+  const start = Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), t.getUTCDate(), 20) - 3 * 36e5;
+  return { open: day === 5 && h >= 20 && h < 22, id: `w-${t.toISOString().slice(0, 10)}`, end: start + 2 * 36e5 };
+}
+var siegeRun = null;
+function resetSiege() {
+  siegeRun = null;
+}
+function siegeJoin(uid, nick, now = Date.now()) {
+  const w = siegeWindowAt(now);
+  const reuse = siegeRun && (w.open ? siegeRun.id === w.id : !siegeRun.result && now < siegeRun.end);
+  if (!reuse) {
+    if (w.open || !siegeRun || siegeRun.result || now >= siegeRun.end) {
+      siegeRun = {
+        id: w.open ? w.id : `t-${now}`,
+        end: w.open ? w.end : now + 2 * 36e5,
+        hp: Array.from({ length: SIEGE_PIECES }, (_, i) => pieceBase(i)),
+        max: Array.from({ length: SIEGE_PIECES }, (_, i) => pieceBase(i)),
+        caps: /* @__PURE__ */ new Set(),
+        contrib: /* @__PURE__ */ new Map(),
+        result: null,
+        dirty: /* @__PURE__ */ new Set(),
+        rankDirty: true
+      };
+    }
+  }
+  const r = siegeRun;
+  if (!r.caps.has(uid) && !r.result) {
+    r.caps.add(uid);
+    const n = r.caps.size;
+    for (let i = 0; i < SIEGE_PIECES; i++) {
+      const nm = pieceBase(i) * n;
+      if (r.hp[i] > 0) r.hp[i] = r.hp[i] / r.max[i] * nm;
+      r.max[i] = nm;
+      r.dirty.add(i);
+    }
+  }
+  if (!r.contrib.has(uid)) r.contrib.set(uid, { nick, dmg: 0 });
+  return r;
+}
+var siegePhaseOf = (r) => r.hp.slice(0, 12).some((h) => h > 0) ? 1 : r.hp.slice(12, 16).some((h) => h > 0) ? 2 : 3;
+function siegeHitPiece(uid, nick, i, dmg) {
+  const r = siegeRun;
+  if (!r || r.result || !(dmg > 0) || !Number.isInteger(i) || i < 0 || i >= SIEGE_PIECES || r.hp[i] <= 0) return null;
+  const ph = siegePhaseOf(r);
+  if (i >= 12 && i < 16 && ph < 2 || i === 16 && ph < 3) return null;
+  const d = Math.min(SIEGE_HIT_CAP, dmg, r.hp[i]);
+  r.hp[i] -= d;
+  const c = r.contrib.get(uid) ?? { nick, dmg: 0 };
+  c.dmg += d;
+  c.nick = nick;
+  r.contrib.set(uid, c);
+  r.dirty.add(i);
+  r.rankDirty = true;
+  if (r.hp[i] > 0) return {};
+  if (i === 16) {
+    r.result = "won";
+    return { down: i, won: true };
+  }
+  return { down: i };
+}
+var siegeTop = (r) => [...r.contrib.values()].filter((c) => c.dmg > 0).sort((a, b) => b.dmg - a.dmg).slice(0, 10).map((c) => [c.nick, Math.round(c.dmg)]);
+var siegeInfo = (r, uid) => ({ id: r.id, end: r.end, n: r.caps.size, hp: r.hp.map(Math.round), max: r.max, result: r.result, top: siegeTop(r), mine: Math.round(r.contrib.get(uid)?.dmg ?? 0) });
+function siegeFinish() {
+  const r = siegeRun, room = seas.get(SIEGE_ROOM), total = [...r.contrib.values()].reduce((a, c) => a + c.dmg, 0) || 1;
+  log("KU\u015EATMA B\u0130TT\u0130", r.result, r.caps.size, "kaptan");
+  for (const x of room || []) send(x, { t: "send", d: { won: r.result === "won", n: r.caps.size, top: siegeTop(r), mine: Math.round(r.contrib.get(x.uid)?.dmg ?? 0), share: (r.contrib.get(x.uid)?.dmg ?? 0) / total } });
+}
+var siegeTickNo = 0;
+function siegeTick(now) {
+  const r = siegeRun;
+  if (!r) return;
+  siegeTickNo++;
+  const room = seas.get(SIEGE_ROOM);
+  if (!r.result && now > r.end) {
+    r.result = "lost";
+    siegeFinish();
+  }
+  if (r.dirty.size && room) {
+    const m = JSON.stringify({ t: "shp", d: [...r.dirty].map((i) => [i, Math.round(r.hp[i]), r.max[i]]) });
+    for (const x of room) send(x, m);
+    r.dirty.clear();
+  }
+  if (r.rankDirty && siegeTickNo % 7 === 0 && room) {
+    r.rankDirty = false;
+    const top = siegeTop(r);
+    for (const x of room) send(x, { t: "srank", d: { n: r.caps.size, top, mine: Math.round(r.contrib.get(x.uid)?.dmg ?? 0) } });
+  }
+  if (r.result && now > r.end + SIEGE_GRACE_MS) siegeRun = null;
+}
 var NEAR = 1800;
 var TICK_MS = 100;
 var FAR_EVERY = 20;
@@ -4151,6 +4257,7 @@ setInterval(() => {
     const now = Date.now();
     bossTick(now);
     islandTick(now);
+    siegeTick(now);
   }
   for (const room of seas.values()) {
     if (room.size < 2) continue;
@@ -4268,6 +4375,10 @@ wss.on("connection", (ws) => {
         if (b) send(c, { t: "boss", d: bossInfo(name, b) });
         const isle = islands.get(islandOfSea(name));
         if (isle) send(c, { t: "isle", d: islandInfo(isle) });
+        if (name === SIEGE_ROOM) {
+          const r = siegeJoin(c.uid, c.nick, now);
+          send(c, { t: "sstate", d: siegeInfo(r, c.uid) });
+        }
         return;
       }
       case "state": {
@@ -4323,6 +4434,17 @@ wss.on("connection", (ws) => {
         const room = seas.get(c.sea);
         log("BOSS BATTI", c.sea, r.n, "kaptan");
         for (const x of room || []) send(x, { t: "bdown", d: { id: r.id, n: r.n, ...r.shares[x.uid] ?? { share: 0, dmg: 0 } } });
+        return;
+      }
+      case "shit": {
+        if (c.sea !== SIEGE_ROOM || !c.rTower.hit(now)) return;
+        const dmg = Number(m.d?.dmg);
+        if (!num(dmg) || dmg <= 0) return;
+        if (dmg > SIEGE_HIT_CAP) suspect(c, "ku\u015Fatma hasar\u0131", String(dmg));
+        const r = siegeHitPiece(c.uid, c.nick, Number(m.d?.i), dmg);
+        if (!r?.down && r?.down !== 0) return;
+        toSea(c, { t: "sdown", d: { i: r.down } }, true);
+        if (r.won) siegeFinish();
         return;
       }
       case "thit": {
@@ -4407,6 +4529,9 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   NEAR,
   RUIN_MS,
   Rate,
+  SIEGE_HIT_CAP,
+  SIEGE_PIECES,
+  SIEGE_ROOM,
   TICK_MS,
   TOWER_HEAL_CAP,
   TOWER_HIT_CAP,
@@ -4427,7 +4552,13 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   osbMatch,
   parseForm,
   parseOsb,
+  resetSiege,
   seaTier,
+  siegeHitPiece,
+  siegeInfo,
+  siegeJoin,
+  siegeRun,
+  siegeWindowAt,
   towerHit,
   verifyOsb,
   verifyToken

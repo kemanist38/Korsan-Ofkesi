@@ -6,7 +6,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 import {WebSocketServer} from 'ws';
-import {BOSS_HP} from '../src/pve-balance.ts';
+import {BOSS_HP,SIEGE_HP_PER_CAPTAIN} from '../src/pve-balance.ts';
 import {fleetTowerStats} from '../src/fleetBalance.ts';
 
 const PORT=Number(process.env.PORT||3000);
@@ -168,6 +168,41 @@ async function onTowerHit(c,m,now){const key=islandOfSea(c.sea),d=m.d||{},slot=N
     sendRoom(key,{t:'isle',d:islandInfo(i)});const msg=JSON.stringify({t:'icap',d:{key,tag:i.tag,by:c.netId,nick:c.nick}});for(const x of all)if(x.uid)send(x,msg);}
   else await dbRpc('island_destroy',{p_map:key,p_slot:slot,p_at:now}).catch(()=>{});}
 
+// ---------------------------------------------------------------- Ortak kuşatma (Cuma 20:00–22:00, Türkiye saati)
+// Kara Kale tek: 12 sur kulesi (0–11), 4 iç kule (12–15), komutan (16). Can, katılan kaptan sayısıyla büyür (oran korunur).
+// Sırayla açılır: iç kuleler surlar düşmeden, komutan iç kuleler düşmeden vurulamaz. Katkı sunucuda tutulur.
+// Pencere dışında (test dönemi) giren olursa 2 saatlik deneme kuşatması açılır.
+export const SIEGE_ROOM='sea-siege',SIEGE_PIECES=17,SIEGE_HIT_CAP=400_000;
+const SIEGE_GRACE_MS=10*60_000;
+const pieceBase=i=>i<12?SIEGE_HP_PER_CAPTAIN.wall:i<16?SIEGE_HP_PER_CAPTAIN.inner:SIEGE_HP_PER_CAPTAIN.commander;
+export function siegeWindowAt(now){const t=new Date(now+3*3600_000),day=t.getUTCDay(),h=t.getUTCHours();const start=Date.UTC(t.getUTCFullYear(),t.getUTCMonth(),t.getUTCDate(),20)-3*3600_000;
+  return{open:day===5&&h>=20&&h<22,id:`w-${t.toISOString().slice(0,10)}`,end:start+2*3600_000};}
+export let siegeRun=null;
+export function resetSiege(){siegeRun=null;}
+export function siegeJoin(uid,nick,now=Date.now()){const w=siegeWindowAt(now);
+  const reuse=siegeRun&&(w.open?siegeRun.id===w.id:(!siegeRun.result&&now<siegeRun.end));
+  if(!reuse){if(w.open||!siegeRun||siegeRun.result||now>=siegeRun.end){siegeRun={id:w.open?w.id:`t-${now}`,end:w.open?w.end:now+2*3600_000,hp:Array.from({length:SIEGE_PIECES},(_,i)=>pieceBase(i)),max:Array.from({length:SIEGE_PIECES},(_,i)=>pieceBase(i)),
+    caps:new Set(),contrib:new Map(),result:null,dirty:new Set(),rankDirty:true};}}
+  const r=siegeRun;if(!r.caps.has(uid)&&!r.result){r.caps.add(uid);const n=r.caps.size;
+    for(let i=0;i<SIEGE_PIECES;i++){const nm=pieceBase(i)*n;if(r.hp[i]>0)r.hp[i]=r.hp[i]/r.max[i]*nm;r.max[i]=nm;r.dirty.add(i);}}
+  if(!r.contrib.has(uid))r.contrib.set(uid,{nick,dmg:0});return r;}
+const siegePhaseOf=r=>r.hp.slice(0,12).some(h=>h>0)?1:r.hp.slice(12,16).some(h=>h>0)?2:3;
+// Vuruş: sonuç {down:parça} ya da {won:true}; sıra dışı parça ya da biten kuşatma yok sayılır
+export function siegeHitPiece(uid,nick,i,dmg){const r=siegeRun;if(!r||r.result||!(dmg>0)||!Number.isInteger(i)||i<0||i>=SIEGE_PIECES||r.hp[i]<=0)return null;
+  const ph=siegePhaseOf(r);if((i>=12&&i<16&&ph<2)||(i===16&&ph<3))return null;
+  const d=Math.min(SIEGE_HIT_CAP,dmg,r.hp[i]);r.hp[i]-=d;const c=r.contrib.get(uid)??{nick,dmg:0};c.dmg+=d;c.nick=nick;r.contrib.set(uid,c);r.dirty.add(i);r.rankDirty=true;
+  if(r.hp[i]>0)return{};if(i===16){r.result='won';return{down:i,won:true};}return{down:i};}
+const siegeTop=r=>[...r.contrib.values()].filter(c=>c.dmg>0).sort((a,b)=>b.dmg-a.dmg).slice(0,10).map(c=>[c.nick,Math.round(c.dmg)]);
+export const siegeInfo=(r,uid)=>({id:r.id,end:r.end,n:r.caps.size,hp:r.hp.map(Math.round),max:r.max,result:r.result,top:siegeTop(r),mine:Math.round(r.contrib.get(uid)?.dmg??0)});
+function siegeFinish(){const r=siegeRun,room=seas.get(SIEGE_ROOM),total=[...r.contrib.values()].reduce((a,c)=>a+c.dmg,0)||1;log('KUŞATMA BİTTİ',r.result,r.caps.size,'kaptan');
+  for(const x of room||[])send(x,{t:'send',d:{won:r.result==='won',n:r.caps.size,top:siegeTop(r),mine:Math.round(r.contrib.get(x.uid)?.dmg??0),share:(r.contrib.get(x.uid)?.dmg??0)/total}});}
+let siegeTickNo=0;
+function siegeTick(now){const r=siegeRun;if(!r)return;siegeTickNo++;const room=seas.get(SIEGE_ROOM);
+  if(!r.result&&now>r.end){r.result='lost';siegeFinish();}
+  if(r.dirty.size&&room){const m=JSON.stringify({t:'shp',d:[...r.dirty].map(i=>[i,Math.round(r.hp[i]),r.max[i]])});for(const x of room)send(x,m);r.dirty.clear();}
+  if(r.rankDirty&&siegeTickNo%7===0&&room){r.rankDirty=false;const top=siegeTop(r);for(const x of room)send(x,{t:'srank',d:{n:r.caps.size,top,mine:Math.round(r.contrib.get(x.uid)?.dmg??0)}});}
+  if(r.result&&now>r.end+SIEGE_GRACE_MS)siegeRun=null;}
+
 // ---------------------------------------------------------------- Durum paketleme (trafik)
 // Hareket mesajları anında herkese iletilmez: her oyuncunun son durumu tutulur ve 10/sn'lik turda her alıcıya tek pakette gider.
 // Yakındakiler (NEAR birim) her turda, uzaktakiler saniyede bir güncellenir. Kimlik alanları (ad, gemi, rütbe…) yalnızca
@@ -182,7 +217,7 @@ export function buildBatch(rec,room,tick){const out=[];if(!rec.seen)rec.seen=new
     const near=!rec.last||!o.last||Math.abs(o.last.x-rec.last.x)+Math.abs(o.last.y-rec.last.y)<NEAR;if(!near&&!far)continue;
     const d={...o.state};if(seen.i!==o.identVer&&o.ident){Object.assign(d,o.ident);seen.i=o.identVer;}seen.s=o.stateVer;rec.seen.set(o,seen);out.push(d);}
   return out;}
-setInterval(()=>{tickNo++;if(tickNo%3===0){const now=Date.now();bossTick(now);islandTick(now);}for(const room of seas.values()){if(room.size<2)continue;for(const rec of room){const b=buildBatch(rec,room,tickNo);if(b.length)send(rec,{t:'batch',d:b});}}},TICK_MS).unref();
+setInterval(()=>{tickNo++;if(tickNo%3===0){const now=Date.now();bossTick(now);islandTick(now);siegeTick(now);}for(const room of seas.values()){if(room.size<2)continue;for(const rec of room){const b=buildBatch(rec,room,tickNo);if(b.length)send(rec,{t:'batch',d:b});}}},TICK_MS).unref();
 
 const httpServer=http.createServer(async(q,r)=>{const cors={'access-control-allow-origin':'*','access-control-allow-headers':'authorization','content-type':'application/json'};
   if(q.method==='OPTIONS'){r.writeHead(204,cors);r.end();return;}
@@ -213,7 +248,8 @@ wss.on('connection',ws=>{
       case'join':{const name=String(m.sea||'').slice(0,40);if(name===c.sea)return;leaveSea(c);if(!name)return;
         const room=seas.get(name)??new Set();if(room.size>=LIMITS.maxPerSea){send(c,{t:'full'});return;}room.add(c);seas.set(name,room);c.sea=name;c.seen=null;send(c,{t:'joined',sea:name});
         const b=bossSeas.get(name)?.boss;if(b)send(c,{t:'boss',d:bossInfo(name,b)});
-        const isle=islands.get(islandOfSea(name));if(isle)send(c,{t:'isle',d:islandInfo(isle)});return;}
+        const isle=islands.get(islandOfSea(name));if(isle)send(c,{t:'isle',d:islandInfo(isle)});
+        if(name===SIEGE_ROOM){const r=siegeJoin(c.uid,c.nick,now);send(c,{t:'sstate',d:siegeInfo(r,c.uid)});}return;}
       case'state':{if(!c.sea||!c.rState.hit(now))return;const s=m.d;const v=checkState(c.last,s,now);if(v==='bad')return;if(v==='speed')suspect(c,'hız',`${Math.round(s.x)},${Math.round(s.y)}`);
         c.last={x:s.x,y:s.y,at:now};s.id=c.netId;queueState(c,s);return;}
       case'fire':{if(!c.sea||!c.rFire.hit(now)){suspect(c,'atış hızı');return;}const f=m.d;const v=checkFire(f);if(v!=='ok'){suspect(c,'hasar',String(f?.damage));return;}f.from=c.netId;toNear(c,{t:'fire',d:f},f.to);return;}
@@ -222,6 +258,8 @@ wss.on('connection',ws=>{
       case'bhit':{if(!c.sea||!c.rBoss.hit(now))return;const dmg=Number(m.d?.dmg);if(!num(dmg)||dmg<=0)return;if(dmg>BOSS_HIT_CAP)suspect(c,'boss hasarı',String(dmg));
         const r=bossHit(c.sea,c.uid,dmg);if(!r)return;const room=seas.get(c.sea);log('BOSS BATTI',c.sea,r.n,'kaptan');
         for(const x of room||[])send(x,{t:'bdown',d:{id:r.id,n:r.n,...(r.shares[x.uid]??{share:0,dmg:0})}});return;}
+      case'shit':{if(c.sea!==SIEGE_ROOM||!c.rTower.hit(now))return;const dmg=Number(m.d?.dmg);if(!num(dmg)||dmg<=0)return;if(dmg>SIEGE_HIT_CAP)suspect(c,'kuşatma hasarı',String(dmg));
+        const r=siegeHitPiece(c.uid,c.nick,Number(m.d?.i),dmg);if(!r?.down&&r?.down!==0)return;toSea(c,{t:'sdown',d:{i:r.down}},true);if(r.won)siegeFinish();return;}
       case'thit':{if(!c.sea||!c.rTower.hit(now))return;await onTowerHit(c,m,now);return;}
       // Kule dikildi (veritabanında): önce canlar yazılır, sonra ada yeniden okunup denize gönderilir
       case'tbuilt':{const key=String(m.d?.key||'');const i=islands.get(key);if(!i||!c.rKill.hit(now))return;await saveIslandHp({...i,hpDirty:true});const n=await loadIsland(key).catch(()=>null);if(n)sendRoom(key,{t:'isle',d:islandInfo(n)});return;}

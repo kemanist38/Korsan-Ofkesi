@@ -21,7 +21,10 @@ export type NetBoss={sea:string;id:string;hp:number;maxHp:number;x:number;y:numb
 export type NetBossDown={id:string;n:number;share:number;dmg:number};
 // Paylaşılan filo adası: sahibi filo, kule canları ([can, üst can] ya da null) ve yıkık kaideler
 export type NetIsland={key:string;guild:number;tag:string;towers:([number,number]|null)[];ruins:Record<string,number>};
-export type NetHandlers={island?:(i:NetIsland)=>void;towerHp?:(key:string,s:[number,number][])=>void;towerDown?:(key:string,slot:number,by:string)=>void;
+// Ortak kuşatma: tam durum, can güncellemesi, yıkılan parça, sıralama ve sonuç
+export type NetSiege={id:string;end:number;n:number;hp:number[];max:number[];result:'won'|'lost'|null;top:[string,number][];mine:number};
+export type NetSiegeEnd={won:boolean;n:number;top:[string,number][];mine:number;share:number};
+export type NetHandlers={siegeState?:(s:NetSiege)=>void;siegeHp?:(l:[number,number,number][])=>void;siegeDown?:(i:number)=>void;siegeRank?:(d:{n:number;top:[string,number][];mine:number})=>void;siegeEnd?:(d:NetSiegeEnd)=>void;island?:(i:NetIsland)=>void;towerHp?:(key:string,s:[number,number][])=>void;towerDown?:(key:string,slot:number,by:string)=>void;
   islandCaptured?:(d:{key:string;tag:string;by:string;nick:string})=>void;islandAlert?:(key:string)=>void;boss?:(b:NetBoss)=>void;bossHp?:(id:string,hp:number)=>void;bossDown?:(d:NetBossDown)=>void;bossGone?:(id:string)=>void;state:(s:NetState)=>void;leave:(id:string)=>void;fire:(f:NetFire)=>void;sunk:(s:NetSunk)=>void;chat:(c:NetChat)=>void;bid?:(b:NetBid)=>void;bidAsk?:(hour:number)=>void;bidKnown?:(bids:NetBid[])=>void};
 
 const ID_KEY='yedi-deniz-net-id';
@@ -54,6 +57,11 @@ async function connectWs(){const sb=supa();if(!sb||!session.account){fallback();
       case'sunk':handlers?.sunk(m.d as NetSunk);break;
       case'chat':handlers?.chat(m.d as NetChat);break;
       case'boss':handlers?.boss?.(m.d as NetBoss);break;
+      case'sstate':handlers?.siegeState?.(m.d as NetSiege);break;
+      case'shp':handlers?.siegeHp?.(m.d as [number,number,number][]);break;
+      case'sdown':handlers?.siegeDown?.((m.d as {i:number}).i);break;
+      case'srank':handlers?.siegeRank?.(m.d as {n:number;top:[string,number][];mine:number});break;
+      case'send':handlers?.siegeEnd?.(m.d as NetSiegeEnd);break;
       case'isle':handlers?.island?.(m.d as NetIsland);break;
       case'thp':{const d=m.d as {key:string;s:[number,number][]};handlers?.towerHp?.(d.key,d.s);break;}
       case'tdown':{const d=m.d as {key:string;slot:number;by:string};handlers?.towerDown?.(d.key,d.slot,d.by);break;}
@@ -121,3 +129,4 @@ export const sendBossHit=(dmg:number)=>wsSend('bhit',{dmg:Math.round(dmg)});
 export const sendTowerHit=(slot:number,dmg:number,heal=false)=>wsSend('thit',{slot,dmg:Math.round(dmg),heal});
 export const sendTowerBuilt=(key:string)=>wsSend('tbuilt',{key});
 export const sendGuildRefresh=()=>wsSend('gref');
+export const sendSiegeHit=(i:number,dmg:number)=>wsSend('shit',{i,dmg:Math.round(dmg)});
