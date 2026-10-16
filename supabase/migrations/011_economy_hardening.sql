@@ -164,14 +164,14 @@ create policy "claims read own" on public.economy_claims for select using (auth.
 create or replace function public.festival_start() returns date language sql immutable as $$ select null::date $$;
 
 create or replace function public.economy_claim(p_kind text) returns jsonb language plpgsql security definer set search_path = public as $$
-declare today date := (now() at time zone 'Europe/Istanbul')::date; last economy_claims; n int; lvl int; g bigint; rw jsonb; fs date; p bigint; add jsonb := '{}'::jsonb; k text;
+declare today date := (now() at time zone 'Europe/Istanbul')::date; prev_day date; prev_n int; n int; lvl int; g bigint; rw jsonb; fs date; p bigint; add jsonb := '{}'::jsonb; k text;
 begin
   if auth.uid() is null then raise exception 'Giriş gerekli'; end if;
   perform economy_get();
   if exists (select 1 from economy_claims where user_id = auth.uid() and kind = p_kind and day = today) then raise exception 'Bugünün ödülünü zaten aldın'; end if;
   if p_kind = 'daily' then
-    select * into last from economy_claims where user_id = auth.uid() and kind = 'daily' order by day desc limit 1;
-    n := case when last.day = today - 1 then last.n % 7 + 1 else 1 end;
+    select c.day, c.n into prev_day, prev_n from economy_claims c where c.user_id = auth.uid() and c.kind = 'daily' order by c.day desc limit 1;
+    n := case when prev_day = today - 1 then prev_n % 7 + 1 else 1 end;
     select greatest(1, least(8, coalesce((state->>'level')::int, 1))) into lvl from economy where user_id = auth.uid();
     g := round(1500 * power(1.6, lvl - 1));
     rw := (jsonb_build_array(
