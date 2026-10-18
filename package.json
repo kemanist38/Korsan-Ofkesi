@@ -11,11 +11,14 @@
     "build:server": "esbuild server/game-server.mjs --bundle --platform=node --target=node20 --format=cjs --outfile=public/srv/game-server.cjs"
   },
   "devDependencies": {
+    "@capacitor/cli": "^6.2.2",
     "typescript": "^5.9.2",
     "vite": "^7.1.7",
     "ws": "^8.18.3"
   },
   "dependencies": {
+    "@capacitor/android": "^6.2.2",
+    "@capacitor/core": "^6.2.2",
     "@supabase/supabase-js": "^2.117.3"
   }
 }
