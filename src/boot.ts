@@ -114,10 +114,13 @@ async function enter(sb:SupabaseClient,user:User,nick?:string){
 async function boot(){
   if(import.meta.env.DEV&&!new URLSearchParams(location.search).has('auth')){await startGame();return;}
   const sb=supa();if(!sb){card('BAĞLANTI HATASI','<p class="auth-info">Oyun sunucusuna ulaşılamadı. Sayfayı yenile.</p>');return;}
-  let recovering=false;
-  sb.auth.onAuthStateChange((ev)=>{if(ev==='PASSWORD_RECOVERY'){recovering=true;showNewPassword(sb);}});
-  await enforceRemember(sb);
+  // Şifre sıfırlama bağlantısından gelindiyse (adres işareti ya da Supabase olayı) oyuna girilmez, yeni şifre sorulur
+  const q=new URLSearchParams(location.search),fromReset=q.get('sifre')==='yeni'||/type=recovery/.test(location.hash);
+  let recovering=false;const recover=()=>{if(recovering)return;recovering=true;history.replaceState(null,'',location.pathname);showNewPassword(sb);};
+  sb.auth.onAuthStateChange((ev)=>{if(ev==='PASSWORD_RECOVERY')recover();});
+  if(!fromReset)await enforceRemember(sb);
   const {data}=await sb.auth.getSession();
+  if(fromReset&&data.session)recover();
   if(recovering)return;
   if(data.session)enter(sb,data.session.user);else showLogin(sb,new URLSearchParams(location.search).has('kayit')?'register':'login');
 }
