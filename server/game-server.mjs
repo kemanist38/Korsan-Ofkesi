@@ -289,7 +289,7 @@ export function npcMove(n,dt,players,now){let tx=n.wx,ty=n.wy,v=n.def.speed*.45*
 export const NPC_FIRE_RANGE=360,NPC_SPAWN_GRACE=3000,NPC_DMG_MODEL=.7;
 export function npcFire(n,players,now,safe,rand=Math.random){if(safe||now<(n.cdUntil??0))return null;
   let t=n.aggro&&now<n.aggroUntil?players.find(p=>p.uid===n.aggro&&p.last):null;
-  if(!t||Math.hypot(t.last.x-n.x,t.last.y-n.y)>NPC_FIRE_RANGE){t=null;let bd=NPC_FIRE_RANGE;for(const p of players){if(!p.last||now-(p.tpAt||0)<NPC_SPAWN_GRACE)continue;const d=Math.hypot(p.last.x-n.x,p.last.y-n.y);if(d<bd){bd=d;t=p;}}}
+  if(!t||Math.hypot(t.last.x-n.x,t.last.y-n.y)>NPC_FIRE_RANGE){t=null;let bd=NPC_FIRE_RANGE;for(const p of players){if(!p.last||p.admin||now-(p.tpAt||0)<NPC_SPAWN_GRACE)continue;const d=Math.hypot(p.last.x-n.x,p.last.y-n.y);if(d<bd){bd=d;t=p;}}}
   if(!t)return null;if(!n.aggro){n.aggro=t.uid;n.aggroUntil=now+4000;}
   n.cdUntil=now+(n.def.reload+rand()*.55)*1000;return{to:t,dmg:Math.round(n.def.damage*(.85+rand()*.3))};}
 // Vuruş: menzil ve bütçeyle sınırlanmış hasar uygulanır; batarsa paylar döner

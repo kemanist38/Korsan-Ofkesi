@@ -4952,7 +4952,7 @@ function npcFire(n, players, now, safe, rand = Math.random) {
     t = null;
     let bd = NPC_FIRE_RANGE;
     for (const p2 of players) {
-      if (!p2.last || now - (p2.tpAt || 0) < NPC_SPAWN_GRACE) continue;
+      if (!p2.last || p2.admin || now - (p2.tpAt || 0) < NPC_SPAWN_GRACE) continue;
       const d = Math.hypot(p2.last.x - n.x, p2.last.y - n.y);
       if (d < bd) {
         bd = d;
