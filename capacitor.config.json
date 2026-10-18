@@ -1,0 +1,7 @@
+{
+  "appId": "com.piraterage.game",
+  "appName": "Pirate Rage",
+  "webDir": "dist-app",
+  "android": { "allowMixedContent": false },
+  "server": { "androidScheme": "https" }
+}
