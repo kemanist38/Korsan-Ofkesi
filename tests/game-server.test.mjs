@@ -284,3 +284,11 @@ test('chests and sparkles: only server spots, only when the ship is next to them
   assert.equal(S.lootTake(c,'sp',id).err,'yok');assert.ok(l.sp.length>=12);
   const [cid,cx,cy]=l.ch[0];c.last={x:cx+100,y:cy};assert.ok(S.lootTake(c,'ch',cid).ok);
 });
+test('admin event: protected on level-1 seas, damage pays share, last hit pays bonus and the ship refills',()=>{
+  const adm={admin:true,sea:'sea-1-1'};const c={uid:'aev-u'};
+  assert.equal(S.aevOpen('sea-1-1'),false);assert.equal(S.aevOpen('sea-1-2'),false);assert.equal(S.aevHit(c,adm,1e6),null);
+  adm.sea='sea-3-1';assert.equal(S.aevOpen(adm.sea),true);const ev=S.aevState(adm);assert.equal(ev.max,34e6);
+  const r=S.aevHit(c,adm,1e9);assert.ok(r.hp===34e6-34e6*.01,'one salvo is capped at 1% of the ship');assert.ok(r.add.xp>0&&r.add.ep>0);
+  let n=0,last;while(!(last=S.aevHit(c,adm,1e9)).sunk&&n<200)n++;
+  assert.ok(last.sunk);assert.equal(last.hp,34e6);const P=S.aevPools(3);assert.ok(last.add.pearls>=P.kill.pearls&&last.add.xp>=P.kill.xp);
+});

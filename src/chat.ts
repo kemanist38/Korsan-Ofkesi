@@ -3,13 +3,13 @@
 // Pencerenin mesaj alanına ya da başlığına tıklamak pencereyi küçültüp kapatır; yazı kutusu ve sekmeler kapatmaz.
 // Sohbet (açıkken başlıktan, küçükken yuvarlak düğmeden) tutulup ekranda istenen yere taşınabilir; yeri bu cihazda saklanır.
 export type ChatTab='global'|'fleet';
-type Line={who:string;text:string;at:number;system?:boolean};
+type Line={who:string;text:string;at:number;system?:boolean;adm?:boolean};
 const OLD_STORAGE='yedi-deniz-chat-v1',POS='yedi-deniz-chat-pos',KEEP=20;
 const esc=(s:string)=>s.replace(/[&<>"']/g,c=>`&#${c.charCodeAt(0)};`);
 // Eski sürümün tarayıcıda biriktirdiği sohbet kaydı silinir
 try{localStorage.removeItem(OLD_STORAGE);}catch{}
 
-export function setupChat(me:()=>{nick:string;tag:string|null},onSend?:(tab:ChatTab,who:string,text:string)=>void){
+export function setupChat(me:()=>{nick:string;tag:string|null;adm?:boolean},onSend?:(tab:ChatTab,who:string,text:string)=>void){
   const root=document.createElement('div');root.className='chat';
   root.innerHTML=`<section class="chat-box" id="chatBox" aria-label="Sohbet"><header class="chat-tabs"><button data-chat-tab="global">Global</button><button data-chat-tab="fleet">Filo</button><span class="chat-close" title="Kapat">×</span></header>
     <div class="chat-log" id="chatLog"></div><form class="chat-form" id="chatForm"><input id="chatInput" maxlength="120" autocomplete="off" placeholder="Mesaj yaz…"/><button type="submit">Gönder</button></form></section>
@@ -21,7 +21,7 @@ export function setupChat(me:()=>{nick:string;tag:string|null},onSend?:(tab:Chat
   function render(){root.querySelectorAll<HTMLButtonElement>('[data-chat-tab]').forEach(b=>b.classList.toggle('active',b.dataset.chatTab===tab));
     const noFleet=tab==='fleet'&&!me().tag;input.disabled=noFleet;input.placeholder=noFleet?'Filo sohbeti için bir filoya katıl':tab==='global'?'Herkese yaz…':'Filona yaz…';
     const intro:Line={who:'',text:tab==='global'?'Global sohbet · çevrim içi bütün kaptanlar görür.':noFleet?'Henüz bir filoda değilsin.':'Filo sohbeti · yalnızca filo üyeleri görür.',at:0,system:true};
-    log.innerHTML=[intro,...lines[tab]].map(l=>l.system?`<p class="sys">${esc(l.text)}</p>`:`<p><time>${time(l.at)}</time><b>${esc(l.who)}:</b> ${esc(l.text)}</p>`).join('');log.scrollTop=log.scrollHeight;}
+    log.innerHTML=[intro,...lines[tab]].map(l=>l.system?`<p class="sys">${esc(l.text)}</p>`:`<p${l.adm?' class="adm"':''}><time>${time(l.at)}</time><b>${esc(l.who)}:</b> ${esc(l.text)}</p>`).join('');log.scrollTop=log.scrollHeight;}
   function setOpen(v:boolean){open=v;root.classList.toggle('open',v);if(v){dot.hidden=true;render();}else input.blur();}
   root.querySelector<HTMLElement>('#chatToggle')!.onclick=()=>{if(dragged){dragged=false;return;}setOpen(!open);};
   root.querySelectorAll<HTMLButtonElement>('[data-chat-tab]').forEach(b=>b.onclick=e=>{e.stopPropagation();if(dragged){dragged=false;return;}tab=b.dataset.chatTab as ChatTab;render();});
@@ -39,10 +39,10 @@ export function setupChat(me:()=>{nick:string;tag:string|null},onSend?:(tab:Chat
   root.querySelector<HTMLElement>('.chat-tabs')!.addEventListener('pointerdown',startDrag);
   root.querySelector<HTMLElement>('#chatToggle')!.addEventListener('pointerdown',startDrag);
   root.querySelector<HTMLFormElement>('#chatForm')!.onsubmit=e=>{e.preventDefault();const text=input.value.trim();if(!text||input.disabled)return;
-    const m=me(),who=(m.tag?`[${m.tag}]`:'')+m.nick;lines[tab].push({who,text,at:Date.now()});onSend?.(tab,who,text);lines[tab]=lines[tab].slice(-KEEP);input.value='';render();};
+    const m=me(),who=(m.tag?`[${m.tag}]`:'')+m.nick;lines[tab].push({who,text,at:Date.now(),adm:!!m.adm});onSend?.(tab,who,text);lines[tab]=lines[tab].slice(-KEEP);input.value='';render();};
   input.addEventListener('keydown',e=>{e.stopPropagation();if(e.key==='Escape')setOpen(false);});
   dot.hidden=true;
   // Sunucudan gelen mesaj
-  const receive=(who:string,text:string,at:number)=>{lines.global.push({who,text,at});lines.global=lines.global.slice(-KEEP);if(open&&tab==='global')render();else dot.hidden=false;};
+  const receive=(who:string,text:string,at:number,adm=false)=>{lines.global.push({who,text,at,adm});lines.global=lines.global.slice(-KEEP);if(open&&tab==='global')render();else dot.hidden=false;};
   return{receive,open:()=>setOpen(true),close:()=>setOpen(false),isOpen:()=>open};
 }

@@ -60,7 +60,7 @@ type SalvoRound = { powder?:boolean; delay:number; target:Target; side:number; s
 type EnemyRole='light'|'heavy';
 // Test kaptanı: elit gemili, oyuncu gibi savaşan yapay rakip (yalnız test modunda 1/1'de)
 type Captain={elite:EliteShipId;ammo:AmmoKind;ammoClock:number;foe:Enemy|null;orbit:Vec|null;orbitClock:number};
-type Enemy = Vec & { kind:'ship'; net?:{id:string;tx:number;ty:number}; dir16?:number; remoteShip?:string; remote?:{id:string;tx:number;ty:number;vx:number;vy:number;seen:number;sp:number;tag:string|null}; captain?:Captain; pvp?:PvpBudget; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; shared?:string; share?:number; shareN?:number; serverDown?:boolean; lastHp?:number; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number; lastHitBy?:'player'|'captain'; siege?:boolean; commander?:boolean;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
+type Enemy = Vec & { kind:'ship'; net?:{id:string;tx:number;ty:number}; dir16?:number; remoteShip?:string; remote?:{id:string;tx:number;ty:number;vx:number;vy:number;seen:number;sp:number;tag:string|null;adm?:boolean}; captain?:Captain; pvp?:PvpBudget; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; shared?:string; share?:number; shareN?:number; serverDown?:boolean; lastHp?:number; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number; lastHitBy?:'player'|'captain'; siege?:boolean; commander?:boolean;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
 type ParticleKind='flare'|'ember'|'glint'|'wisp'|'foam'|'smoke'|'spark'|'damage'|'flash'|'splinter'|'bubble'|'plank'|'firePuff'|'target'|'poison'|'soul'|'shock';
 // z: su üstünden yükseklik (ekranda yukarı kayar); vz ile savrulan parçalar suya düşer
 type Particle = Vec & { vx:number; vy:number; life:number; maxLife:number; kind:ParticleKind; text?:string; color?:string; z?:number; vz?:number; rot?:number; vr?:number; size?:number; variant?:number };
@@ -293,7 +293,7 @@ let guild:Guild|null=loadGuild();
 let buildType:TowerType='cannon';
 let focusedFoundation:string|null=null;
 const profile=loadProfile();
-const chat=setupChat(()=>({nick:profile.nick,tag:guild?.tag??null}),(tab,who,text)=>{if(tab==='global')sendChat({nick:who,text,at:Date.now()});});
+const chat=setupChat(()=>({nick:profile.nick,tag:guild?.tag??null,adm:session.isAdmin}),(tab,who,text)=>{if(tab==='global')sendChat({nick:who,text,at:Date.now()});});
 function escapeHtml(t:string){return t.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));}
 // HUD 10 Hz güncellenir; DOM yalnız içerik değişince yazılır (her karede yeniden kurmak donmaya yol açıyordu)
 const towerRuins=loadRuins();
@@ -568,7 +568,7 @@ const netHandlers:NetHandlers={
       e={kind:'ship',role:'heavy',x:n.x,y:n.y,angle:0,hp:n.hp,maxHp:n.maxHp??n.hp,cooldown:99,speed:0,damage:0,reload:99,rewardGold:0,rewardFame:0,color:'#79372f',name:n.nick,tier:8,aggro:false,wander:0,slowTimer:0,homeX:n.x,homeY:n.y,combatTimer:0,hitRadius:44,
       captain:{elite:(NET_ELITES.has(n.ship)?n.ship:'phantom') as EliteShipId,ammo:'iron',ammoClock:99,foe:null,orbit:null,orbitClock:0},remote:{id:n.id,tx:n.x,ty:n.y,vx:0,vy:0,seen:0,sp:n.sp??0,tag:n.tag??null}} as Enemy;enemies.push(e);}
     const r=e.remote!;r.tx=n.x;r.ty=n.y;r.vx=n.vx??0;r.vy=n.vy??0;r.seen=performance.now();e.hp=n.hp;e.face={east:n.east,north:n.north};e.dir16=n.d16;
-    if(n.sp!==undefined)r.sp=n.sp;if(n.maxHp!==undefined)e.maxHp=n.maxHp;if(n.tag!==undefined)r.tag=n.tag;if(n.nick!==undefined)e.name=(r.tag?`[${r.tag}]`:'')+n.nick;
+    if(n.adm!==undefined)r.adm=!!n.adm;if(n.sp!==undefined)r.sp=n.sp;if(n.maxHp!==undefined)e.maxHp=n.maxHp;if(n.tag!==undefined)r.tag=n.tag;if(n.nick!==undefined)e.name=(r.tag?`[${r.tag}]`:'')+n.nick;
     if(n.ship!==undefined){e.remoteShip=n.ship;e.captain!.elite=(NET_ELITES.has(n.ship)?n.ship:'phantom') as EliteShipId;}},
   leave:id=>{const e=remoteOf(id);if(e){enemies.splice(enemies.indexOf(e),1);if(selected===e){selected=null;state.attacking=false;}}},
   fire:f=>{const e=remoteOf(f.from);if(!e)return;
@@ -588,7 +588,9 @@ const netHandlers:NetHandlers={
   pos:p=>{player.x=p.x;player.y=p.y;player.speed=0;destination=null;routeTarget=null;},
   // Sunucu ölümsüz kalan gemiyi batırır (canı hasara rağmen düşmüyorsa)
   forceSink:d=>{if(state.hp<=0)return;state.hp=0;respawn();showSunkBy(d.byNick);},
-  chat:(c:{nick:string;text:string;at:number})=>chat.receive(c.nick,c.text,c.at),
+  chat:(c:{nick:string;text:string;at:number;adm?:boolean})=>chat.receive(c.nick,c.text,c.at,!!c.adm),
+  arew:(d:{xp?:number;ep?:number;pearls?:number})=>{aevGain.xp+=d.xp??0;aevGain.ep+=d.ep??0;aevGain.pearls+=d.pearls??0;if(!aevGainTimer)aevGainTimer=setTimeout(()=>{aevGainTimer=0;const g=aevGain,p=[g.xp?`+${fmt(g.xp)} TP`:'',g.ep?`+${fmt(g.ep)} EP`:'',g.pearls?`+${fmt(g.pearls)} İnci`:''].filter(Boolean).join(' · ');aevGain={xp:0,ep:0,pearls:0};if(p)rewardNotice(`Yönetici gemisine hasar · ${p}`,'battle');},4000) as unknown as number;},
+  aboom:(id:string)=>{const e=remoteOf(id);if(e){burst(e.x,e.y,true);burst(e.x,e.y,true);playExplosion();splashAt(e.x,e.y,220);}},
   bid:b=>receiveBid(b),
   bidAsk:hour=>{auctionTick();const bids=Object.values(auction.top);if(hour===auction.hour&&bids.length)sendKnownBids(bids);},
   bidKnown:bids=>{for(const b of bids)receiveBid(b);},
@@ -996,7 +998,7 @@ function toggleRepair(){
 // Hesapla oynarken hasarı oyun sunucusunun hesapladığı hedefler: NPC, paylaşılan boss, kuşatma, ada kulesi, oyuncu
 function netTarget(t:Target|null):{k:string;id:string}|null{if(!session.account||!t||t.kind!=='ship')return null;
   if(t.net)return{k:'n',id:t.net.id};if(t.boss&&t.shared)return{k:'b',id:t.shared};if(t.siege&&siegeOnline&&(t.tower||t.commander))return{k:'s',id:String(siegePiece(t))};
-  if(t.tower&&!t.siege&&t.towerIndex!==undefined)return{k:'t',id:String(t.towerIndex)};if(t.remote)return{k:'p',id:t.remote.id};return null;}
+  if(t.tower&&!t.siege&&t.towerIndex!==undefined)return{k:'t',id:String(t.towerIndex)};if(t.remote){if(t.remote.adm&&mapDef().tier<2){toast('Yönetici gemisi bu denizde korunuyor');return null;}return{k:'p',id:t.remote.id};}return null;}
 function fireAtTarget(){
   if(!selected||player.cooldown>0||dist(player,selected)>effectiveRange())return;
   // Şifa yalnız oyunculara (ve dost kulelere); hasar veren gülle dosta sıkılamaz
@@ -1471,7 +1473,8 @@ function renderWorldMap(){
     return`<button class="world-tile ${here?'here':''} ${locked?'locked':''} ${m.safe?'safe':''} ${chartSelection===key?'selected':''}" data-chart="${key}" style="--tile:${t.sea[0]};--tile2:${t.sea[1]};--tint:${t.tint}"><span class="wt-tag">${tag}</span>${here?'<img class="wt-flag" src="/assets/icon-flag-v1.webp" alt="Buradasın" draggable="false"/>':''}<b>${key}</b><strong>${m.name}</strong></button>`;}).join('')}</div>`;
   chart.querySelectorAll<HTMLButtonElement>('[data-chart]').forEach(b=>b.onclick=()=>{chartSelection=b.dataset.chart as MapKey;renderWorldMap();});
   const m=MAPS[chartSelection??currentMap],locked=state.level<m.tier,npcs=m.npcs.map(id=>NPCS[id].name).join(', ');
-  ui('worldInfo').innerHTML=`<div><span class="eyebrow">${m.key} · ${THEMES[m.tier].name}</span><h3>${m.name}</h3><p>${m.description}</p><dl><div><dt>Seviye</dt><dd>${m.tier}+</dd></div><div><dt>Gemiler</dt><dd>${npcs}</dd></div><div><dt>Filo adası</dt><dd>${fleetOwner(m.key)==='player'?'<b class="safe">Senin</b>':'<b class="danger">Rakip</b>'}</dd></div></dl></div><button disabled>${m.key===currentMap?'ŞU AN BURADASIN':locked?`SEVİYE ${m.tier} GEREKLİ`:'KENARLARDAN GEÇİŞ'}</button>`;
+  ui('worldInfo').innerHTML=`<div><span class="eyebrow">${m.key} · ${THEMES[m.tier].name}</span><h3>${m.name}</h3><p>${m.description}</p><dl><div><dt>Seviye</dt><dd>${m.tier}+</dd></div><div><dt>Gemiler</dt><dd>${npcs}</dd></div><div><dt>Filo adası</dt><dd>${fleetOwner(m.key)==='player'?'<b class="safe">Senin</b>':'<b class="danger">Rakip</b>'}</dd></div></dl></div>${session.isAdmin&&m.key!==currentMap?'<button id="worldTeleport">IŞINLAN (YÖNETİCİ)</button>':`<button disabled>${m.key===currentMap?'ŞU AN BURADASIN':locked?`SEVİYE ${m.tier} GEREKLİ`:'KENARLARDAN GEÇİŞ'}</button>`}`;
+  {const tp=document.getElementById('worldTeleport');if(tp)tp.onclick=()=>{closeWorldMap();enterMap(m.key,navigablePoint({x:WORLD_WIDTH/2,y:WORLD_HEIGHT/2}));toast(`${m.key} ${m.name} denizine ışınlandın`);};}
 }
 function openQuestLog(){renderQuestLog();ui('questOverlay').classList.add('open');}
 function closeQuestLog(){pendingCancel=null;ui('questOverlay').classList.remove('open');}
@@ -1666,6 +1669,8 @@ function renderRanks(){const {players,fleets}=rankData(),board=BOARDS.find(b=>b.
   ui('rankPanel').querySelectorAll<HTMLButtonElement>('[data-page]').forEach(b=>b.onclick=()=>{rankPageNo=Number(b.dataset.page);renderRanks();
     const me=ui('rankTable').querySelector<HTMLElement>('.rank-row.me');if(b.classList.contains('rank-mine')&&me)me.scrollIntoView({block:'center'});else ui('rankTable').scrollTop=0;});}
 // Hesapla oynarken sıralama sunucudaki değerlerden gelir (rank_players); bağlantı yoksa yalnız bu kaptan görünür
+// Yönetici etkinliği: hasar ödülleri 4 sn'de bir tek bildirimde toplanır
+let aevGain={xp:0,ep:0,pearls:0},aevGainTimer=0;
 let serverRanks:RankPlayer[]|null=null,rankAt:Date|null=null;
 async function loadServerRanks(){const sb=supa();if(!sb||!session.account)return;const {data,error}=await sb.rpc('rank_players');if(error||!Array.isArray(data))return;
   serverRanks=(data as (RankPlayer&{me:boolean})[]).map(r=>({nick:r.nick,tag:r.tag,fleet:r.fleet,level:Number(r.level),xp:Number(r.xp),ep:Number(r.ep),sp:Number(r.sp),npc:Number(r.npc),monster:Number(r.monster),boss:Number(r.boss),treasure:Number(r.treasure),me:r.me}));
