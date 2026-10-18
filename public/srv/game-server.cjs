@@ -6064,6 +6064,10 @@ wss.on("connection", (ws) => {
             const ev = aevState(c);
             s.hp = Math.round(ev.hp);
             s.maxHp = ev.max;
+            if (now - (c.ahpAt || 0) > 1e3) {
+              c.ahpAt = now;
+              send(c, { t: "ahp", d: { hp: s.hp, max: ev.max } });
+            }
           }
         }
         c.last = { x: s.x, y: s.y, at: now };
