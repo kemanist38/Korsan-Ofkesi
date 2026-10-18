@@ -293,7 +293,7 @@ let guild:Guild|null=loadGuild();
 let buildType:TowerType='cannon';
 let focusedFoundation:string|null=null;
 const profile=loadProfile();
-const chat=setupChat(()=>({nick:profile.nick,tag:guild?.tag??null,adm:session.isAdmin}),(tab,who,text)=>{if(tab==='global')sendChat({nick:who,text,at:Date.now()});});
+const chat=setupChat(()=>({nick:profile.nick,tag:guild?.tag??null,adm:session.isAdmin}),(tab,who,text)=>{const g=/^\/git\s+(\d\/\d)$/i.exec(text.trim());if(session.isAdmin&&g){adminTeleport(g[1]);return;}if(tab==='global')sendChat({nick:who,text,at:Date.now()});});
 function escapeHtml(t:string){return t.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));}
 // HUD 10 Hz güncellenir; DOM yalnız içerik değişince yazılır (her karede yeniden kurmak donmaya yol açıyordu)
 const towerRuins=loadRuins();
@@ -839,6 +839,10 @@ function populateMap(){
   for(let i=0;i<SPARKLE_COUNT*sparkleMult();i++)spawnSparkle();}
   ui('mapName').textContent=`${map.key} · ${map.name}`;ui('mapSubtitle').textContent=map.safe?'SAVAŞA KAPALI':`${theme().name.toLocaleUpperCase('tr')} · SEVİYE ${map.tier}`;ui('mapBadge').className=`map-badge ${map.safe?'safe':'danger-'+Math.min(3,Math.ceil(map.tier/3))}`;
 }
+// Yönetici ışınlanması: dünya haritasındaki düğme ya da sohbette "/git 3/1"
+function adminTeleport(key:string){const m=MAPS[key as MapKey];if(!session.isAdmin||!m){toast('Böyle bir deniz yok');return;}if(siege){toast('Kuşatmadayken ışınlanılamaz');return;}enterMap(m.key,navigablePoint({x:WORLD_WIDTH/2,y:WORLD_HEIGHT/2}));toast(`${m.key} ${m.name} denizine ışınlandın`);}
+// Yönetici her denize girebilir (etkinlik için ışınlanır) ve hasar almaz
+const mapLvl=()=>session.isAdmin?MAX_LEVEL:state.level;
 function enterMap(key:MapKey,at:Vec){
   currentMap=key;fleetSafe=null;fleetFields.clear();try{localStorage.setItem(WORLD_STORAGE,key);}catch{}populateMap();
   player.x=at.x;player.y=at.y;player.speed=0;destination=null;selected=null;state.attacking=false;ui('attack').classList.remove('active');
@@ -851,7 +855,7 @@ const EDGE=110;
 function edgeDir():Dir|null{if(player.y<EDGE)return'north';if(player.y>WORLD_HEIGHT-EDGE)return'south';if(player.x<EDGE)return'west';if(player.x>WORLD_WIDTH-EDGE)return'east';return null;}
 function useJump(){
   if(!jumpPrompt){toast('Harita atlamak için denizin kenarına yanaş');return;}const target=MAPS[jumpPrompt.to];
-  if(state.level<target.tier){toast(`${target.key} ${target.name} için Seviye ${target.tier} gerekli`);return;}
+  if(mapLvl()<target.tier){toast(`${target.key} ${target.name} için Seviye ${target.tier} gerekli`);return;}
   if(inCombat()){toast('Savaş sırasında harita atlanamaz');return;}
   const dir=jumpPrompt.dir,inset=40,at={x:dir==='west'?WORLD_WIDTH-inset:dir==='east'?inset:player.x,y:dir==='north'?WORLD_HEIGHT-inset:dir==='south'?inset:player.y};
   enterMap(target.key,at);
@@ -862,7 +866,7 @@ function updateJumpPrompt(){
   const dir=siege||performance.now()<jumpLockUntil?null:edgeDir(),to=dir?neighbor(currentMap,dir):null,next=dir&&to?{dir,to}:null,el=ui('portalPrompt');
   if(!next){jumpPrompt=null;el.classList.remove('visible');el.innerHTML='';return;}
   if(next.to===jumpPrompt?.to&&next.dir===jumpPrompt?.dir)return;jumpPrompt=next;
-  const target=MAPS[next.to],locked=state.level<target.tier,arrow={north:'↑',south:'↓',east:'→',west:'←'}[next.dir];
+  const target=MAPS[next.to],locked=mapLvl()<target.tier,arrow={north:'↑',south:'↓',east:'→',west:'←'}[next.dir];
   el.innerHTML=`<span>HARİTA ATLA ${arrow}</span><strong>${target.key} · ${target.name}</strong><small>${locked?`Seviye ${target.tier} gerekli`:target.safe?'Savaşa kapalı deniz':`${THEMES[target.tier].name} · Seviye ${target.tier}`}</small><button ${locked?'disabled':''}>HARİTA ATLA <kbd>${keyLabel(settings.binds.jump)}</kbd></button>`;
   el.classList.add('visible');el.querySelector('button')!.onclick=()=>useJump();
 }
@@ -1468,13 +1472,13 @@ function closeWorldMap(){ui('worldMapOverlay').classList.remove('open');}
 function renderWorldMap(){
   const chart=ui('worldChart');
   // Seafight tarzı küçük pafta: sol üstte adaya sahip filonun kısaltması, sağ üstte bulunduğun denizin sancağı, ortada deniz kodu, altta adı
-  chart.innerHTML=`<div class="world-grid">${GRID.flat().map(key=>{const m=MAPS[key],locked=state.level<m.tier,here=key===currentMap,owned=fleetOwner(key)==='player',t=THEMES[m.tier];
+  chart.innerHTML=`<div class="world-grid">${GRID.flat().map(key=>{const m=MAPS[key],locked=mapLvl()<m.tier,here=key===currentMap,owned=fleetOwner(key)==='player',t=THEMES[m.tier];
     const tag=owned?(guild?`[${escapeHtml(guild.tag)}]`:'SEN'):'';
     return`<button class="world-tile ${here?'here':''} ${locked?'locked':''} ${m.safe?'safe':''} ${chartSelection===key?'selected':''}" data-chart="${key}" style="--tile:${t.sea[0]};--tile2:${t.sea[1]};--tint:${t.tint}"><span class="wt-tag">${tag}</span>${here?'<img class="wt-flag" src="/assets/icon-flag-v1.webp" alt="Buradasın" draggable="false"/>':''}<b>${key}</b><strong>${m.name}</strong></button>`;}).join('')}</div>`;
   chart.querySelectorAll<HTMLButtonElement>('[data-chart]').forEach(b=>b.onclick=()=>{chartSelection=b.dataset.chart as MapKey;renderWorldMap();});
-  const m=MAPS[chartSelection??currentMap],locked=state.level<m.tier,npcs=m.npcs.map(id=>NPCS[id].name).join(', ');
-  ui('worldInfo').innerHTML=`<div><span class="eyebrow">${m.key} · ${THEMES[m.tier].name}</span><h3>${m.name}</h3><p>${m.description}</p><dl><div><dt>Seviye</dt><dd>${m.tier}+</dd></div><div><dt>Gemiler</dt><dd>${npcs}</dd></div><div><dt>Filo adası</dt><dd>${fleetOwner(m.key)==='player'?'<b class="safe">Senin</b>':'<b class="danger">Rakip</b>'}</dd></div></dl></div>${session.isAdmin&&m.key!==currentMap?'<button id="worldTeleport">IŞINLAN (YÖNETİCİ)</button>':`<button disabled>${m.key===currentMap?'ŞU AN BURADASIN':locked?`SEVİYE ${m.tier} GEREKLİ`:'KENARLARDAN GEÇİŞ'}</button>`}`;
-  {const tp=document.getElementById('worldTeleport');if(tp)tp.onclick=()=>{closeWorldMap();enterMap(m.key,navigablePoint({x:WORLD_WIDTH/2,y:WORLD_HEIGHT/2}));toast(`${m.key} ${m.name} denizine ışınlandın`);};}
+  const m=MAPS[chartSelection??currentMap],locked=mapLvl()<m.tier,npcs=m.npcs.map(id=>NPCS[id].name).join(', ');
+  ui('worldInfo').innerHTML=`<div><span class="eyebrow">${m.key} · ${THEMES[m.tier].name}</span><h3>${m.name}</h3><p>${m.description}</p><dl><div><dt>Seviye</dt><dd>${m.tier}+</dd></div><div><dt>Gemiler</dt><dd>${npcs}</dd></div><div><dt>Filo adası</dt><dd>${fleetOwner(m.key)==='player'?'<b class="safe">Senin</b>':'<b class="danger">Rakip</b>'}</dd></div></dl></div>${session.isAdmin?(m.key!==currentMap?'<button id="worldTeleport">IŞINLAN (YÖNETİCİ)</button>':'<button disabled>BİR DENİZ SEÇ · IŞINLAN</button>'):`<button disabled>${m.key===currentMap?'ŞU AN BURADASIN':locked?`SEVİYE ${m.tier} GEREKLİ`:'KENARLARDAN GEÇİŞ'}</button>`}`;
+  {const tp=document.getElementById('worldTeleport');if(tp)tp.onclick=()=>{closeWorldMap();adminTeleport(m.key);};}
 }
 function openQuestLog(){renderQuestLog();ui('questOverlay').classList.add('open');}
 function closeQuestLog(){pendingCancel=null;ui('questOverlay').classList.remove('open');}
@@ -2021,7 +2025,7 @@ function update(dt:number){updateHealFlights(dt);{const rc=document.getElementBy
         }
       }
     }else if(s.foe){if(enemies.includes(s.foe)&&dist(s,s.foe)<(s.foe.hitRadius??30)){s.hit=true;s.life=0;captainHit(s.foe,s,s.captain??null);}}
-    else if(state.invulnerable<=0&&dist(s,player)<22){
+    else if(state.invulnerable<=0&&!session.isAdmin&&dist(s,player)<22){
       s.hit=true;s.life=0;
       // Hayalet Kadırga pasifi %10 ihtimalle gülleyi savuşturur
       {
@@ -2530,7 +2534,7 @@ function drawMapEdges(){
   {const a=worldToScreen({x:0,y:0}),b=worldToScreen({x:WORLD_WIDTH,y:WORLD_HEIGHT}),w=innerWidth,h=innerHeight,vw=w/camera.zoom,vh=h/camera.zoom,L=w/2-vw/2-2,T=h/2-vh/2-2,R=w/2+vw/2+2,B=h/2+vh/2+2;
     ctx.fillStyle='#000';if(a.x>L)ctx.fillRect(L,T,a.x-L,B-T);if(b.x<R)ctx.fillRect(b.x,T,R-b.x,B-T);if(a.y>T)ctx.fillRect(L,T,R-L,a.y-T);if(b.y<B)ctx.fillRect(L,b.y,R-L,B-b.y);
     ctx.strokeStyle='rgba(232,200,130,.35)';ctx.lineWidth=2;ctx.strokeRect(a.x,a.y,b.x-a.x,b.y-a.y);}
-  for(const dir of ['north','south','east','west'] as Dir[]){const to=neighbor(currentMap,dir),open=!!to&&state.level>=MAPS[to].tier;
+  for(const dir of ['north','south','east','west'] as Dir[]){const to=neighbor(currentMap,dir),open=!!to&&mapLvl()>=MAPS[to].tier;
     const a=worldToScreen({x:0,y:0}),b=worldToScreen({x:WORLD_WIDTH,y:WORLD_HEIGHT});const band=EDGE;
     const x0=dir==='east'?b.x-band:a.x,y0=dir==='south'?b.y-band:a.y,wd=dir==='east'||dir==='west'?band:b.x-a.x,ht=dir==='north'||dir==='south'?band:b.y-a.y;
     const g=dir==='north'?ctx.createLinearGradient(0,y0,0,y0+band):dir==='south'?ctx.createLinearGradient(0,y0+band,0,y0):dir==='west'?ctx.createLinearGradient(x0,0,x0+band,0):ctx.createLinearGradient(x0+band,0,x0,0);
@@ -2786,7 +2790,7 @@ function miniColor(e:Enemy){if(e.boss)return MINI_COLORS.boss;if(!e.captain)retu
   const friend=isAlly(e)||(!!guild&&!!e.remote?.tag&&e.remote.tag===guild.tag);return friend?MINI_COLORS.friend:MINI_COLORS.rival;}
 function drawMinimap(){const W=188,H=133,sx=(x:number)=>x/WORLD_WIDTH*W,sy=(y:number)=>y/WORLD_HEIGHT*H,th=theme();
   mini.setTransform(minimap.width/W,0,0,minimap.height/H,0,0);mini.clearRect(0,0,W,H);void th;
-  for(const dir of ['north','south','east','west'] as Dir[]){const to=neighbor(currentMap,dir);if(!to)continue;mini.fillStyle=state.level>=MAPS[to].tier?'#6fd6c4aa':'#e07a5f88';if(dir==='north')mini.fillRect(W/2-14,0,28,2);if(dir==='south')mini.fillRect(W/2-14,H-2,28,2);if(dir==='west')mini.fillRect(0,H/2-12,2,24);if(dir==='east')mini.fillRect(W-2,H/2-12,2,24);}
+  for(const dir of ['north','south','east','west'] as Dir[]){const to=neighbor(currentMap,dir);if(!to)continue;mini.fillStyle=mapLvl()>=MAPS[to].tier?'#6fd6c4aa':'#e07a5f88';if(dir==='north')mini.fillRect(W/2-14,0,28,2);if(dir==='south')mini.fillRect(W/2-14,H-2,28,2);if(dir==='west')mini.fillRect(0,H/2-12,2,24);if(dir==='east')mini.fillRect(W-2,H/2-12,2,24);}
   mini.save();mini.scale(W/WORLD_WIDTH,H/WORLD_HEIGHT);
   for(const i of islands)drawIslandSprite(mini,i,i.x,i.y);
   if(hasFleetIsland()){const f=mapDef().fleet;drawFleetBase(mini,th.fleet,f.x,f.y);}
