@@ -863,3 +863,5 @@ body{touch-action:manipulation;-webkit-tap-highlight-color:transparent;overscrol
 .guild-leave{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
 .guild-leave button{color:#ffb38a}
 .guild-leave .danger{background:#5a140c;color:#ffd0c0;border-color:#ff6a4a}
+/* Yönetici mesajı: koyu yeşil */
+.chat-log p.adm,.chat-log p.adm b{color:#1f9d45!important}.chat-log p.adm b{font-weight:800}

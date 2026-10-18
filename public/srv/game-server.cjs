@@ -3645,6 +3645,8 @@ var require_websocket_server = __commonJS({
 // server/game-server.mjs
 var game_server_exports = {};
 __export(game_server_exports, {
+  ADMIN_SHIP: () => ADMIN_SHIP,
+  AEV_HP: () => AEV_HP,
   BOSS_HIT_CAP: () => BOSS_HIT_CAP,
   BOSS_LIFE_MS: () => BOSS_LIFE_MS,
   COMBAT_HEAL_SECONDS: () => COMBAT_HEAL_SECONDS,
@@ -3677,6 +3679,11 @@ __export(game_server_exports, {
   TOWER_SLOTS: () => TOWER_SLOTS,
   USE_COOLDOWN: () => USE_COOLDOWN,
   addCredit: () => addCredit,
+  aevHit: () => aevHit,
+  aevOpen: () => aevOpen,
+  aevPools: () => aevPools,
+  aevState: () => aevState,
+  aevTier: () => aevTier,
   attackTarget: () => attackTarget,
   bossCredit: () => bossCredit,
   bossHit: () => bossHit,
@@ -3836,6 +3843,7 @@ var RIVAL_DAILY_LIMIT = 3;
 var WORLD_WIDTH = 6e3;
 var WORLD_HEIGHT = 4e3;
 var tierOf = (key) => Number(key.split("/")[0]);
+var LEVEL_XP = [0, 2e4, 2e5, 5e5, 15e5, 32e5, 58e5, 114e5];
 var THEMES = {
   1: { name: "G\xFCvenli Harita", sea: ["#09304a", "#082b43"], tint: "#6fd6c4", look: "haven", fleet: "verdant", label: "#b7d9d1" },
   2: { name: "\u0130nciyolu Denizi", sea: ["#09304a", "#082b43"], tint: "#8ff0dc", look: "coral", fleet: "coral", label: "#c8f4ea" },
@@ -5011,6 +5019,7 @@ var Rate = class {
 };
 function canJoin(c, name, now = Date.now()) {
   if (!name) return true;
+  if (c.admin && name !== SIEGE_ROOM && MAPS[seaMap(name)]) return true;
   if (!c.econ) return false;
   if (name === SIEGE_ROOM) return siegeWindowAt(now).open || SIEGE_TRIAL;
   const map = MAPS[seaMap(name)];
@@ -5472,7 +5481,7 @@ function siegeTick(now) {
 var NEAR = 1800;
 var TICK_MS = 100;
 var FAR_EVERY = 20;
-var IDENT = ["nick", "tag", "ship", "maxHp", "sp", "level"];
+var IDENT = ["nick", "tag", "ship", "maxHp", "sp", "level", "adm"];
 function queueState(c, s) {
   const id = {};
   let changed = false;
@@ -5720,7 +5729,8 @@ function attackTarget(c, d) {
   }
   if (k === "p") {
     const t = [...seas.get(c.sea) || []].find((x) => x.netId === id && x !== c);
-    if (!t?.last || c.guildId && c.guildId === t.guildId) return null;
+    if (!t?.last || c.guildId && c.guildId === t.guildId && !t.admin) return null;
+    if (t.admin && !aevOpen(c.sea)) return null;
     return { k, t, x: t.last.x, y: t.last.y, kind: "player" };
   }
   return null;
@@ -5774,6 +5784,20 @@ async function onAttack(c, d, now) {
     else await towerApply(c, tg.key, tg.slot, dmg, false, now);
     return;
   }
+  if (tg.t.admin && a !== "heal") {
+    const t2 = tg.t, r = aevHit(c, t2, dmg);
+    if (!r) return;
+    addCredit(c, r.add);
+    send(c, { t: "arew", d: r.add });
+    t2.state && (t2.state.hp = r.hp);
+    toNear(c, { t: "fire", d: { from: c.netId, to: t2.netId, x: Math.round(c.last.x), y: Math.round(c.last.y), tx: Math.round(t2.last.x), ty: Math.round(t2.last.y), ammo: a, damage: 0 } }, t2.netId);
+    if (r.sunk) {
+      const msg = JSON.stringify({ t: "chat", d: { nick: "Duyuru", tag: null, adm: true, text: `\u2693 ${c.nick} y\xF6netici gemisini bat\u0131rd\u0131! Gemi yeniden topland\u0131, avlanma s\xFCr\xFCyor.`, at: now } });
+      for (const x of all) send(x, msg);
+      toSea(c, { t: "aboom", d: { id: t2.netId } }, true);
+    }
+    return;
+  }
   const t = tg.t, f = { from: c.netId, to: t.netId, x: Math.round(c.last.x), y: Math.round(c.last.y), tx: Math.round(t.last.x), ty: Math.round(t.last.y), ammo: a, damage: 0 };
   if (a === "heal") {
     f.damage = Math.round(Math.min(raw, (t.maxHp || 163e3) * (0.08 + Math.random() * 0.012)));
@@ -5790,6 +5814,44 @@ async function onAttack(c, d, now) {
     }
   }
   toNear(c, { t: "fire", d: f }, t.netId);
+}
+var ADMIN_SHIP = "coral";
+var AEV_HP = [0, 0, 15e6, 34e6, 75e6, 112e6, 165e6, 225e6, 262e6];
+var aevTier = (sea2) => MAPS[seaMap(sea2)]?.tier ?? 0;
+var aevOpen = (sea2) => aevTier(sea2) >= 2;
+function aevPools(tier) {
+  const t = Math.max(2, Math.min(8, tier)), need = LEVEL_XP[t] || LEVEL_XP[7];
+  return { xp: need, ep: 25e4 * t, pearls: 5e3, kill: { xp: Math.round(need * 0.1), ep: 25e3 * t, pearls: 500 } };
+}
+function aevState(adm) {
+  const tier = aevTier(adm.sea);
+  if (!adm.aev || adm.aev.sea !== adm.sea) adm.aev = { sea: adm.sea, hp: AEV_HP[tier] || 0, max: AEV_HP[tier] || 0 };
+  return adm.aev;
+}
+function aevHit(c, adm, dmg) {
+  if (!aevOpen(adm.sea) || !(dmg > 0)) return null;
+  const ev = aevState(adm), tier = aevTier(adm.sea), P = aevPools(tier);
+  const d = Math.min(dmg, ev.max * 0.01, ev.hp);
+  if (!(d > 0)) return null;
+  ev.hp -= d;
+  const share = d / ev.max;
+  c.aevFrac ??= { xp: 0, ep: 0, pearls: 0 };
+  const add = {};
+  for (const k of ["xp", "ep", "pearls"]) {
+    c.aevFrac[k] += P[k] * share;
+    const n = Math.floor(c.aevFrac[k]);
+    if (n > 0) {
+      add[k] = n;
+      c.aevFrac[k] -= n;
+    }
+  }
+  let sunk = false;
+  if (ev.hp <= 0) {
+    sunk = true;
+    for (const k of ["xp", "ep", "pearls"]) add[k] = (add[k] || 0) + P.kill[k];
+    ev.hp = ev.max;
+  }
+  return { add, sunk, hp: Math.round(ev.hp), max: ev.max };
 }
 async function flushCredit(c) {
   if (c.flushing || !c.uid) return;
@@ -5897,6 +5959,7 @@ wss.on("connection", (ws) => {
       }
       for (const x of all) if (x.uid === who.uid && x !== c) x.ws.close(4004, "ba\u015Fka yerden ba\u011Flan\u0131ld\u0131");
       Object.assign(c, who);
+      c.admin = await isAdminToken(String(m.token || "")).catch(() => false);
       c.netId = String(m.netId || "").slice(0, 16) || Math.random().toString(36).slice(2, 10);
       clearTimeout(authTimer);
       await loadEcon(c);
@@ -5994,6 +6057,15 @@ wss.on("connection", (ws) => {
         }
         if (c.maxHp && s.hp > c.maxHp) s.hp = c.maxHp;
         noteHp(c, s.hp, now);
+        if (c.admin) {
+          s.adm = 1;
+          s.ship = ADMIN_SHIP;
+          if (aevOpen(c.sea)) {
+            const ev = aevState(c);
+            s.hp = Math.round(ev.hp);
+            s.maxHp = ev.max;
+          }
+        }
         c.last = { x: s.x, y: s.y, at: now };
         s.id = c.netId;
         queueState(c, s);
@@ -6160,7 +6232,7 @@ wss.on("connection", (ws) => {
         if (!c.rChat.hit(now)) return;
         const text = String(m.d?.text || "").slice(0, LIMITS.chatLen).trim();
         if (!text) return;
-        toAll(c, { t: "chat", d: { nick: c.nick, tag: m.d?.tag ?? null, text, at: now } });
+        toAll(c, { t: "chat", d: { nick: c.nick, tag: m.d?.tag ?? null, text, at: now, ...c.admin ? { adm: true } : {} } });
         return;
       }
       case "bid": {
@@ -6228,6 +6300,8 @@ if (process.env.NODE_ENV !== "test") void loadIslands();
 if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => log(`Oyun sunucusu ${PORT} portunda`));
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  ADMIN_SHIP,
+  AEV_HP,
   BOSS_HIT_CAP,
   BOSS_LIFE_MS,
   COMBAT_HEAL_SECONDS,
@@ -6260,6 +6334,11 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   TOWER_SLOTS,
   USE_COOLDOWN,
   addCredit,
+  aevHit,
+  aevOpen,
+  aevPools,
+  aevState,
+  aevTier,
   attackTarget,
   bossCredit,
   bossHit,
