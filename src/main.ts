@@ -1649,7 +1649,8 @@ const TEST_RANKERS:RankPlayer[]=[
   {nick:'ADM_DOGAN',tag:'KRK',fleet:'Kara Kartallar',level:6,xp:900_000,ep:640_000,sp:9_800,npc:3_300,monster:120,boss:3,treasure:9},
 ];
 function rankData(){const me:RankPlayer={nick:profile.nick,tag:guild?.tag??null,fleet:guild?.name??null,level:state.level,xp:state.fame,ep:state.elitePoints,sp:state.battlePoints,npc:ach.stats.npc,monster:ach.stats.monster,boss:ach.stats.boss,treasure:ach.stats.treasure,me:true};
-  const players=serverRanks?(serverRanks.some(p=>p.me)?serverRanks.map(p=>p.me?{...p,...me}:p):[me,...serverRanks]):[me,...(ELITE_TEST_MODE?TEST_RANKERS:[])],fleets:RankFleet[]=[];
+  // Sunucu sıralaması 6 saatte bir donar: kendi satırın da o anki değerlerle durur (puanlar herkes için aynı anda hesaplanır)
+  const players=serverRanks?serverRanks:[me,...(ELITE_TEST_MODE?TEST_RANKERS:[])],fleets:RankFleet[]=[];
   for(const p of players){if(!p.tag||!p.fleet)continue;let f=fleets.find(x=>x.tag===p.tag);if(!f){f={tag:p.tag,name:p.fleet,members:[]};fleets.push(f);}f.members.push(p);if(p.me)f.me=true;}
   return{players,fleets};}
 // Her sayfada 100 sıra; liste pencere içinde kayar, altta sayfa düğmeleri ve "Sıram" kısayolu
@@ -1658,16 +1659,17 @@ function renderRanks(){const {players,fleets}=rankData(),board=BOARDS.find(b=>b.
   const mine=all.findIndex(r=>r.me),from=pg.page*RANK_PAGE_SIZE;
   const row=(r:RankRow)=>`<div class="rank-row ${r.me?'me':''} ${r.rank<=3?'top'+r.rank:''}"><b>${r.rank}</b><span><span>${r.tag?`<em class="guild-tag">[${escapeHtml(r.tag)}]</em>`:''}${escapeHtml(r.name)}${r.sp!==undefined?rankBadgeHtml(battleRank(r.sp).index):''}${r.me?' <i>(sen)</i>':''}</span><small>${escapeHtml(r.sub)}</small></span><strong>${fmt(r.score)} <small>${board.unit}</small></strong></div>`;
   ui('rankPanel').innerHTML=`<div class="rank-tabs"><span>OYUNCU</span>${tabs(false)}</div><div class="rank-tabs"><span>FİLO</span>${tabs(true)}</div>
-    <p class="quest-intro">${board.desc}. ${ELITE_TEST_MODE?'Test modu: örnek kaptanlar listede. ':''}Sunucu açılınca bütün oyuncular burada sıralanacak.</p>
+    <p class="quest-intro">${board.desc}. ${ELITE_TEST_MODE?'Test modu: örnek kaptanlar listede. ':''}${rankAt?`Sıralama 6 saatte bir yenilenir · son güncelleme ${rankAt.toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} · sonraki ${new Date(rankAt.getTime()+6*3600e3).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'})}`:'Sıralama 6 saatte bir yenilenir.'}</p>
     <div class="rank-table" id="rankTable">${pg.rows.length?pg.rows.map(row).join(''):`<p class="rank-empty">${board.fleet?'Henüz sıralamada filo yok. Bir filo kur ya da bir filoya katıl.':'Henüz sıralamada kimse yok.'}</p>`}</div>
     <div class="rank-pager"><button data-page="${pg.page-1}" ${pg.page<=0?'disabled':''}>‹ ÖNCEKİ</button><span>Sayfa ${pg.page+1} / ${pg.pages}${all.length?` · ${fmt(from+1)}–${fmt(from+pg.rows.length)}. sıra`:''}</span>${mine>=0?`<button data-page="${Math.floor(mine/RANK_PAGE_SIZE)}" class="rank-mine">SIRAM: ${fmt(all[mine].rank)}</button>`:''}<button data-page="${pg.page+1}" ${pg.page>=pg.pages-1?'disabled':''}>SONRAKİ ›</button></div>`;
   ui('rankPanel').querySelectorAll<HTMLButtonElement>('[data-board]').forEach(b=>b.onclick=()=>{rankBoard=b.dataset.board as BoardId;rankPageNo=0;renderRanks();});
   ui('rankPanel').querySelectorAll<HTMLButtonElement>('[data-page]').forEach(b=>b.onclick=()=>{rankPageNo=Number(b.dataset.page);renderRanks();
     const me=ui('rankTable').querySelector<HTMLElement>('.rank-row.me');if(b.classList.contains('rank-mine')&&me)me.scrollIntoView({block:'center'});else ui('rankTable').scrollTop=0;});}
 // Hesapla oynarken sıralama sunucudaki değerlerden gelir (rank_players); bağlantı yoksa yalnız bu kaptan görünür
-let serverRanks:RankPlayer[]|null=null;
+let serverRanks:RankPlayer[]|null=null,rankAt:Date|null=null;
 async function loadServerRanks(){const sb=supa();if(!sb||!session.account)return;const {data,error}=await sb.rpc('rank_players');if(error||!Array.isArray(data))return;
   serverRanks=(data as (RankPlayer&{me:boolean})[]).map(r=>({nick:r.nick,tag:r.tag,fleet:r.fleet,level:Number(r.level),xp:Number(r.xp),ep:Number(r.ep),sp:Number(r.sp),npc:Number(r.npc),monster:Number(r.monster),boss:Number(r.boss),treasure:Number(r.treasure),me:r.me}));
+  {const at=(data[0] as {at?:string}|undefined)?.at;rankAt=at?new Date(at):null;}
   if(ui('rankOverlay').classList.contains('open'))renderRanks();}
 function openRanks(){rankPageNo=0;renderRanks();ui('rankOverlay').classList.add('open');void loadServerRanks();}
 function closeRanks(){ui('rankOverlay').classList.remove('open');}
