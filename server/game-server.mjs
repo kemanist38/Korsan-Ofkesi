@@ -23,6 +23,7 @@ import {sparkleMult,goldMult,xpMult,epMult,spMult} from '../src/events.ts';
 import {HERO_DAMAGE,HERO_DAYS} from '../src/siege.ts';
 import {createChest} from '../src/loot.ts';
 import {fleetReward,LEVEL_XP} from '../src/campaign.ts';
+import {ELITE_SHIPS} from '../src/elite-ships.ts';
 import {contribReward,earnsChest,victoryChest} from '../src/siege.ts';
 import {levelQuestGoal,levelQuestTargets,levelQuestMap} from '../src/level-quest.ts';
 
@@ -572,6 +573,9 @@ async function onAttack(c,d,now){if(!c.ldRaw||!c.last)return;const tg=attackTarg
 // yüksek canlı bir gemiye dönüşür. Can ve ödüller denizin seviyesine göre; her isabet verilen hasar kadar TP, EP ve inci kazandırır,
 // son vuruşu yapan ayrıca batırma ödülü alır. Can sunucuda tutulur; yöneticinin gemisi oyuncu savaşının can kurallarına girmez.
 export const ADMIN_SHIP='coral';
+// Görünen gemi: elit gemi yalnızca elit açılmışsa ve elit seviyesi o gemiye yetiyorsa gösterilir, yoksa başlangıç gemisi
+export function shipAllowed(st,ship){const e=ELITE_SHIPS.find(x=>x.id===ship);if(!e)return'starter';
+  return st&&Number(st.elite)>0&&eliteLevelFromEp(Number(st.ep)||0)>=e.level?ship:'starter';}
 export const AEV_HP=[0,0,15e6,34e6,75e6,112e6,165e6,225e6,262e6];
 export const aevTier=sea=>MAPS[seaMap(sea)]?.tier??0;
 export const aevOpen=sea=>aevTier(sea)>=2;
@@ -636,6 +640,7 @@ wss.on('connection',ws=>{
         {const land=onLand(seaMap(c.sea),s.x,s.y);if(land){c.landHits=(c.landHits||0)+1;if(c.landHits%10===1)suspect(c,'karaya çıkma',land);if(c.last)send(c,{t:'pos',d:{x:c.last.x,y:c.last.y}});return;}}
         if(num(s.maxHp)){const cap=hpCap(c.econ);if(s.maxHp>cap*1.02){suspect(c,'can sınırı',`${Math.round(s.maxHp)}>${cap}`);s.maxHp=cap;}c.maxHp=s.maxHp;}
         if(c.maxHp&&s.hp>c.maxHp)s.hp=c.maxHp;noteHp(c,s.hp,now);
+        if(s.ship!==undefined)s.ship=shipAllowed(c.econ,s.ship);
         if(c.admin){s.adm=1;s.ship=ADMIN_SHIP;if(aevOpen(c.sea)){const ev=aevState(c);s.hp=Math.round(ev.hp);s.maxHp=ev.max;if(now-(c.ahpAt||0)>1000){c.ahpAt=now;send(c,{t:'ahp',d:{hp:s.hp,max:ev.max}});}}}
         c.last={x:s.x,y:s.y,at:now};s.id=c.netId;queueState(c,s);return;}
       case'fire':return; // oyuncular arası atış yalnız sunucu atışıyla (atk); oyuncunun bildirdiği hasar kabul edilmez

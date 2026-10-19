@@ -292,3 +292,10 @@ test('admin event: protected on level-1 seas, damage pays share, last hit pays b
   let n=0,last;while(!(last=S.aevHit(c,adm,1e9)).sunk&&n<200)n++;
   assert.ok(last.sunk);assert.equal(last.hp,34e6);const P=S.aevPools(3);assert.ok(last.add.pearls>=P.kill.pearls&&last.add.xp>=P.kill.xp);
 });
+test('shown ship: an elite hull is shown only when that elite level is unlocked',()=>{
+  assert.equal(S.shipAllowed({elite:0,ep:1e9},'coral'),'starter');
+  assert.equal(S.shipAllowed({elite:1,ep:0},'phantom'),'phantom');
+  assert.equal(S.shipAllowed({elite:1,ep:0},'coral'),'starter');
+  assert.equal(S.shipAllowed({elite:1,ep:36_000_000},'coral'),'coral');
+  assert.equal(S.shipAllowed({elite:1,ep:1e9},'nope'),'starter');
+});
