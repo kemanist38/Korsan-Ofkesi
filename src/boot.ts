@@ -60,7 +60,7 @@ function askNick(sb:SupabaseClient,user:User):Promise<{player_no:number;nick:str
 }
 async function loadProfileRow(sb:SupabaseClient,user:User,nick?:string){
   const {data,error}=await sb.from('profiles').select('player_no,nick,banned').eq('id',user.id).maybeSingle();if(error)throw error;
-  if(data?.banned){const r=await sb.from('profiles').select('ban_reason').eq('id',user.id).maybeSingle();throw new Banned(String((r.data as {ban_reason?:string}|null)?.ban_reason??''));}
+  if(data?.banned){const r=await sb.rpc('my_ban_reason');throw new Banned(String(r.data??''));}
   if(data)return data;
   const wanted=nick??(typeof user.user_metadata?.nick==='string'?user.user_metadata.nick:'');
   if(wanted&&!nickError(wanted)){const r=await sb.from('profiles').insert({id:user.id,nick:wanted}).select('player_no,nick').single();if(!r.error)return r.data;}

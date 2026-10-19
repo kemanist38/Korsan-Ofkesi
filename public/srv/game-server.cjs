@@ -3747,6 +3747,7 @@ __export(game_server_exports, {
   seaMines: () => seaMines,
   seaNpcs: () => seaNpcs,
   seaTier: () => seaTier,
+  shipAllowed: () => shipAllowed,
   shotCheck: () => shotCheck,
   siegeCredit: () => siegeCredit,
   siegeHitPiece: () => siegeHitPiece,
@@ -4313,6 +4314,26 @@ function createChest(source, x, y, gildedBonus = 0, tier = 1, rand = Math.random
   else c.mine = k;
   return c;
 }
+
+// src/elite-ships.ts
+var ELITE_SHIPS = [
+  { id: "phantom", level: 1, name: "Hayalet Kad\u0131rga", english: "The Phantom Galleon", asset: "/assets/elite-phantom-art-v23.webp", role: "Ka\xE7\u0131\u015F" },
+  { id: "magma", level: 2, name: "Volkanik Z\u0131rhl\u0131", english: "Volcanic Dreadnought", asset: "/assets/elite-magma-art-v23.webp", role: "Alan hasar\u0131" },
+  { id: "glacial", level: 3, name: "Buzul Tiran\u0131", english: "Glacial Tyrant", asset: "/assets/elite-glacial-art-v23.webp", role: "Kontrol" },
+  { id: "kraken", level: 4, name: "Kraken'in Gazab\u0131", english: "Kraken's Embrace", asset: "/assets/elite-kraken-art-v23.webp", role: "Yakalama" },
+  { id: "ironclad", level: 5, name: "Veba Kad\u0131rgas\u0131", english: "Plague Galley", asset: "/assets/elite-ironclad-art-v23.webp", role: "Tank" },
+  { id: "crimson", level: 6, name: "Kanl\u0131 Ay Korveti", english: "Crimson Moon Corsair", asset: "/assets/elite-crimson-art-v23.webp", role: "Can emme" },
+  { id: "atlantean", level: 7, name: "Kadim Atlantis Muhaf\u0131z\u0131", english: "Atlantean Sentry", asset: "/assets/elite-atlantean-art-v23.webp", role: "Koruma" },
+  { id: "bone", level: 8, name: "Kemik Bi\xE7ici", english: "Bone Harvester", asset: "/assets/elite-bone-art-v23.webp", role: "\u0130nfaz" },
+  { id: "tempest", level: 9, name: "F\u0131rt\u0131na Habercisi", english: "Tempest Harbinger", asset: "/assets/elite-tempest-art-v23.webp", role: "Zincir hasar" },
+  { id: "sovereign", level: 10, name: "Kraliyet Sancaktar\u0131", english: "Royal Standard-Bearer", asset: "/assets/elite-sovereign-art-v23.webp", role: "Destek / ganimet" },
+  { id: "jade", level: 11, name: "Ye\u015Fim Ejderha", english: "Jade Dragon", asset: "/assets/elite-jade-art-v23.webp", role: "Menzil" },
+  { id: "ragnarok", level: 12, name: "Ragnarok Y\u0131k\u0131c\u0131s\u0131", english: "Ragnarok Destroyer", asset: "/assets/elite-ragnarok-art-v23.webp", role: "\xD6fke" },
+  { id: "void", level: 13, name: "Hi\xE7lik H\xFCk\xFCmdar\u0131", english: "Void Monarch", asset: "/assets/elite-void-art-v23.webp", role: "Kaos" },
+  { id: "coral", level: 14, name: "Kara \xD6fke", english: "Black Fury", asset: "/assets/elite-coral-art-v23.webp", role: "\u0130yile\u015Ftirme" },
+  { id: "sand", level: 15, name: "Alevli Ta\xE7", english: "Flaming Crown", asset: "/assets/elite-sand-art-v23.webp", role: "H\u0131z / gizlilik" }
+];
+var ELITE_DIR16 = Object.fromEntries(ELITE_SHIPS.map((s) => [s.id, `/assets/elite-${s.id}-dir16-v1.webp`]));
 
 // src/level-quest.ts
 var levelQuestTargets = (level) => ({ ships: [`n${level}-1-heavy`, `n${level}-2-heavy`], tier: level });
@@ -5816,6 +5837,11 @@ async function onAttack(c, d, now) {
   toNear(c, { t: "fire", d: f }, t.netId);
 }
 var ADMIN_SHIP = "coral";
+function shipAllowed(st, ship) {
+  const e = ELITE_SHIPS.find((x) => x.id === ship);
+  if (!e) return "starter";
+  return st && Number(st.elite) > 0 && eliteLevelFromEp(Number(st.ep) || 0) >= e.level ? ship : "starter";
+}
 var AEV_HP = [0, 0, 15e6, 34e6, 75e6, 112e6, 165e6, 225e6, 262e6];
 var aevTier = (sea2) => MAPS[seaMap(sea2)]?.tier ?? 0;
 var aevOpen = (sea2) => aevTier(sea2) >= 2;
@@ -6057,6 +6083,7 @@ wss.on("connection", (ws) => {
         }
         if (c.maxHp && s.hp > c.maxHp) s.hp = c.maxHp;
         noteHp(c, s.hp, now);
+        if (s.ship !== void 0) s.ship = shipAllowed(c.econ, s.ship);
         if (c.admin) {
           s.adm = 1;
           s.ship = ADMIN_SHIP;
@@ -6406,6 +6433,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   seaMines,
   seaNpcs,
   seaTier,
+  shipAllowed,
   shotCheck,
   siegeCredit,
   siegeHitPiece,
