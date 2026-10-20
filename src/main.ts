@@ -126,6 +126,7 @@ const mini = minimap.getContext('2d')!;
 document.documentElement.style.setProperty('--starter-ship','url("/assets/starter-art-v2.webp")');
 // Başlangıç gemisinin 3D modelden 16 yönlü görünüşü (elitlerle aynı kare düzeni)
 const STARTER_DIR16='/assets/starter-dir16-v1.webp';
+const ADMIN_DIR16='/assets/admin-dir16-v1.webp';
 // Başlangıç gemisi "Yedi Deniz": 8 yönlü sayfa (4 × 2, 256 px; elitlerle aynı kare sırası)
 document.documentElement.style.setProperty('--pirate-icons','url("/assets/pirate-ui-icons-v1.webp")');
 ([['/assets/icon-world-v2.webp','worldMapIcon'],['/assets/icon-world-v2.webp','menuWorldIcon'],['/assets/icon-ship-nav-v2.webp','shipNavIcon']] as const).forEach(([src,id])=>{const img=document.getElementById(id) as HTMLImageElement|null;if(img)img.src=src;});
@@ -1913,7 +1914,7 @@ const isoFace={east:false,north:false};let isoMove:IsoMove|null=null;
 // Bütün gemiler (başlangıç gemisi dahil) Seafight usulü 4 çaprazda merdiven hareketiyle gider
 const isoShip=()=>true;
 // 16 yönlü görseli olan gemi (özel tasarım ya da elit): hedefe dümdüz gider, görünüş gidiş yönünden seçilir
-const dir16Sprite=()=>activeSpecialDesign?PIRATE_RAGE_DESIGN.dir16:eliteEnabled()?ELITE_DIR16[eliteShip().id]??null:STARTER_DIR16;
+const dir16Sprite=()=>session.isAdmin?ADMIN_DIR16:activeSpecialDesign?PIRATE_RAGE_DESIGN.dir16:eliteEnabled()?ELITE_DIR16[eliteShip().id]??null:STARTER_DIR16;
 // Düz gidiş (16 yönlü gemiler): yerde sabit hız, ekranda dikey bileşen yarı ölçekli (çapraz hareketle aynı perspektif)
 function straightAdvance(px:number,py:number,tx:number,ty:number,V:number,dt:number){
   const dx=tx-px,dy=ty-py,gx=dx,gy=dy*2,g=Math.hypot(gx,gy);
@@ -2653,7 +2654,7 @@ function captainHit(t:Enemy,s:Shot,from:Enemy|null){const dmg=Math.round(s.damag
   if(s.ammo==='leech'&&from){const h=leechHeal(dmg,true,from.maxHp);if(h>0){from.hp=Math.min(from.maxHp,from.hp+h);spawnSoul(t,from);}}
   if(from&&t.captain&&!t.captain.foe)t.captain.foe=from;if(t.hp<=0)sinkEnemy(t);}
 // Kaptan gemisi karesi: 16 yönlü görsel (çevrim içi oyuncu kendi yönünü gönderir; yoksa hızdan ya da son çaprazdan) ya da 4 çapraz
-function captainFrame(e:Enemy):[HTMLImageElement,number,number,number,number]|null{const c=e.captain!,d16=e.remoteShip==='starter'?STARTER_DIR16:ELITE_DIR16[c.elite];
+function captainFrame(e:Enemy):[HTMLImageElement,number,number,number,number]|null{const c=e.captain!,d16=e.remoteShip==='admin'?ADMIN_DIR16:e.remoteShip==='starter'?STARTER_DIR16:ELITE_DIR16[c.elite];
   if(d16){const im=eliteIsoImage(d16);if(im.complete&&im.naturalWidth){const h=im.naturalHeight,r=e.remote;
     let k=e.dir16;if(k==null&&r&&Math.hypot(r.vx,r.vy)>25)k=(8+Math.round(Math.atan2(r.vy*2,r.vx)/(Math.PI/8))+16)%16;
     if(k==null){const f=e.face??{east:true,north:false};k=f.north?(f.east?6:2):(f.east?10:14);}
