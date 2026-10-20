@@ -1530,7 +1530,8 @@ function drawCaptainName(x:number,y:number,tag:string,nick:string,size=17,rank=-
   const t=ctx.getTransform(),sc=Math.min(4,Math.max(.5,Math.round(Math.hypot(t.a,t.b)*4)/4)),ready=rank<0||(rankSheet.complete&&rankSheet.naturalWidth>0);
   const key=`${size}|${rank}|${sc}|${tag}|${nick}|${adm?1:0}`;let l=ready?nameCache.get(key):undefined;
   if(!l){l=renderCaptainName(tag,nick,size,rank,sc,adm);if(ready){if(nameCache.size>300)nameCache.clear();nameCache.set(key,l);}}
-  const bs=rank>=0?Math.round(size*2.6):0,tw=l.w+(bs?bs+3:0);ctx.drawImage(l.c,x-tw/2-l.pad,y-l.h/2,l.c.width/l.sc,l.c.height/l.sc);return l.w;}
+  // Ad gemiye ortalı; rütbe rozeti adın soluna taşar
+  const bs=rank>=0?Math.round(size*2.6):0;ctx.drawImage(l.c,x-l.w/2-(bs?bs+3:0)-l.pad,y-l.h/2,l.c.width/l.sc,l.c.height/l.sc);return l.w;}
 // Güverte işareti: adın altında ortalı; kademesi batırılan rakip sayısına göre (sayı yazılmaz)
 let rivalSinks=ELITE_TEST_MODE?Math.max(loadRivalSinks(),12_500):loadRivalSinks();
 const insigniaImg=new Image();insigniaImg.src=INSIGNIA_SHEET;
