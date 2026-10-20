@@ -297,5 +297,6 @@ test('shown ship: an elite hull is shown only when that elite level is unlocked'
   assert.equal(S.shipAllowed({elite:1,ep:0},'phantom'),'phantom');
   assert.equal(S.shipAllowed({elite:1,ep:0},'coral'),'starter');
   assert.equal(S.shipAllowed({elite:1,ep:36_000_000},'coral'),'coral');
+  assert.equal(S.ADMIN_SHIP,'admin');
   assert.equal(S.shipAllowed({elite:1,ep:1e9},'nope'),'starter');
 });

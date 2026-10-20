@@ -572,7 +572,7 @@ async function onAttack(c,d,now){if(!c.ldRaw||!c.last)return;const tg=attackTarg
 // Yönetici 1. seviye denizlerde (1/1, 1/2) saldırıya kapalıdır; daha üst denizlerde 20–30 kaptanın 5–10 dk'da batırabileceği
 // yüksek canlı bir gemiye dönüşür. Can ve ödüller denizin seviyesine göre; her isabet verilen hasar kadar TP, EP ve inci kazandırır,
 // son vuruşu yapan ayrıca batırma ödülü alır. Can sunucuda tutulur; yöneticinin gemisi oyuncu savaşının can kurallarına girmez.
-export const ADMIN_SHIP='coral';
+export const ADMIN_SHIP='admin';
 // Görünen gemi: elit gemi yalnızca elit açılmışsa ve elit seviyesi o gemiye yetiyorsa gösterilir, yoksa başlangıç gemisi
 export function shipAllowed(st,ship){const e=ELITE_SHIPS.find(x=>x.id===ship);if(!e)return'starter';
   return st&&Number(st.elite)>0&&eliteLevelFromEp(Number(st.ep)||0)>=e.level?ship:'starter';}

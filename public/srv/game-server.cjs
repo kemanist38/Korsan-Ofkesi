@@ -5836,7 +5836,7 @@ async function onAttack(c, d, now) {
   }
   toNear(c, { t: "fire", d: f }, t.netId);
 }
-var ADMIN_SHIP = "coral";
+var ADMIN_SHIP = "admin";
 function shipAllowed(st, ship) {
   const e = ELITE_SHIPS.find((x) => x.id === ship);
   if (!e) return "starter";
