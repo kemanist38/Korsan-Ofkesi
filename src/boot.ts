@@ -94,7 +94,8 @@ async function enter(sb:SupabaseClient,user:User,nick?:string){
       const {data,error:e}=await sb.rpc('wallet_sync',{p_spent:Math.max(pearlBase-cur,0),p_earned:Math.max(cur-pearlBase,0)});if(e)return;
       const server=Number(data);const fix=server-cur;pearlBase=server;if(fix)session.onPearlFix?.(fix);};
     session.account={uid:user.id,playerNo:prof.player_no,email:user.email??''};
-    session.rename=async n=>{const {error:e}=await sb.from('profiles').update({nick:n}).eq('id',user.id);return e?(e.code==='23505'?'Bu kaptan adı alınmış':trErr(e.message)):null;};
+    session.rename=async n=>{const {error:e}=await sb.rpc('set_nick',{p_nick:n});return e?(e.code==='23505'?'Bu kaptan adı alınmış':trErr(e.message.replace(/^.*?: /,''))):null;};
+    session.passwordReset=user.email?()=>sendReset(sb,user.email!):null;
     let last=JSON.stringify(collectSave());
     const push=async(force=false)=>{await (econOk?syncEconomy():syncPearls()).catch(()=>{});const data=collectSave(),s=JSON.stringify(data);if(!force&&s===last)return;
       const {error:e}=await sb.from('saves').upsert({user_id:user.id,data,updated_at:new Date().toISOString()});if(!e)last=s;};
