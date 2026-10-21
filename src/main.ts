@@ -726,6 +726,7 @@ if(session.account&&iapAvailable())void iapInit(session.account.uid).then(()=>{i
 ui('pearlShopOverlay').addEventListener('pointerdown',e=>{if(e.target===ui('pearlShopOverlay'))closePearlShop();});ui('closeShopTabs').onclick=closeShops;
 function openMenu(){closeShops();closePearlShop();ui('menuOverlay').classList.add('open');}
 function closeMenu(){ui('menuOverlay').classList.remove('open');}
+ui('logoutCorner').parentElement!.append(ui('logoutCorner'));// çıkış düğmesi en sağda
 ui('openMenu').onclick=openMenu;ui('logoutCorner').onclick=requestLogout;if(!session.logout)ui('logoutCorner').hidden=true;ui('closeMenu').onclick=closeMenu;ui('menuOverlay').addEventListener('pointerdown',e=>{if(e.target===ui('menuOverlay'))closeMenu();});
 ui('openMenuQuests').onclick=openQuestLog;ui('openMenuWorld').onclick=openWorldMap;
 // menüdeki bir kutuya tıklanınca hedef pencere açılır, menü kapanır
@@ -745,16 +746,16 @@ function makeShip(def:NpcDef,x:number,y:number,angle:number):Enemy{
 }
 const regularEnemyCount=()=>enemies.filter(e=>!e.tower&&!e.boss).length;
 // Adalardan, filo adasından ve oyuncudan uzak rastgele deniz noktası
-// Çıkış: 15 sn hasar almadan beklenir; vurulursa geri sayım baştan başlar.
-const LOGOUT_SAFE=15;let logoutPending=false,logoutShown=-1;
+// Çıkış: her zaman 15 sn beklenir (savaşta olmasa da); bu sürede hasar alınırsa geri sayım baştan başlar.
+const LOGOUT_SAFE=15;let logoutPending=false,logoutShown=-1,logoutAt=0;
 function tickLogout(){
-  if(!logoutPending)return;const left=Math.ceil(LOGOUT_SAFE-playerHitClock);
+  if(!logoutPending)return;const waited=Math.min((performance.now()-logoutAt)/1000,playerHitClock),left=Math.ceil(LOGOUT_SAFE-waited);
   if(left<=0){logoutPending=false;ui('logoutCorner').classList.remove('pending');toast('Çıkış yapılıyor…');void session.logout?.();return;}
-  if(left!==logoutShown){logoutShown=left;toast(left===LOGOUT_SAFE&&logoutShown>0?'Hasar aldın — çıkış sayacı yeniden başladı':`Çıkış: ${left} sn (hasar alma)`);}
+  if(left!==logoutShown){const reset=logoutShown>0&&left>logoutShown;logoutShown=left;toast(reset?'Hasar aldın — çıkış sayacı yeniden başladı':`Çıkış: ${left} sn (hasar alma)`);}
 }
 function requestLogout(){
   if(!session.logout)return;if(logoutPending){logoutPending=false;ui('logoutCorner').classList.remove('pending');toast('Çıkış iptal edildi');return;}
-  logoutPending=true;logoutShown=-1;ui('logoutCorner').classList.add('pending');tickLogout();
+  logoutPending=true;logoutShown=-1;logoutAt=performance.now();ui('logoutCorner').classList.add('pending');tickLogout();
 }
 function randomSeaPoint(minPlayerDist:number){
   for(let tries=0;tries<60;tries++){const p={x:160+Math.random()*(WORLD_WIDTH-320),y:160+Math.random()*(WORLD_HEIGHT-320)};const f=mapDef().fleet;
