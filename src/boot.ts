@@ -5,6 +5,7 @@ import './auth.css';
 import {supa} from './supabase';
 import {loginWithName,setRemember,enforceRemember,sendReset,SIGNUPS_OPEN} from './login';
 import {session} from './session';
+import {onAppLink} from './native';
 import {applySave,claimOwner,collectSave} from './cloud-save';
 import {nickError,saveProfile,NICK_MAX} from './profile';
 import type {SupabaseClient,User} from '@supabase/supabase-js';
@@ -120,6 +121,10 @@ async function boot(){
   const q=new URLSearchParams(location.search),fromReset=q.get('sifre')==='yeni'||/type=recovery/.test(location.hash);
   let recovering=false;const recover=()=>{if(recovering)return;recovering=true;history.replaceState(null,'',location.pathname);showNewPassword(sb);};
   sb.auth.onAuthStateChange((ev)=>{if(ev==='PASSWORD_RECOVERY')recover();});
+  // Uygulamada: e-postadaki şifre sıfırlama bağlantısı uygulamayı açar; oturum bağlantıdaki anahtarlarla kurulur, yeni şifre sorulur
+  void onAppLink(async url=>{const h=new URLSearchParams(url.split('#')[1]??'');if(h.get('type')!=='recovery')return;
+    const access_token=h.get('access_token'),refresh_token=h.get('refresh_token');if(!access_token||!refresh_token)return;
+    const {error:e}=await sb.auth.setSession({access_token,refresh_token});if(!e){recovering=false;recover();}});
   if(!fromReset)await enforceRemember(sb);
   const {data}=await sb.auth.getSession();
   if(fromReset&&data.session)recover();
