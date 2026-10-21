@@ -1,0 +1,44 @@
+/* Üst çerçeve ve mini harita düzeni (v2): orta bar kaldırıldı.
+   Üst çerçeve: solda casus, ortada seviye + TP + CP, sağda altın/inci. Koordinata git mini haritanın üstünde,
+   Arena düğmesi Dünya ve Görevler'in altında, günün etkinliği (Altın +%50) yakınlaştırma çubuğunun altında. */
+.top-status.retired{display:none!important}
+.info-strip .spy-go{position:static!important}
+.strip-stats{position:absolute;left:50%;top:0;height:100%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;pointer-events:auto}
+.strip-stats .status-line{position:relative!important;display:flex!important;align-items:center;gap:4px;width:150px;height:14px;top:auto!important;left:auto!important;inset:auto!important}
+.strip-stats .status-line span{position:static!important;transform:none!important;display:block!important;font:800 9px Inter,sans-serif!important;color:#f3d496!important;text-shadow:0 1px 2px #000;flex:none}
+.strip-stats .status-line>i{position:relative!important;inset:auto!important;flex:1;height:12px!important;display:block;overflow:hidden;border:1px solid #ad8154!important;border-radius:6px!important;background:#0d0807!important;box-shadow:inset 0 1px 3px #000c!important}
+.strip-stats .status-line>i>em{position:absolute;left:0;top:0;bottom:0;display:block;border-radius:5px}
+.strip-stats .xp-line>i>em{background:linear-gradient(90deg,#56229a,#b15aff)}
+.strip-stats .hp-line>i>em{background:linear-gradient(90deg,#1b8fb0,#4fd7e8)}
+.strip-stats .status-line b{position:absolute!important;left:18px!important;right:0!important;top:0!important;bottom:0!important;inset:auto;display:grid!important;place-items:center;line-height:14px!important;font:800 9px Inter,sans-serif!important;color:#fff!important;text-shadow:0 1px 2px #000,0 0 3px #000;white-space:nowrap;pointer-events:none}
+.strip-stats .top-level{position:relative!important;left:auto!important;top:auto!important;transform:none!important;width:auto!important;min-width:18px;height:16px!important;aspect-ratio:auto!important;padding:0 5px;display:grid!important;place-items:center;border:1px solid #f1c662!important;border-radius:8px!important;background:linear-gradient(#7a1e12,#3a0c06)!important;color:#ffe2a0!important;font:800 10px Inter,sans-serif!important;text-shadow:0 1px 2px #000!important;box-shadow:none!important}
+.strip-stats .top-level::before,.strip-stats .top-level::after{content:none!important}
+
+/* Koordinata git: mini haritanın hemen üstünde */
+.map-cluster{margin-top:26px}
+.map-cluster .coord-go{position:absolute!important;left:50%;transform:translateX(-50%);top:-24px;height:20px;display:flex;align-items:center;gap:4px;pointer-events:auto;padding:0 6px;border:1px solid #8a5a2c;border-radius:5px;background:linear-gradient(#3a1612,#1e0b09);box-shadow:0 2px 6px #000a}
+.map-cluster .coord-go>span{display:none!important}
+
+/* Arena düğmesi: Dünya ve Görevler gibi yuvarlak simge */
+.world-map-button.arena-button{top:156px;overflow:visible}
+.arena-button img{width:42px!important;height:42px!important}
+.arena-button span{top:54px}
+
+/* Günün etkinliği rozeti: yakınlaştırma çubuğunun altında, ortalı */
+.map-cluster .day-badge{left:50%!important;top:226px!important;transform:translateX(-50%);white-space:nowrap}
+
+/* Telefonda üst çerçeve dar: seviye + TP + CP çerçeveye yapışık ikinci satırda (çerçevenin altına asılı) */
+@media (max-width:700px){
+  .strip-stats{position:fixed;top:var(--strip);left:50%;transform:translateX(-50%);height:18px;gap:5px;padding:0 8px 2px;border:1px solid #8a5a2c;border-top:0;border-radius:0 0 9px 9px;background:linear-gradient(#2a1210,#1a0a08);box-shadow:0 3px 6px #000a;z-index:44}
+  .strip-stats .status-line{width:90px}
+  .info-strip .spy-go input{width:84px!important}
+}
+/* Tersane: elit puan ilerleme çubuğu */
+.ep-progress{grid-column:1/-1;margin:2px 0 10px;padding:10px 12px;border:1px solid #c69b4e66;border-radius:9px;background:linear-gradient(160deg,#0f2a32,#06151b)}
+.ep-progress .ep-ends{display:flex;justify-content:space-between;font:700 11px Inter,sans-serif;color:#b9c7c6;margin-bottom:6px}
+.ep-progress .ep-ends b{display:block;font:700 13px Cinzel,serif;color:#f3d496}
+.ep-progress .ep-ends span:last-child{text-align:right}
+.ep-progress i{position:relative;display:block;height:20px;border:1px solid #ad8154;border-radius:10px;background:#0a0705;overflow:hidden;box-shadow:inset 0 2px 4px #000c}
+.ep-progress em{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#127567,#43dcb0);border-radius:9px}
+.ep-progress strong{position:absolute;inset:0;display:grid;place-items:center;font:800 11px Inter,sans-serif;color:#fff;text-shadow:0 1px 2px #000,0 0 3px #000}
+.ep-progress small{display:block;margin-top:6px;color:#9fb1b3;font-size:10.5px}
