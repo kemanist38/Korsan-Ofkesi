@@ -1397,7 +1397,7 @@ function closeSupply(){ui('supplyOverlay').classList.remove('open');}
 function renderSupply(){
   renderBuyRows('supplyList',[...(Object.keys(SUPPLY_PRICES) as SupplyId[]).map(id=>({id,name:QUICK_ITEMS[id].name,art:`<div class="ammo-icon">${itemAsset(id)}<b>${fmt(arsenal[id])}</b></div>`,
     desc:QUICK_ITEMS[id].description,unit:SUPPLY_PRICES[id] as Price,give:(n:number)=>{arsenal[id]+=n;},after:renderSupply})),
-    {id:'spyShield',name:'Casus Kalkanı',art:`<div class="ammo-icon"><img class="raster-item" src="/assets/icon-shield-v3.webp" alt=""/><b>${fmt(arsenal.spyShield)}</b></div>`,desc:'Gemine gönderilen her casusu yakalar ve 1 hak harcar; hakların bitince sonraki casus konumunu öğrenir. Örn. 10 hak → 10 casus engellenir, 11. casus konumunu bulur.',unit:{amount:SPY_SHIELD_PRICE,currency:'pearls'},give:(n:number)=>{arsenal.spyShield+=n;},after:renderSupply}]);
+    {id:'spyShield',name:'Casus Kalkanı',art:`<div class="ammo-icon"><img class="raster-item" src="/assets/icon-spy-shield-v1.webp" alt=""/><b>${fmt(arsenal.spyShield)}</b></div>`,desc:'Gemine gönderilen her casusu yakalar ve 1 hak harcar; hakların bitince sonraki casus konumunu öğrenir. Örn. 10 hak → 10 casus engellenir, 11. casus konumunu bulur.',unit:{amount:SPY_SHIELD_PRICE,currency:'pearls'},give:(n:number)=>{arsenal.spyShield+=n;},after:renderSupply}]);
 }
 // ---------------------------------------------------------------- Altın ihalesi (src/auction.ts)
 let auction=loadAuction(Date.now());
@@ -2542,7 +2542,7 @@ function giveBundle(r:BundleReward){if(r.gold)state.gold+=r.gold;if(r.pearls)sta
   let eq='';if(r.equip){const pool=EQUIPMENT.filter(e=>e.rarity===(r.equip==='epic'?2:0)),e=pool[Math.floor(Math.random()*pool.length)];if(e){equipOwned[e.id]=(equipOwned[e.id]??0)+1;eq=e.name;}}
   if(r.design){designOwned=true;saveDesignOwned();}
   saveArsenal(arsenal);saveAccount();renderQuickSlots();updateUI();return eq;}
-const REWARD_ICONS:[string,string][]=[['Altın','icon-gold-v1'],['İnci','icon-pearl-v1'],['Zincir','ammo-chain-v2'],['Ateş','ammo-fire-v2'],['Alev','ammo-fire-v2'],['Patlayıcı','ammo-explosive-v2'],['Kule Kırıcı','ammo-breaker-v2'],['Barut','icon-powder-v4'],['Kalkan','icon-shield-v3'],['Hız','icon-speed-potion-v2'],['Can Emici','ammo-leech-v2'],['Şifa','ammo-heal-v1'],['Mayın','icon-mine-v2'],['Donanım','icon-anvil-v2']];
+const REWARD_ICONS:[string,string][]=[['Altın','icon-gold-v1'],['İnci','icon-pearl-v1'],['Casus Kalkanı','icon-spy-shield-v1'],['Zincir','ammo-chain-v2'],['Ateş','ammo-fire-v2'],['Alev','ammo-fire-v2'],['Patlayıcı','ammo-explosive-v2'],['Kule Kırıcı','ammo-breaker-v2'],['Barut','icon-powder-v4'],['Kalkan','icon-shield-v3'],['Hız','icon-speed-potion-v2'],['Can Emici','ammo-leech-v2'],['Şifa','ammo-heal-v1'],['Mayın','icon-mine-v2'],['Donanım','icon-anvil-v2']];
 function rewardLi(t:string){const ic=REWARD_ICONS.find(([k])=>t.includes(k));return`<li>${ic?`<img src="/assets/${ic[1]}.webp" alt="" draggable="false"/>`:''}<span>${t}</span></li>`;}
 function openDaily(){renderDaily();ui('dailyOverlay').classList.add('open');}
 function closeDaily(){ui('dailyOverlay').classList.remove('open');}
