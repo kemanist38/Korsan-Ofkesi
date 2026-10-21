@@ -25,7 +25,7 @@ import {createChest} from '../src/loot.ts';
 import {fleetReward,LEVEL_XP} from '../src/campaign.ts';
 import {ELITE_SHIPS} from '../src/elite-ships.ts';
 import {contribReward,earnsChest,victoryChest} from '../src/siege.ts';
-import {DOM_SIZE,DOM_COUNTDOWN_MS,DOM_MATCH_MS,DOM_WIN,DOM_ZONE,domWindowAt,domBalance,domZoneStep,domWinner,domReward} from '../src/domination.ts';
+import {DOM_SIZE,DOM_COUNTDOWN_MS,DOM_MATCH_MS,DOM_WIN,DOM_ZONE,DOM_BASE,domWindowAt,domBalance,domZoneStep,domWinner,domReward} from '../src/domination.ts';
 import {levelQuestGoal,levelQuestTargets,levelQuestMap} from '../src/level-quest.ts';
 
 const PORT=Number(process.env.PORT||3000);
@@ -112,7 +112,7 @@ export function pvpHeal(t,amt,now){const p=pvpOf(t),max=t.maxHp||1;p.heal??=newP
   const got=pvpClamp(p.heal,max,Math.max(0,amt),now/1000);if(p.hp!==null)p.hp=Math.min(max,p.hp+got);return Math.round(got);}
 // İyileşme payı: savaş dışında tam can/40 sn (tamir); son 10 sn'de hasar aldıysa tamir yapılamaz, yalnız can emici payı (tam can/200 sn)
 export const COMBAT_HEAL_SECONDS=200,COMBAT_MS=10_000;
-export function noteHp(t,hp,now){const p=pvpOf(t),max=t.maxHp||hp,secs=now-(p.hitAt??-1e12)<COMBAT_MS?COMBAT_HEAL_SECONDS:HEAL_SECONDS;
+export function noteHp(t,hp,now){const p=pvpOf(t),max=t.maxHp||hp,secs=t.domTeam||now-(p.hitAt??-1e12)<COMBAT_MS?COMBAT_HEAL_SECONDS:HEAL_SECONDS;// Deniz Hakimiyeti: tamir yok, yalnız can emici payı
   p.hp=p.hp===null?hp:Math.min(hp,Math.min(max,p.hp+Math.max(0,now-p.at)*max/secs/1000));p.at=now;}
 export function godCheck(t){const p=t.pvp;return!!p&&p.hp!==null&&!!t.maxHp&&p.hp<=-GOD_MARGIN*t.maxHp;}
 export function pvpReset(t){if(t.pvp){t.pvp.budget=null;t.pvp.heal=null;t.pvp.hp=null;t.pvp.from.clear();}}
@@ -521,11 +521,11 @@ function npcDeath(c,r,now){{const map=seaMap(c.sea);const room=seas.get(c.sea)||
 export const seaMines=new Map();let mineSeq=0;
 export function placeMine(c,x,y,now){if(!c.last||!num(x)||!num(y)||Math.hypot(x-c.last.x,y-c.last.y)>80)return null;
   const list=seaMines.get(c.sea)??[];seaMines.set(c.sea,list);if(list.filter(m=>m.uid===c.uid).length>=MINE.maxActive)return null;
-  const L=c.ldRaw?buildLoadout(c.econ,c.ldRaw):null,m={id:++mineSeq,uid:c.uid,netId:c.netId,guildId:c.guildId||0,x:Math.round(x),y:Math.round(y),arm:now+MINE.armSeconds*1000,until:now+40_000,
+  const L=c.ldRaw?buildLoadout(c.econ,c.ldRaw):null,m={id:++mineSeq,uid:c.uid,netId:c.netId,guildId:c.guildId||0,team:c.domTeam||null,x:Math.round(x),y:Math.round(y),arm:now+MINE.armSeconds*1000,until:now+40_000,
     dmg:Math.round((MINE.baseDamage+(L?.level??1)*MINE.damagePerLevel)*(L?.mineMult??1))};list.push(m);return m;}
 function mineFoes(sea,m){const out={npcs:[],players:[],towers:[]};const near=(x,y,r)=>Math.hypot(x-m.x,y-m.y)<r;
   for(const n of seaNpcs.get(sea)?.list.values()??[])out.npcs.push(n);
-  for(const p of seas.get(sea)??[])if(p.uid!==m.uid&&p.last&&!(m.guildId&&p.guildId===m.guildId))out.players.push(p);
+  for(const p of seas.get(sea)??[])if(p.uid!==m.uid&&p.last&&!(m.guildId&&p.guildId===m.guildId&&!m.team)&&!(m.team&&(p.domTeam===m.team||domLocked(p,Date.now()))))out.players.push(p);
   const key=islandOfSea(sea),isle=key?islands.get(key):null;if(isle&&MAPS[key]&&!(m.guildId&&isle.guild===m.guildId)){const f=MAPS[key].fleet;isle.towers.forEach((t,slot)=>{if(t){const [dx,dy]=FLEET.towers[slot]??[0,0];out.towers.push({key,slot,x:f.x+dx,y:f.y+dy});}});}
   return{all:out,near};}
 async function mineTick(now){for(const [sea,list] of seaMines){const room=seas.get(sea);if(!room||!room.size){seaMines.delete(sea);continue;}
@@ -549,7 +549,7 @@ export function attackTarget(c,d){const k=String(d?.k||'n'),id=String(d?.id??'')
   if(k==='b')return bossSeas.get(c.sea)?.boss?{k,kind:'boss'}:null;
   if(k==='s'){const i=Number(id);return c.sea===SIEGE_ROOM&&Number.isInteger(i)&&i>=0&&i<SIEGE_PIECES?{k,i,kind:'tower'}:null;}
   if(k==='t'){const key=islandOfSea(c.sea),slot=Number(id);if(!key||!Number.isInteger(slot)||slot<0||slot>=TOWER_SLOTS||!MAPS[key])return null;const f=MAPS[key].fleet,[dx,dy]=FLEET.towers[slot]??[0,0];return{k,key,slot,x:f.x+dx,y:f.y+dy,kind:'tower'};}
-  if(k==='p'&&domMatchOfSea(c.sea)!==undefined){const t=[...(seas.get(c.sea)||[])].find(x=>x.netId===id&&x!==c);return t?.last&&t.domTeam?{k,t,x:t.last.x,y:t.last.y,kind:'player',dom:true}:null;}
+  if(k==='p'&&domMatchOfSea(c.sea)!==undefined){const t=[...(seas.get(c.sea)||[])].find(x=>x.netId===id&&x!==c);return t?.last&&t.domTeam&&!domLocked(t,Date.now())?{k,t,x:t.last.x,y:t.last.y,kind:'player',dom:true}:null;}
   if(k==='p'){const t=[...(seas.get(c.sea)||[])].find(x=>x.netId===id&&x!==c);if(!t?.last||(c.guildId&&c.guildId===t.guildId&&!t.admin))return null;if(t.admin&&!aevOpen(c.sea))return null;return{k,t,x:t.last.x,y:t.last.y,kind:'player'};}
   return null;}
 async function onAttack(c,d,now){if(!c.ldRaw||!c.last)return;const tg=attackTarget(c,d);if(!tg)return;c.ld=buildLoadout(c.econ,c.ldRaw);if(!c.ld)return;
@@ -572,7 +572,7 @@ async function onAttack(c,d,now){if(!c.ldRaw||!c.last)return;const tg=attackTarg
   const t=tg.t,f={from:c.netId,to:t.netId,x:Math.round(c.last.x),y:Math.round(c.last.y),tx:Math.round(t.last.x),ty:Math.round(t.last.y),ammo:a,damage:0};
   if(a==='heal'){f.damage=Math.round(Math.min(raw,(t.maxHp||163000)*(.08+Math.random()*.012)));pvpHeal(t,f.damage,now);}
   else{f.damage=pvpGuard(t,dmg,now);pvpOf(t).from.set(c.netId,now);
-    if(godCheck(t)){suspect(t,'ölümsüz');pvpReset(t);send(t,{t:'forceSink',d:{by:c.netId,byNick:c.nick}});toSea(t,{t:'sunk',d:{victim:t.netId,victimNick:t.nick,by:c.netId,byNick:c.nick}});return;}}
+    if(godCheck(t)){suspect(t,'ölümsüz');pvpReset(t);if(t.domTeam)domSink(t,now);send(t,{t:'forceSink',d:{by:c.netId,byNick:c.nick}});toSea(t,{t:'sunk',d:{victim:t.netId,victimNick:t.nick,by:c.netId,byNick:c.nick}});return;}}
   toNear(c,{t:'fire',d:f},t.netId);}
 
 // ---------------------------------------------------------------- Yönetici batırma etkinliği (Kaptan Öfke)
@@ -608,6 +608,17 @@ export function domLobby(c,now=Date.now()){const p=domPending;
   return{k:'lobby',open:domOpen(c,now),q:domQueue.slice(0,DOM_SIZE*2).map(domNick),me:domQueue.includes(c)||!!p?.list.includes(c),
     teams:p?{r:p.r.map(domNick),b:p.b.map(domNick)}:null,at:p?p.at:0,live:domMatches.size};}
 function domBroadcast(now){const to=new Set([...all].filter(x=>x.domWatch));for(const x of domQueue)to.add(x);for(const x of domPending?.list??[])to.add(x);for(const x of to)send(x,{t:'dom',d:domLobby(x,now)});}
+// Batış ve doğuş sunucuda: batan gemi (kendisi bildirse de sunucu batırsa da) üssünde doğmak zorunda, 5 sn kıpırdayamaz ve
+// vurulamaz. Maça ilk giriş de üsten olur. Işınlanma yalnız bu doğuşta kabul edilir.
+export const DOM_LOCK_MS=5000,DOM_BASE_R=400,DOM_LOCK_SLACK=40;
+export const domLocked=(c,now)=>!!c.domLock&&now<c.domLock.until;
+export function domSink(c,now){c.domLock={until:now+DOM_LOCK_MS,pos:null,spawn:true};}
+export function domMove(c,s,now){if(!num(s?.x)||!num(s?.y))return null;const base=DOM_BASE[c.domTeam];
+  const spawn=!c.last||c.domLock?.spawn;
+  if(spawn){if(Math.hypot(s.x-base.x,s.y-base.y)>DOM_BASE_R)return{x:base.x,y:base.y};c.domLock={until:c.domLock?.until??0,pos:{x:s.x,y:s.y},spawn:false};s.tp=1;c.tpAt=0;return null;}
+  delete s.tp;
+  if(domLocked(c,now)&&c.domLock.pos&&Math.hypot(s.x-c.domLock.pos.x,s.y-c.domLock.pos.y)>DOM_LOCK_SLACK)return c.domLock.pos;
+  return null;}
 export function domPump(now){if(domPending||domQueue.length<DOM_SIZE*2)return false;const list=domQueue.splice(0,DOM_SIZE*2);
   const t=domBalance(list,x=>Number(x.econ?.ep)||0);domPending={list,r:t.r,b:t.b,at:now+DOM_COUNTDOWN_MS};return true;}
 export function domDrop(c){const i=domQueue.indexOf(c);if(i>=0)domQueue.splice(i,1);
@@ -616,7 +627,7 @@ export function domStart(now,pend=domPending){const id=crypto.randomUUID().repla
   for(const x of pend.r)teams.set(x.uid,'r');for(const x of pend.b)teams.set(x.uid,'b');
   const m={id,teams,nicks:{r:pend.r.map(domNick),b:pend.b.map(domNick)},score:{r:0,b:0},zone:{cap:0,own:null},start:now,end:now+DOM_MATCH_MS,spent:new Map(),result:null};
   domMatches.set(id,m);if(pend===domPending)domPending=null;
-  for(const x of pend.list){x.domTeam=teams.get(x.uid);send(x,{t:'dom',d:{k:'start',id,team:x.domTeam,end:m.end,teams:m.nicks}});}
+  for(const x of pend.list){x.domTeam=teams.get(x.uid);x.domLock=null;pvpReset(x);send(x,{t:'dom',d:{k:'start',id,team:x.domTeam,end:m.end,teams:m.nicks}});}
   log('HAKİMİYET BAŞLADI',id,m.nicks.r.join(','),'vs',m.nicks.b.join(','));return m;}
 export function domStep(m,room,now){let nr=0,nb=0;
   for(const x of room||[]){const tm=m.teams.get(x.uid);if(!tm||!x.last||(x.state&&!(x.state.hp>0)))continue;if(Math.hypot(x.last.x-DOM_ZONE.x,x.last.y-DOM_ZONE.y)<=DOM_ZONE.r){if(tm==='r')nr++;else nb++;}}
@@ -691,20 +702,21 @@ wss.on('connection',ws=>{
         const b=bossSeas.get(name)?.boss;if(b)send(c,{t:'boss',d:bossInfo(name,b)});
         const isle=islands.get(islandOfSea(name));if(isle)send(c,{t:'isle',d:islandInfo(isle)});
         if(name===SIEGE_ROOM){const r=siegeJoin(c.uid,c.nick,now);if(r)send(c,{t:'sstate',d:siegeInfo(r,c.uid)});}return;}
-      case'state':{if(!c.sea||!c.rState.hit(now))return;const s=m.d;let v=checkState(c.last,s,now);if(v==='bad')return;if(v==='speed'&&s.tp&&now-(c.tpAt||0)>8000){c.tpAt=now;v='ok';}delete s.tp;if(v==='bad')return;if(v==='speed'){suspect(c,'hız',`${Math.round(s.x)},${Math.round(s.y)}`);if(c.last)send(c,{t:'pos',d:{x:c.last.x,y:c.last.y}});return;}
+      case'state':{if(!c.sea||!c.rState.hit(now))return;const s=m.d;
+        if(c.domTeam&&domMatchOfSea(c.sea)!==undefined){const r=domMove(c,s,now);if(r){send(c,{t:'pos',d:r});return;}}let v=checkState(c.last,s,now);if(v==='bad')return;if(v==='speed'&&s.tp&&now-(c.tpAt||0)>8000){c.tpAt=now;v='ok';}delete s.tp;if(v==='bad')return;if(v==='speed'){suspect(c,'hız',`${Math.round(s.x)},${Math.round(s.y)}`);if(c.last)send(c,{t:'pos',d:{x:c.last.x,y:c.last.y}});return;}
         {const land=onLand(seaMap(c.sea),s.x,s.y);if(land){c.landHits=(c.landHits||0)+1;if(c.landHits%10===1)suspect(c,'karaya çıkma',land);if(c.last)send(c,{t:'pos',d:{x:c.last.x,y:c.last.y}});return;}}
         if(num(s.maxHp)){const cap=hpCap(c.econ);if(s.maxHp>cap*1.02){suspect(c,'can sınırı',`${Math.round(s.maxHp)}>${cap}`);s.maxHp=cap;}c.maxHp=s.maxHp;}
         if(c.maxHp&&s.hp>c.maxHp)s.hp=c.maxHp;noteHp(c,s.hp,now);
         if(s.ship!==undefined)s.ship=shipAllowed(c.econ,s.ship);
         if(c.admin){s.adm=1;s.ship=ADMIN_SHIP;if(aevOpen(c.sea)){const ev=aevState(c);s.hp=Math.round(ev.hp);s.maxHp=ev.max;if(now-(c.ahpAt||0)>1000){c.ahpAt=now;send(c,{t:'ahp',d:{hp:s.hp,max:ev.max}});}}}
-        if(c.domTeam&&domMatchOfSea(c.sea)!==undefined){s.ship='dom-'+c.domTeam;s.tm=c.domTeam;delete s.adm;}else delete s.tm;
+        if(c.domTeam&&domMatchOfSea(c.sea)!==undefined){const ph=c.pvp?.hp;if(num(s.hp)&&ph!=null)s.hp=Math.max(0,Math.min(s.hp,Math.round(ph)));s.ship='dom-'+c.domTeam;s.tm=c.domTeam;delete s.adm;}else delete s.tm;
         c.last={x:s.x,y:s.y,at:now};s.id=c.netId;queueState(c,s);return;}
       case'fire':return; // oyuncular arası atış yalnız sunucu atışıyla (atk); oyuncunun bildirdiği hasar kabul edilmez
       case'sunk':{if(!c.sea)return;const s=m.d||{};s.victim=c.netId;s.victimNick=c.nick;
         // Batıran yalnızca son 60 sn'de bu oyuncuya ateş etmiş biri olabilir (arkadaşa SP yazdırma engeli)
         if(s.by&&!(now-(c.pvp?.from.get(String(s.by))??-1e12)<60_000)){suspect(c,'sahte batırma',String(s.by));s.by=null;s.byNick=null;}
         if(s.by&&domMatchOfSea(c.sea)===undefined){const k=[...(seas.get(c.sea)||[])].find(x=>x.netId===String(s.by));const add=spCredit(k,c.uid,now);if(add)addCredit(k,add);}
-        pvpReset(c);toSea(c,{t:'sunk',d:s});return;}
+        if(c.domTeam)domSink(c,now);pvpReset(c);toSea(c,{t:'sunk',d:s});return;}
       case'bkill':return; // Only accepted nkill events advance the boss counter.
       case'bhit':return; // oyuncunun bildirdiği hasar kabul edilmez (sunucu atışı ve mayın)
       case'shit':return; // oyuncunun bildirdiği hasar kabul edilmez (sunucu atışı ve mayın)

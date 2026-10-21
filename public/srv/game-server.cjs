@@ -3651,6 +3651,9 @@ __export(game_server_exports, {
   BOSS_LIFE_MS: () => BOSS_LIFE_MS,
   COMBAT_HEAL_SECONDS: () => COMBAT_HEAL_SECONDS,
   COMBAT_MS: () => COMBAT_MS,
+  DOM_BASE_R: () => DOM_BASE_R,
+  DOM_LOCK_MS: () => DOM_LOCK_MS,
+  DOM_LOCK_SLACK: () => DOM_LOCK_SLACK,
   FAR_EVERY: () => FAR_EVERY,
   GOD_MARGIN: () => GOD_MARGIN,
   HEAL_SECONDS: () => HEAL_SECONDS,
@@ -3702,12 +3705,15 @@ __export(game_server_exports, {
   domDrop: () => domDrop,
   domFinish: () => domFinish,
   domLobby: () => domLobby,
+  domLocked: () => domLocked,
   domMatchOfSea: () => domMatchOfSea,
   domMatches: () => domMatches,
+  domMove: () => domMove,
   domOpen: () => domOpen,
   domPending: () => domPending,
   domPump: () => domPump,
   domQueue: () => domQueue,
+  domSink: () => domSink,
   domStart: () => domStart,
   domStep: () => domStep,
   dpsCap: () => dpsCap,
@@ -4353,6 +4359,7 @@ var DOM_MATCH_MS = 8 * 6e4;
 var DOM_WIN = 240;
 var DOM_ZONE = { x: 3e3, y: 2e3, r: 420 };
 var DOM_CAPTURE_PER_SHIP = 25;
+var DOM_BASE = { r: { x: 700, y: 2e3 }, b: { x: 5300, y: 2e3 } };
 var DOM_PEARLS = { win: 300, draw: 200, lose: 100 };
 var DOM_EP_PER_BALL = 2;
 function domWindowAt(now) {
@@ -4553,7 +4560,7 @@ function pvpHeal(t, amt, now) {
 var COMBAT_HEAL_SECONDS = 200;
 var COMBAT_MS = 1e4;
 function noteHp(t, hp, now) {
-  const p2 = pvpOf(t), max = t.maxHp || hp, secs = now - (p2.hitAt ?? -1e12) < COMBAT_MS ? COMBAT_HEAL_SECONDS : HEAL_SECONDS;
+  const p2 = pvpOf(t), max = t.maxHp || hp, secs = t.domTeam || now - (p2.hitAt ?? -1e12) < COMBAT_MS ? COMBAT_HEAL_SECONDS : HEAL_SECONDS;
   p2.hp = p2.hp === null ? hp : Math.min(hp, Math.min(max, p2.hp + Math.max(0, now - p2.at) * max / secs / 1e3));
   p2.at = now;
 }
@@ -5721,6 +5728,7 @@ function placeMine(c, x, y, now) {
     uid: c.uid,
     netId: c.netId,
     guildId: c.guildId || 0,
+    team: c.domTeam || null,
     x: Math.round(x),
     y: Math.round(y),
     arm: now + MINE.armSeconds * 1e3,
@@ -5734,7 +5742,7 @@ function mineFoes(sea2, m) {
   const out = { npcs: [], players: [], towers: [] };
   const near = (x, y, r) => Math.hypot(x - m.x, y - m.y) < r;
   for (const n of seaNpcs.get(sea2)?.list.values() ?? []) out.npcs.push(n);
-  for (const p2 of seas.get(sea2) ?? []) if (p2.uid !== m.uid && p2.last && !(m.guildId && p2.guildId === m.guildId)) out.players.push(p2);
+  for (const p2 of seas.get(sea2) ?? []) if (p2.uid !== m.uid && p2.last && !(m.guildId && p2.guildId === m.guildId && !m.team) && !(m.team && (p2.domTeam === m.team || domLocked(p2, Date.now())))) out.players.push(p2);
   const key = islandOfSea(sea2), isle = key ? islands.get(key) : null;
   if (isle && MAPS[key] && !(m.guildId && isle.guild === m.guildId)) {
     const f = MAPS[key].fleet;
@@ -5824,7 +5832,7 @@ function attackTarget(c, d) {
   }
   if (k === "p" && domMatchOfSea(c.sea) !== void 0) {
     const t = [...seas.get(c.sea) || []].find((x) => x.netId === id && x !== c);
-    return t?.last && t.domTeam ? { k, t, x: t.last.x, y: t.last.y, kind: "player", dom: true } : null;
+    return t?.last && t.domTeam && !domLocked(t, Date.now()) ? { k, t, x: t.last.x, y: t.last.y, kind: "player", dom: true } : null;
   }
   if (k === "p") {
     const t = [...seas.get(c.sea) || []].find((x) => x.netId === id && x !== c);
@@ -5908,6 +5916,7 @@ async function onAttack(c, d, now) {
     if (godCheck(t)) {
       suspect(t, "\xF6l\xFCms\xFCz");
       pvpReset(t);
+      if (t.domTeam) domSink(t, now);
       send(t, { t: "forceSink", d: { by: c.netId, byNick: c.nick } });
       toSea(t, { t: "sunk", d: { victim: t.netId, victimNick: t.nick, by: c.netId, byNick: c.nick } });
       return;
@@ -5984,6 +5993,28 @@ function domBroadcast(now) {
   for (const x of domPending?.list ?? []) to.add(x);
   for (const x of to) send(x, { t: "dom", d: domLobby(x, now) });
 }
+var DOM_LOCK_MS = 5e3;
+var DOM_BASE_R = 400;
+var DOM_LOCK_SLACK = 40;
+var domLocked = (c, now) => !!c.domLock && now < c.domLock.until;
+function domSink(c, now) {
+  c.domLock = { until: now + DOM_LOCK_MS, pos: null, spawn: true };
+}
+function domMove(c, s, now) {
+  if (!num(s?.x) || !num(s?.y)) return null;
+  const base = DOM_BASE[c.domTeam];
+  const spawn = !c.last || c.domLock?.spawn;
+  if (spawn) {
+    if (Math.hypot(s.x - base.x, s.y - base.y) > DOM_BASE_R) return { x: base.x, y: base.y };
+    c.domLock = { until: c.domLock?.until ?? 0, pos: { x: s.x, y: s.y }, spawn: false };
+    s.tp = 1;
+    c.tpAt = 0;
+    return null;
+  }
+  delete s.tp;
+  if (domLocked(c, now) && c.domLock.pos && Math.hypot(s.x - c.domLock.pos.x, s.y - c.domLock.pos.y) > DOM_LOCK_SLACK) return c.domLock.pos;
+  return null;
+}
 function domPump(now) {
   if (domPending || domQueue.length < DOM_SIZE * 2) return false;
   const list = domQueue.splice(0, DOM_SIZE * 2);
@@ -6008,6 +6039,8 @@ function domStart(now, pend = domPending) {
   if (pend === domPending) domPending = null;
   for (const x of pend.list) {
     x.domTeam = teams.get(x.uid);
+    x.domLock = null;
+    pvpReset(x);
     send(x, { t: "dom", d: { k: "start", id, team: x.domTeam, end: m.end, teams: m.nicks } });
   }
   log("HAK\u0130M\u0130YET BA\u015ELADI", id, m.nicks.r.join(","), "vs", m.nicks.b.join(","));
@@ -6277,6 +6310,13 @@ wss.on("connection", (ws) => {
       case "state": {
         if (!c.sea || !c.rState.hit(now)) return;
         const s = m.d;
+        if (c.domTeam && domMatchOfSea(c.sea) !== void 0) {
+          const r = domMove(c, s, now);
+          if (r) {
+            send(c, { t: "pos", d: r });
+            return;
+          }
+        }
         let v = checkState(c.last, s, now);
         if (v === "bad") return;
         if (v === "speed" && s.tp && now - (c.tpAt || 0) > 8e3) {
@@ -6324,6 +6364,8 @@ wss.on("connection", (ws) => {
           }
         }
         if (c.domTeam && domMatchOfSea(c.sea) !== void 0) {
+          const ph = c.pvp?.hp;
+          if (num(s.hp) && ph != null) s.hp = Math.max(0, Math.min(s.hp, Math.round(ph)));
           s.ship = "dom-" + c.domTeam;
           s.tm = c.domTeam;
           delete s.adm;
@@ -6351,6 +6393,7 @@ wss.on("connection", (ws) => {
           const add = spCredit(k, c.uid, now);
           if (add) addCredit(k, add);
         }
+        if (c.domTeam) domSink(c, now);
         pvpReset(c);
         toSea(c, { t: "sunk", d: s });
         return;
@@ -6574,6 +6617,9 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   BOSS_LIFE_MS,
   COMBAT_HEAL_SECONDS,
   COMBAT_MS,
+  DOM_BASE_R,
+  DOM_LOCK_MS,
+  DOM_LOCK_SLACK,
   FAR_EVERY,
   GOD_MARGIN,
   HEAL_SECONDS,
@@ -6625,12 +6671,15 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   domDrop,
   domFinish,
   domLobby,
+  domLocked,
   domMatchOfSea,
   domMatches,
+  domMove,
   domOpen,
   domPending,
   domPump,
   domQueue,
+  domSink,
   domStart,
   domStep,
   dpsCap,
