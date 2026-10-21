@@ -11,6 +11,7 @@ import {guildOnline,loadMyGuild,searchGuilds,myApplications,createGuild,applyGui
 import {CANNONS,salvoDamage,reloadTime,rangeOf,type Loadout} from './combat';
 import './style.css';
 import './rage-ui.css';
+import './hud-v2.css';
 import {ACTIONS,loadSettings,saveSettings,keyLabel,normalizeKey,DEFAULT_BINDS,type ActionId} from './settings';
 import {playBossMusic,stopBossMusic,playBossHorn,setAudio,unlockAudio,playCannon,playEnemyCannon,playHit,playExplosion,playCoins,playSpeed,playRage,playShield,playSplash,playLevelUp,playMapJump,playSink,playHeal,playClick} from './audio';
 import {drawSeaSparkle,drawNpcShip,drawChestSprite,drawIslandSprite,drawFleetBase,drawBastion,drawBuiltTower,drawMineSprite,seaTilePattern,islandSheetUrl,shipLabelOffset,shipDrawSize,portraitStyle,preload,fleetBaseUrl,fleetTowerUrl,setTowerTheme,TOWER_LABEL_OFFSET,FLEET_ART,drawFleetOccluder} from './sprites';
@@ -479,7 +480,14 @@ setInterval(renderDayEvent,15000);
   addEventListener('resize',()=>{fitHud();for(const id of IDS)if(EL[id].classList.contains('moved'))place(id,parseFloat(EL[id].style.left)*uiScale,parseFloat(EL[id].style.top)*uiScale);});}
 ui('ability-speed').onclick=()=>activateAbility('speed');ui('ability-mine').onclick=dropMine;ui('rageButton').onclick=activateRage;
 function recenterShip(){freeLook=null;camera.x=player.x;camera.y=player.y;toast('Kamera gemiye ortalandı');}
-ui('recenterShip').onclick=recenterShip;{const top=ui('topStatus');const hp=document.querySelector('.hud-dock .hp-line'),sp=document.querySelector('.hud-dock .battle-line');if(hp)top.appendChild(hp);if(sp)top.appendChild(sp);top.classList.add('four-bars');}{const rc=ui('recenterShip');rc.className='combat-action recenter-btn';rc.innerHTML='<b><svg viewBox="0 0 48 48" width="70%" height="70%" aria-hidden="true"><g fill="none" stroke="#ffe09b" stroke-width="3" stroke-linecap="round"><circle cx="24" cy="24" r="12"/><circle cx="24" cy="24" r="4" fill="#ffe09b"/><path d="M24 4v40M4 24h40M9.9 9.9l28.2 28.2M38.1 9.9 9.9 38.1"/></g><g fill="#ffe09b"><circle cx="24" cy="4" r="2.6"/><circle cx="24" cy="44" r="2.6"/><circle cx="4" cy="24" r="2.6"/><circle cx="44" cy="24" r="2.6"/><circle cx="9.9" cy="9.9" r="2.6"/><circle cx="38.1" cy="38.1" r="2.6"/><circle cx="38.1" cy="9.9" r="2.6"/><circle cx="9.9" cy="38.1" r="2.6"/></g></svg></b><span>GEMİ</span>';rc.title='Gemiyi ortala';ui('combatControls').appendChild(rc);}
+ui('recenterShip').onclick=recenterShip;{// Üst çerçeve: solda casus, ortada seviye + TP + CP; koordinata git mini haritanın üstünde. Orta bar (EP/SP) kaldırıldı:
+  // SP gemi adının altında, EP tersanedeki elit ilerleme çubuğunda gösterilir.
+  const top=ui('topStatus'),stats=document.createElement('div');stats.className='strip-stats';
+  const xp=top.querySelector('.xp-line'),hp=document.querySelector('.hud-dock .hp-line'),sp=document.querySelector('.hud-dock .battle-line');
+  stats.append(ui('level'));if(xp)stats.append(xp);if(hp)stats.append(hp);ui('spyGo').after(stats);if(sp)top.appendChild(sp);top.classList.add('retired');
+  const cluster=document.querySelector('.map-cluster')!;cluster.prepend(ui('coordGo'));
+  const arena=document.createElement('button');arena.className='world-map-button arena-button';arena.setAttribute('aria-label','Arena');arena.innerHTML='<img src="/assets/arena-icon-v1.webp" alt="" draggable="false"/><span>ARENA</span>';
+  arena.onclick=()=>openArenaModes();cluster.append(arena);}{const rc=ui('recenterShip');rc.className='combat-action recenter-btn';rc.innerHTML='<b><svg viewBox="0 0 48 48" width="70%" height="70%" aria-hidden="true"><g fill="none" stroke="#ffe09b" stroke-width="3" stroke-linecap="round"><circle cx="24" cy="24" r="12"/><circle cx="24" cy="24" r="4" fill="#ffe09b"/><path d="M24 4v40M4 24h40M9.9 9.9l28.2 28.2M38.1 9.9 9.9 38.1"/></g><g fill="#ffe09b"><circle cx="24" cy="4" r="2.6"/><circle cx="24" cy="44" r="2.6"/><circle cx="4" cy="24" r="2.6"/><circle cx="44" cy="24" r="2.6"/><circle cx="9.9" cy="9.9" r="2.6"/><circle cx="38.1" cy="38.1" r="2.6"/><circle cx="38.1" cy="9.9" r="2.6"/><circle cx="9.9" cy="38.1" r="2.6"/></g></svg></b><span>GEMİ</span>';rc.title='Gemiyi ortala';ui('combatControls').appendChild(rc);}
 ui('openWorldMap').onclick=openWorldMap;ui('closeWorldMap').onclick=closeWorldMap;
 ui('worldMapOverlay').addEventListener('pointerdown',e=>{if(e.target===ui('worldMapOverlay'))closeWorldMap();});
 ui('openCaptain').onclick=openCaptainProfile;
@@ -1068,6 +1076,10 @@ function gainElitePoints(ep:number){
   if(after>before&&elitePurchased){const ship=ELITE_SHIPS.find(x=>x.level===after);rewardNotice(`Elit ${after} açıldı${ship?` · ${ship.name} tersanede`:''}`);}
 }
 // Elit puan çubuğu: mevcut elit seviyesinden bir sonrakine ilerleme
+// Tersanedeki elit puan çubuğu: solda bulunulan elit seviye ve EP'si, sağda sonraki seviye, ortada mevcut EP
+function eliteEpBar(){const ep=Math.floor(state.elitePoints),lvl=eliteLevelFromEp(ep),max=lvl>=ELITE_MAX_LEVEL,lo=eliteLevelEp(Math.max(1,lvl)),hi=max?lo:eliteLevelEp(Math.max(1,lvl)+1),pct=max?100:Math.max(0,Math.min(100,(ep-lo)/Math.max(1,hi-lo)*100));
+  const f=(n:number)=>n.toLocaleString('tr-TR');
+  return`<section class="ep-progress"><div class="ep-ends"><span><b>ELİT ${Math.max(1,lvl)}</b>${f(lo)} EP</span><span>${max?'<b>EN YÜKSEK SEVİYE</b>':`<b>ELİT ${Math.max(1,lvl)+1}</b>${f(hi)} EP`}</span></div><i><em style="width:${pct}%"></em><strong>${f(ep)} EP</strong></i>${elitePurchased||ELITE_TEST_MODE?'':'<small>Elit gemiler elit lisansı satın alınınca açılır; EP biriktirmeye şimdiden başlayabilirsin.</small>'}</section>`;}
 function eliteProgress(){const lvl=eliteLevelFromEp(state.elitePoints),lo=eliteLevelEp(lvl),hi=lvl>=ELITE_MAX_LEVEL?lo:eliteLevelEp(lvl+1);
   return{text:lvl>=ELITE_MAX_LEVEL?Math.floor(state.elitePoints).toLocaleString('tr-TR'):`${Math.floor(state.elitePoints).toLocaleString('tr-TR')} / ${hi.toLocaleString('tr-TR')}`,pct:lvl>=ELITE_MAX_LEVEL?100:Math.min(100,(state.elitePoints-lo)/(hi-lo)*100)};}
 function releaseSalvo(round:SalvoRound){
@@ -1286,7 +1298,7 @@ function renderEliteShips(){
   }).join('');
   const grid=ui('eliteShipGrid'),scroll=ui('eliteShipGrid').parentElement!.scrollTop;
   const tab=(id:typeof shipyardTab,label:string)=>`<button data-shipyard-tab="${id}" class="${shipyardTab===id?'active':''}">${label}</button>`;
-  grid.innerHTML=`<nav class="shipyard-tabs">${tab('elite','ELİT GEMİLER')}${tab('special','ÖZEL GEMİLER')}</nav>`+(shipyardTab==='special'?special:starter+cards);
+  grid.innerHTML=`<nav class="shipyard-tabs">${tab('elite','ELİT GEMİLER')}${tab('special','ÖZEL GEMİLER')}</nav>`+(shipyardTab==='special'?special:eliteEpBar()+starter+cards);
   grid.querySelectorAll<HTMLButtonElement>('[data-shipyard-tab]').forEach(b=>b.onclick=()=>{shipyardTab=b.dataset.shipyardTab as typeof shipyardTab;grid.parentElement!.scrollTop=0;renderEliteShips();});
   ui('eliteShipDetail').hidden=true;ui('eliteShipDetail').innerHTML='';
   grid.parentElement!.scrollTop=scroll;
@@ -1583,6 +1595,9 @@ function drawInsignia(x:number,y:number,count:number,w=96){if(!insigniaImg.compl
 function drawPlayerLabel(){
   const p=worldToScreen(player),y=p.y+60,tag=guild?`[${guild.tag}]`:'',nick=profile.nick;
   drawCaptainName(p.x,y,tag,nick,17,battleRank(state.battlePoints).index,session.isAdmin);drawInsignia(p.x,y+11,rivalSinks);
+  // Savaş puanı (SP) adın altında: küçük çubuk ve değer
+  {const r=battleRank(state.battlePoints),w=118,h=16,x=p.x-w/2,yy=y+50,t=`SP ${spText()}`;ctx.save();ctx.fillStyle='#0a0705cc';ctx.strokeStyle='#ad8154';ctx.lineWidth=1;ctx.beginPath();ctx.roundRect(x,yy,w,h,6);ctx.fill();ctx.stroke();
+    ctx.fillStyle='#4f7dff';ctx.beginPath();ctx.roundRect(x+1,yy+1,Math.max(0,(w-2)*r.pct/100),h-2,7);ctx.fill();ctx.font='800 11px Inter';ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=3;ctx.strokeStyle='#000';ctx.strokeText(t,p.x,yy+h/2+.5);ctx.fillStyle='#fff';ctx.fillText(t,p.x,yy+h/2+.5);ctx.restore();}
 }
 // ---------------------------------------------------------------- Filo: hazine, bağış ve kule dikme
 function openGuild(){renderGuild();ui('guildOverlay').classList.add('open');void refreshCloudGuild();}
