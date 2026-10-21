@@ -24,7 +24,7 @@ import {PEARL_PACKS,SHOPIER_LINKS,packTotal,priceText} from './pearlShop';
 import {isNativeApp,openExternal,SITE_URL} from './native';
 import {iapAvailable,iapInit,iapPrice,iapBuy} from './iap';
 import {BOARDS,rankRows,rankPage,RANK_PAGE_SIZE,type BoardId,type RankPlayer,type RankFleet,type RankRow} from './leaderboard';
-import {redeem,loadRedeemed,saveRedeemed,rewardText,normalizeCode,type CouponReward} from './coupons';
+import {rewardText,normalizeCode,type CouponReward} from './coupons';
 import {supa} from './supabase';
 import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
 import {loadLevelQuest,saveLevelQuest,levelQuestDone,levelQuestKill,levelQuestGoal,needsLevelQuest,levelQuestMap} from './level-quest';
@@ -1421,7 +1421,7 @@ async function loadAuctionTops(){const sb=supa();if(!sb||!session.account)return
 // Biten ihale: ödül sunucuda bir kez onaylanırsa verilir. Kaybedilen tekliflerin altını geri verilmez.
 async function claimAuction(a:typeof auction,won:LotDef[]){const sb=supa();if(!sb)return;
   for(const [k,v] of Object.entries(a.mine)){const l=won.find(x=>x.key===k);
-    if(l){const {data,error}=await sb.rpc('auction_claim',{p_hour:a.hour,p_lot:k});if(data===true||(error&&noRpc(error))){giveLot(l);rewardNotice(`İhaleyi kazandın · ${fmt(l.qty)} ${lotName(l)} · ${fmt(v)} altın`,'shop');continue;}}
+    if(l){const {data,error}=await sb.rpc('auction_claim',{p_hour:a.hour,p_lot:k});if(data===true&&!error){giveLot(l);rewardNotice(`İhaleyi kazandın · ${fmt(l.qty)} ${lotName(l)} · ${fmt(v)} altın`,'shop');continue;}}
 }saveArsenal(arsenal);saveAccount();renderQuickSlots();updateUI();}
 function auctionTick(){const h=auctionHour(Date.now());if(auction.hour===h)return;
   const won=wonLots(auction,bidderId);if(session.account){void claimAuction(auction,won);auction=emptyAuction(h);saveAuction(auction);void loadAuctionTops();void loadLastWinners();if(ui('auctionOverlay').classList.contains('open'))renderAuction();return;}
@@ -1436,8 +1436,8 @@ function placeBid(l:LotDef,amount:number){auctionTick();const top=auction.top[l.
   if(!(amount>=min)){toast(top?(top.id===bidderId?'Zaten öndesin; yükseltmek için daha yüksek bir tutar yaz':'Teklifin en yüksek tekliften düşük, daha yüksek bir tutar dene'):'Teklif tutarını yaz');return;}
   const prev=top?.id===bidderId?auction.mine[l.key]??0:0,cost=amount-prev;if(state.gold<cost){toast('Yeterli altın yok');return;}
   if(session.account&&bidBusy)return;
-  if(session.account){const sb=supa();if(!sb)return;bidBusy=true;void sb.rpc('auction_bid',{p_hour:auction.hour,p_lot:l.key,p_amount:amount}).then(({error})=>{bidBusy=false;if(error&&!noRpc(error)){toast(error.message.replace(/^.*?: /,'')||'Teklif verilemedi');void loadAuctionTops();return;}commitBid(l,amount,cost);});return;}
-  commitBid(l,amount,cost);}
+  if(session.account){const sb=supa();if(!sb)return;bidBusy=true;void sb.rpc('auction_bid',{p_hour:auction.hour,p_lot:l.key,p_amount:amount}).then(({error})=>{bidBusy=false;if(error){toast(noRpc(error)?'İhale şu an kapalı':error.message.replace(/^.*?: /,'')||'Teklif verilemedi');void loadAuctionTops();return;}commitBid(l,amount,cost);});return;}
+  toast('İhaleye katılmak için hesabınla giriş yap');}
 function commitBid(l:LotDef,amount:number,cost:number){if(state.gold<cost){toast('Yeterli altın yok');return;}
   const b:Bid={hour:auction.hour,lot:l.key,amount,id:bidderId,nick:profile.nick,at:Date.now()};if(!applyBid(auction,b,bidderId).accepted){toast('Teklif geçersiz');return;}
   state.gold-=cost;econServerSpent('gold',cost);auction.mine[l.key]=amount;saveAuction(auction);saveAccount();sendBid(b);playCoins();updateUI();renderAuction();toast(`${fmt(amount)} altın teklif verdin · ${lotName(l)}`);}
@@ -1735,7 +1735,6 @@ async function loadServerRanks(){const sb=supa();if(!sb||!session.account)return
 function openRanks(){rankPageNo=0;renderRanks();ui('rankOverlay').classList.add('open');void loadServerRanks();}
 function closeRanks(){ui('rankOverlay').classList.remove('open');}
 // ---------------------------------------------------------------- Kupon kodu
-const redeemedCoupons=loadRedeemed();
 function openCoupon(){(ui('couponInput') as HTMLInputElement).value='';ui('couponResult').textContent='';ui('couponResult').className='coupon-result';ui('couponOverlay').classList.add('open');setTimeout(()=>(ui('couponInput') as HTMLInputElement).focus(),50);}
 function closeCoupon(){ui('couponOverlay').classList.remove('open');}
 // Hesapla girişte kupon sunucuda kontrol edilir (kullanım sınırı, hesap başına bir kez); inci doğrudan cüzdana eklenir
@@ -1790,9 +1789,7 @@ async function redeemCoupon(){const input=ui('couponInput') as HTMLInputElement,
   if(session.account){const sb=supa();if(!sb)return;if(normalizeCode(input.value).length<4){out.textContent='Kupon kodunu gir';out.className='coupon-result bad';return;}
     const {data,error}=await sb.rpc('coupon_redeem',{p_code:input.value});if(error){out.textContent=error.message.replace(/^.*?: /,'')||'Kupon kullanılamadı';out.className='coupon-result bad';return;}
     const w=(data??{}) as CouponReward;session.pearlServerAdd?.(w.pearls??0);applyCoupon(w);return;}
-  const r=await redeem(input.value,redeemedCoupons,dayKey());
-  if(!r.ok){out.textContent=r.error;out.className='coupon-result bad';return;}
-  saveRedeemed(redeemedCoupons);applyCoupon(r.coupon.reward);}
+  out.textContent='Kupon kullanmak için hesabınla giriş yap';out.className='coupon-result bad';}
 function applyCoupon(w:CouponReward){const input=ui('couponInput') as HTMLInputElement,out=ui('couponResult');state.pearls+=w.pearls??0;state.gold+=w.gold??0;state.fame+=w.xp??0;state.elitePoints+=w.ep??0;
   for(const [k,n] of Object.entries(w.items??{})){const v=Math.max(0,Math.floor(Number(n)||0));if(!v)continue;if(k==='iron')state.ironAmmo+=v;else if(k==='chain')state.chainAmmo+=v;else if(k in arsenal)(arsenal as unknown as Record<string,number>)[k]+=v;}
   if(w.design==='pirate-rage'){designOwned=true;saveDesignOwned();}

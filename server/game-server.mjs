@@ -435,6 +435,8 @@ async function onSpy(c,nick){const r=await dbRpcJson('spy_charge',{p_spy:c.uid,p
 async function loadEcon(c){if(process.env.BENCH_AUTH==='1'&&c.uid?.startsWith('b')){c.econ={level:8,c_cast:315,iron:1e9,a_fire:1e9};return;}if(!SERVER_SECRET||!c.uid)return;try{const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/economy_peek`,{method:'POST',headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`,'content-type':'application/json'},body:JSON.stringify({p_secret:SERVER_SECRET,p_uid:c.uid})});
   if(r.ok){const st=await r.json();if(st&&typeof st==='object')c.econ=st;}}catch{}
   if(all.has(c)&&!c.econTimer)c.econTimer=setTimeout(()=>{c.econTimer=null;void loadEcon(c);},5*60_000);c.econTimer?.unref?.();}
+// İhale teklifi: oyuncunun gönderdiği tutara güvenilmez; o saatin en yüksek teklifi veritabanından okunup duyurulur
+async function auctionTop(lot){try{const h=Math.floor(Date.now()/3600000);const r=await fetch(`${SUPABASE_URL}/rest/v1/auction_top?hour=eq.${h}&lot=eq.${lot}&select=user_id,nick,amount,at`,{headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`}});const x=r.ok?(await r.json())[0]:null;return x?{hour:h,lot,amount:Number(x.amount),id:x.user_id,nick:x.nick,at:Date.parse(x.at)}:null;}catch{return null;}}
 async function guildTag(id){if(!id)return'';const r=await fetch(`${SUPABASE_URL}/rest/v1/guilds?id=eq.${id}&select=tag`,{headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`}});const rows=r.ok?await r.json():[];return rows[0]?.tag||'';}
 async function loadIsland(key){const r=await fetch(`${SUPABASE_URL}/rest/v1/islands?map_key=eq.${encodeURIComponent(key)}&select=*`,{headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`}});
   const row=(r.ok?await r.json():[])[0]??{map_key:key};const i=islandFromRow(row,await guildTag(row.guild_id).catch(()=>''));islands.set(key,i);return i;}
@@ -906,7 +908,7 @@ wss.on('connection',ws=>{
         const t=[...all].find(x=>x.nick&&x.nick.toLocaleLowerCase('tr')===nick.toLocaleLowerCase('tr'));
         addFlag({playerNo:t?.playerNo??0,nick:t?.nick??nick},'oyuncu bildirimi',`bildiren #${c.playerNo} ${c.nick}: ${why}${t?.chatLog?.length?` · son mesajlar: ${t.chatLog.join(' | ')}`:''}`);
         log('BİLDİRİM',`#${c.playerNo}`,c.nick,'→',nick,why);send(c,{t:'reported'});return;}
-      case'bid':{const b=m.d||{};b.id=c.uid;b.nick=c.nick;toAll(c,{t:'bid',d:b});return;}
+      case'bid':{const lot=String(m.d?.lot||'');if(!c.uid||!/^[a-z]{2,12}$/.test(lot))return;void auctionTop(lot).then(b=>{if(b&&b.id===c.uid)toAll(c,{t:'bid',d:b});});return;}
       case'known':case'ask':{toAll(c,{t:m.t,d:m.d});return;}
     }
   };
