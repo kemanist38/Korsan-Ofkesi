@@ -26,6 +26,11 @@ Uygulamada Shopier'e yönlendirme yoktur. İnci yalnızca App Store / Google Pla
 - inci yükleme ve iade,
 - hesap silme.
 
+## 1b. Şifre sıfırlama bağlantısı (bir kez)
+
+Uygulamadan istenen şifre sıfırlama e-postasındaki bağlantı doğrudan uygulamayı açar ve yeni şifre ekranını gösterir. Bunun için:
+Supabase → Authentication → URL Configuration → **Redirect URLs** listesine `com.piraterage.korsanofkesi://sifre` ekle.
+
 ## 2. Hesaplar
 
 - **Apple Developer Program:** yıllık 99 USD, https://developer.apple.com/programs/. Şirket olarak açacaksan D-U-N-S numarası gerekir.
@@ -96,7 +101,7 @@ iOS paketi yalnız **Mac + Xcode** ile derlenir: Mac'in yoksa bulut Mac hizmeti 
   - iPad: 13" (2064×2752), iPad desteği açık kalırsa.
   - Android: telefon için en az 2 adet.
   - Google Play öne çıkan görsel: 1024×500.
-- **Uygulama ikonu:** Apple ve Google için 1024×1024 ve 512×512. Şu anki ikon 512 px kaynaktan büyütüldü. Daha net olması için 1024 px bir ikon verirsen `assets/icon-only.png` yerine koyup yeniden üretirim.
+- **Uygulama ikonu:** Apple ve Google için 1024×1024 ve 512×512: `assets/icon-only.png` (alevli taçlı kurukafa). Açılış ekranı: `assets/splash.png` (Pirate Rage logosu).
 - **Kısa ve uzun açıklama, anahtar kelimeler, destek adresi:** destek@piraterage.com.
 - **Gizlilik politikası adresi:** https://www.piraterage.com/gizlilik/
 - **Yaş derecelendirmesi:** çizgi film tarzı savaş (şiddet: hafif). Uygulama içi satın alma: var. Kullanıcılar arası sohbet: var. Bu yüzden sohbette küfür filtresi, engelleme ve bildirme önerilir. Apple sohbet olan oyunlarda bildirme ve engelleme ister.
