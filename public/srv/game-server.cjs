@@ -5554,6 +5554,16 @@ async function loadEcon(c) {
   }, 5 * 6e4);
   c.econTimer?.unref?.();
 }
+async function auctionTop(lot) {
+  try {
+    const h = Math.floor(Date.now() / 36e5);
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/auction_top?hour=eq.${h}&lot=eq.${lot}&select=user_id,nick,amount,at`, { headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${SUPABASE_ANON}` } });
+    const x = r.ok ? (await r.json())[0] : null;
+    return x ? { hour: h, lot, amount: Number(x.amount), id: x.user_id, nick: x.nick, at: Date.parse(x.at) } : null;
+  } catch {
+    return null;
+  }
+}
 async function guildTag(id) {
   if (!id) return "";
   const r = await fetch(`${SUPABASE_URL}/rest/v1/guilds?id=eq.${id}&select=tag`, { headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${SUPABASE_ANON}` } });
@@ -7229,10 +7239,11 @@ wss.on("connection", (ws) => {
         return;
       }
       case "bid": {
-        const b = m.d || {};
-        b.id = c.uid;
-        b.nick = c.nick;
-        toAll(c, { t: "bid", d: b });
+        const lot = String(m.d?.lot || "");
+        if (!c.uid || !/^[a-z]{2,12}$/.test(lot)) return;
+        void auctionTop(lot).then((b) => {
+          if (b && b.id === c.uid) toAll(c, { t: "bid", d: b });
+        });
         return;
       }
       case "known":
