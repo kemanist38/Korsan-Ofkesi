@@ -58,3 +58,11 @@
 .ls-it.on{border-color:#ffd56a;box-shadow:0 0 10px #ffd56a88}.ls-it:disabled{opacity:.35;cursor:default}.ls-it.passive{cursor:default}
 @media (max-width:700px){.ls-inv{bottom:auto;top:196px;gap:3px;padding:4px}.ls-it{width:34px;height:34px}.ls-it img{width:26px;height:26px}}
 #deleteAccount{margin-left:8px;border-color:#b0413a;background:linear-gradient(#5a1712,#2a0907);color:#ffc9bd}
+/* Sohbet: ada dokununca bildir / engelle menüsü */
+.chat-log b[data-who]{cursor:pointer;text-decoration:underline dotted #f2d59a66}
+.chat-box{position:relative}
+.chat-menu{position:absolute;left:8px;right:8px;bottom:46px;z-index:5;display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px;border:1px solid #c69b4e88;border-radius:8px;background:#120d0af2;box-shadow:0 8px 20px #000c}
+.chat-menu b{flex:1 1 100%;color:#f2d59a;font:700 12px Inter}
+.chat-menu button{flex:1;padding:7px 4px;border:1px solid #8a6a4a;border-radius:5px;background:#2e1e16;color:#f1d397;font:800 10px Inter;cursor:pointer}
+.chat-menu button[data-a="report"]{border-color:#b0413a;color:#ffc9bd}
+.settings-legal{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:8px;font-size:12px}.settings-legal a{color:#e0b04f}

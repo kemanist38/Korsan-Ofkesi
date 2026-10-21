@@ -3684,6 +3684,7 @@ __export(game_server_exports, {
   TOWER_SLOTS: () => TOWER_SLOTS,
   USE_COOLDOWN: () => USE_COOLDOWN,
   addCredit: () => addCredit,
+  adminChatCommand: () => adminChatCommand,
   aevHit: () => aevHit,
   aevOpen: () => aevOpen,
   aevPools: () => aevPools,
@@ -3753,6 +3754,8 @@ __export(game_server_exports, {
   lsSpeed: () => lsSpeed,
   lsStart: () => lsStart,
   lsStep: () => lsStep,
+  muteLeft: () => muteLeft,
+  mutes: () => mutes,
   noteHp: () => noteHp,
   noteSalvo: () => noteSalvo,
   noteUse: () => noteUse,
@@ -3766,6 +3769,7 @@ __export(game_server_exports, {
   npcSpawn: () => npcSpawn,
   onLand: () => onLand,
   osbMatch: () => osbMatch,
+  parseDuration: () => parseDuration,
   parseForm: () => parseForm,
   parseOsb: () => parseOsb,
   parseRcEvent: () => parseRcEvent,
@@ -4482,6 +4486,23 @@ var LS_DROP_EVERY_MS = 75e3;
 var LS_DROP_FALL_MS = 1e4;
 var LS_DROP_PICK_R = 60;
 var LS_DROP_LOOT = { explosive: 315 * 4, fire: 315 * 3, chain: 315 * 2, powder: 12, shield: 16, speed: 1 };
+
+// src/chat-filter.ts
+var ROOTS = ["amk", "amq", "aq", "am\u0131na", "amina", "aminakoy", "amc\u0131k", "amcik", "orospu", "orosbu", "pi\xE7", "pic", "sik", "yarrak", "yarak", "g\xF6t", "got", "o\xE7", "oc", "pezevenk", "kahpe", "gavat", "ibne", "yav\u015Fak", "yavsak", "pu\u015Ft", "pust", "kaltak", "s\xFCrt\xFCk", "surtuk", "anan\u0131", "anani", "bac\u0131n\u0131", "bacini", "fuck", "shit", "bitch", "dick", "pussy", "whore", "nigga", "nigger"];
+var SAFE = ["sikayet", "siklet", "siklon", "s\u0131k\u0131", "s\u0131k\u0131l", "s\u0131k\u0131\u015F", "s\u0131k\u0131nt\u0131", "g\xF6t\xFCr", "gotik", "ocak", "oca\u011F", "piknik", "pick", "amin", "amir", "amiral", "gotham", "ocean"];
+var LEET = { "4": "a", "@": "a", "3": "e", "1": "i", "!": "i", "0": "o", "5": "s", "$": "s", "7": "t" };
+var norm = (w) => w.toLocaleLowerCase("tr").replace(/[4@3105$7!]/g, (c) => LEET[c] ?? c).replace(/[^a-zçğıöşü]/g, "").replace(/(.)\1+/g, "$1");
+var SAFE_N = SAFE.map(norm);
+var ROOTS_N = [...new Set(ROOTS.map(norm))];
+function bad(w) {
+  const n = norm(w);
+  if (n.length < 2) return false;
+  if (SAFE_N.some((s) => n === s || s.length >= 4 && n.startsWith(s))) return false;
+  return ROOTS_N.some((k) => k.length <= 3 ? n.startsWith(k) : n.includes(k));
+}
+function filterChat(text) {
+  return text.replace(/\S+/g, (w) => bad(w) ? "*".repeat(Math.min(8, w.length)) : w);
+}
 
 // src/level-quest.ts
 var levelQuestTargets = (level) => ({ ships: [`n${level}-1-heavy`, `n${level}-2-heavy`], tier: level });
@@ -6277,6 +6298,48 @@ function onDom(c, d, now) {
   }
 }
 setInterval(() => domTick(Date.now()), 1e3).unref();
+var MUTE_FILE = process.env.MUTE_FILE || "/opt/game/mutes.json";
+var mutes = /* @__PURE__ */ new Map();
+try {
+  for (const [k, v] of JSON.parse(import_node_fs.default.readFileSync(MUTE_FILE, "utf8"))) mutes.set(k, v);
+} catch {
+}
+var saveMutes = () => {
+  if (process.env.NODE_ENV === "test") return;
+  try {
+    import_node_fs.default.writeFileSync(MUTE_FILE, JSON.stringify([...mutes].filter(([, v]) => v > Date.now())));
+  } catch {
+  }
+};
+var muteKey = (n) => String(n || "").trim().toLocaleLowerCase("tr");
+var muteLeft = (nick, now = Date.now()) => Math.max(0, (mutes.get(muteKey(nick)) ?? 0) - now);
+function parseDuration(s) {
+  const m = /^(\d+)\s*(d|dk|dakika|s|sa|saat|g|gün|gun)?$/i.exec(String(s || "").trim());
+  if (!m) return 0;
+  const n = Number(m[1]), u = (m[2] || "d").toLocaleLowerCase("tr");
+  return n * (u.startsWith("g") ? 864e5 : u === "s" || u.startsWith("sa") ? 36e5 : 6e4);
+}
+function adminChatCommand(text, now = Date.now()) {
+  const p2 = text.trim().split(/\s+/);
+  const cmd = p2[0].toLocaleLowerCase("tr");
+  if (cmd === "/sustur") {
+    const ms = parseDuration(p2.slice(2).join(""));
+    if (!p2[1] || !ms) return "Kullan\u0131m: /sustur <kaptan ad\u0131> <s\xFCre>  \xF6r. /sustur Ahmet 30d \xB7 12s \xB7 2g";
+    mutes.set(muteKey(p2[1]), now + ms);
+    saveMutes();
+    const t = [...all].find((x) => muteKey(x.nick) === muteKey(p2[1]));
+    if (t) send(t, { t: "muted", d: { left: ms } });
+    log("SUSTURMA", p2[1], Math.round(ms / 6e4), "dk");
+    return `${p2[1]} ${Math.round(ms / 6e4)} dakika susturuldu`;
+  }
+  if (cmd === "/konustur") {
+    if (!p2[1]) return "Kullan\u0131m: /konustur <kaptan ad\u0131>";
+    const had = mutes.delete(muteKey(p2[1]));
+    saveMutes();
+    return had ? `${p2[1]} art\u0131k yazabilir` : `${p2[1]} susturulmam\u0131\u015F`;
+  }
+  return null;
+}
 var LS_TRIAL = process.env.LS_TRIAL === "1";
 var lsQueue = [];
 var lsMatches = /* @__PURE__ */ new Map();
@@ -7056,9 +7119,34 @@ wss.on("connection", (ws) => {
       }
       case "chat": {
         if (!c.rChat.hit(now)) return;
-        const text = String(m.d?.text || "").slice(0, LIMITS.chatLen).trim();
-        if (!text) return;
+        const raw2 = String(m.d?.text || "").slice(0, LIMITS.chatLen).trim();
+        if (!raw2) return;
+        if (c.admin && raw2.startsWith("/")) {
+          const r = adminChatCommand(raw2, now);
+          if (r) {
+            send(c, { t: "chat", d: { nick: "Sistem", tag: null, text: r, at: now, adm: true } });
+            return;
+          }
+        }
+        const mu = muteLeft(c.nick, now);
+        if (mu > 0) {
+          send(c, { t: "muted", d: { left: mu } });
+          return;
+        }
+        const text = c.admin ? raw2 : filterChat(raw2);
         toAll(c, { t: "chat", d: { nick: c.nick, tag: m.d?.tag ?? null, text, at: now, ...c.admin ? { adm: true } : {} } });
+        c.chatLog = [...c.chatLog || [], `${new Date(now).toISOString().slice(11, 16)} ${raw2}`].slice(-5);
+        return;
+      }
+      // Oyuncu bildirimi: bildirilen oyuncunun son mesajlarıyla yönetim paneline (Şüpheli kayıtlar) düşer
+      case "report": {
+        if (!c.rKill.hit(now) || now - (c.reportAt || 0) < 2e4) return;
+        c.reportAt = now;
+        const nick = String(m.d?.nick || "").slice(0, 40), why = String(m.d?.why || "").slice(0, 120);
+        const t = [...all].find((x) => x.nick && x.nick.toLocaleLowerCase("tr") === nick.toLocaleLowerCase("tr"));
+        addFlag({ playerNo: t?.playerNo ?? 0, nick: t?.nick ?? nick }, "oyuncu bildirimi", `bildiren #${c.playerNo} ${c.nick}: ${why}${t?.chatLog?.length ? ` \xB7 son mesajlar: ${t.chatLog.join(" | ")}` : ""}`);
+        log("B\u0130LD\u0130R\u0130M", `#${c.playerNo}`, c.nick, "\u2192", nick, why);
+        send(c, { t: "reported" });
         return;
       }
       case "bid": {
@@ -7167,6 +7255,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   TOWER_SLOTS,
   USE_COOLDOWN,
   addCredit,
+  adminChatCommand,
   aevHit,
   aevOpen,
   aevPools,
@@ -7236,6 +7325,8 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   lsSpeed,
   lsStart,
   lsStep,
+  muteLeft,
+  mutes,
   noteHp,
   noteSalvo,
   noteUse,
@@ -7249,6 +7340,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   npcSpawn,
   onLand,
   osbMatch,
+  parseDuration,
   parseForm,
   parseOsb,
   parseRcEvent,
