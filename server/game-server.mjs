@@ -18,7 +18,7 @@ import {EQUIPMENT,equipTotals} from '../src/equipment.ts';
 import {cumulativeEliteBonus,ELITE_CANNON_CAPACITY} from '../src/elite-progression.ts';
 import {ACHIEVEMENTS,MAIN_COLLECTION} from '../src/achievements.ts';
 import {officerSlots,OFFICER_MAX_RANK,talentPoints,TALENTS} from '../src/crew.ts';
-import {MINE} from '../src/arsenal.ts';
+import {MINE,CONSUMABLES} from '../src/arsenal.ts';
 import {sparkleMult,goldMult,xpMult,epMult,spMult} from '../src/events.ts';
 import {HERO_DAMAGE,HERO_DAYS} from '../src/siege.ts';
 import {createChest} from '../src/loot.ts';
@@ -26,7 +26,7 @@ import {fleetReward,LEVEL_XP} from '../src/campaign.ts';
 import {ELITE_SHIPS} from '../src/elite-ships.ts';
 import {contribReward,earnsChest,victoryChest} from '../src/siege.ts';
 import {DOM_SIZE,DOM_COUNTDOWN_MS,DOM_MATCH_MS,DOM_WIN,DOM_ZONE,DOM_BASE,domWindowAt,domBalance,domZoneStep,domWinner,domReward} from '../src/domination.ts';
-import {LS_SIZE,LS_COUNTDOWN_MS,LS_LOADOUT,LS_HP,LS_START_R,LS_RADII,LS_PHASE_MS,LS_FOG_DPS,LS_MATCH_MS,lsZoneAt,lsNext,lsReward,lsSpawn} from '../src/cursed.ts';
+import {LS_ITEMS,LS_ITEM_MAX,LS_ITEM_RESPAWN_MS,LS_PICK_R,LS_SPEED_MS,lsEmptyInv,lsPickKind,LS_SIZE,LS_COUNTDOWN_MS,LS_LOADOUT,LS_HP,LS_START_R,LS_RADII,LS_PHASE_MS,LS_FOG_DPS,LS_MATCH_MS,lsZoneAt,lsNext,lsReward,lsSpawn} from '../src/cursed.ts';
 import {levelQuestGoal,levelQuestTargets,levelQuestMap} from '../src/level-quest.ts';
 
 const PORT=Number(process.env.PORT||3000);
@@ -555,7 +555,7 @@ export function attackTarget(c,d){const k=String(d?.k||'n'),id=String(d?.id??'')
   if(k==='p'&&domMatchOfSea(c.sea)!==undefined){const t=[...(seas.get(c.sea)||[])].find(x=>x.netId===id&&x!==c);return t?.last&&t.domTeam&&!domLocked(t,Date.now())?{k,t,x:t.last.x,y:t.last.y,kind:'player',dom:true}:null;}
   if(k==='p'){const t=[...(seas.get(c.sea)||[])].find(x=>x.netId===id&&x!==c);if(!t?.last||(c.guildId&&c.guildId===t.guildId&&!t.admin))return null;if(t.admin&&!aevOpen(c.sea))return null;return{k,t,x:t.last.x,y:t.last.y,kind:'player'};}
   return null;}
-async function onAttack(c,d,now){if(!c.last)return;const tg=attackTarget(c,d);if(!tg)return;if(tg.ls){lsAttack(c,tg.t,now);return;}if(!c.ldRaw)return;c.ld=buildLoadout(c.econ,c.ldRaw);if(!c.ld)return;
+async function onAttack(c,d,now){if(!c.last)return;const tg=attackTarget(c,d);if(!tg)return;if(tg.ls){lsAttack(c,tg.t,now,d);return;}if(!c.ldRaw)return;c.ld=buildLoadout(c.econ,c.ldRaw);if(!c.ld)return;
   const a=String(d?.a||'iron');if(tg.dom&&(a==='heal'||tg.t.domTeam===c.domTeam))return;// Deniz Hakimiyeti: şifa güllesi yok, gülle yalnız rakibe
   if(!['iron','chain','fire','explosive','breaker','leech',...(tg.k==='p'||tg.k==='t'?['heal']:[])].includes(a))return;
   const why=shotCheck(c,c.ld,a,tg.x===undefined?0:Math.hypot(c.last.x-tg.x,c.last.y-tg.y),now,!!d?.r);if(why){if(why!=='dolum')suspect(c,'atış',why);return;}
@@ -672,10 +672,10 @@ export function lsDrop(c){const i=lsQueue.indexOf(c);if(i>=0)lsQueue.splice(i,1)
   if(lsPending?.list.includes(c)){lsQueue.unshift(...lsPending.list.filter(x=>x!==c&&all.has(x)));lsPending=null;}}
 const lsFogInfo=m=>({from:m.fog.from,to:m.fog.to,at:m.fog.at,phase:m.fog.phase,now:Date.now()});
 export function lsStart(now,pend=lsPending,rand=Math.random){const id=crypto.randomUUID().replace(/-/g,'').slice(0,10),players=new Map();
-  const order=[...pend.list].sort(()=>rand()-.5);order.forEach((x,i)=>players.set(x.uid,{nick:domNick(x),alive:true,kills:0,balls:0,rank:0,spawn:lsSpawn(i,order.length)}));
-  const z={x:3000,y:2000,r:LS_START_R};const m={id,players,fog:{from:z,to:z,at:now,phase:0},start:now,end:now+LS_MATCH_MS,result:null};lsMatches.set(id,m);if(pend===lsPending)lsPending=null;
+  const order=[...pend.list].sort(()=>rand()-.5);order.forEach((x,i)=>players.set(x.uid,{nick:domNick(x),alive:true,kills:0,balls:0,rank:0,spawn:lsSpawn(i,order.length),inv:lsEmptyInv()}));
+  const z={x:3000,y:2000,r:LS_START_R};const m={id,players,fog:{from:z,to:z,at:now,phase:0},start:now,end:now+LS_MATCH_MS,result:null,items:[],seq:0,itemAt:now};lsMatches.set(id,m);for(let i=0;i<LS_ITEM_MAX;i++)lsAddItem(m,now,rand);if(pend===lsPending)lsPending=null;
   for(const x of order){const p=players.get(x.uid);x.lsOn=true;x.lsMatch=id;x.lsSpawned=false;x.maxHp=LS_HP;pvpReset(x);if(x.pvp)x.pvp.hp=LS_HP;else{x.pvp={budget:null,heal:null,hp:LS_HP,at:now,from:new Map()};}
-    send(x,{t:'ls',d:{k:'start',id,spawn:p.spawn,n:order.length,end:m.end,fog:lsFogInfo(m)}});}
+    send(x,{t:'ls',d:{k:'start',id,spawn:p.spawn,n:order.length,end:m.end,fog:lsFogInfo(m),items:m.items}});}
   log('LANETLİ SULAR BAŞLADI',id,order.length);return m;}
 // Doğuş yalnızca kendi başlangıç noktasında (300 birim içinde); sonrası normal hız denetimi
 export function lsMove(c,s){const m=lsMatches.get(c.lsMatch),p=m?.players.get(c.uid);if(!p||!num(s?.x)||!num(s?.y))return null;
@@ -694,19 +694,37 @@ export function lsFinish(m,now,clients=[...all]){if(m.result)return;
   alive.forEach(({p,x},i)=>{p.alive=false;p.rank=i+1;if(!x)return;x.lsOn=false;const add=lsReward(p.rank,p.kills,p.balls);addCredit(x,add);send(x,{t:'ls',d:{k:'out',rank:p.rank,n:m.players.size,kills:p.kills,win:p.rank===1,...add}});void flushCredit(x);});
 
   for(const p of m.players.values())p.alive=false;m.result={at:now};m.end=now;log('LANETLİ SULAR BİTTİ',m.id,alive[0]?.p.nick??'-');}
-export function lsAttack(c,t,now){const m=lsMatches.get(c.lsMatch),me=m?.players.get(c.uid);if(!me?.alive||!m.players.get(t.uid)?.alive)return;
-  const why=shotCheck(c,LS_LOADOUT,'iron',Math.hypot(c.last.x-t.last.x,c.last.y-t.last.y),now,false);if(why){if(why!=='dolum')suspect(c,'atış',why);return;}
-  me.balls+=LS_LOADOUT.cannons;const raw=salvoDamage(LS_LOADOUT,'iron',0,LS_LOADOUT.cannons,false,false)*targetFactor('iron','player');
-  const f={from:c.netId,to:t.netId,x:Math.round(c.last.x),y:Math.round(c.last.y),tx:Math.round(t.last.x),ty:Math.round(t.last.y),ammo:'iron',damage:pvpGuard(t,raw,now)};pvpOf(t).from.set(c.netId,now);
+// Atış: seçilen özel gülle envanterden topların sayısı kadar düşer, kalan toplar demir atar; barut varsa salvo başına 1 harcanır.
+// Hedefin kalkanı varsa isabet başına 1 kalkan harcanır ve gelen hasar azalır. Hepsi sunucudaki maç envanterinden.
+export const LS_AMMO=['iron','chain','fire','explosive'];
+export function lsAttack(c,t,now,d={}){const m=lsMatches.get(c.lsMatch),me=m?.players.get(c.uid),tp=m?.players.get(t.uid);if(!me?.alive||!tp?.alive)return null;
+  const a=LS_AMMO.includes(String(d?.a))?String(d.a):'iron';
+  const why=shotCheck(c,LS_LOADOUT,a,Math.hypot(c.last.x-t.last.x,c.last.y-t.last.y),now,false);if(why){if(why!=='dolum')suspect(c,'atış',why);return null;}
+  const cap=LS_LOADOUT.cannons,loaded=a==='iron'?0:Math.min(cap,me.inv[a]);if(loaded)me.inv[a]-=loaded;const ammo=loaded?a:'iron';
+  const powder=!!d?.p&&me.inv.powder>0;if(powder)me.inv.powder--;
+  me.balls+=cap;let raw=salvoDamage(LS_LOADOUT,ammo,loaded,cap-loaded,powder,false)*targetFactor(ammo,'player');
+  if(tp.inv.shield>0){tp.inv.shield--;raw*=CONSUMABLES.shield.factor;send(t,{t:'ls',d:{k:'inv',inv:tp.inv}});}
+  if(loaded||powder)send(c,{t:'ls',d:{k:'inv',inv:me.inv}});
+  const f={from:c.netId,to:t.netId,x:Math.round(c.last.x),y:Math.round(c.last.y),tx:Math.round(t.last.x),ty:Math.round(t.last.y),ammo,damage:pvpGuard(t,raw,now)};pvpOf(t).from.set(c.netId,now);
   toNear(c,{t:'fire',d:f},t.netId);
-  if(godCheck(t)){suspect(t,'ölümsüz');send(t,{t:'forceSink',d:{by:c.netId,byNick:c.nick}});toSea(t,{t:'sunk',d:{victim:t.netId,victimNick:t.nick,by:c.netId,byNick:c.nick}});lsOut(t,c,now);}}
+  if(godCheck(t)){suspect(t,'ölümsüz');send(t,{t:'forceSink',d:{by:c.netId,byNick:c.nick}});toSea(t,{t:'sunk',d:{victim:t.netId,victimNick:t.nick,by:c.netId,byNick:c.nick}});lsOut(t,c,now);}
+  return f;}
+// Denizdeki eşyalar: güvenli alanın içinde rastgele yerde belirir, toplanınca LS_ITEM_RESPAWN_MS'de bir yenisi gelir (en çok LS_ITEM_MAX)
+export function lsAddItem(m,now,rand=Math.random){const z=lsZoneAt(m.fog,now),r=Math.max(0,z.r*.85),a=rand()*Math.PI*2,d=Math.sqrt(rand())*r;
+  const x=Math.round(Math.max(120,Math.min(5880,z.x+Math.cos(a)*d))),y=Math.round(Math.max(120,Math.min(3880,z.y+Math.sin(a)*d)));m.items.push([++m.seq,lsPickKind(rand),x,y]);}
+export function lsPick(c,id,now){const m=lsMatches.get(c.lsMatch),p=m?.players.get(c.uid);if(!p?.alive||!c.last)return{err:'yok'};
+  const i=m.items.findIndex(x=>x[0]===Number(id));if(i<0)return{err:'yok'};const it=m.items[i];
+  if(Math.hypot(c.last.x-it[2],c.last.y-it[3])>LS_PICK_R+90)return{err:'uzak'};
+  m.items.splice(i,1);p.inv[it[1]]+=LS_ITEMS[it[1]].qty;return{kind:it[1],inv:p.inv};}
+export function lsSpeed(c,now){const p=lsMatches.get(c.lsMatch)?.players.get(c.uid);if(!p?.alive||p.inv.speed<=0)return null;p.inv.speed--;c.lsSpeedUntil=now+LS_SPEED_MS;return p.inv;}
 // Sis: her LS_PHASE_MS'de yeni güvenli alan; dışarıdaki gemi saniyede tam canın LS_FOG_DPS payını kaybeder (sunucu canından düşülür)
 export function lsStep(m,room,now,rand=Math.random){let changed=false;
   if(m.fog.phase<LS_RADII.length&&now>=m.start+(m.fog.phase+1)*LS_PHASE_MS){const cur=lsZoneAt(m.fog,now);m.fog={from:cur,to:lsNext(cur,LS_RADII[m.fog.phase],rand),at:now,phase:m.fog.phase+1};changed=true;}
+  let items=false;if(now-m.itemAt>=LS_ITEM_RESPAWN_MS){m.itemAt=now;if(m.items.length<LS_ITEM_MAX){lsAddItem(m,now,rand);items=true;}}
   const z=lsZoneAt(m.fog,now),hits=[];
   for(const x of room||[]){if(!x.lsOn||x.lsMatch!==m.id||!x.last)continue;if(Math.hypot(x.last.x-z.x,x.last.y-z.y)<=z.r)continue;
     const dmg=Math.round(LS_HP*LS_FOG_DPS[Math.min(m.fog.phase,LS_FOG_DPS.length-1)]);const p=pvpOf(x);if(p.hp===null)p.hp=LS_HP;p.hp-=dmg;hits.push([x,dmg,p.hp<=0]);}
-  return{changed,hits};}
+  return{changed,hits,items};}
 function lsTick(now){
   if(lsPending){if(lsPending.list.some(x=>!all.has(x)||!x.uid)){for(const x of lsPending.list.filter(y=>!all.has(y)))lsDrop(x);lsBroadcast(now);}
     else if(now>=lsPending.at){lsStart(now);lsBroadcast(now);}}
@@ -715,7 +733,7 @@ function lsTick(now){
     // Maçtan kopan ya da odadan çıkan elenir (ödülsüz)
     for(const [uid,p] of m.players){if(!p.alive)continue;const x=[...all].find(y=>y.uid===uid);if(!x||(now-m.start>20_000&&x.sea!==`sea-ls-${id}`)){if(x)lsOut(x,null,now,true);else{p.alive=false;p.rank=lsAlive(m)+1;}}}
     if(m.result)continue;if(lsAlive(m)<=1){lsFinish(m,now);continue;}
-    const r=lsStep(m,room,now);if(r.changed){const msg=JSON.stringify({t:'ls',d:{k:'fog',fog:lsFogInfo(m),n:lsAlive(m)}});for(const x of room||[])send(x,msg);}
+    const r=lsStep(m,room,now);if(r.items){const msg=JSON.stringify({t:'ls',d:{k:'items',items:m.items}});for(const x of room||[])send(x,msg);}if(r.changed){const msg=JSON.stringify({t:'ls',d:{k:'fog',fog:lsFogInfo(m),n:lsAlive(m)}});for(const x of room||[])send(x,msg);}
     for(const [x,dmg,dead] of r.hits){send(x,{t:'ls',d:{k:'burn',dmg}});if(dead){send(x,{t:'forceSink',d:{by:'',byNick:'Lanetli Sis'}});toSea(x,{t:'sunk',d:{victim:x.netId,victimNick:x.nick,by:null,byNick:'Lanetli Sis'}});lsOut(x,null,now);}}
     if(now>=m.end)lsFinish(m,now);}}
 function onLs(c,d,now){const k=String(d?.k||'');
@@ -723,7 +741,10 @@ function onLs(c,d,now){const k=String(d?.k||'');
   if(k==='q'){if(d?.on){if(!lsOpen(c,now)){send(c,{t:'ls',d:{k:'err',msg:'Lanetli Sular şu an kapalı'}});return;}if(lsInMatch(c)||domInMatch(c)){send(c,{t:'ls',d:{k:'err',msg:'Zaten bir maçtasın'}});return;}domDrop(c);
       if(!lsQueue.includes(c)&&!lsPending?.list.includes(c))lsQueue.push(c);lsPump(now);}
     else lsDrop(c);lsBroadcast(now);return;}
-  if(k==='leave'){if(c.lsOn)lsOut(c,null,now,true);return;}}
+  if(k==='leave'){if(c.lsOn)lsOut(c,null,now,true);return;}
+  if(k==='pick'){const r=lsPick(c,d?.id,now);if(r.err){if(r.err==='uzak')suspect(c,'uzak eşya');return;}send(c,{t:'ls',d:{k:'inv',inv:r.inv,got:r.kind}});
+    const m=lsMatches.get(c.lsMatch);const msg=JSON.stringify({t:'ls',d:{k:'items',items:m.items}});for(const x of seas.get(`sea-ls-${m.id}`)||[])send(x,msg);return;}
+  if(k==='speed'){const inv=lsSpeed(c,now);if(inv)send(c,{t:'ls',d:{k:'inv',inv,speed:1}});return;}}
 setInterval(()=>lsTick(Date.now()),1000).unref();
 
 // Doğrulanan kazançlar 20 saniyede bir veritabanına yazılır; dönen değerlerle oyuncunun seviyesi tazelenir

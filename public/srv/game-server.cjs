@@ -3661,6 +3661,7 @@ __export(game_server_exports, {
   ISLAND_KEYS: () => ISLAND_KEYS,
   LIMITS: () => LIMITS,
   LOOT: () => LOOT,
+  LS_AMMO: () => LS_AMMO,
   NEAR: () => NEAR,
   NPC_DMG_MODEL: () => NPC_DMG_MODEL,
   NPC_FIRE_RANGE: () => NPC_FIRE_RANGE,
@@ -3733,6 +3734,7 @@ __export(game_server_exports, {
   lootInfo: () => lootInfo,
   lootTake: () => lootTake,
   lootTick: () => lootTick,
+  lsAddItem: () => lsAddItem,
   lsAttack: () => lsAttack,
   lsDrop: () => lsDrop,
   lsFinish: () => lsFinish,
@@ -3743,8 +3745,10 @@ __export(game_server_exports, {
   lsOpen: () => lsOpen,
   lsOut: () => lsOut,
   lsPending: () => lsPending,
+  lsPick: () => lsPick,
   lsPump: () => lsPump,
   lsQueue: () => lsQueue,
+  lsSpeed: () => lsSpeed,
   lsStart: () => lsStart,
   lsStep: () => lsStep,
   noteHp: () => noteHp,
@@ -4420,7 +4424,7 @@ var domReward = (team, win, balls) => ({ pearls: win === null ? DOM_PEARLS.draw 
 // src/cursed.ts
 var LS_SIZE = 10;
 var LS_COUNTDOWN_MS = 15e3;
-var LS_LOADOUT = { cannons: 40, type: "cast", upDamage: 0, upReload: 0, upRange: 0, crewDamage: 1, crewReload: 1, crewRange: 0, equipDamage: 0, equipReload: 0, equipRange: 0, achDamage: 0, eliteDamage: 0, eliteReload: 0, hero: 0 };
+var LS_LOADOUT = { cannons: 315, type: "cast", upDamage: 0, upReload: 0, upRange: 0, crewDamage: 1, crewReload: 1, crewRange: 0, equipDamage: 0, equipReload: 0, equipRange: 0, achDamage: 0, eliteDamage: 0, eliteReload: 0, hero: 0 };
 var LS_SALVO = Math.round(salvoDamage(LS_LOADOUT, "iron", 0, LS_LOADOUT.cannons, false, false));
 var LS_RELOAD = reloadTime(LS_LOADOUT, "iron");
 var LS_RANGE = rangeOf(LS_LOADOUT);
@@ -4446,6 +4450,29 @@ function lsNext(cur, r, rand = Math.random) {
 }
 var lsReward = (rank, kills, balls) => ({ pearls: (LS_PEARLS[rank - 1] ?? LS_PEARLS_REST) + kills * LS_KILL_PEARLS, ep: Math.max(0, Math.round(balls)) * LS_EP_PER_BALL });
 var lsSpawn = (i, n) => ({ x: Math.round(3e3 + Math.cos(i / n * Math.PI * 2) * 1700), y: Math.round(2e3 + Math.sin(i / n * Math.PI * 2) * 1300) });
+var LS_ITEMS = {
+  chain: { name: "Zincir G\xFCllesi", qty: 315 * 3, icon: "/assets/ammo-chain-v2.webp", weight: 3 },
+  fire: { name: "Ate\u015F G\xFCllesi", qty: 315 * 2, icon: "/assets/ammo-fire-v2.webp", weight: 3 },
+  explosive: { name: "Patlay\u0131c\u0131 G\xFClle", qty: 315 * 2, icon: "/assets/ammo-explosive-v2.webp", weight: 2 },
+  powder: { name: "Kara Barut", qty: 6, icon: "/assets/icon-powder-v4.webp", weight: 2 },
+  shield: { name: "Kalkan", qty: 8, icon: "/assets/icon-shield-v3.webp", weight: 2 },
+  speed: { name: "H\u0131z \u0130ksiri", qty: 1, icon: "/assets/icon-speed-potion-v2.webp", weight: 1 }
+};
+var LS_ITEM_KEYS = Object.keys(LS_ITEMS);
+var LS_ITEM_MAX = 26;
+var LS_ITEM_RESPAWN_MS = 2500;
+var LS_PICK_R = 46;
+var LS_SPEED_MS = 8e3;
+var lsEmptyInv = () => ({ chain: 0, fire: 0, explosive: 0, powder: 0, shield: 0, speed: 0 });
+function lsPickKind(rand = Math.random) {
+  const tot = LS_ITEM_KEYS.reduce((a, k) => a + LS_ITEMS[k].weight, 0);
+  let r = rand() * tot;
+  for (const k of LS_ITEM_KEYS) {
+    r -= LS_ITEMS[k].weight;
+    if (r < 0) return k;
+  }
+  return "chain";
+}
 
 // src/level-quest.ts
 var levelQuestTargets = (level) => ({ ships: [`n${level}-1-heavy`, `n${level}-2-heavy`], tier: level });
@@ -5902,7 +5929,7 @@ async function onAttack(c, d, now) {
   const tg = attackTarget(c, d);
   if (!tg) return;
   if (tg.ls) {
-    lsAttack(c, tg.t, now);
+    lsAttack(c, tg.t, now, d);
     return;
   }
   if (!c.ldRaw) return;
@@ -6233,10 +6260,11 @@ var lsFogInfo = (m) => ({ from: m.fog.from, to: m.fog.to, at: m.fog.at, phase: m
 function lsStart(now, pend = lsPending, rand = Math.random) {
   const id = import_node_crypto.default.randomUUID().replace(/-/g, "").slice(0, 10), players = /* @__PURE__ */ new Map();
   const order = [...pend.list].sort(() => rand() - 0.5);
-  order.forEach((x, i) => players.set(x.uid, { nick: domNick(x), alive: true, kills: 0, balls: 0, rank: 0, spawn: lsSpawn(i, order.length) }));
+  order.forEach((x, i) => players.set(x.uid, { nick: domNick(x), alive: true, kills: 0, balls: 0, rank: 0, spawn: lsSpawn(i, order.length), inv: lsEmptyInv() }));
   const z = { x: 3e3, y: 2e3, r: LS_START_R };
-  const m = { id, players, fog: { from: z, to: z, at: now, phase: 0 }, start: now, end: now + LS_MATCH_MS, result: null };
+  const m = { id, players, fog: { from: z, to: z, at: now, phase: 0 }, start: now, end: now + LS_MATCH_MS, result: null, items: [], seq: 0, itemAt: now };
   lsMatches.set(id, m);
+  for (let i = 0; i < LS_ITEM_MAX; i++) lsAddItem(m, now, rand);
   if (pend === lsPending) lsPending = null;
   for (const x of order) {
     const p2 = players.get(x.uid);
@@ -6249,7 +6277,7 @@ function lsStart(now, pend = lsPending, rand = Math.random) {
     else {
       x.pvp = { budget: null, heal: null, hp: LS_HP, at: now, from: /* @__PURE__ */ new Map() };
     }
-    send(x, { t: "ls", d: { k: "start", id, spawn: p2.spawn, n: order.length, end: m.end, fog: lsFogInfo(m) } });
+    send(x, { t: "ls", d: { k: "start", id, spawn: p2.spawn, n: order.length, end: m.end, fog: lsFogInfo(m), items: m.items } });
   }
   log("LANETL\u0130 SULAR BA\u015ELADI", id, order.length);
   return m;
@@ -6308,17 +6336,30 @@ function lsFinish(m, now, clients = [...all]) {
   m.end = now;
   log("LANETL\u0130 SULAR B\u0130TT\u0130", m.id, alive[0]?.p.nick ?? "-");
 }
-function lsAttack(c, t, now) {
-  const m = lsMatches.get(c.lsMatch), me = m?.players.get(c.uid);
-  if (!me?.alive || !m.players.get(t.uid)?.alive) return;
-  const why = shotCheck(c, LS_LOADOUT, "iron", Math.hypot(c.last.x - t.last.x, c.last.y - t.last.y), now, false);
+var LS_AMMO = ["iron", "chain", "fire", "explosive"];
+function lsAttack(c, t, now, d = {}) {
+  const m = lsMatches.get(c.lsMatch), me = m?.players.get(c.uid), tp = m?.players.get(t.uid);
+  if (!me?.alive || !tp?.alive) return null;
+  const a = LS_AMMO.includes(String(d?.a)) ? String(d.a) : "iron";
+  const why = shotCheck(c, LS_LOADOUT, a, Math.hypot(c.last.x - t.last.x, c.last.y - t.last.y), now, false);
   if (why) {
     if (why !== "dolum") suspect(c, "at\u0131\u015F", why);
-    return;
+    return null;
   }
-  me.balls += LS_LOADOUT.cannons;
-  const raw = salvoDamage(LS_LOADOUT, "iron", 0, LS_LOADOUT.cannons, false, false) * targetFactor("iron", "player");
-  const f = { from: c.netId, to: t.netId, x: Math.round(c.last.x), y: Math.round(c.last.y), tx: Math.round(t.last.x), ty: Math.round(t.last.y), ammo: "iron", damage: pvpGuard(t, raw, now) };
+  const cap = LS_LOADOUT.cannons, loaded = a === "iron" ? 0 : Math.min(cap, me.inv[a]);
+  if (loaded) me.inv[a] -= loaded;
+  const ammo = loaded ? a : "iron";
+  const powder = !!d?.p && me.inv.powder > 0;
+  if (powder) me.inv.powder--;
+  me.balls += cap;
+  let raw = salvoDamage(LS_LOADOUT, ammo, loaded, cap - loaded, powder, false) * targetFactor(ammo, "player");
+  if (tp.inv.shield > 0) {
+    tp.inv.shield--;
+    raw *= CONSUMABLES.shield.factor;
+    send(t, { t: "ls", d: { k: "inv", inv: tp.inv } });
+  }
+  if (loaded || powder) send(c, { t: "ls", d: { k: "inv", inv: me.inv } });
+  const f = { from: c.netId, to: t.netId, x: Math.round(c.last.x), y: Math.round(c.last.y), tx: Math.round(t.last.x), ty: Math.round(t.last.y), ammo, damage: pvpGuard(t, raw, now) };
   pvpOf(t).from.set(c.netId, now);
   toNear(c, { t: "fire", d: f }, t.netId);
   if (godCheck(t)) {
@@ -6327,6 +6368,30 @@ function lsAttack(c, t, now) {
     toSea(t, { t: "sunk", d: { victim: t.netId, victimNick: t.nick, by: c.netId, byNick: c.nick } });
     lsOut(t, c, now);
   }
+  return f;
+}
+function lsAddItem(m, now, rand = Math.random) {
+  const z = lsZoneAt(m.fog, now), r = Math.max(0, z.r * 0.85), a = rand() * Math.PI * 2, d = Math.sqrt(rand()) * r;
+  const x = Math.round(Math.max(120, Math.min(5880, z.x + Math.cos(a) * d))), y = Math.round(Math.max(120, Math.min(3880, z.y + Math.sin(a) * d)));
+  m.items.push([++m.seq, lsPickKind(rand), x, y]);
+}
+function lsPick(c, id, now) {
+  const m = lsMatches.get(c.lsMatch), p2 = m?.players.get(c.uid);
+  if (!p2?.alive || !c.last) return { err: "yok" };
+  const i = m.items.findIndex((x) => x[0] === Number(id));
+  if (i < 0) return { err: "yok" };
+  const it = m.items[i];
+  if (Math.hypot(c.last.x - it[2], c.last.y - it[3]) > LS_PICK_R + 90) return { err: "uzak" };
+  m.items.splice(i, 1);
+  p2.inv[it[1]] += LS_ITEMS[it[1]].qty;
+  return { kind: it[1], inv: p2.inv };
+}
+function lsSpeed(c, now) {
+  const p2 = lsMatches.get(c.lsMatch)?.players.get(c.uid);
+  if (!p2?.alive || p2.inv.speed <= 0) return null;
+  p2.inv.speed--;
+  c.lsSpeedUntil = now + LS_SPEED_MS;
+  return p2.inv;
 }
 function lsStep(m, room, now, rand = Math.random) {
   let changed = false;
@@ -6334,6 +6399,14 @@ function lsStep(m, room, now, rand = Math.random) {
     const cur = lsZoneAt(m.fog, now);
     m.fog = { from: cur, to: lsNext(cur, LS_RADII[m.fog.phase], rand), at: now, phase: m.fog.phase + 1 };
     changed = true;
+  }
+  let items = false;
+  if (now - m.itemAt >= LS_ITEM_RESPAWN_MS) {
+    m.itemAt = now;
+    if (m.items.length < LS_ITEM_MAX) {
+      lsAddItem(m, now, rand);
+      items = true;
+    }
   }
   const z = lsZoneAt(m.fog, now), hits = [];
   for (const x of room || []) {
@@ -6345,7 +6418,7 @@ function lsStep(m, room, now, rand = Math.random) {
     p2.hp -= dmg;
     hits.push([x, dmg, p2.hp <= 0]);
   }
-  return { changed, hits };
+  return { changed, hits, items };
 }
 function lsTick(now) {
   if (lsPending) {
@@ -6380,6 +6453,10 @@ function lsTick(now) {
       continue;
     }
     const r = lsStep(m, room, now);
+    if (r.items) {
+      const msg = JSON.stringify({ t: "ls", d: { k: "items", items: m.items } });
+      for (const x of room || []) send(x, msg);
+    }
     if (r.changed) {
       const msg = JSON.stringify({ t: "ls", d: { k: "fog", fog: lsFogInfo(m), n: lsAlive(m) } });
       for (const x of room || []) send(x, msg);
@@ -6421,6 +6498,23 @@ function onLs(c, d, now) {
   }
   if (k === "leave") {
     if (c.lsOn) lsOut(c, null, now, true);
+    return;
+  }
+  if (k === "pick") {
+    const r = lsPick(c, d?.id, now);
+    if (r.err) {
+      if (r.err === "uzak") suspect(c, "uzak e\u015Fya");
+      return;
+    }
+    send(c, { t: "ls", d: { k: "inv", inv: r.inv, got: r.kind } });
+    const m = lsMatches.get(c.lsMatch);
+    const msg = JSON.stringify({ t: "ls", d: { k: "items", items: m.items } });
+    for (const x of seas.get(`sea-ls-${m.id}`) || []) send(x, msg);
+    return;
+  }
+  if (k === "speed") {
+    const inv = lsSpeed(c, now);
+    if (inv) send(c, { t: "ls", d: { k: "inv", inv, speed: 1 } });
     return;
   }
 }
@@ -6943,6 +7037,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   ISLAND_KEYS,
   LIMITS,
   LOOT,
+  LS_AMMO,
   NEAR,
   NPC_DMG_MODEL,
   NPC_FIRE_RANGE,
@@ -7015,6 +7110,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   lootInfo,
   lootTake,
   lootTick,
+  lsAddItem,
   lsAttack,
   lsDrop,
   lsFinish,
@@ -7025,8 +7121,10 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   lsOpen,
   lsOut,
   lsPending,
+  lsPick,
   lsPump,
   lsQueue,
+  lsSpeed,
   lsStart,
   lsStep,
   noteHp,
