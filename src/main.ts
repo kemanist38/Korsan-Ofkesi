@@ -2120,7 +2120,7 @@ function update(dt:number){updateHealFlights(dt);{const rc=document.getElementBy
 
 // ---------------------------------------------------------------- Lanetli Sular: Hayatta Kalma (src/cursed.ts, src/ls-ui.ts)
 // Herkes eşit gemiyle (LS_LOADOUT, LS_HP) halkadaki yerinde doğar; demir gülle bedavadır. Sis, can ve eleme sunucuda; batan elenir.
-let lsHudClock=0;const lsPicking=new Set<number>(),lsDropPicking=new Set<number>();const lsDropImg=new Image();lsDropImg.src='/assets/icon-chest-v2.webp';
+let lsHudClock=0;const lsPicking=new Set<number>(),lsDropPicking=new Set<number>();const lsDropImg=new Image();lsDropImg.src='/assets/ls-drop-chest-v1.webp';
 const lsHooks={leave:()=>leaveLs(),ammo:(a:'iron'|'chain'|'fire'|'explosive')=>{if(!ls)return;ls.ammo=a;state.ammo=a;renderLsHud(ls,lsHooks);},
   powder:()=>{if(!ls)return;ls.powder=!ls.powder;renderLsHud(ls,lsHooks);},speed:()=>{if(ls&&ls.inv.speed>0)sendLs('speed');}};
 const lsItemImg:Partial<Record<LsItem,HTMLImageElement>>={};
