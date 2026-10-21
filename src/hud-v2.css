@@ -47,3 +47,29 @@
 .ep-progress em{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#127567,#43dcb0);border-radius:9px}
 .ep-progress strong{position:absolute;inset:0;display:grid;place-items:center;font:800 11px Inter,sans-serif;color:#fff;text-shadow:0 1px 2px #000,0 0 3px #000}
 .ep-progress small{display:block;margin-top:6px;color:#9fb1b3;font-size:10.5px}
+
+/* Koordinata git: parmakla dokunulabilir boyut */
+.map-cluster .coord-go{height:32px!important;top:-36px!important;padding:0 6px!important;gap:5px!important}
+html .map-cluster .coord-go input,html.touch .map-cluster .coord-go input{width:42px!important;height:24px!important;font-size:14px!important;font-weight:800}
+.map-cluster .coord-go button{height:24px!important;padding:0 12px!important;font-size:12px!important}
+.map-cluster{margin-top:38px}
+
+/* Altın ve inci: menü (tersane, donanım, toplar…) sekmelerinin sol başında */
+.shop-tabs .strip-res.tabs-res{position:absolute;left:0;bottom:calc(100% + 4px);top:auto;right:auto!important;width:max-content!important;height:30px;display:flex;flex-direction:row;align-items:center;gap:4px;pointer-events:auto;margin-right:6px;padding:4px 8px;border:1px solid #8a5a2c;border-radius:8px;background:linear-gradient(#2a1210,#140807)}
+.shop-tabs .tabs-res b{margin-right:4px!important;font-size:12px!important}
+.shop-tabs .tabs-res button{width:18px;height:18px}
+.shop-tabs .tabs-res i.sprite{width:15px!important;height:15px!important}
+
+/* Market / çıkış / menü düğmeleri yukarıda: üst çerçevenin sağına yaslı */
+.corner-buttons{top:calc(var(--strip) * -1 + 3px)!important;gap:8px!important;z-index:47!important}
+.corner-buttons .round-button{width:46px!important;height:46px!important}
+html.touch .corner-buttons{top:calc(var(--strip) * -1 + 3px)!important}
+@media (max-width:700px){
+  .map-cluster{margin-top:96px}
+  body.shop-open .hud>.coord-go{display:none!important}
+  .hud>.coord-go{position:fixed!important;left:10px;top:44px;height:54px;z-index:44;display:flex;align-items:center;gap:6px;padding:0 6px;border:1px solid #8a5a2c;border-radius:6px;background:linear-gradient(#3a1612,#1e0b09);box-shadow:0 2px 6px #000a;pointer-events:auto}
+  .hud>.coord-go>span{display:none!important}
+  html .hud>.coord-go input,html.touch .hud>.coord-go input{width:72px!important;height:42px!important;font-size:24px!important}
+  html .hud>.coord-go button{height:42px!important;padding:0 20px!important;font-size:20px!important}
+  .corner-buttons .round-button{width:40px!important;height:40px!important}
+}
