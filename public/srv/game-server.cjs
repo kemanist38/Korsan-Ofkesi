@@ -5841,7 +5841,7 @@ async function onAttack(c, d, now) {
   c.ld = buildLoadout(c.econ, c.ldRaw);
   if (!c.ld) return;
   const a = String(d?.a || "iron");
-  if (tg.dom && a === "heal" !== (tg.t.domTeam === c.domTeam)) return;
+  if (tg.dom && (a === "heal" || tg.t.domTeam === c.domTeam)) return;
   if (!["iron", "chain", "fire", "explosive", "breaker", "leech", ...tg.k === "p" || tg.k === "t" ? ["heal"] : []].includes(a)) return;
   const why = shotCheck(c, c.ld, a, tg.x === void 0 ? 0 : Math.hypot(c.last.x - tg.x, c.last.y - tg.y), now, !!d?.r);
   if (why) {

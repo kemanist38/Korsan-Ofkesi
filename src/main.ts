@@ -1010,6 +1010,7 @@ function toggleRepair(){
   if(state.hp>=effectiveMaxHp()){toast('Gövde zaten tamamen sağlam');return;}
   const danger=enemies.some(e=>e.aggro&&dist(e,player)<520);
   if(danger||state.attacking){toast('Savaş durumundayken tamir yapılamaz');return;}
+  if(dom){toast('Deniz Hakimiyeti\'nde tamir yapılamaz');return;}
   state.repairing=!state.repairing;toast(state.repairing?'Açık deniz tamiri başladı':'Tamir durduruldu');
 }
 
@@ -1021,6 +1022,7 @@ function fireAtTarget(){
   if(!selected||player.cooldown>0||dist(player,selected)>effectiveRange())return;
   // Şifa yalnız oyunculara (ve dost kulelere); hasar veren gülle dosta sıkılamaz
   const friendTarget=selected.kind==='ship'&&!!selected.captain;
+  if(state.ammo==='heal'&&dom){toast('Deniz Hakimiyeti\'nde şifa güllesi kullanılamaz');stopAttack();return;}
   if(state.ammo==='heal'&&!friendTarget){toast('Şifa Güllesi yalnız oyunculara ve dost kulelere sıkılır');stopAttack();return;}
   if(state.ammo!=='heal'&&isAlly(selected)){stopAttack();return;}
   if(state.ammo==='chain'&&state.chainAmmo<=0){state.ammo='iron';toast('Zincir güllesi tükendi');}
@@ -1941,6 +1943,8 @@ function update(dt:number){updateHealFlights(dt);{const rc=document.getElementBy
       if(px||py){const base=freeLook??camera,n=Math.hypot(px,py),v=520*dt/camera.zoom;lookAt(base.x+px/n*v,base.y+py/n*v);}
       }
     const turn=0,thrust=0;
+    // Deniz Hakimiyeti: batıp doğan gemi 5 sn kıpırdayamaz
+    if(domFreeze>0){domFreeze-=dt;routeTarget=null;destination=null;isoMove=null;player.speed=0;}
     if(routeTarget){if(dist(player,routeTarget)<14)routeTarget=null;else destination=routeVia(routeTarget);}
     if(destination&&!thrust&&!turn&&isoShip()){
       // Seafight usulü: 8 yön, dikey hız yarı, anlık kalkış/duruş; açı yalnızca iz ve efektler için tutulur
@@ -1973,7 +1977,8 @@ function update(dt:number){updateHealFlights(dt);{const rc=document.getElementBy
   // Tamir yalnızca gemi dururken ve saldırmıyorken sürer; hareket ya da saldırı başlayınca kendiliğinden durur
   const repairIdle=!state.attacking&&!destination&&player.speed<5;
   if(state.repairing&&!repairIdle){state.repairing=false;repairClock=0;document.getElementById('repair')?.classList.remove('active');}
-  if(repairIdle&&!state.repairing&&state.hp>0&&state.hp<effectiveMaxHp()&&playerHitClock>=AUTO_REPAIR_DELAY){state.repairing=true;document.getElementById('repair')?.classList.add('active');}
+  if(dom&&state.repairing){state.repairing=false;document.getElementById('repair')?.classList.remove('active');}
+  if(!dom&&repairIdle&&!state.repairing&&state.hp>0&&state.hp<effectiveMaxHp()&&playerHitClock>=AUTO_REPAIR_DELAY){state.repairing=true;document.getElementById('repair')?.classList.add('active');}
   playerSlow=Math.max(0,playerSlow-dt);
   // Tamir saniyede bir kez sabit miktar ekler ve yeşil "+N" yazısıyla gösterir
   if(state.repairing){repairClock+=dt;while(repairClock>=1&&state.repairing){repairClock-=1;
@@ -2079,7 +2084,7 @@ function update(dt:number){updateHealFlights(dt);{const rc=document.getElementBy
 // ---------------------------------------------------------------- Deniz Hakimiyeti (src/domination.ts, src/dom-ui.ts)
 // Giriş: dünya haritası ve haftalık etkinlikler. Sunucu maçı başlatınca boş savaş alanına geçilir, takımın üssünde doğulur;
 // batınca üste tam gövdeyle doğulur. Maç bitince sonuç ekranından ya da AYRIL ile gelinen denize dönülür.
-let domHudClock=0;
+let domHudClock=0,domFreeze=0;
 function domBlocked(){if(!session.account)return'HESAPLA GİRİŞ GEREKLİ';if(siege)return'KUŞATMADAN ÇIK';if(dom)return'MAÇTASIN';if(inCombat())return'SAVAŞTAN ÇIK';return null;}
 ui('worldDom').onclick=()=>{closeWorldMap();openDom();};
 function openDom(){if(dom){toast('Zaten Deniz Hakimiyeti maçındasın');return;}openDomLobby(domBlocked);}
@@ -2095,12 +2100,12 @@ function enterDom(st:{id:string;team:DomTeam;end:number;teams:{r:string[];b:stri
   domOrigin={x:player.x,y:player.y};dom={id:st.id,team:st.team,end:st.end,teams:st.teams,s:[0,0],cap:0,own:null,c:false,n:[0,0],done:false};
   fleetSafe=null;fleetFields.clear();populateMap();domRespawn(true);playMapJump();renderDomHud(dom,leaveDom);
   rewardNotice(`Deniz Hakimiyeti başladı · takımın: ${DOM_TEAMS[st.team].name}`,'battle');}
-function leaveDom(){if(!dom)return;if(!dom.done)sendDom('leave');document.querySelector('.dom-result')?.remove();dom=null;renderDomHud(null,leaveDom);
+function leaveDom(){if(!dom)return;domFreeze=0;if(!dom.done)sendDom('leave');document.querySelector('.dom-result')?.remove();dom=null;renderDomHud(null,leaveDom);
   const o=domOrigin;domOrigin=null;fleetSafe=null;fleetFields.clear();populateMap();if(o){player.x=o.x;player.y=o.y;}
   player.speed=0;destination=null;routeTarget=null;selected=null;state.attacking=false;ui('attack').classList.remove('active');camera.x=player.x;camera.y=player.y;freeLook=null;mapFade=1;playMapJump();}
 function domRespawn(first=false){if(!dom)return;const b=DOM_BASE[dom.team];player.x=b.x+(Math.random()-.5)*160;player.y=b.y+(Math.random()-.5)*260;player.speed=0;destination=null;routeTarget=null;
-  camera.x=player.x;camera.y=player.y;freeLook=null;state.hp=effectiveMaxHp();state.invulnerable=5;state.attacking=false;selected=null;shots.length=0;salvoQueue.length=0;ui('attack').classList.remove('active');mapFade=1;
-  if(!first){playSplash();toast('Gemin battı — üssünde tam gövdeyle doğdun, 5 sn korunuyorsun');}}
+  camera.x=player.x;camera.y=player.y;freeLook=null;state.hp=effectiveMaxHp();state.invulnerable=5;domFreeze=first?0:5;state.repairing=false;state.attacking=false;selected=null;shots.length=0;salvoQueue.length=0;ui('attack').classList.remove('active');mapFade=1;
+  if(!first){playSplash();toast('Gemin battı — üssünde tam gövdeyle doğdun · 5 sn korunuyorsun, 5 sn sonra hareket edebilirsin');}}
 // Hakimiyet Bölgesi: sahibinin renginde halka; çekişmeliyken altın sarısı yanıp söner. Üsler takım renginde işaretli.
 function drawDomZone(){if(!dom)return;const z=DOM_ZONE,p=worldToScreen(z),px=worldToScreen({x:z.x+z.r,y:z.y}),py=worldToScreen({x:z.x,y:z.y+z.r}),rx=Math.abs(px.x-p.x),ry=Math.abs(py.y-p.y);
   const col=dom.c?(Math.floor(performance.now()/400)%2?'#ffd56a':'#ffffff'):dom.own?DOM_TEAMS[dom.own].color:'#f3d496';
