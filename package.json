@@ -8,14 +8,23 @@
     "build": "tsc && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "test": "node --test tests/*.test.mjs",
-    "build:server": "esbuild server/game-server.mjs --bundle --platform=node --target=node20 --format=cjs --outfile=public/srv/game-server.cjs"
+    "build:server": "esbuild server/game-server.mjs --bundle --platform=node --target=node20 --format=cjs --outfile=public/srv/game-server.cjs",
+    "build:app": "npm run build && node tools/app/build-app.mjs && npx cap sync"
   },
   "devDependencies": {
+    "@capacitor/assets": "3.0.5",
+    "@capacitor/cli": "8.5.2",
     "typescript": "^5.9.2",
     "vite": "^7.1.7",
     "ws": "^8.18.3"
   },
   "dependencies": {
+    "@capacitor/android": "8.5.2",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/browser": "8.0.5",
+    "@capacitor/core": "8.5.2",
+    "@capacitor/ios": "8.5.2",
+    "@revenuecat/purchases-capacitor": "13.7.0",
     "@supabase/supabase-js": "^2.117.3"
   }
 }

@@ -1,0 +1,44 @@
+# Google Play için Android paketi (.aab). Yalnızca elle başlatılır: Actions → Android sürüm paketi → Run workflow.
+# İmzalama: depo ayarlarında (Settings → Secrets and variables → Actions) şu gizli değerler varsa paket imzalanır:
+#   ANDROID_KEYSTORE_BASE64 (yükleme anahtarı .jks dosyasının base64 hali), ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+# Çıkan dosya iş akışının "Artifacts" bölümünden indirilir ve Play Console'a yüklenir.
+name: Android sürüm paketi
+on:
+  workflow_dispatch:
+    inputs:
+      version_code: { description: 'Sürüm numarası (her yüklemede bir artır: 1, 2, 3…)', required: true, default: '1' }
+      version_name: { description: 'Görünen sürüm (ör. 1.0.0)', required: true, default: '1.0.0' }
+jobs:
+  aab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - run: npm ci
+      - run: npm run build && node tools/app/build-app.mjs && npx cap sync android
+      - name: Sürüm
+        run: |
+          sed -i "s/versionCode [0-9]*/versionCode ${{ inputs.version_code }}/; s/versionName \"[^\"]*\"/versionName \"${{ inputs.version_name }}\"/" android/app/build.gradle
+      - name: Derle
+        run: cd android && ./gradlew bundleRelease --no-daemon
+      - name: İmzala
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          AAB=android/app/build/outputs/bundle/release/app-release.aab
+          if [ -n "$KS" ]; then
+            echo "$KS" | base64 -d > upload.jks
+            jarsigner -sigalg SHA256withRSA -digestalg SHA-256 -keystore upload.jks -storepass "$KS_PASS" -keypass "$KEY_PASS" "$AAB" "$KEY_ALIAS"
+            rm upload.jks
+          else
+            echo "::warning::İmza anahtarı tanımlı değil: paket imzasız (Play Console kabul etmez)"
+          fi
+          cp "$AAB" PirateRage-${{ inputs.version_name }}.aab
+      - uses: actions/upload-artifact@v4
+        with: { name: PirateRage-android-aab, path: 'PirateRage-*.aab' }

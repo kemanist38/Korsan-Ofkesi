@@ -385,3 +385,10 @@ test('cursed waters: supply drop falls in the next safe zone and goes to the fir
   const got=S.lsDropPick(a,dr.id,now+56_000);assert.ok(got.inv.explosive>=1260);assert.equal(S.lsDropPick(b,dr.id,now+56_100).err,'yok');// tek kişi alır
   S.lsMatches.delete(m.id);
 });
+test('in-app purchase webhook: auth check and event parsing',()=>{
+  assert.equal(S.rcAuthOk('Bearer abc','abc'),true);assert.equal(S.rcAuthOk('abc','abc'),true);assert.equal(S.rcAuthOk('Bearer abd','abc'),false);assert.equal(S.rcAuthOk('x',''),false);
+  const e=S.parseRcEvent(JSON.stringify({event:{type:'NON_RENEWING_PURCHASE',app_user_id:'3f1c2a9e-1111-4222-8333-444455556666',product_id:'pearls_crate',transaction_id:'1000000123',store:'APP_STORE',environment:'SANDBOX'}}));
+  assert.deepEqual(e,{type:'NON_RENEWING_PURCHASE',uid:'3f1c2a9e-1111-4222-8333-444455556666',product:'pearls_crate',tx:'1000000123',store:'app_store',sandbox:true});
+  assert.equal(S.parseRcEvent('{"event":{"type":"X","app_user_id":"$RCAnonymousID:1","id":"e1"}}').uid,null);assert.equal(S.parseRcEvent('bozuk'),null);
+  assert.ok(S.IAP_GRANT.has('INITIAL_PURCHASE'));
+});
