@@ -374,3 +374,14 @@ test('cursed waters: scattered items, pickup and ammo use come from the server i
   const before=m.items.length;S.lsStep(m,new Set(),now+60_000);assert.equal(m.items.length,before+1);
   S.lsMatches.delete(m.id);
 });
+test('cursed waters: supply drop falls in the next safe zone and goes to the first captain who reaches it',()=>{
+  const mk=uid=>({uid,nick:uid,netId:uid,econ:{ep:0},ws:{readyState:0},last:null});
+  const ten=Array.from({length:10},(_,i)=>mk('d'+i));const now=5e6;S.lsQueue.push(...ten);S.lsPump(now);const m=S.lsStart(now);
+  assert.equal(S.lsStep(m,new Set(),now+30_000).drop,null);
+  const r=S.lsStep(m,new Set(),now+45_000);assert.ok(r.drop);const dr=r.drop;
+  const [a,b]=ten;a.last={x:dr.x,y:dr.y};b.last={x:dr.x+5,y:dr.y};
+  assert.equal(S.lsDropPick(a,dr.id,now+46_000).err,'erken');// düşmeden alınamaz
+  b.last={x:dr.x+3000,y:dr.y};assert.equal(S.lsDropPick(b,dr.id,now+56_000).err,'uzak');
+  const got=S.lsDropPick(a,dr.id,now+56_000);assert.ok(got.inv.explosive>=1260);assert.equal(S.lsDropPick(b,dr.id,now+56_100).err,'yok');// tek kişi alır
+  S.lsMatches.delete(m.id);
+});

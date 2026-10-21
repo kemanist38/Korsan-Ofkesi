@@ -2,7 +2,7 @@
 // Kurallar sunucuda (src/cursed.ts, server/game-server.mjs); bu dosya yalnızca sunucudan gelen durumu gösterir.
 import './dom.css';
 import {DOM_TEAMS,DOM_NAME} from './domination';
-import {LS_ITEMS,type LsInv,type LsItem,LS_NAME,LS_SIZE,LS_ICON,LS_PEARLS,LS_PEARLS_REST,LS_KILL_PEARLS,LS_EP_PER_BALL,LS_PHASE_MS,LS_RADII,type LsFog} from './cursed';
+import {LS_ITEMS,type LsDrop,type LsInv,type LsItem,LS_NAME,LS_SIZE,LS_ICON,LS_PEARLS,LS_PEARLS_REST,LS_KILL_PEARLS,LS_EP_PER_BALL,LS_PHASE_MS,LS_RADII,type LsFog} from './cursed';
 import {sendLs,netOnline} from './net';
 
 const esc=(t:string)=>t.replace(/[&<>"']/g,c=>`&#${c.charCodeAt(0)};`);
@@ -35,14 +35,14 @@ function render(){const l=lobby,count=l?.at?Math.max(0,Math.ceil((l.at-Date.now(
   const status=off?'Sunucuya bağlanılıyor…':!l?'Bekleniyor…':l.at?`Kaptanlar hazır · lanetli sulara <b>${count}</b> sn sonra açılıyorsunuz`:!l.open?'Kapalı · hafta içi 20:00–24:00, cumartesi ve pazar tüm gün açık':`${l.q.length}/${LS_SIZE} kaptan hazır${l.live?` · ${l.live} maç sürüyor`:''}`;
   const btn=l?.me?`<button class="dom-go leave" ${l.at?'disabled':''}>${l.at?'HAZIRLAN…':'SIRADAN ÇIK'}</button>`:`<button class="dom-go" ${!l?.open||off||why?'disabled':''}>${why??'SAVAŞA GİR'}</button>`;
   lob.body.innerHTML=`<div class="ls-head"><img src="${LS_ICON}" alt=""/></div><div class="ls-slots">${names.map(n=>`<div class="dom-slot ${n?'on':''}">${n?esc(n):'BOŞ'}</div>`).join('')}</div><p class="dom-status">${status}</p>${btn}
-    <ul class="dom-rules"><li>Herkes <b>eşit gemiyle</b> girer: aynı can, tam top. Başlangıçta yalnızca demir gülle vardır (stoğundan düşmez).</li><li>Zincir, ateş, patlayıcı gülle, kara barut, kalkan ve hız iksiri <b>denize saçılmıştır</b>; üstünden geçerek topla, yenileri belirir. Şifa ve tamir yoktur.</li>
+    <ul class="dom-rules"><li>Herkes <b>eşit gemiyle</b> girer: aynı can, tam top. Başlangıçta yalnızca demir gülle vardır (stoğundan düşmez).</li><li>Zincir, ateş, patlayıcı gülle, kara barut, kalkan ve hız iksiri <b>denize saçılmıştır</b>; üstünden geçerek topla, yenileri belirir. Şifa ve tamir yoktur.</li><li><b>Lanetli sandık</b> gökten düşer: yeri 10 sn önceden haritada gösterilir, ilk ulaşan büyük ganimeti alır.</li>
     <li>Lanetli sis ${LS_PHASE_MS/1000} sn'de bir daralır (${LS_RADII.length} aşama); sis dışında kalan gemi her saniye can kaybeder ve batar.</li>
     <li>Yeniden doğma yok: batan elenir. Son kalan kaptan 1. olur.</li>
     <li>Ödül: 1. ${LS_PEARLS[0]}, 2. ${LS_PEARLS[1]}, 3. ${LS_PEARLS[2]}, diğerleri ${LS_PEARLS_REST} inci · her batırma +${LS_KILL_PEARLS} inci · atılan güllelerin ${LS_EP_PER_BALL} katı elit puan. Maçtan ayrılan ödül alamaz.</li></ul>`;
   const b=lob.body.querySelector<HTMLButtonElement>('.dom-go');if(b)b.onclick=()=>sendLs('q',{on:!l?.me});}
 
 // ---- Maç üst çubuğu: kalan kaptan, sis aşaması ve sonraki daralmaya kalan süre
-export type LsRun={id:string;n:number;alive:number;fog:LsFog;off:number;start:number;kills:number;dead:boolean;inv:LsInv;items:[number,LsItem,number,number][];ammo:'iron'|'chain'|'fire'|'explosive';powder:boolean};
+export type LsRun={id:string;n:number;alive:number;fog:LsFog;off:number;start:number;kills:number;dead:boolean;inv:LsInv;items:[number,LsItem,number,number][];drops:LsDrop[];ammo:'iron'|'chain'|'fire'|'explosive';powder:boolean};
 export type LsHooks={leave:()=>void;ammo:(a:LsRun['ammo'])=>void;powder:()=>void;speed:()=>void};
 const hud=document.createElement('div');hud.className='dom-hud ls-hud';hud.hidden=true;document.body.appendChild(hud);
 const inv=document.createElement('div');inv.className='ls-inv';inv.hidden=true;document.body.appendChild(inv);

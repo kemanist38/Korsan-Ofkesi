@@ -38,7 +38,12 @@ export const LS_ITEMS:Record<LsItem,{name:string;qty:number;icon:string;weight:n
   speed:{name:'Hız İksiri',qty:1,icon:'/assets/icon-speed-potion-v2.webp',weight:1},
 };
 export const LS_ITEM_KEYS=Object.keys(LS_ITEMS) as LsItem[];
-export const LS_ITEM_MAX=26,LS_ITEM_RESPAWN_MS=2500,LS_PICK_R=46,LS_SPEED_MS=8000,LS_SPEED_BOOST=1.45;
+export const LS_ITEM_MAX=26,LS_ITEM_RESPAWN_MS=2500,LS_PICK_R=46,LS_SPEED_MS=1500,LS_SPEED_BOOST=1.45;
 export type LsInv=Record<LsItem,number>;
 export const lsEmptyInv=():LsInv=>({chain:0,fire:0,explosive:0,powder:0,shield:0,speed:0});
 export function lsPickKind(rand=Math.random):LsItem{const tot=LS_ITEM_KEYS.reduce((a,k)=>a+LS_ITEMS[k].weight,0);let r=rand()*tot;for(const k of LS_ITEM_KEYS){r-=LS_ITEMS[k].weight;if(r<0)return k;}return'chain';}
+// Lanetli sandık (drop): ilk 45. sn'de, sonra 75 sn'de bir sonraki güvenli alanda bir yere düşer. Düşeceği yer 10 sn önceden
+// herkese gösterilir; indikten sonra ilk dokunan büyük ganimeti alır (oyuncular sandık için yarışır).
+export const LS_DROP_FIRST_MS=45_000,LS_DROP_EVERY_MS=75_000,LS_DROP_FALL_MS=10_000,LS_DROP_PICK_R=60;
+export const LS_DROP_LOOT:Partial<LsInv>={explosive:315*4,fire:315*3,chain:315*2,powder:12,shield:16,speed:1};
+export type LsDrop={id:number;x:number;y:number;land:number};

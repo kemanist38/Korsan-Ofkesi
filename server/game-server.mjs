@@ -26,7 +26,7 @@ import {fleetReward,LEVEL_XP} from '../src/campaign.ts';
 import {ELITE_SHIPS} from '../src/elite-ships.ts';
 import {contribReward,earnsChest,victoryChest} from '../src/siege.ts';
 import {DOM_SIZE,DOM_COUNTDOWN_MS,DOM_MATCH_MS,DOM_WIN,DOM_ZONE,DOM_BASE,domWindowAt,domBalance,domZoneStep,domWinner,domReward} from '../src/domination.ts';
-import {LS_ITEMS,LS_ITEM_MAX,LS_ITEM_RESPAWN_MS,LS_PICK_R,LS_SPEED_MS,lsEmptyInv,lsPickKind,LS_SIZE,LS_COUNTDOWN_MS,LS_LOADOUT,LS_HP,LS_START_R,LS_RADII,LS_PHASE_MS,LS_FOG_DPS,LS_MATCH_MS,lsZoneAt,lsNext,lsReward,lsSpawn} from '../src/cursed.ts';
+import {LS_DROP_FIRST_MS,LS_DROP_EVERY_MS,LS_DROP_FALL_MS,LS_DROP_PICK_R,LS_DROP_LOOT,LS_ITEMS,LS_ITEM_MAX,LS_ITEM_RESPAWN_MS,LS_PICK_R,LS_SPEED_MS,lsEmptyInv,lsPickKind,LS_SIZE,LS_COUNTDOWN_MS,LS_LOADOUT,LS_HP,LS_START_R,LS_RADII,LS_PHASE_MS,LS_FOG_DPS,LS_MATCH_MS,lsZoneAt,lsNext,lsReward,lsSpawn} from '../src/cursed.ts';
 import {levelQuestGoal,levelQuestTargets,levelQuestMap} from '../src/level-quest.ts';
 
 const PORT=Number(process.env.PORT||3000);
@@ -673,9 +673,9 @@ export function lsDrop(c){const i=lsQueue.indexOf(c);if(i>=0)lsQueue.splice(i,1)
 const lsFogInfo=m=>({from:m.fog.from,to:m.fog.to,at:m.fog.at,phase:m.fog.phase,now:Date.now()});
 export function lsStart(now,pend=lsPending,rand=Math.random){const id=crypto.randomUUID().replace(/-/g,'').slice(0,10),players=new Map();
   const order=[...pend.list].sort(()=>rand()-.5);order.forEach((x,i)=>players.set(x.uid,{nick:domNick(x),alive:true,kills:0,balls:0,rank:0,spawn:lsSpawn(i,order.length),inv:lsEmptyInv()}));
-  const z={x:3000,y:2000,r:LS_START_R};const m={id,players,fog:{from:z,to:z,at:now,phase:0},start:now,end:now+LS_MATCH_MS,result:null,items:[],seq:0,itemAt:now};lsMatches.set(id,m);for(let i=0;i<LS_ITEM_MAX;i++)lsAddItem(m,now,rand);if(pend===lsPending)lsPending=null;
+  const z={x:3000,y:2000,r:LS_START_R};const m={id,players,fog:{from:z,to:z,at:now,phase:0},start:now,end:now+LS_MATCH_MS,result:null,items:[],seq:0,itemAt:now,drops:[],dropNext:now+LS_DROP_FIRST_MS};lsMatches.set(id,m);for(let i=0;i<LS_ITEM_MAX;i++)lsAddItem(m,now,rand);if(pend===lsPending)lsPending=null;
   for(const x of order){const p=players.get(x.uid);x.lsOn=true;x.lsMatch=id;x.lsSpawned=false;x.maxHp=LS_HP;pvpReset(x);if(x.pvp)x.pvp.hp=LS_HP;else{x.pvp={budget:null,heal:null,hp:LS_HP,at:now,from:new Map()};}
-    send(x,{t:'ls',d:{k:'start',id,spawn:p.spawn,n:order.length,end:m.end,fog:lsFogInfo(m),items:m.items}});}
+    send(x,{t:'ls',d:{k:'start',id,spawn:p.spawn,n:order.length,end:m.end,fog:lsFogInfo(m),items:m.items,drops:m.drops}});}
   log('LANETLİ SULAR BAŞLADI',id,order.length);return m;}
 // Doğuş yalnızca kendi başlangıç noktasında (300 birim içinde); sonrası normal hız denetimi
 export function lsMove(c,s){const m=lsMatches.get(c.lsMatch),p=m?.players.get(c.uid);if(!p||!num(s?.x)||!num(s?.y))return null;
@@ -716,15 +716,21 @@ export function lsPick(c,id,now){const m=lsMatches.get(c.lsMatch),p=m?.players.g
   const i=m.items.findIndex(x=>x[0]===Number(id));if(i<0)return{err:'yok'};const it=m.items[i];
   if(Math.hypot(c.last.x-it[2],c.last.y-it[3])>LS_PICK_R+90)return{err:'uzak'};
   m.items.splice(i,1);p.inv[it[1]]+=LS_ITEMS[it[1]].qty;return{kind:it[1],inv:p.inv};}
+export function lsDropPick(c,id,now){const m=lsMatches.get(c.lsMatch),p=m?.players.get(c.uid);if(!p?.alive||!c.last)return{err:'yok'};
+  const i=m.drops.findIndex(x=>x.id===Number(id));if(i<0)return{err:'yok'};const dr=m.drops[i];if(now<dr.land)return{err:'erken'};
+  if(Math.hypot(c.last.x-dr.x,c.last.y-dr.y)>LS_DROP_PICK_R+90)return{err:'uzak'};
+  m.drops.splice(i,1);for(const [k,v] of Object.entries(LS_DROP_LOOT))p.inv[k]+=v;return{inv:p.inv,nick:p.nick};}
 export function lsSpeed(c,now){const p=lsMatches.get(c.lsMatch)?.players.get(c.uid);if(!p?.alive||p.inv.speed<=0)return null;p.inv.speed--;c.lsSpeedUntil=now+LS_SPEED_MS;return p.inv;}
 // Sis: her LS_PHASE_MS'de yeni güvenli alan; dışarıdaki gemi saniyede tam canın LS_FOG_DPS payını kaybeder (sunucu canından düşülür)
 export function lsStep(m,room,now,rand=Math.random){let changed=false;
   if(m.fog.phase<LS_RADII.length&&now>=m.start+(m.fog.phase+1)*LS_PHASE_MS){const cur=lsZoneAt(m.fog,now);m.fog={from:cur,to:lsNext(cur,LS_RADII[m.fog.phase],rand),at:now,phase:m.fog.phase+1};changed=true;}
+  let drop=null;if(now>=m.dropNext){m.dropNext+=LS_DROP_EVERY_MS;const t=m.fog.to,r=Math.max(0,t.r*.7),a=rand()*Math.PI*2,d=Math.sqrt(rand())*r;
+    drop={id:++m.seq,x:Math.round(Math.max(150,Math.min(5850,t.x+Math.cos(a)*d))),y:Math.round(Math.max(150,Math.min(3850,t.y+Math.sin(a)*d))),land:now+LS_DROP_FALL_MS};m.drops.push(drop);}
   let items=false;if(now-m.itemAt>=LS_ITEM_RESPAWN_MS){m.itemAt=now;if(m.items.length<LS_ITEM_MAX){lsAddItem(m,now,rand);items=true;}}
   const z=lsZoneAt(m.fog,now),hits=[];
   for(const x of room||[]){if(!x.lsOn||x.lsMatch!==m.id||!x.last)continue;if(Math.hypot(x.last.x-z.x,x.last.y-z.y)<=z.r)continue;
     const dmg=Math.round(LS_HP*LS_FOG_DPS[Math.min(m.fog.phase,LS_FOG_DPS.length-1)]);const p=pvpOf(x);if(p.hp===null)p.hp=LS_HP;p.hp-=dmg;hits.push([x,dmg,p.hp<=0]);}
-  return{changed,hits,items};}
+  return{changed,hits,items,drop};}
 function lsTick(now){
   if(lsPending){if(lsPending.list.some(x=>!all.has(x)||!x.uid)){for(const x of lsPending.list.filter(y=>!all.has(y)))lsDrop(x);lsBroadcast(now);}
     else if(now>=lsPending.at){lsStart(now);lsBroadcast(now);}}
@@ -733,7 +739,7 @@ function lsTick(now){
     // Maçtan kopan ya da odadan çıkan elenir (ödülsüz)
     for(const [uid,p] of m.players){if(!p.alive)continue;const x=[...all].find(y=>y.uid===uid);if(!x||(now-m.start>20_000&&x.sea!==`sea-ls-${id}`)){if(x)lsOut(x,null,now,true);else{p.alive=false;p.rank=lsAlive(m)+1;}}}
     if(m.result)continue;if(lsAlive(m)<=1){lsFinish(m,now);continue;}
-    const r=lsStep(m,room,now);if(r.items){const msg=JSON.stringify({t:'ls',d:{k:'items',items:m.items}});for(const x of room||[])send(x,msg);}if(r.changed){const msg=JSON.stringify({t:'ls',d:{k:'fog',fog:lsFogInfo(m),n:lsAlive(m)}});for(const x of room||[])send(x,msg);}
+    const r=lsStep(m,room,now);if(r.drop){const msg=JSON.stringify({t:'ls',d:{k:'drops',drops:m.drops,fresh:r.drop.id}});for(const x of room||[])send(x,msg);}if(r.items){const msg=JSON.stringify({t:'ls',d:{k:'items',items:m.items}});for(const x of room||[])send(x,msg);}if(r.changed){const msg=JSON.stringify({t:'ls',d:{k:'fog',fog:lsFogInfo(m),n:lsAlive(m)}});for(const x of room||[])send(x,msg);}
     for(const [x,dmg,dead] of r.hits){send(x,{t:'ls',d:{k:'burn',dmg}});if(dead){send(x,{t:'forceSink',d:{by:'',byNick:'Lanetli Sis'}});toSea(x,{t:'sunk',d:{victim:x.netId,victimNick:x.nick,by:null,byNick:'Lanetli Sis'}});lsOut(x,null,now);}}
     if(now>=m.end)lsFinish(m,now);}}
 function onLs(c,d,now){const k=String(d?.k||'');
@@ -744,6 +750,8 @@ function onLs(c,d,now){const k=String(d?.k||'');
   if(k==='leave'){if(c.lsOn)lsOut(c,null,now,true);return;}
   if(k==='pick'){const r=lsPick(c,d?.id,now);if(r.err){if(r.err==='uzak')suspect(c,'uzak eşya');return;}send(c,{t:'ls',d:{k:'inv',inv:r.inv,got:r.kind}});
     const m=lsMatches.get(c.lsMatch);const msg=JSON.stringify({t:'ls',d:{k:'items',items:m.items}});for(const x of seas.get(`sea-ls-${m.id}`)||[])send(x,msg);return;}
+  if(k==='dpick'){const r=lsDropPick(c,d?.id,now);if(r.err){if(r.err==='uzak')suspect(c,'uzak sandık');return;}send(c,{t:'ls',d:{k:'inv',inv:r.inv,drop:1}});
+    const m=lsMatches.get(c.lsMatch);const msg=JSON.stringify({t:'ls',d:{k:'drops',drops:m.drops,by:r.nick}});for(const x of seas.get(`sea-ls-${m.id}`)||[])send(x,msg);return;}
   if(k==='speed'){const inv=lsSpeed(c,now);if(inv)send(c,{t:'ls',d:{k:'inv',inv,speed:1}});return;}}
 setInterval(()=>lsTick(Date.now()),1000).unref();
 
