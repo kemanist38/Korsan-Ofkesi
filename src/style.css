@@ -503,7 +503,7 @@ body.shop-open .market-overlay,body.shop-open .ship-overlay,body.shop-open .load
 .captain-medals .ach-grid{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
 .captain-profile:has(.captain-medals){width:min(860px,calc(94 * 1vw / var(--ui,1)))}
 
-/* ===== Alt orta dok (Seafight düzeni): üstte TP/EP · gemi ortalama · CP/SP, altta ekrana yaslı gülle ve sarf kutuları ===== */
+/* ===== Alt orta dok (Seafight düzeni): üstte TP/EP · gemi ortalama · HP/SP, altta ekrana yaslı gülle ve sarf kutuları ===== */
 :root{--dock-w:392px}
 .hud-dock{pointer-events:none;position:absolute;left:50%;bottom:0;z-index:9;transform:translateX(-50%);display:flex;flex-direction:column;align-items:stretch;width:var(--dock-w)}
 .dock-status{pointer-events:auto;display:grid;grid-template-columns:1fr 46px 1fr;align-items:center;gap:6px;padding:4px 8px;border:1px solid #b8904e99;border-bottom:0;border-radius:10px 10px 0 0;background:linear-gradient(#11292ff0,#061418f0);box-shadow:0 -4px 16px #0008}
@@ -702,7 +702,7 @@ body.shop-open .shop-overlay{
 .shop-window .ammo-icon .raster-item,.shop-window .ammo-icon .sprite,.shop-window .equip-shop-art .equip-icon{width:100%;height:100%;margin:0}
 .shop-window .ammo-icon>b{position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);padding:0 3px;line-height:12px;background:#081b21;border-radius:3px;white-space:nowrap}
 
-/* ---- Alt bar yalnız CP/SP şeridi; gülle ve malzeme yuvaları ayrı, sürüklenebilir çerçeveler ---- */
+/* ---- Alt bar yalnız HP/SP şeridi; gülle ve malzeme yuvaları ayrı, sürüklenebilir çerçeveler ---- */
 .hud-dock{height:calc(var(--dw)*118/675)}
 .slot-bar{--slot:40px;pointer-events:auto;position:absolute;left:50%;z-index:9;transform:translateX(-50%);display:flex;align-items:stretch;gap:3px;padding:3px;border:2px solid #3e5256;border-radius:8px;background:url(/assets/ui-wood-v1.webp) center/260px 100% repeat,#24180f;box-shadow:inset 0 0 0 1px #b8904e55,0 6px 16px #0009}
 #ammoBar{bottom:calc(var(--dw)*118/675 + 6px)}
