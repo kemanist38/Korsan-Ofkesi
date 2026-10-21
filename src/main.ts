@@ -1424,10 +1424,7 @@ async function claimAuction(a:typeof auction,won:LotDef[]){const sb=supa();if(!s
     if(l){const {data,error}=await sb.rpc('auction_claim',{p_hour:a.hour,p_lot:k});if(data===true&&!error){giveLot(l);rewardNotice(`İhaleyi kazandın · ${fmt(l.qty)} ${lotName(l)} · ${fmt(v)} altın`,'shop');continue;}}
 }saveArsenal(arsenal);saveAccount();renderQuickSlots();updateUI();}
 function auctionTick(){const h=auctionHour(Date.now());if(auction.hour===h)return;
-  const won=wonLots(auction,bidderId);if(session.account){void claimAuction(auction,won);auction=emptyAuction(h);saveAuction(auction);void loadAuctionTops();void loadLastWinners();if(ui('auctionOverlay').classList.contains('open'))renderAuction();return;}
-  for(const l of won){giveLot(l);rewardNotice(`İhaleyi kazandın · ${fmt(l.qty)} ${lotName(l)} · ${fmt(auction.mine[l.key])} altın`,'shop');}
-  if(won.length){saveArsenal(arsenal);saveAccount();renderQuickSlots();updateUI();}
-  auction=emptyAuction(h);saveAuction(auction);if(ui('auctionOverlay').classList.contains('open'))renderAuction();}
+  if(session.account)void claimAuction(auction,wonLots(auction,bidderId));auction=emptyAuction(h);saveAuction(auction);void loadAuctionTops();void loadLastWinners();if(ui('auctionOverlay').classList.contains('open'))renderAuction();}
 function receiveBid(b:NetBid){auctionTick();const r=applyBid(auction,b,bidderId);if(!r.accepted)return;
   if(r.refund)rewardNotice(`İhalede teklifin geçildi · verdiğin ${fmt(r.refund)} altın yandı`,'shop');
   saveAuction(auction);if(ui('auctionOverlay').classList.contains('open'))renderAuction();}
@@ -1435,9 +1432,8 @@ function placeBid(l:LotDef,amount:number){auctionTick();const top=auction.top[l.
   // Teklif tutarları gizli: düşük teklif reddedilir ama en yüksek tutar söylenmez
   if(!(amount>=min)){toast(top?(top.id===bidderId?'Zaten öndesin; yükseltmek için daha yüksek bir tutar yaz':'Teklifin en yüksek tekliften düşük, daha yüksek bir tutar dene'):'Teklif tutarını yaz');return;}
   const prev=top?.id===bidderId?auction.mine[l.key]??0:0,cost=amount-prev;if(state.gold<cost){toast('Yeterli altın yok');return;}
-  if(session.account&&bidBusy)return;
-  if(session.account){const sb=supa();if(!sb)return;bidBusy=true;void sb.rpc('auction_bid',{p_hour:auction.hour,p_lot:l.key,p_amount:amount}).then(({error})=>{bidBusy=false;if(error){toast(noRpc(error)?'İhale şu an kapalı':error.message.replace(/^.*?: /,'')||'Teklif verilemedi');void loadAuctionTops();return;}commitBid(l,amount,cost);});return;}
-  toast('İhaleye katılmak için hesabınla giriş yap');}
+  if(bidBusy||!session.account)return;
+  {const sb=supa();if(!sb)return;bidBusy=true;void sb.rpc('auction_bid',{p_hour:auction.hour,p_lot:l.key,p_amount:amount}).then(({error})=>{bidBusy=false;if(error){toast(noRpc(error)?'İhale şu an kapalı':error.message.replace(/^.*?: /,'')||'Teklif verilemedi');void loadAuctionTops();return;}commitBid(l,amount,cost);});}}
 function commitBid(l:LotDef,amount:number,cost:number){if(state.gold<cost){toast('Yeterli altın yok');return;}
   const b:Bid={hour:auction.hour,lot:l.key,amount,id:bidderId,nick:profile.nick,at:Date.now()};if(!applyBid(auction,b,bidderId).accepted){toast('Teklif geçersiz');return;}
   state.gold-=cost;econServerSpent('gold',cost);auction.mine[l.key]=amount;saveAuction(auction);saveAccount();sendBid(b);playCoins();updateUI();renderAuction();toast(`${fmt(amount)} altın teklif verdin · ${lotName(l)}`);}
@@ -1786,10 +1782,9 @@ if(session.account&&session.econStart&&!ELITE_TEST_MODE){econOn=true;const st=se
   session.econApply=(b,st2,pearls)=>{econTick();if(st2.lqk!==undefined)serverLqk=Number(st2.lqk);for(const k in st2)econAdjust(k,Math.round(st2[k])-(b.sent[k]??Math.round(st2[k])));state.pearls=Math.max(0,state.pearls+pearls-b.pearlSent);econSettle();};}
 session.onPearlFix=d=>{state.pearls=Math.max(0,state.pearls+d);saveAccount();updateUI();};
 async function redeemCoupon(){const input=ui('couponInput') as HTMLInputElement,out=ui('couponResult');
-  if(session.account){const sb=supa();if(!sb)return;if(normalizeCode(input.value).length<4){out.textContent='Kupon kodunu gir';out.className='coupon-result bad';return;}
-    const {data,error}=await sb.rpc('coupon_redeem',{p_code:input.value});if(error){out.textContent=error.message.replace(/^.*?: /,'')||'Kupon kullanılamadı';out.className='coupon-result bad';return;}
-    const w=(data??{}) as CouponReward;session.pearlServerAdd?.(w.pearls??0);applyCoupon(w);return;}
-  out.textContent='Kupon kullanmak için hesabınla giriş yap';out.className='coupon-result bad';}
+  const sb=supa();if(!sb)return;if(normalizeCode(input.value).length<4){out.textContent='Kupon kodunu gir';out.className='coupon-result bad';return;}
+  const {data,error}=await sb.rpc('coupon_redeem',{p_code:input.value});if(error){out.textContent=error.message.replace(/^.*?: /,'')||'Kupon kullanılamadı';out.className='coupon-result bad';return;}
+  const w=(data??{}) as CouponReward;session.pearlServerAdd?.(w.pearls??0);applyCoupon(w);}
 function applyCoupon(w:CouponReward){const input=ui('couponInput') as HTMLInputElement,out=ui('couponResult');state.pearls+=w.pearls??0;state.gold+=w.gold??0;state.fame+=w.xp??0;state.elitePoints+=w.ep??0;
   for(const [k,n] of Object.entries(w.items??{})){const v=Math.max(0,Math.floor(Number(n)||0));if(!v)continue;if(k==='iron')state.ironAmmo+=v;else if(k==='chain')state.chainAmmo+=v;else if(k in arsenal)(arsenal as unknown as Record<string,number>)[k]+=v;}
   if(w.design==='pirate-rage'){designOwned=true;saveDesignOwned();}
