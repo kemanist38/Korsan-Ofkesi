@@ -37,7 +37,7 @@ import {RIVAL_SP,battleRank,loadRivalLog,claimRivalSp,dayKey,RANK_SHEET,RANK_COL
 import {setupChat} from './chat';
 import {DOM_TEAMS,DOM_ZONE,DOM_BASE,type DomTeam} from './domination';
 import {openDomLobby,closeDomLobby,domLobbyMsg,renderDomHud,showDomResult,type DomLobby,type DomRun,type DomEnd} from './dom-ui';
-import {LS_LOADOUT,LS_HP,LS_SPEED,LS_FOG_DPS,LS_ITEMS,LS_PICK_R,LS_SPEED_MS,LS_SPEED_BOOST,lsEmptyInv,lsZoneAt,type LsFog,type LsInv,type LsItem} from './cursed';
+import {LS_LOADOUT,LS_HP,LS_SPEED,LS_FOG_DPS,LS_ITEMS,LS_PICK_R,LS_SPEED_MS,LS_SPEED_BOOST,LS_DROP_PICK_R,LS_DROP_FALL_MS,lsEmptyInv,lsZoneAt,type LsFog,type LsInv,type LsItem,type LsDrop} from './cursed';
 import {openArena,openLsLobby,closeLsLobby,lsLobbyMsg,renderLsHud,showLsResult,type LsLobby,type LsRun,type LsOut} from './ls-ui';
 import {SIEGE_MS,HERO_DAMAGE,WALL_TOWERS,INNER_TOWERS,gateOf,gateLeft,siegeWindow,newSiege,loadSiege,saveSiege,siegePhase,siegeStats,siegeProgress,contribReward,earnsChest,victoryChest,ranking,loadTitle,grantTitle,HERO_TITLE,type SiegeSave} from './siege';
 import {dayEvent,spMult,xpMult,epMult,goldMult,sparkleMult,bossKillsNeeded} from './events';
@@ -90,7 +90,7 @@ const QUICK_ITEMS:Record<QuickItemId,{name:string;icon:string;category:'ammo'|'c
   iron:{name:'Demir Gülle',icon:'iron',category:'ammo',description:'Standart top güllesi; altınla ucuza alınır (1.000 gülle = 10 altın).'},chain:{name:'Zincir Güllesi',icon:'chain',category:'ammo',description:'Oyuncuları 3 saniye %40 yavaşlatır; NPC\'ye etki etmez.'},
   fire:{name:'Ateş Güllesi',icon:'damage',category:'ammo',description:'NPC ve canavarlara %40 fazla hasar.'},
   explosive:{name:'Patlayıcı Gülle',icon:'damage',category:'ammo',description:'Oyunculara %40 fazla hasar.'},breaker:{name:'Kule Kırıcı',icon:'iron',category:'ammo',description:'Kulelere 2,6 kat hasar.'},leech:{name:'Can Emici',icon:'damage',category:'ammo',description:'Yalnız oyunculardan şansla can çalar.'},heal:{name:'Şifa Güllesi',icon:'repairkit',category:'ammo',description:'Hasar vermez; oyuncuların ve dost kulelerin canını doldurur. NPC\'ye sıkılamaz.'},
-  repairkit:{name:'Tamir Sandığı',icon:'repairkit',category:'consumable',description:'Açık deniz tamirini başlatır.'},speed:{name:'Hız İksiri',icon:'speed',category:'consumable',description:'İçince 4 sn boyunca hız %55 artar; her kullanımda 1 adet harcar.'},
+  repairkit:{name:'Tamir Sandığı',icon:'repairkit',category:'consumable',description:'Açık deniz tamirini başlatır.'},speed:{name:'Hız İksiri',icon:'speed',category:'consumable',description:'İçince 1,5 sn boyunca hız %55 artar; her kullanımda 1 adet harcar.'},
   compass:{name:'Pusula',icon:'compass',category:'consumable',description:'Basınca 8 saniye boyunca haritadaki bütün gemileri ve canavarları mini haritada gösterir. 20 saniyede bir kullanılır, her kullanımda 1 adet harcar.'},
   powder:{name:'Kara Barut',icon:'damage',category:'consumable',description:CONSUMABLES.powder.description},shield:{name:'Kalkan',icon:'hull',category:'consumable',description:CONSUMABLES.shield.description},mine:{name:'Deniz Mayını',icon:'hull',category:'consumable',description:'Kıçtan mayın bırakır.'}
 };
@@ -2095,31 +2095,42 @@ function update(dt:number){updateHealFlights(dt);{const rc=document.getElementBy
 
 // ---------------------------------------------------------------- Lanetli Sular: Hayatta Kalma (src/cursed.ts, src/ls-ui.ts)
 // Herkes eşit gemiyle (LS_LOADOUT, LS_HP) halkadaki yerinde doğar; demir gülle bedavadır. Sis, can ve eleme sunucuda; batan elenir.
-let lsHudClock=0;const lsPicking=new Set<number>();
+let lsHudClock=0;const lsPicking=new Set<number>(),lsDropPicking=new Set<number>();const lsDropImg=new Image();lsDropImg.src='/assets/icon-chest-v2.webp';
 const lsHooks={leave:()=>leaveLs(),ammo:(a:'iron'|'chain'|'fire'|'explosive')=>{if(!ls)return;ls.ammo=a;state.ammo=a;renderLsHud(ls,lsHooks);},
   powder:()=>{if(!ls)return;ls.powder=!ls.powder;renderLsHud(ls,lsHooks);},speed:()=>{if(ls&&ls.inv.speed>0)sendLs('speed');}};
 const lsItemImg:Partial<Record<LsItem,HTMLImageElement>>={};
 function lsImg(k:LsItem){let im=lsItemImg[k];if(!im){im=new Image();im.src=LS_ITEMS[k].icon;lsItemImg[k]=im;}return im;}
 // Eşyaları toplama: üstünden geçince sunucuya bildirilir (mesafeyi sunucu denetler)
-function lsPickTick(){if(!ls||ls.dead)return;for(const it of ls.items){if(lsPicking.has(it[0]))continue;if(Math.hypot(player.x-it[2],player.y-it[3])<LS_PICK_R){lsPicking.add(it[0]);sendLs('pick',{id:it[0]});}}}
-function drawLsItems(){if(!ls)return;const t=performance.now()/1000;for(const it of ls.items){if(!seenOnMap({x:it[2],y:it[3]}))continue;const p=worldToScreen({x:it[2],y:it[3]}),im=lsImg(it[1]),bob=Math.sin(t*2.4+it[0])*4;
+function lsPickTick(){if(!ls||ls.dead)return;const now=Date.now()+ls.off;
+  for(const d of ls.drops){if(now<d.land||lsDropPicking.has(d.id))continue;if(Math.hypot(player.x-d.x,player.y-d.y)<LS_DROP_PICK_R){lsDropPicking.add(d.id);sendLs('dpick',{id:d.id});}}for(const it of ls.items){if(lsPicking.has(it[0]))continue;if(Math.hypot(player.x-it[2],player.y-it[3])<LS_PICK_R){lsPicking.add(it[0]);sendLs('pick',{id:it[0]});}}}
+function drawLsItems(){if(!ls)return;const t=performance.now()/1000;
+  // Lanetli sandık: düşerken hedef halkası ve geri sayım, indikten sonra ışık sütunu (görüş sisinden bağımsız görünür)
+  {const now=Date.now()+ls.off;for(const d of ls.drops){const p=worldToScreen(d),left=d.land-now;ctx.save();
+    if(left>0){const k=1-left/LS_DROP_FALL_MS;ctx.strokeStyle='#ffd56a';ctx.lineWidth=3;ctx.setLineDash([10,8]);ctx.lineDashOffset=-t*30;ctx.beginPath();ctx.ellipse(p.x,p.y,70,26,0,0,7);ctx.stroke();ctx.setLineDash([]);
+      const y=p.y-60-(1-k)*500;if(lsDropImg.complete)ctx.drawImage(lsDropImg,p.x-30,y-30,60,60);ctx.fillStyle='#ffe9a8';ctx.font='800 22px Inter';ctx.textAlign='center';ctx.fillText(`${Math.ceil(left/1000)}`,p.x,p.y+8);}
+    else{const g=ctx.createLinearGradient(p.x,p.y-420,p.x,p.y);g.addColorStop(0,'rgba(255,214,106,0)');g.addColorStop(1,`rgba(255,214,106,${.35+.15*Math.sin(t*4)})`);ctx.fillStyle=g;ctx.fillRect(p.x-24,p.y-420,48,420);
+      ctx.fillStyle='rgba(255,214,106,.3)';ctx.beginPath();ctx.ellipse(p.x,p.y+16,46,16,0,0,7);ctx.fill();if(lsDropImg.complete)ctx.drawImage(lsDropImg,p.x-34,p.y-44+Math.sin(t*2)*3,68,68);}
+    ctx.restore();}}for(const it of ls.items){if(!seenOnMap({x:it[2],y:it[3]}))continue;const p=worldToScreen({x:it[2],y:it[3]}),im=lsImg(it[1]),bob=Math.sin(t*2.4+it[0])*4;
   ctx.save();ctx.globalAlpha=.55+.25*Math.sin(t*3+it[0]);ctx.fillStyle='#b47bff';ctx.beginPath();ctx.ellipse(p.x,p.y+14,26,9,0,0,7);ctx.fill();ctx.globalAlpha=1;
   if(im.complete&&im.naturalWidth)ctx.drawImage(im,p.x-22,p.y-30+bob,44,44);ctx.restore();}}
 function openArenaModes(){openArena(openDom,()=>{if(ls){toast('Zaten Lanetli Sular maçındasın');return;}openLsLobby(domBlocked);});}
 function onLsNet(d:Record<string,unknown>&{k:string}){
   if(d.k==='lobby'){lsLobbyMsg(d as unknown as LsLobby);return;}
   if(d.k==='err'){toast(String(d.msg||''));return;}
-  if(d.k==='start'){if(dom||ls||siege)return;enterLs(d as unknown as {id:string;spawn:{x:number;y:number};n:number;fog:LsFog&{now:number};items:LsRun['items']});return;}
+  if(d.k==='start'){if(dom||ls||siege)return;enterLs(d as unknown as {id:string;spawn:{x:number;y:number};n:number;fog:LsFog&{now:number};items:LsRun['items'];drops?:LsDrop[]});return;}
   if(!ls)return;
   if(d.k==='fog'){const f=d.fog as LsFog&{now:number};ls.off=f.now-Date.now();ls.fog=f;ls.alive=Number(d.n)||ls.alive;if(f.phase>0)toast('Lanetli sis daralıyor! Beyaz halkanın içine gir');renderLsHud(ls,lsHooks);return;}
   if(d.k==='alive'){ls.alive=Number(d.n)||0;if(d.out)rewardNotice(`${d.by?`${d.by}, `:''}${d.out} ${d.by?'kaptanını batırdı':'lanetli sulara gömüldü'} · ${ls.alive} kaptan kaldı`,'battle');renderLsHud(ls,lsHooks);return;}
+  if(d.k==='drops'){ls.drops=(d.drops as LsDrop[])??[];for(const id of [...lsDropPicking])if(!ls.drops.some(x=>x.id===id))lsDropPicking.delete(id);
+    if(d.fresh){toast('Lanetli sandık düşüyor! Haritadaki altın halkaya ilk ulaşan alır');playMapJump();}if(d.by)rewardNotice(`${d.by} lanetli sandığı aldı`,'battle');return;}
   if(d.k==='items'){ls.items=d.items as LsRun['items'];for(const id of [...lsPicking])if(!ls.items.some(x=>x[0]===id))lsPicking.delete(id);return;}
   if(d.k==='inv'){ls.inv=d.inv as LsInv;if(d.got){const g=LS_ITEMS[d.got as LsItem];rewardNotice(`${g.name} +${fmt(g.qty)}`,'none');playCoins();}
+    if(d.drop){rewardNotice('Lanetli sandık senin! Patlayıcı, ateş, zincir gülle, barut, kalkan ve hız iksiri','battle');playLevelUp();}
     if(d.speed){abilityTimers.speed.active=LS_SPEED_MS/1000;toast('Hız iksiri içildi');}if(ls.ammo!=='iron'&&ls.inv[ls.ammo]<=0){ls.ammo='iron';state.ammo='iron';}renderLsHud(ls,lsHooks);return;}
   if(d.k==='burn'){if(ls.dead)return;const dmg=Number(d.dmg)||0;state.hp-=dmg;state.repairing=false;damageText(player.x,player.y,dmg,DMG_RED);return;}
   if(d.k==='out'){const o=d as unknown as LsOut;ls.dead=true;renderLsHud(ls,lsHooks);playLevelUp();showLsResult(o,leaveLs);}}
-function enterLs(st:{id:string;spawn:{x:number;y:number};n:number;fog:LsFog&{now:number};items:LsRun['items']}){lsPicking.clear();closeLsLobby();sendLs('watch',{on:false});
-  lsOrigin={x:player.x,y:player.y};ls={id:st.id,n:st.n,alive:st.n,fog:st.fog,off:st.fog.now-Date.now(),start:st.fog.at,kills:0,dead:false,inv:lsEmptyInv(),items:st.items??[],ammo:'iron',powder:true};
+function enterLs(st:{id:string;spawn:{x:number;y:number};n:number;fog:LsFog&{now:number};items:LsRun['items'];drops?:LsDrop[]}){lsPicking.clear();lsDropPicking.clear();closeLsLobby();sendLs('watch',{on:false});
+  lsOrigin={x:player.x,y:player.y};ls={id:st.id,n:st.n,alive:st.n,fog:st.fog,off:st.fog.now-Date.now(),start:st.fog.at,kills:0,dead:false,inv:lsEmptyInv(),items:st.items??[],drops:st.drops??[],ammo:'iron',powder:true};
   fleetSafe=null;fleetFields.clear();populateMap();state.ammo='iron';
   player.x=st.spawn.x;player.y=st.spawn.y;player.speed=0;destination=null;routeTarget=null;selected=null;state.attacking=false;ui('attack').classList.remove('active');
   camera.x=player.x;camera.y=player.y;freeLook=null;state.hp=LS_HP;state.invulnerable=0;state.repairing=false;shots.length=0;salvoQueue.length=0;mapFade=1;playMapJump();renderLsHud(ls,lsHooks);
@@ -2922,6 +2933,7 @@ function drawMinimap(){const W=188,H=133,sx=(x:number)=>x/WORLD_WIDTH*W,sy=(y:nu
   if(hasFleetIsland()){const f=mapDef().fleet;drawFleetBase(mini,th.fleet,f.x,f.y);}
   mini.restore();
   if(ls){const f=ls.fog,z=lsZoneAt(f,Date.now()+ls.off);mini.save();mini.fillStyle='#3a1260aa';mini.beginPath();mini.rect(0,0,W,H);mini.ellipse(sx(z.x),sy(z.y),Math.max(0,z.r)/WORLD_WIDTH*W,Math.max(0,z.r)/WORLD_HEIGHT*H,0,0,7);mini.fill('evenodd');mini.restore();
+    for(const d of ls.drops){const on=Math.floor(performance.now()/300)%2===0;mini.fillStyle=on?'#ffd56a':'#fff6d0';mini.beginPath();mini.arc(sx(d.x),sy(d.y),3.5,0,7);mini.fill();}
     mini.fillStyle='#d6b4ff';for(const it of ls.items)if(seenOnMap({x:it[2],y:it[3]}))mini.fillRect(sx(it[2])-1,sy(it[3])-1,2,2);
     if(f.phase>0){mini.strokeStyle='#ffffffcc';mini.lineWidth=1;mini.beginPath();mini.ellipse(sx(f.to.x),sy(f.to.y),f.to.r/WORLD_WIDTH*W+.01,f.to.r/WORLD_HEIGHT*H+.01,0,0,7);mini.stroke();}}
   if(dom){const z=DOM_ZONE;mini.strokeStyle=dom.own?DOM_TEAMS[dom.own].color:'#f3d496';mini.lineWidth=1.5;mini.beginPath();mini.ellipse(sx(z.x),sy(z.y),z.r/WORLD_WIDTH*W,z.r/WORLD_HEIGHT*H,0,0,7);mini.stroke();

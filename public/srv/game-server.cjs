@@ -3737,6 +3737,7 @@ __export(game_server_exports, {
   lsAddItem: () => lsAddItem,
   lsAttack: () => lsAttack,
   lsDrop: () => lsDrop,
+  lsDropPick: () => lsDropPick,
   lsFinish: () => lsFinish,
   lsLobby: () => lsLobby,
   lsMatchOfSea: () => lsMatchOfSea,
@@ -4462,7 +4463,7 @@ var LS_ITEM_KEYS = Object.keys(LS_ITEMS);
 var LS_ITEM_MAX = 26;
 var LS_ITEM_RESPAWN_MS = 2500;
 var LS_PICK_R = 46;
-var LS_SPEED_MS = 8e3;
+var LS_SPEED_MS = 1500;
 var lsEmptyInv = () => ({ chain: 0, fire: 0, explosive: 0, powder: 0, shield: 0, speed: 0 });
 function lsPickKind(rand = Math.random) {
   const tot = LS_ITEM_KEYS.reduce((a, k) => a + LS_ITEMS[k].weight, 0);
@@ -4473,6 +4474,11 @@ function lsPickKind(rand = Math.random) {
   }
   return "chain";
 }
+var LS_DROP_FIRST_MS = 45e3;
+var LS_DROP_EVERY_MS = 75e3;
+var LS_DROP_FALL_MS = 1e4;
+var LS_DROP_PICK_R = 60;
+var LS_DROP_LOOT = { explosive: 315 * 4, fire: 315 * 3, chain: 315 * 2, powder: 12, shield: 16, speed: 1 };
 
 // src/level-quest.ts
 var levelQuestTargets = (level) => ({ ships: [`n${level}-1-heavy`, `n${level}-2-heavy`], tier: level });
@@ -6262,7 +6268,7 @@ function lsStart(now, pend = lsPending, rand = Math.random) {
   const order = [...pend.list].sort(() => rand() - 0.5);
   order.forEach((x, i) => players.set(x.uid, { nick: domNick(x), alive: true, kills: 0, balls: 0, rank: 0, spawn: lsSpawn(i, order.length), inv: lsEmptyInv() }));
   const z = { x: 3e3, y: 2e3, r: LS_START_R };
-  const m = { id, players, fog: { from: z, to: z, at: now, phase: 0 }, start: now, end: now + LS_MATCH_MS, result: null, items: [], seq: 0, itemAt: now };
+  const m = { id, players, fog: { from: z, to: z, at: now, phase: 0 }, start: now, end: now + LS_MATCH_MS, result: null, items: [], seq: 0, itemAt: now, drops: [], dropNext: now + LS_DROP_FIRST_MS };
   lsMatches.set(id, m);
   for (let i = 0; i < LS_ITEM_MAX; i++) lsAddItem(m, now, rand);
   if (pend === lsPending) lsPending = null;
@@ -6277,7 +6283,7 @@ function lsStart(now, pend = lsPending, rand = Math.random) {
     else {
       x.pvp = { budget: null, heal: null, hp: LS_HP, at: now, from: /* @__PURE__ */ new Map() };
     }
-    send(x, { t: "ls", d: { k: "start", id, spawn: p2.spawn, n: order.length, end: m.end, fog: lsFogInfo(m), items: m.items } });
+    send(x, { t: "ls", d: { k: "start", id, spawn: p2.spawn, n: order.length, end: m.end, fog: lsFogInfo(m), items: m.items, drops: m.drops } });
   }
   log("LANETL\u0130 SULAR BA\u015ELADI", id, order.length);
   return m;
@@ -6386,6 +6392,18 @@ function lsPick(c, id, now) {
   p2.inv[it[1]] += LS_ITEMS[it[1]].qty;
   return { kind: it[1], inv: p2.inv };
 }
+function lsDropPick(c, id, now) {
+  const m = lsMatches.get(c.lsMatch), p2 = m?.players.get(c.uid);
+  if (!p2?.alive || !c.last) return { err: "yok" };
+  const i = m.drops.findIndex((x) => x.id === Number(id));
+  if (i < 0) return { err: "yok" };
+  const dr = m.drops[i];
+  if (now < dr.land) return { err: "erken" };
+  if (Math.hypot(c.last.x - dr.x, c.last.y - dr.y) > LS_DROP_PICK_R + 90) return { err: "uzak" };
+  m.drops.splice(i, 1);
+  for (const [k, v] of Object.entries(LS_DROP_LOOT)) p2.inv[k] += v;
+  return { inv: p2.inv, nick: p2.nick };
+}
 function lsSpeed(c, now) {
   const p2 = lsMatches.get(c.lsMatch)?.players.get(c.uid);
   if (!p2?.alive || p2.inv.speed <= 0) return null;
@@ -6399,6 +6417,13 @@ function lsStep(m, room, now, rand = Math.random) {
     const cur = lsZoneAt(m.fog, now);
     m.fog = { from: cur, to: lsNext(cur, LS_RADII[m.fog.phase], rand), at: now, phase: m.fog.phase + 1 };
     changed = true;
+  }
+  let drop = null;
+  if (now >= m.dropNext) {
+    m.dropNext += LS_DROP_EVERY_MS;
+    const t = m.fog.to, r = Math.max(0, t.r * 0.7), a = rand() * Math.PI * 2, d = Math.sqrt(rand()) * r;
+    drop = { id: ++m.seq, x: Math.round(Math.max(150, Math.min(5850, t.x + Math.cos(a) * d))), y: Math.round(Math.max(150, Math.min(3850, t.y + Math.sin(a) * d))), land: now + LS_DROP_FALL_MS };
+    m.drops.push(drop);
   }
   let items = false;
   if (now - m.itemAt >= LS_ITEM_RESPAWN_MS) {
@@ -6418,7 +6443,7 @@ function lsStep(m, room, now, rand = Math.random) {
     p2.hp -= dmg;
     hits.push([x, dmg, p2.hp <= 0]);
   }
-  return { changed, hits, items };
+  return { changed, hits, items, drop };
 }
 function lsTick(now) {
   if (lsPending) {
@@ -6453,6 +6478,10 @@ function lsTick(now) {
       continue;
     }
     const r = lsStep(m, room, now);
+    if (r.drop) {
+      const msg = JSON.stringify({ t: "ls", d: { k: "drops", drops: m.drops, fresh: r.drop.id } });
+      for (const x of room || []) send(x, msg);
+    }
     if (r.items) {
       const msg = JSON.stringify({ t: "ls", d: { k: "items", items: m.items } });
       for (const x of room || []) send(x, msg);
@@ -6509,6 +6538,18 @@ function onLs(c, d, now) {
     send(c, { t: "ls", d: { k: "inv", inv: r.inv, got: r.kind } });
     const m = lsMatches.get(c.lsMatch);
     const msg = JSON.stringify({ t: "ls", d: { k: "items", items: m.items } });
+    for (const x of seas.get(`sea-ls-${m.id}`) || []) send(x, msg);
+    return;
+  }
+  if (k === "dpick") {
+    const r = lsDropPick(c, d?.id, now);
+    if (r.err) {
+      if (r.err === "uzak") suspect(c, "uzak sand\u0131k");
+      return;
+    }
+    send(c, { t: "ls", d: { k: "inv", inv: r.inv, drop: 1 } });
+    const m = lsMatches.get(c.lsMatch);
+    const msg = JSON.stringify({ t: "ls", d: { k: "drops", drops: m.drops, by: r.nick } });
     for (const x of seas.get(`sea-ls-${m.id}`) || []) send(x, msg);
     return;
   }
@@ -7113,6 +7154,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   lsAddItem,
   lsAttack,
   lsDrop,
+  lsDropPick,
   lsFinish,
   lsLobby,
   lsMatchOfSea,
