@@ -3663,6 +3663,7 @@ __export(game_server_exports, {
   LIMITS: () => LIMITS,
   LOOT: () => LOOT,
   LS_AMMO: () => LS_AMMO,
+  MAPS_FOR_TEST: () => MAPS_FOR_TEST,
   NEAR: () => NEAR,
   NPC_DMG_MODEL: () => NPC_DMG_MODEL,
   NPC_FIRE_RANGE: () => NPC_FIRE_RANGE,
@@ -3766,6 +3767,7 @@ __export(game_server_exports, {
   npcHit: () => npcHit,
   npcInfo: () => npcInfo,
   npcMove: () => npcMove,
+  npcShore: () => npcShore,
   npcSpawn: () => npcSpawn,
   onLand: () => onLand,
   osbMatch: () => osbMatch,
@@ -5172,6 +5174,12 @@ function npcMove(n, dt, players, now) {
       const a = Math.random() * Math.PI * 2, r = 60 + Math.random() * 240;
       n.wx = Math.max(80, Math.min(WORLD_WIDTH - 80, n.hx + Math.cos(a) * r));
       n.wy = Math.max(80, Math.min(WORLD_HEIGHT - 80, n.hy + Math.sin(a) * r));
+      const map = n.id.slice(0, n.id.lastIndexOf(":"));
+      if (npcSolids(map).some((o) => Math.hypot(n.wx - o.x, n.wy - o.y) < o.r + 40)) {
+        n.wx = n.x;
+        n.wy = n.y;
+        return;
+      }
       tx = n.wx;
       ty = n.wy;
     }
@@ -5182,6 +5190,29 @@ function npcMove(n, dt, players, now) {
   n.x += (tx - n.x) / d * st;
   n.y += (ty - n.y) / d * st;
   n.moved = true;
+  if (npcShore(n) && !foe) {
+    n.wx = n.x;
+    n.wy = n.y;
+  }
+}
+var npcSolids = (map) => {
+  const m = MAPS[map];
+  if (!m) return [];
+  return [...m.islands.map((is2) => ({ x: is2.x, y: is2.y, r: is2.r * 0.72 + 28 })), ...m.fleet ? [{ x: m.fleet.x, y: m.fleet.y, r: FLEET.islandR }] : []];
+};
+var MAPS_FOR_TEST = MAPS;
+function npcShore(n) {
+  let hit = false;
+  for (const o of npcSolids(n.id.slice(0, n.id.lastIndexOf(":")))) {
+    const d = Math.hypot(n.x - o.x, n.y - o.y);
+    if (d < o.r) {
+      const a = d > 0.01 ? Math.atan2(n.y - o.y, n.x - o.x) : 0;
+      n.x = o.x + Math.cos(a) * o.r;
+      n.y = o.y + Math.sin(a) * o.r;
+      hit = true;
+    }
+  }
+  return hit;
 }
 var NPC_FIRE_RANGE = 360;
 var NPC_SPAWN_GRACE = 3e3;
@@ -7324,6 +7355,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   LIMITS,
   LOOT,
   LS_AMMO,
+  MAPS_FOR_TEST,
   NEAR,
   NPC_DMG_MODEL,
   NPC_FIRE_RANGE,
@@ -7427,6 +7459,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   npcHit,
   npcInfo,
   npcMove,
+  npcShore,
   npcSpawn,
   onLand,
   osbMatch,

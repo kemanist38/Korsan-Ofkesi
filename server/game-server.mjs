@@ -301,8 +301,13 @@ export const npcInfo=n=>({id:n.id,d:n.def.id,x:Math.round(n.x),y:Math.round(n.y)
 export function npcMove(n,dt,players,now){let tx=n.wx,ty=n.wy,v=n.def.speed*.45*1.4;
   const foe=n.aggro&&now<n.aggroUntil?players.find(p=>p.uid===n.aggro&&p.last):null;
   if(foe&&Math.hypot(n.x-n.hx,n.y-n.hy)<NPC_LEASH){tx=foe.last.x;ty=foe.last.y;v=n.def.speed*1.4;if(Math.hypot(tx-n.x,ty-n.y)<240)return;}
-  else{n.aggro=null;if(Math.hypot(n.wx-n.x,n.wy-n.y)<20){const a=Math.random()*Math.PI*2,r=60+Math.random()*240;n.wx=Math.max(80,Math.min(WORLD_WIDTH-80,n.hx+Math.cos(a)*r));n.wy=Math.max(80,Math.min(WORLD_HEIGHT-80,n.hy+Math.sin(a)*r));tx=n.wx;ty=n.wy;}}
-  const d=Math.hypot(tx-n.x,ty-n.y);if(d<1)return;const st=Math.min(d,v*dt);n.x+=(tx-n.x)/d*st;n.y+=(ty-n.y)/d*st;n.moved=true;}
+  else{n.aggro=null;if(Math.hypot(n.wx-n.x,n.wy-n.y)<20){const a=Math.random()*Math.PI*2,r=60+Math.random()*240;n.wx=Math.max(80,Math.min(WORLD_WIDTH-80,n.hx+Math.cos(a)*r));n.wy=Math.max(80,Math.min(WORLD_HEIGHT-80,n.hy+Math.sin(a)*r));const map=n.id.slice(0,n.id.lastIndexOf(':'));if(npcSolids(map).some(o=>Math.hypot(n.wx-o.x,n.wy-o.y)<o.r+40)){n.wx=n.x;n.wy=n.y;return;}tx=n.wx;ty=n.wy;}}
+  const d=Math.hypot(tx-n.x,ty-n.y);if(d<1)return;const st=Math.min(d,v*dt);n.x+=(tx-n.x)/d*st;n.y+=(ty-n.y)/d*st;n.moved=true;
+  // Adalar oyuncu gemisindeki gibi katıdır: NPC kıyıya itilir ve kıyı boyunca kayar; dolaşma hedefi adanın arkasında kaldıysa yeni hedef seçer
+  if(npcShore(n)&&!foe){n.wx=n.x;n.wy=n.y;}}
+const npcSolids=map=>{const m=MAPS[map];if(!m)return[];return[...m.islands.map(is=>({x:is.x,y:is.y,r:is.r*.72+28})),...(m.fleet?[{x:m.fleet.x,y:m.fleet.y,r:FLEET.islandR}]:[])];};
+export const MAPS_FOR_TEST=MAPS;
+export function npcShore(n){let hit=false;for(const o of npcSolids(n.id.slice(0,n.id.lastIndexOf(':')))){const d=Math.hypot(n.x-o.x,n.y-o.y);if(d<o.r){const a=d>.01?Math.atan2(n.y-o.y,n.x-o.x):0;n.x=o.x+Math.cos(a)*o.r;n.y=o.y+Math.sin(a)*o.r;hit=true;}}return hit;}
 // Ateş: NPC, kendisini vuran ya da 360 birime yaklaşan oyuncuya oyunun hızıyla ateş eder (güvenli denizde etmez, yeniden doğan
 // oyuncuya 3 sn dokunmaz). Hasar oyuncuya bildirilir ve sunucudaki can modelinden düşülür (kalkan, yetenek gibi azaltıcılar için %70).
 export const NPC_FIRE_RANGE=360,NPC_SPAWN_GRACE=3000,NPC_DMG_MODEL=.7;
