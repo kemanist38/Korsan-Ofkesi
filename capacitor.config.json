@@ -1,0 +1,8 @@
+{
+  "appId": "com.piraterage.korsanofkesi",
+  "appName": "Pirate Rage: Korsan Öfkesi",
+  "webDir": "dist-app",
+  "backgroundColor": "#06151b",
+  "android": { "allowMixedContent": false },
+  "ios": { "contentInset": "never", "backgroundColor": "#06151b" }
+}

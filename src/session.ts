@@ -2,7 +2,7 @@
 export type EconSnapshot={state:Record<string,number>;pearls:number};
 export type EconBatch={items:Record<string,{v:number;g:number;s:number}>;pearlG:number;pearlS:number;sent:Record<string,number>;pearlSent:number};
 export type Account={uid:string;playerNo:number;email:string};
-export const session:{account:Account|null;rename:((nick:string)=>Promise<string|null>)|null;passwordReset?:(()=>Promise<string|null>)|null;logout:(()=>Promise<void>)|null;flush:(()=>Promise<void>)|null;
+export const session:{account:Account|null;rename:((nick:string)=>Promise<string|null>)|null;passwordReset?:(()=>Promise<string|null>)|null;deleteAccount?:(()=>Promise<string|null>)|null;logout:(()=>Promise<void>)|null;flush:(()=>Promise<void>)|null;
   // İnci cüzdanı sunucuda: sunucuya eklenen inci (kupon vb.) bilinen bakiyeye eklenir; eşitlemede düzeltme oyuna bildirilir
   pearlServerAdd:((n:number)=>void)|null;onPearlFix:((delta:number)=>void)|null;pearlSyncOff:boolean;isAdmin:boolean;
   // Sunucu ekonomisi: girişteki değerler, eşitleme için toplanan kazanç/harcama ve sunucunun kabul ettiği değerlerin uygulanması

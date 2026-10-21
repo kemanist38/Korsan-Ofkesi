@@ -96,6 +96,7 @@ async function enter(sb:SupabaseClient,user:User,nick?:string){
     session.account={uid:user.id,playerNo:prof.player_no,email:user.email??''};
     session.rename=async n=>{const {error:e}=await sb.rpc('set_nick',{p_nick:n});return e?(e.code==='23505'?'Bu kaptan adı alınmış':trErr(e.message.replace(/^.*?: /,''))):null;};
     session.passwordReset=user.email?()=>sendReset(sb,user.email!):null;
+    session.deleteAccount=async()=>{const {error:e}=await sb.rpc('delete_my_account');if(e)return trErr(e.message.replace(/^.*?: /,''));await sb.auth.signOut().catch(()=>{});try{localStorage.clear();}catch{}return null;};
     let last=JSON.stringify(collectSave());
     const push=async(force=false)=>{await (econOk?syncEconomy():syncPearls()).catch(()=>{});const data=collectSave(),s=JSON.stringify(data);if(!force&&s===last)return;
       const {error:e}=await sb.from('saves').upsert({user_id:user.id,data,updated_at:new Date().toISOString()});if(!e)last=s;};

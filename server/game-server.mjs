@@ -36,6 +36,7 @@ const SUPABASE_ANON=process.env.SUPABASE_ANON||'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpX
 export const LIMITS={maxHit:400000,maxSpeed:900,firesPerSec:12,statesPerSec:15,chatPerMin:20,chatLen:200,maxPerSea:300};
 const started=Date.now();
 // Shopier OSB bilgileri ve sunucu anahtarı yalnızca VPS'teki /opt/game/.env dosyasında durur
+const RC_WEBHOOK_AUTH=process.env.REVENUECAT_WEBHOOK_AUTH||'';
 const OSB_USER=process.env.SHOPIER_OSB_USER||'',OSB_PASS=process.env.SHOPIER_OSB_PASS||'',SERVER_SECRET=process.env.SERVER_SECRET||'';
 
 // ---------------------------------------------------------------- Kimlik doğrulama (Supabase oturum anahtarı)
@@ -69,6 +70,19 @@ export function parseForm(body,ctype=''){const m=/boundary=(?:"([^"]+)"|([^;]+))
   for(const part of body.split(b)){const i=part.indexOf('\r\n\r\n');if(i<0)continue;const head=part.slice(0,i),name=/name="([^"]+)"/i.exec(head)?.[1];if(!name)continue;
     out.append(name,part.slice(i+4).replace(/\r\n$/,''));}
   return out;}
+// Uygulama içi satın alma (App Store / Google Play): RevenueCat ödemeyi mağazayla doğrular ve buraya bildirir (webhook).
+// Yetki: RevenueCat panelinde yazılan Authorization değeri VPS .env'deki REVENUECAT_WEBHOOK_AUTH ile aynı olmalı.
+// app_user_id = oyuncunun hesap kimliği (uygulama satın almadan önce RevenueCat'e bununla giriş yapar). Aynı işlem iki kez yüklenmez.
+export const IAP_GRANT=new Set(['INITIAL_PURCHASE','NON_RENEWING_PURCHASE']);
+export function rcAuthOk(header,secret){if(!secret||!header)return false;const a=Buffer.from(String(header).replace(/^Bearer /,'')),b=Buffer.from(secret.replace(/^Bearer /,''));return a.length===b.length&&crypto.timingSafeEqual(a,b);}
+export function parseRcEvent(body){let o;try{o=JSON.parse(body);}catch{return null;}const e=o?.event;if(!e||typeof e!=='object')return null;
+  const uid=String(e.app_user_id||'');const tx=String(e.transaction_id||e.id||'');if(!tx)return null;
+  return{type:String(e.type||''),uid:/^[0-9a-f-]{36}$/i.test(uid)?uid:null,product:String(e.product_id||''),tx,store:String(e.store||'').toLowerCase()||'store',sandbox:e.environment==='SANDBOX'};}
+async function handleRevenueCat(body){const e=parseRcEvent(body);if(!e){log('IAP okunamadı');return true;}
+  const rpc=(fn,args)=>fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:'POST',headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`,'content-type':'application/json'},body:JSON.stringify({p_secret:SERVER_SECRET,...args})});
+  if(IAP_GRANT.has(e.type)){const r=await rpc('iap_credit',{p_tx:e.tx,p_store:e.store,p_product:e.product,p_uid:e.uid});const st=r.ok?await r.json():null;log('IAP',e.type,e.store,e.product,e.tx,e.sandbox?'(test)':'',st??`hata ${r.status}`);return r.ok;}
+  if(e.type==='CANCELLATION'){const r=await rpc('iap_refund',{p_tx:e.tx});log('IAP iade',e.tx,r.ok?await r.json():`hata ${r.status}`);return r.ok;}
+  log('IAP olay',e.type);return true;}
 async function handleOsb(body,ctype){const form=parseForm(body,ctype),res=form.get('res')||'',hash=form.get('hash')||'';
   // Teşhis: gelen alanların adları ve uzunlukları (değerler yazılmaz)
   log('SHOPIER istek geldi',ctype||'-','alanlar:',[...form.keys()].map(k=>`${k}(${(form.get(k)||'').length})`).join(',')||`gövde ${body.length} bayt`,'ayar:',OSB_USER?'kullanıcı var':'KULLANICI YOK',OSB_PASS?'şifre var':'ŞİFRE YOK',SERVER_SECRET?'anahtar var':'ANAHTAR YOK');
@@ -770,6 +784,9 @@ export async function flushCredit(c){
 setInterval(()=>{for(const c of new Set([...all,...pendingCredits.values()]))if(c.credit||c.grant)void flushCredit(c);},20_000).unref();
 const httpServer=http.createServer(async(q,r)=>{const cors={'access-control-allow-origin':'*','access-control-allow-headers':'authorization','content-type':'application/json'};
   if(q.method==='OPTIONS'){r.writeHead(204,cors);r.end();return;}
+  if(q.method==='POST'&&q.url?.startsWith('/iap/revenuecat')){if(!rcAuthOk(q.headers.authorization,RC_WEBHOOK_AUTH)){r.writeHead(401,{'content-type':'text/plain'});r.end('yetki yok');return;}
+    let body='';q.on('data',d=>{body+=d;if(body.length>200000)q.destroy();});
+    q.on('end',async()=>{const ok=await handleRevenueCat(body).catch(e=>{log('IAP hata',e?.message);return false;});r.writeHead(ok?200:500,{'content-type':'text/plain'});r.end(ok?'ok':'tekrar');});return;}
   if(q.method==='POST'&&q.url?.startsWith('/shopier/osb')){let body='';q.on('data',d=>{body+=d;if(body.length>100000)q.destroy();});
     q.on('end',async()=>{const ok=await handleOsb(body,q.headers['content-type']).catch(e=>{log('SHOPIER hata',e?.message);return false;});r.writeHead(ok?200:400,{'content-type':'text/plain'});r.end(ok?'success':'fail');});return;}
   if(q.url?.startsWith('/flags')){const token=String(q.headers.authorization||'').replace(/^Bearer /,'');

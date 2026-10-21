@@ -3658,6 +3658,7 @@ __export(game_server_exports, {
   GOD_MARGIN: () => GOD_MARGIN,
   HEAL_SECONDS: () => HEAL_SECONDS,
   HP_BONUS_MAX: () => HP_BONUS_MAX,
+  IAP_GRANT: () => IAP_GRANT,
   ISLAND_KEYS: () => ISLAND_KEYS,
   LIMITS: () => LIMITS,
   LOOT: () => LOOT,
@@ -3767,6 +3768,7 @@ __export(game_server_exports, {
   osbMatch: () => osbMatch,
   parseForm: () => parseForm,
   parseOsb: () => parseOsb,
+  parseRcEvent: () => parseRcEvent,
   pendingCredits: () => pendingCredits,
   perBall: () => perBall,
   pickSpot: () => pickSpot,
@@ -3776,6 +3778,7 @@ __export(game_server_exports, {
   pvpReset: () => pvpReset,
   questCooldowns: () => questCooldowns,
   questCredit: () => questCredit,
+  rcAuthOk: () => rcAuthOk,
   resetSiege: () => resetSiege,
   saveServerState: () => saveServerState,
   sbTake: () => sbTake,
@@ -4490,6 +4493,7 @@ var SUPABASE_URL = process.env.SUPABASE_URL || "https://vidjvineafeiyoclioau.sup
 var SUPABASE_ANON = process.env.SUPABASE_ANON || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZGp2aW5lYWZlaXlvY2xpb2F1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE3Mjk2NjMsImV4cCI6MjEwNzMwNTY2M30.sKlmmfQRr-ZASkaSbax22ca80cyDCc8DNz4Idq19g5s";
 var LIMITS = { maxHit: 4e5, maxSpeed: 900, firesPerSec: 12, statesPerSec: 15, chatPerMin: 20, chatLen: 200, maxPerSea: 300 };
 var started = Date.now();
+var RC_WEBHOOK_AUTH = process.env.REVENUECAT_WEBHOOK_AUTH || "";
 var OSB_USER = process.env.SHOPIER_OSB_USER || "";
 var OSB_PASS = process.env.SHOPIER_OSB_PASS || "";
 var SERVER_SECRET = process.env.SERVER_SECRET || "";
@@ -4553,6 +4557,47 @@ function parseForm(body, ctype = "") {
     out.append(name, part.slice(i + 4).replace(/\r\n$/, ""));
   }
   return out;
+}
+var IAP_GRANT = /* @__PURE__ */ new Set(["INITIAL_PURCHASE", "NON_RENEWING_PURCHASE"]);
+function rcAuthOk(header, secret) {
+  if (!secret || !header) return false;
+  const a = Buffer.from(String(header).replace(/^Bearer /, "")), b = Buffer.from(secret.replace(/^Bearer /, ""));
+  return a.length === b.length && import_node_crypto.default.timingSafeEqual(a, b);
+}
+function parseRcEvent(body) {
+  let o;
+  try {
+    o = JSON.parse(body);
+  } catch {
+    return null;
+  }
+  const e = o?.event;
+  if (!e || typeof e !== "object") return null;
+  const uid = String(e.app_user_id || "");
+  const tx = String(e.transaction_id || e.id || "");
+  if (!tx) return null;
+  return { type: String(e.type || ""), uid: /^[0-9a-f-]{36}$/i.test(uid) ? uid : null, product: String(e.product_id || ""), tx, store: String(e.store || "").toLowerCase() || "store", sandbox: e.environment === "SANDBOX" };
+}
+async function handleRevenueCat(body) {
+  const e = parseRcEvent(body);
+  if (!e) {
+    log("IAP okunamad\u0131");
+    return true;
+  }
+  const rpc = (fn, args) => fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, { method: "POST", headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${SUPABASE_ANON}`, "content-type": "application/json" }, body: JSON.stringify({ p_secret: SERVER_SECRET, ...args }) });
+  if (IAP_GRANT.has(e.type)) {
+    const r = await rpc("iap_credit", { p_tx: e.tx, p_store: e.store, p_product: e.product, p_uid: e.uid });
+    const st = r.ok ? await r.json() : null;
+    log("IAP", e.type, e.store, e.product, e.tx, e.sandbox ? "(test)" : "", st ?? `hata ${r.status}`);
+    return r.ok;
+  }
+  if (e.type === "CANCELLATION") {
+    const r = await rpc("iap_refund", { p_tx: e.tx });
+    log("IAP iade", e.tx, r.ok ? await r.json() : `hata ${r.status}`);
+    return r.ok;
+  }
+  log("IAP olay", e.type);
+  return true;
 }
 async function handleOsb(body, ctype) {
   const form = parseForm(body, ctype), res = form.get("res") || "", hash = form.get("hash") || "";
@@ -6596,6 +6641,27 @@ var httpServer = import_node_http.default.createServer(async (q, r) => {
     r.end();
     return;
   }
+  if (q.method === "POST" && q.url?.startsWith("/iap/revenuecat")) {
+    if (!rcAuthOk(q.headers.authorization, RC_WEBHOOK_AUTH)) {
+      r.writeHead(401, { "content-type": "text/plain" });
+      r.end("yetki yok");
+      return;
+    }
+    let body = "";
+    q.on("data", (d) => {
+      body += d;
+      if (body.length > 2e5) q.destroy();
+    });
+    q.on("end", async () => {
+      const ok = await handleRevenueCat(body).catch((e) => {
+        log("IAP hata", e?.message);
+        return false;
+      });
+      r.writeHead(ok ? 200 : 500, { "content-type": "text/plain" });
+      r.end(ok ? "ok" : "tekrar");
+    });
+    return;
+  }
   if (q.method === "POST" && q.url?.startsWith("/shopier/osb")) {
     let body = "";
     q.on("data", (d) => {
@@ -7075,6 +7141,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   GOD_MARGIN,
   HEAL_SECONDS,
   HP_BONUS_MAX,
+  IAP_GRANT,
   ISLAND_KEYS,
   LIMITS,
   LOOT,
@@ -7184,6 +7251,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   osbMatch,
   parseForm,
   parseOsb,
+  parseRcEvent,
   pendingCredits,
   perBall,
   pickSpot,
@@ -7193,6 +7261,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   pvpReset,
   questCooldowns,
   questCredit,
+  rcAuthOk,
   resetSiege,
   saveServerState,
   sbTake,
