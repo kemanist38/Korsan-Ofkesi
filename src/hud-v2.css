@@ -3,7 +3,7 @@
    Arena düğmesi Dünya ve Görevler'in altında, günün etkinliği (Altın +%50) yakınlaştırma çubuğunun altında. */
 .top-status.retired{display:none!important}
 .info-strip .spy-go{position:static!important}
-.strip-stats{position:absolute;left:50%;top:0;height:100%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;pointer-events:auto}
+.strip-stats{position:absolute;left:50%;top:0;height:100%;overflow:visible;transform:translateX(-50%);display:flex;align-items:center;gap:8px;pointer-events:auto}
 .strip-stats .status-line{position:relative!important;display:flex!important;align-items:center;gap:4px;width:136px;height:14px;top:auto!important;left:auto!important;inset:auto!important}
 .strip-stats .status-line span{position:static!important;transform:none!important;display:block!important;font:800 9px Inter,sans-serif!important;color:#f3d496!important;text-shadow:0 1px 2px #000;flex:none}
 .strip-stats .status-line>i{position:relative!important;inset:auto!important;flex:1;height:12px!important;display:block;overflow:hidden;border:1px solid #ad8154!important;border-radius:6px!important;background:#0d0807!important;box-shadow:inset 0 1px 3px #000c!important}
@@ -12,8 +12,16 @@
 .strip-stats .hp-line>i>em{background:linear-gradient(90deg,#1b8fb0,#4fd7e8)}
 .strip-stats .battle-line>i>em{background:linear-gradient(90deg,#2a4fb8,#5f8bff)}
 .strip-stats .status-line b{position:absolute!important;left:18px!important;right:0!important;top:0!important;bottom:0!important;inset:auto;display:grid!important;place-items:center;line-height:14px!important;font:800 9px Inter,sans-serif!important;color:#fff!important;text-shadow:0 1px 2px #000,0 0 3px #000;white-space:nowrap;pointer-events:none}
-.strip-stats .top-level{position:relative!important;left:auto!important;top:auto!important;transform:none!important;width:auto!important;min-width:18px;height:16px!important;aspect-ratio:auto!important;padding:0 5px;display:grid!important;place-items:center;border:1px solid #f1c662!important;border-radius:8px!important;background:linear-gradient(#7a1e12,#3a0c06)!important;color:#ffe2a0!important;font:800 10px Inter,sans-serif!important;text-shadow:0 1px 2px #000!important;box-shadow:none!important}
-.strip-stats .top-level::before,.strip-stats .top-level::after{content:none!important}
+.strip-stats .top-level{position:relative!important;left:auto!important;top:auto!important;transform:none!important;flex:none;align-self:flex-start;width:46px!important;height:46px!important;margin:1px 4px 0;aspect-ratio:auto!important;padding:0!important;border:0!important;border-radius:50%!important;background-color:transparent!important;background-image:url(/assets/level-badges-v1.webp)!important;background-repeat:no-repeat!important;background-size:800% 100%!important;color:transparent!important;font-size:0!important;text-shadow:none!important;box-shadow:none!important;filter:drop-shadow(0 2px 4px #000c) drop-shadow(0 0 7px var(--lvglow,#ffb43a88));z-index:2;animation:lvBreathe 3.2s ease-in-out infinite}
+/* Seviye amblemi: üst çerçeveden taşan büyük rozet; etrafında sonraki seviyeye ilerleme halkası ve hafif nefes alan ışıltı */
+.strip-stats .top-level::before{content:''!important;position:absolute;inset:-5px;border-radius:50%;background:conic-gradient(#ffd36a var(--lvp,0%),#ffffff1a 0);-webkit-mask:radial-gradient(closest-side,#0000 82%,#000 85%,#000 97%,#0000 100%);mask:radial-gradient(closest-side,#0000 82%,#000 85%,#000 97%,#0000 100%);filter:drop-shadow(0 0 3px #ffb43a);pointer-events:none}
+.strip-stats .top-level::after{content:none!important}
+@keyframes lvBreathe{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}
+/* Seviye atlayınca rozet parlayıp büyür, etrafına ışık patlar */
+.strip-stats .top-level.lv-up{animation:lvUp 2.4s cubic-bezier(.2,1.4,.4,1) 1}
+.strip-stats .top-level.lv-up::after{content:''!important;position:absolute;border-radius:50%;pointer-events:none;mix-blend-mode:screen;inset:-40px;opacity:1;background:radial-gradient(circle,#fff6c8 0%,#ffcf5a99 25%,#ff8a2a44 45%,#0000 70%);animation:lvBurst 2.4s ease-out 1}
+@keyframes lvUp{0%{transform:scale(1)}15%{transform:scale(1.9) rotate(-8deg)}35%{transform:scale(1.5) rotate(6deg)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+@keyframes lvBurst{0%{transform:scale(.3);opacity:1}60%{opacity:.9}100%{transform:scale(1.6);opacity:0}}
 
 /* Koordinata git: mini haritanın hemen üstünde */
 .map-cluster{margin-top:26px}
@@ -73,3 +81,4 @@ html.touch .corner-buttons{top:calc(var(--strip) * -1 + 3px)!important}
   html .hud>.coord-go button{height:42px!important;padding:0 20px!important;font-size:20px!important}
   .corner-buttons .round-button{width:40px!important;height:40px!important}
 }
+@media (max-width:700px){.strip-stats .top-level{width:34px!important;height:34px!important;margin:-2px 2px -14px}}
