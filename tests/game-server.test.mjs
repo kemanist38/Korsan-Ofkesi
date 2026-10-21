@@ -300,3 +300,22 @@ test('shown ship: an elite hull is shown only when that elite level is unlocked'
   assert.equal(S.ADMIN_SHIP,'admin');
   assert.equal(S.shipAllowed({elite:1,ep:1e9},'nope'),'starter');
 });
+test('domination: window, balance, zone and match flow',()=>{
+  const D=Date.UTC(2026,9,21,12,0);// Çarşamba 15:00 İstanbul → kapalı; 20:30 açık; cumartesi her saat açık
+  assert.equal(S.domOpen(null,D),false);assert.equal(S.domOpen(null,Date.UTC(2026,9,21,17,30)),true);assert.equal(S.domOpen(null,Date.UTC(2026,9,24,6,0)),true);
+  const mk=(uid,ep)=>({uid,nick:uid,netId:uid,econ:{ep},ws:{readyState:0},last:null});
+  const six=[mk('a',9e6),mk('b',100),mk('c',8e6),mk('d',200),mk('e',1e6),mk('f',2e6)];
+  S.domQueue.push(...six);assert.equal(S.domPump(D),true);assert.equal(S.domQueue.length,0);
+  const m=S.domStart(D);const sum=t=>[...m.teams].filter(([,x])=>x===t).reduce((a,[u])=>a+six.find(c=>c.uid===u).econ.ep,0);
+  assert.equal([...m.teams.values()].filter(x=>x==='r').length,3);assert.ok(Math.abs(sum('r')-sum('b'))<=2e6+300);
+  // Bölge: yalnızca kırmızı → 4 sn'de alınır, sonra her saniye 1 puan; iki takım birden → çekişmeli, puan yok
+  const red=six.filter(c=>m.teams.get(c.uid)==='r'),blue=six.filter(c=>m.teams.get(c.uid)==='b');
+  red[0].last={x:3000,y:2000};const room=new Set(six);
+  for(let i=0;i<4;i++)S.domStep(m,room,D+i);assert.equal(m.zone.own,'r');assert.equal(m.score.r,1);
+  blue[0].last={x:3100,y:2000};const r=S.domStep(m,room,D+5);assert.equal(r.contested,true);assert.equal(m.score.r,1);
+  assert.equal(S.canJoin(red[1],`sea-dom-${m.id}`,D),true);assert.equal(S.canJoin(mk('z',0),`sea-dom-${m.id}`,D),false);
+  m.spent.set(red[0].uid,150);m.score.r=240;assert.equal(S.domStep(m,room,D+6).done,true);
+  const paid=S.domFinish(m,room);const mine=paid.find(([x])=>x===red[0])[2],lost=paid.find(([x])=>x===blue[0])[2];
+  assert.deepEqual(mine,{pearls:300,ep:300});assert.equal(lost.pearls,100);assert.equal(red[0].credit.ep,300);
+  S.domMatches.delete(m.id);
+});
