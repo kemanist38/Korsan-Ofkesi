@@ -1566,18 +1566,18 @@ function drawRankBadge(c:CanvasRenderingContext2D,rank:number,x:number,y:number,
   const i=rankIcon(rank),cell=rankSheet.naturalWidth/RANK_COLS;c.drawImage(rankSheet,(i%RANK_COLS)*cell,Math.floor(i/RANK_COLS)*cell,cell,cell,x,y-size/2,size,size);return true;}
 // Kaptan adı (gölgeli, degrade yazı + rütbe rozeti) her karede yeniden çizilince kalabalık haritada kareyi yiyordu:
 // etiket ekran ölçeğinde bir kez ayrı tuvale çizilir, sonra tek drawImage ile basılır.
-// Rütbe rozeti ve seviye amblemi ad yazısıyla orantılı: yazı boyunun bu katı, yazının ortasına hizalı
-const NAME_BADGE=1.8;
+// Rütbe rozeti boyu (yazı boyunun katı); rozet ve seviye amblemi büyük harflerin tam ortasına hizalı
+const NAME_BADGE=2.6;
 const nameCache=new Map<string,{c:HTMLCanvasElement;w:number;pad:number;h:number;sc:number}>();
 function renderCaptainName(tag:string,nick:string,size:number,rank:number,sc:number,adm=false){
   const m=document.createElement('canvas').getContext('2d')!,font=`900 ${size}px Inter, "Arial Black", sans-serif`;m.font=font;
   const text=tag?`${tag} ${nick}`:nick,w=m.measureText(text).width,bs=rank>=0?Math.round(size*NAME_BADGE):0,pad=8,tw=w+(bs?bs+3:0),h=Math.max(bs,size*1.6)+pad*2;
   const c=document.createElement('canvas');c.width=Math.ceil((tw+pad*2)*sc);c.height=Math.ceil(h*sc);const g=c.getContext('2d')!;g.scale(sc,sc);
-  const y=h/2;g.font=font;g.textBaseline='middle';g.textAlign='left';g.lineJoin='round';if(bs)drawRankBadge(g,rank,pad,y,bs);const tx=pad+(bs?bs+3:0);
+  const y=h/2;g.font=font;g.textBaseline='alphabetic';g.textAlign='left';g.lineJoin='round';if(bs)drawRankBadge(g,rank,pad,y,bs);const tx=pad+(bs?bs+3:0);
   // Yönetici adı altın-kırmızı, kırmızı parıltılı
   const gr=g.createLinearGradient(0,y-size*.55,0,y+size*.55);if(adm){gr.addColorStop(0,'#ffe98a');gr.addColorStop(.45,'#ff9a1f');gr.addColorStop(1,'#d3160c');}else{gr.addColorStop(0,'#fff6c2');gr.addColorStop(.45,'#ffd34d');gr.addColorStop(1,'#d98a16');}
-  g.shadowColor=adm?'#ff2a10':'#000c';g.shadowBlur=(adm?9:5)*sc;g.shadowOffsetY=1.5*sc;g.lineWidth=Math.max(3,size*.26);g.strokeStyle=adm?'#3a0503':'#2b1606';g.strokeText(text,tx,y);
-  g.shadowColor='transparent';g.fillStyle=gr;g.fillText(text,tx,y);return{c,w,pad,h,sc};}
+  g.shadowColor=adm?'#ff2a10':'#000c';g.shadowBlur=(adm?9:5)*sc;g.shadowOffsetY=1.5*sc;g.lineWidth=Math.max(3,size*.26);g.strokeStyle=adm?'#3a0503':'#2b1606';g.strokeText(text,tx,y+size*.36);
+  g.shadowColor='transparent';g.fillStyle=gr;g.fillText(text,tx,y+size*.36);return{c,w,pad,h,sc};}
 function drawCaptainName(x:number,y:number,tag:string,nick:string,size=17,rank=-1,adm=false){
   const t=ctx.getTransform(),sc=Math.min(4,Math.max(.5,Math.round(Math.hypot(t.a,t.b)*4)/4)),ready=rank<0||(rankSheet.complete&&rankSheet.naturalWidth>0);
   const key=`${size}|${rank}|${sc}|${tag}|${nick}|${adm?1:0}`;let l=ready?nameCache.get(key):undefined;
@@ -1592,7 +1592,7 @@ function drawLevelMark(x:number,y:number,level:number,size:number){if(!levelShee
   ctx.save();ctx.imageSmoothingQuality='high';ctx.shadowColor='#000c';ctx.shadowBlur=4;ctx.drawImage(levelSheet,i*fw,0,fw,levelSheet.naturalHeight,x-size/2,y-size/2,size,size);ctx.restore();}
 function drawPlayerLabel(){
   const p=worldToScreen(player),y=p.y+60,tag=guild?`[${guild.tag}]`:'',nick=profile.nick;
-  const w=drawCaptainName(p.x,y,tag,nick,17,battleRank(state.battlePoints).index,session.isAdmin);drawLevelMark(p.x+w/2+4+17*NAME_BADGE/2,y,state.level,Math.round(17*NAME_BADGE));
+  const w=drawCaptainName(p.x,y,tag,nick,17,battleRank(state.battlePoints).index,session.isAdmin);drawLevelMark(p.x+w/2+22,y,state.level,38);
 }
 // ---------------------------------------------------------------- Filo: hazine, bağış ve kule dikme
 function openGuild(){renderGuild();ui('guildOverlay').classList.add('open');void refreshCloudGuild();}
@@ -2822,7 +2822,7 @@ function captainFrame(e:Enemy):[HTMLImageElement,number,number,number,number]|nu
 let crowdedSea=false;
 function drawCaptain(e:Enemy,s:Vec){const fr=captainFrame(e);if(!fr)return;const [im,sx,h,D,ky]=fr;
   if(!crowdedSea)drawHullWater(e,100);ctx.save();ctx.translate(s.x,s.y);if((e.frozen??0)>0)ctx.filter='saturate(.4) brightness(1.3) hue-rotate(160deg)';ctx.drawImage(im,sx,0,h,h,-D/2,-D*ky,D,D);ctx.restore();
-  const top=-122;if(siege&&isAlly(e))drawHealthBar(s.x,s.y+44,80,e.hp/e.maxHp,'#4fd18a');else if(dom&&e.remote?.tm)drawHealthBar(s.x,s.y+44,80,e.hp/e.maxHp,DOM_TEAMS[e.remote.tm as DomTeam]?.color??'#ccc');{const sp=e.remote?.sp??TEST_RANKERS.find(r=>r.nick===e.name)?.sp??0,show=!settings.hideOthersInsignia;const w=drawCaptainName(s.x,s.y+top-11,'',e.name,14,show?battleRank(sp).index:-1,!!e.remote?.adm);if(e.remote?.level)drawLevelMark(s.x+w/2+4+14*NAME_BADGE/2,s.y+top-11,e.remote.level,Math.round(14*NAME_BADGE));}}
+  const top=-122;if(siege&&isAlly(e))drawHealthBar(s.x,s.y+44,80,e.hp/e.maxHp,'#4fd18a');else if(dom&&e.remote?.tm)drawHealthBar(s.x,s.y+44,80,e.hp/e.maxHp,DOM_TEAMS[e.remote.tm as DomTeam]?.color??'#ccc');{const sp=e.remote?.sp??TEST_RANKERS.find(r=>r.nick===e.name)?.sp??0,show=!settings.hideOthersInsignia;const w=drawCaptainName(s.x,s.y+top-11,'',e.name,14,show?battleRank(sp).index:-1,!!e.remote?.adm);if(e.remote?.level)drawLevelMark(s.x+w/2+20,s.y+top-11,e.remote.level,32);}}
 // Capture once at death, then fade the same pose without new particles or assets.
 function spawnWreck(o:Enemy){
   if(!onScreen(o,320))return;
