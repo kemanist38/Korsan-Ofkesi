@@ -812,7 +812,7 @@ wss.on('connection',ws=>{
         if(c.maxHp&&s.hp>c.maxHp)s.hp=c.maxHp;noteHp(c,s.hp,now);
         if(s.ship!==undefined)s.ship=shipAllowed(c.econ,s.ship);
         if(c.admin){s.adm=1;s.ship=ADMIN_SHIP;if(aevOpen(c.sea)){const ev=aevState(c);s.hp=Math.round(ev.hp);s.maxHp=ev.max;if(now-(c.ahpAt||0)>1000){c.ahpAt=now;send(c,{t:'ahp',d:{hp:s.hp,max:ev.max}});}}}
-        if(c.lsOn){const ph=c.pvp?.hp;if(num(s.hp)&&ph!=null)s.hp=Math.max(0,Math.min(s.hp,Math.round(ph)));s.ship='starter';delete s.adm;delete s.tag;}
+        if(c.lsOn){const ph=c.pvp?.hp;if(num(s.hp)&&ph!=null)s.hp=Math.max(0,Math.min(s.hp,Math.round(ph)));s.ship='ls';delete s.adm;delete s.tag;}
         if(c.domTeam&&domMatchOfSea(c.sea)!==undefined){const ph=c.pvp?.hp;if(num(s.hp)&&ph!=null)s.hp=Math.max(0,Math.min(s.hp,Math.round(ph)));s.ship='dom-'+c.domTeam;s.tm=c.domTeam;delete s.adm;}else delete s.tm;
         c.last={x:s.x,y:s.y,at:now};s.id=c.netId;queueState(c,s);return;}
       case'fire':return; // oyuncular arası atış yalnız sunucu atışıyla (atk); oyuncunun bildirdiği hasar kabul edilmez

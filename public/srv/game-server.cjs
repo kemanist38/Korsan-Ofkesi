@@ -6798,7 +6798,7 @@ wss.on("connection", (ws) => {
         if (c.lsOn) {
           const ph = c.pvp?.hp;
           if (num(s.hp) && ph != null) s.hp = Math.max(0, Math.min(s.hp, Math.round(ph)));
-          s.ship = "starter";
+          s.ship = "ls";
           delete s.adm;
           delete s.tag;
         }
