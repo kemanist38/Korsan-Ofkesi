@@ -27,6 +27,7 @@ import {ELITE_SHIPS} from '../src/elite-ships.ts';
 import {contribReward,earnsChest,victoryChest} from '../src/siege.ts';
 import {DOM_SIZE,DOM_COUNTDOWN_MS,DOM_MATCH_MS,DOM_WIN,DOM_ZONE,DOM_BASE,domWindowAt,domBalance,domZoneStep,domWinner,domReward} from '../src/domination.ts';
 import {LS_DROP_FIRST_MS,LS_DROP_EVERY_MS,LS_DROP_FALL_MS,LS_DROP_PICK_R,LS_DROP_LOOT,LS_ITEMS,LS_ITEM_MAX,LS_ITEM_RESPAWN_MS,LS_PICK_R,LS_SPEED_MS,lsEmptyInv,lsPickKind,LS_SIZE,LS_COUNTDOWN_MS,LS_LOADOUT,LS_HP,LS_START_R,LS_RADII,LS_PHASE_MS,LS_FOG_DPS,LS_MATCH_MS,lsZoneAt,lsNext,lsReward,lsSpawn} from '../src/cursed.ts';
+import {filterChat} from '../src/chat-filter.ts';
 import {levelQuestGoal,levelQuestTargets,levelQuestMap} from '../src/level-quest.ts';
 
 const PORT=Number(process.env.PORT||3000);
@@ -671,6 +672,22 @@ function onDom(c,d,now){const k=String(d?.k||'');
   if(k==='leave'){const id=domMatchOfSea(c.sea);const m=domMatches.get(id);if(m&&!m.result){m.teams.delete(c.uid);c.domTeam=null;}return;}}
 setInterval(()=>domTick(Date.now()),1000).unref();
 
+// ---------------------------------------------------------------- Sohbet cezaları (Oyun Kuralları)
+// Yönetici sohbette: /sustur <kaptan adı> <süre>  (süre: 30d, 12s, 2g · dakika/saat/gün)  ·  /konustur <kaptan adı>
+// Susturma kaptan adına bağlıdır, sunucu yeniden başlasa da sürer (MUTE_FILE).
+const MUTE_FILE=process.env.MUTE_FILE||'/opt/game/mutes.json';export const mutes=new Map();
+try{for(const [k,v] of JSON.parse(fs.readFileSync(MUTE_FILE,'utf8')))mutes.set(k,v);}catch{}
+const saveMutes=()=>{if(process.env.NODE_ENV==='test')return;try{fs.writeFileSync(MUTE_FILE,JSON.stringify([...mutes].filter(([,v])=>v>Date.now())));}catch{}};
+const muteKey=n=>String(n||'').trim().toLocaleLowerCase('tr');
+export const muteLeft=(nick,now=Date.now())=>Math.max(0,(mutes.get(muteKey(nick))??0)-now);
+export function parseDuration(s){const m=/^(\d+)\s*(d|dk|dakika|s|sa|saat|g|gün|gun)?$/i.exec(String(s||'').trim());if(!m)return 0;const n=Number(m[1]),u=(m[2]||'d').toLocaleLowerCase('tr');
+  return n*(u.startsWith('g')?86_400_000:u==='s'||u.startsWith('sa')?3_600_000:60_000);}
+export function adminChatCommand(text,now=Date.now()){const p=text.trim().split(/\s+/);const cmd=p[0].toLocaleLowerCase('tr');
+  if(cmd==='/sustur'){const ms=parseDuration(p.slice(2).join(''));if(!p[1]||!ms)return'Kullanım: /sustur <kaptan adı> <süre>  ör. /sustur Ahmet 30d · 12s · 2g';
+    mutes.set(muteKey(p[1]),now+ms);saveMutes();const t=[...all].find(x=>muteKey(x.nick)===muteKey(p[1]));if(t)send(t,{t:'muted',d:{left:ms}});log('SUSTURMA',p[1],Math.round(ms/60000),'dk');return`${p[1]} ${Math.round(ms/60000)} dakika susturuldu`;}
+  if(cmd==='/konustur'){if(!p[1])return'Kullanım: /konustur <kaptan adı>';const had=mutes.delete(muteKey(p[1]));saveMutes();return had?`${p[1]} artık yazabilir`:`${p[1]} susturulmamış`;}
+  return null;}
+
 // ---------------------------------------------------------------- Lanetli Sular: Hayatta Kalma (src/cursed.ts)
 // 10 kaptan dolunca 15 sn sayılır; herkes eşit gemiyle (LS_LOADOUT, LS_HP, bedava demir gülle) halkadaki yerinde doğar.
 // Sis, can, atış hasarı, eleme sırası ve ödül sunucuda. Batan elenir (yeniden doğma yok); son kalan 1. olur.
@@ -861,8 +878,16 @@ wss.on('connection',ws=>{
       case'gref':{if(!c.rKill.hit(now))return;c.guildId=await guildOf(c.uid).catch(()=>c.guildId);return;}
       case'dom':{if(!c.rUse.hit(now))return;onDom(c,m.d,now);return;}
       case'ls':{if(!c.rUse.hit(now))return;onLs(c,m.d,now);return;}
-      case'chat':{if(!c.rChat.hit(now))return;const text=String(m.d?.text||'').slice(0,LIMITS.chatLen).trim();if(!text)return;
-        toAll(c,{t:'chat',d:{nick:c.nick,tag:m.d?.tag??null,text,at:now,...(c.admin?{adm:true}:{})}});return;}
+      case'chat':{if(!c.rChat.hit(now))return;const raw=String(m.d?.text||'').slice(0,LIMITS.chatLen).trim();if(!raw)return;
+        if(c.admin&&raw.startsWith('/')){const r=adminChatCommand(raw,now);if(r){send(c,{t:'chat',d:{nick:'Sistem',tag:null,text:r,at:now,adm:true}});return;}}
+        const mu=muteLeft(c.nick,now);if(mu>0){send(c,{t:'muted',d:{left:mu}});return;}
+        const text=c.admin?raw:filterChat(raw);toAll(c,{t:'chat',d:{nick:c.nick,tag:m.d?.tag??null,text,at:now,...(c.admin?{adm:true}:{})}});
+        c.chatLog=[...(c.chatLog||[]),`${new Date(now).toISOString().slice(11,16)} ${raw}`].slice(-5);return;}
+      // Oyuncu bildirimi: bildirilen oyuncunun son mesajlarıyla yönetim paneline (Şüpheli kayıtlar) düşer
+      case'report':{if(!c.rKill.hit(now)||now-(c.reportAt||0)<20_000)return;c.reportAt=now;const nick=String(m.d?.nick||'').slice(0,40),why=String(m.d?.why||'').slice(0,120);
+        const t=[...all].find(x=>x.nick&&x.nick.toLocaleLowerCase('tr')===nick.toLocaleLowerCase('tr'));
+        addFlag({playerNo:t?.playerNo??0,nick:t?.nick??nick},'oyuncu bildirimi',`bildiren #${c.playerNo} ${c.nick}: ${why}${t?.chatLog?.length?` · son mesajlar: ${t.chatLog.join(' | ')}`:''}`);
+        log('BİLDİRİM',`#${c.playerNo}`,c.nick,'→',nick,why);send(c,{t:'reported'});return;}
       case'bid':{const b=m.d||{};b.id=c.uid;b.nick=c.nick;toAll(c,{t:'bid',d:b});return;}
       case'known':case'ask':{toAll(c,{t:m.t,d:m.d});return;}
     }

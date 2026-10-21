@@ -28,7 +28,7 @@ export type NetDig={ok:boolean;err?:string;reward?:{gold:number;pearls:number;am
 export type NetLoot={kind?:string;pearls?:number;powder?:number;shield?:number;ammo?:string;ammoQty?:number;speed?:number;mine?:number};
 export type NetNpc={id:string;d:string;x:number;y:number;hp:number;max:number};
 export type NetLootSpots={ch:[number,number,number][];sp:[number,number,number][]};
-export type NetHandlers={ls?:(d:Record<string,unknown>&{k:string})=>void;dom?:(d:Record<string,unknown>&{k:string})=>void;ahp?:(d:{hp:number;max:number})=>void;arew?:(d:{xp?:number;ep?:number;pearls?:number})=>void;aboom?:(id:string)=>void;loot?:(d:NetLootSpots)=>void;npcList?:(l:NetNpc[])=>void;npcSpawn?:(n:NetNpc)=>void;mine?:(d:{id:string;x:number;y:number;by:string})=>void;mboom?:(d:{id:string;x:number;y:number})=>void;mhit?:(d:{dmg:number;by:string})=>void;npcPos?:(d:{p:[string,number,number][];h:[string,number][];f?:[string,string,number][]})=>void;npcShare?:(d:{id:string;share:number})=>void;npcDie?:(id:string)=>void;chestReward?:(r:NetLoot)=>void;sparkleReward?:(r:NetLoot)=>void;treasure?:(t:NetTreasure)=>void;dig?:(d:NetDig)=>void;spy?:(r:NetSpy)=>void;pos?:(p:{x:number;y:number})=>void;forceSink?:(d:{by:string;byNick:string})=>void;siegeState?:(s:NetSiege)=>void;siegeHp?:(l:[number,number,number][])=>void;siegeDown?:(i:number)=>void;siegeRank?:(d:{n:number;top:[string,number][];mine:number})=>void;siegeEnd?:(d:NetSiegeEnd)=>void;island?:(i:NetIsland)=>void;towerHp?:(key:string,s:[number,number][])=>void;towerDown?:(key:string,slot:number,by:string)=>void;
+export type NetHandlers={muted?:(left:number)=>void;reported?:()=>void;ls?:(d:Record<string,unknown>&{k:string})=>void;dom?:(d:Record<string,unknown>&{k:string})=>void;ahp?:(d:{hp:number;max:number})=>void;arew?:(d:{xp?:number;ep?:number;pearls?:number})=>void;aboom?:(id:string)=>void;loot?:(d:NetLootSpots)=>void;npcList?:(l:NetNpc[])=>void;npcSpawn?:(n:NetNpc)=>void;mine?:(d:{id:string;x:number;y:number;by:string})=>void;mboom?:(d:{id:string;x:number;y:number})=>void;mhit?:(d:{dmg:number;by:string})=>void;npcPos?:(d:{p:[string,number,number][];h:[string,number][];f?:[string,string,number][]})=>void;npcShare?:(d:{id:string;share:number})=>void;npcDie?:(id:string)=>void;chestReward?:(r:NetLoot)=>void;sparkleReward?:(r:NetLoot)=>void;treasure?:(t:NetTreasure)=>void;dig?:(d:NetDig)=>void;spy?:(r:NetSpy)=>void;pos?:(p:{x:number;y:number})=>void;forceSink?:(d:{by:string;byNick:string})=>void;siegeState?:(s:NetSiege)=>void;siegeHp?:(l:[number,number,number][])=>void;siegeDown?:(i:number)=>void;siegeRank?:(d:{n:number;top:[string,number][];mine:number})=>void;siegeEnd?:(d:NetSiegeEnd)=>void;island?:(i:NetIsland)=>void;towerHp?:(key:string,s:[number,number][])=>void;towerDown?:(key:string,slot:number,by:string)=>void;
   islandCaptured?:(d:{key:string;tag:string;by:string;nick:string})=>void;islandAlert?:(key:string)=>void;boss?:(b:NetBoss)=>void;bossHp?:(id:string,hp:number)=>void;bossDown?:(d:NetBossDown)=>void;bossGone?:(id:string)=>void;state:(s:NetState)=>void;leave:(id:string)=>void;fire:(f:NetFire)=>void;sunk:(s:NetSunk)=>void;chat:(c:NetChat)=>void;bid?:(b:NetBid)=>void;bidAsk?:(hour:number)=>void;bidKnown?:(bids:NetBid[])=>void};
 
 const ID_KEY='yedi-deniz-net-id';
@@ -67,6 +67,8 @@ async function connectWs(){const sb=supa();if(!sb||!session.account){netStatus='
       case'aboom':handlers?.aboom?.(String((m.d as {id:string}).id));break;
       case'ls':handlers?.ls?.(m.d as Record<string,unknown>&{k:string});break;
       case'dom':handlers?.dom?.(m.d as Record<string,unknown>&{k:string});break;
+      case'muted':handlers?.muted?.(Number((m.d as {left:number}).left)||0);break;
+      case'reported':handlers?.reported?.();break;
       case'ahp':handlers?.ahp?.(m.d as {hp:number;max:number});break;
       case'npos':handlers?.npcPos?.(m.d as {p:[string,number,number][];h:[string,number][];f?:[string,string,number][]});break;
       case'nkilled':handlers?.npcShare?.(m.d as {id:string;share:number});break;
@@ -131,6 +133,8 @@ export const sendDig=()=>wsSend('tdig');
 export const sendDom=(k:string,extra:Record<string,unknown>={})=>wsSend('dom',{k,...extra});
 // Lanetli Sular: lobiyi izle (watch), sıraya gir/çık (q), maçtan ayrıl (leave)
 export const sendLs=(k:string,extra:Record<string,unknown>={})=>wsSend('ls',{k,...extra});
+// Oyuncu bildirimi (sohbette ada dokun → Bildir): yönetim paneline düşer
+export const sendReport=(nick:string,why:string)=>wsSend('report',{nick,why});
 export const sendChat=(c:NetChat)=>wsSend('chat',c);
 export const sendBid=(b:NetBid)=>wsSend('bid',b);
 export const sendKnownBids=(bids:NetBid[])=>wsSend('known',{bids});

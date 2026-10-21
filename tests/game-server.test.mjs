@@ -392,3 +392,9 @@ test('in-app purchase webhook: auth check and event parsing',()=>{
   assert.equal(S.parseRcEvent('{"event":{"type":"X","app_user_id":"$RCAnonymousID:1","id":"e1"}}').uid,null);assert.equal(S.parseRcEvent('bozuk'),null);
   assert.ok(S.IAP_GRANT.has('INITIAL_PURCHASE'));
 });
+test('chat moderation: duration parsing, admin mute and unmute',()=>{
+  assert.equal(S.parseDuration('30d'),30*60_000);assert.equal(S.parseDuration('12s'),12*3_600_000);assert.equal(S.parseDuration('2g'),2*86_400_000);assert.equal(S.parseDuration('abc'),0);
+  const now=1e7;assert.match(S.adminChatCommand('/sustur Kemal 30d',now),/susturuldu/);assert.equal(S.muteLeft('kemal',now+60_000),29*60_000);
+  assert.match(S.adminChatCommand('/konustur KEMAL',now),/yazabilir/);assert.equal(S.muteLeft('Kemal',now),0);
+  assert.match(S.adminChatCommand('/sustur',now),/Kullanım/);assert.equal(S.adminChatCommand('/merhaba',now),null);
+});
