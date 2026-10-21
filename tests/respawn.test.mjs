@@ -14,7 +14,7 @@ function scenario(count,lethalIndex=count-1){
   const noop=()=>{};
   const c=vm.createContext({Math,shots:Array.from({length:count},(_,i)=>({x:100,y:100,vx:0,vy:0,life:2,owner:'enemy',damage:i===lethalIndex?50:0})),
     player:{x:100,y:100,speed:70},camera:{x:100,y:100},
-    session:{isAdmin:false},state:{hp:17,invulnerable:0,attacking:true,repairing:false},currentMap:'5/2',WORLD_STORAGE:'world',
+    session:{isAdmin:false},dom:null,state:{hp:17,invulnerable:0,attacking:true,repairing:false},currentMap:'5/2',WORLD_STORAGE:'world',
     localStorage:{setItem:noop},randomSafePlayerPoint:()=>({x:2700,y:500}),effectiveMaxHp:()=>225,
     fleetSafe:{x:100,y:100},collisionNotice:1,destination:{x:150,y:150},routeTarget:{x:150,y:150},
     selected:{},salvoQueue:[{}],enemies:[{x:800,y:800,aggro:true,combatTimer:10}],monsters:[{x:900,y:900,aggro:true,combatTimer:10}],

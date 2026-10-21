@@ -3699,6 +3699,17 @@ __export(game_server_exports, {
   checkState: () => checkState,
   chestPicked: () => chestPicked,
   chestReward: () => chestReward,
+  domDrop: () => domDrop,
+  domFinish: () => domFinish,
+  domLobby: () => domLobby,
+  domMatchOfSea: () => domMatchOfSea,
+  domMatches: () => domMatches,
+  domOpen: () => domOpen,
+  domPending: () => domPending,
+  domPump: () => domPump,
+  domQueue: () => domQueue,
+  domStart: () => domStart,
+  domStep: () => domStep,
   dpsCap: () => dpsCap,
   dpsTake: () => dpsTake,
   flushCredit: () => flushCredit,
@@ -4334,6 +4345,56 @@ var ELITE_SHIPS = [
   { id: "sand", level: 15, name: "Alevli Ta\xE7", english: "Flaming Crown", asset: "/assets/elite-sand-art-v23.webp", role: "H\u0131z / gizlilik" }
 ];
 var ELITE_DIR16 = Object.fromEntries(ELITE_SHIPS.map((s) => [s.id, `/assets/elite-${s.id}-dir16-v1.webp`]));
+
+// src/domination.ts
+var DOM_SIZE = 3;
+var DOM_COUNTDOWN_MS = 15e3;
+var DOM_MATCH_MS = 8 * 6e4;
+var DOM_WIN = 240;
+var DOM_ZONE = { x: 3e3, y: 2e3, r: 420 };
+var DOM_CAPTURE_PER_SHIP = 25;
+var DOM_PEARLS = { win: 300, draw: 200, lose: 100 };
+var DOM_EP_PER_BALL = 2;
+function domWindowAt(now) {
+  const t = new Date(now + 3 * 36e5), day = t.getUTCDay(), h = t.getUTCHours();
+  const open = day === 0 || day === 6 || h >= 20;
+  return { open };
+}
+function domBalance(list, ep) {
+  const n = list.length, half = n / 2;
+  let best = { r: list.slice(0, half), b: list.slice(half) }, gap = Infinity;
+  const total = list.reduce((a, x) => a + ep(x), 0);
+  for (let mask = 0; mask < 1 << n; mask++) {
+    if (!(mask & 1)) continue;
+    let c = 0, s = 0;
+    for (let i = 0; i < n; i++) if (mask >> i & 1) {
+      c++;
+      s += ep(list[i]);
+    }
+    if (c !== half) continue;
+    const g2 = Math.abs(total - 2 * s);
+    if (g2 < gap) {
+      gap = g2;
+      best = { r: list.filter((_, i) => mask >> i & 1), b: list.filter((_, i) => !(mask >> i & 1)) };
+    }
+  }
+  return best;
+}
+function domZoneStep(z, nr, nb) {
+  const contested = nr > 0 && nb > 0;
+  if (!contested && (nr > 0 || nb > 0)) {
+    const d = (nr - nb) * DOM_CAPTURE_PER_SHIP;
+    z.cap = Math.max(-100, Math.min(100, z.cap + d));
+    if (z.cap >= 100) z.own = "r";
+    else if (z.cap <= -100) z.own = "b";
+    else if (z.own === "r" && z.cap <= 0 || z.own === "b" && z.cap >= 0) z.own = null;
+  }
+  return { contested };
+}
+function domWinner(s) {
+  return s.r === s.b ? null : s.r > s.b ? "r" : "b";
+}
+var domReward = (team, win, balls) => ({ pearls: win === null ? DOM_PEARLS.draw : win === team ? DOM_PEARLS.win : DOM_PEARLS.lose, ep: Math.max(0, Math.round(balls)) * DOM_EP_PER_BALL });
 
 // src/level-quest.ts
 var levelQuestTargets = (level) => ({ ships: [`n${level}-1-heavy`, `n${level}-2-heavy`], tier: level });
@@ -5043,6 +5104,13 @@ function canJoin(c, name, now = Date.now()) {
   if (c.admin && name !== SIEGE_ROOM && MAPS[seaMap(name)]) return true;
   if (!c.econ) return false;
   if (name === SIEGE_ROOM) return siegeWindowAt(now).open || SIEGE_TRIAL;
+  {
+    const id = domMatchOfSea(name);
+    if (id !== void 0) {
+      const m = domMatches.get(id);
+      return !!m && !m.result && m.teams.has(c.uid);
+    }
+  }
   const map = MAPS[seaMap(name)];
   return !!map && Number(c.econ.level) >= map.tier;
 }
@@ -5070,6 +5138,12 @@ async function applyUsage(c, salvo, item, now) {
   if (r.over) suspect(c, "top say\u0131s\u0131");
   if (item === null) {
     const a = String(salvo?.a || ""), n = Number(use[ITEM_OF[a] ?? "a_" + a]) || 0;
+    const dm = domMatches.get(domMatchOfSea(c.sea));
+    if (dm && dm.teams.has(c.uid)) {
+      const balls = a === "iron" ? Number(use.iron) || 0 : n + (Number(use.iron) || 0);
+      dm.spent.set(c.uid, (dm.spent.get(c.uid) || 0) + balls);
+      return;
+    }
     if (n > 0 && ELITE_POINTS_PER_BALL[a]) addCredit(c, { ep: Math.round(n * ELITE_POINTS_PER_BALL[a] * epMult()), st_eliteBalls: n });
     const ni = Number(use.iron) || 0;
     if (ni > 0) addCredit(c, { ep: Math.round(ni * IRON_EP_PER_BALL * epMult()) });
@@ -5502,7 +5576,7 @@ function siegeTick(now) {
 var NEAR = 1800;
 var TICK_MS = 100;
 var FAR_EVERY = 20;
-var IDENT = ["nick", "tag", "ship", "maxHp", "sp", "level", "adm"];
+var IDENT = ["nick", "tag", "ship", "maxHp", "sp", "level", "adm", "tm"];
 function queueState(c, s) {
   const id = {};
   let changed = false;
@@ -5748,6 +5822,10 @@ function attackTarget(c, d) {
     const f = MAPS[key].fleet, [dx, dy] = FLEET.towers[slot] ?? [0, 0];
     return { k, key, slot, x: f.x + dx, y: f.y + dy, kind: "tower" };
   }
+  if (k === "p" && domMatchOfSea(c.sea) !== void 0) {
+    const t = [...seas.get(c.sea) || []].find((x) => x.netId === id && x !== c);
+    return t?.last && t.domTeam ? { k, t, x: t.last.x, y: t.last.y, kind: "player", dom: true } : null;
+  }
   if (k === "p") {
     const t = [...seas.get(c.sea) || []].find((x) => x.netId === id && x !== c);
     if (!t?.last || c.guildId && c.guildId === t.guildId && !t.admin) return null;
@@ -5763,6 +5841,7 @@ async function onAttack(c, d, now) {
   c.ld = buildLoadout(c.econ, c.ldRaw);
   if (!c.ld) return;
   const a = String(d?.a || "iron");
+  if (tg.dom && a === "heal" !== (tg.t.domTeam === c.domTeam)) return;
   if (!["iron", "chain", "fire", "explosive", "breaker", "leech", ...tg.k === "p" || tg.k === "t" ? ["heal"] : []].includes(a)) return;
   const why = shotCheck(c, c.ld, a, tg.x === void 0 ? 0 : Math.hypot(c.last.x - tg.x, c.last.y - tg.y), now, !!d?.r);
   if (why) {
@@ -5805,7 +5884,7 @@ async function onAttack(c, d, now) {
     else await towerApply(c, tg.key, tg.slot, dmg, false, now);
     return;
   }
-  if (tg.t.admin && a !== "heal") {
+  if (tg.t.admin && a !== "heal" && !tg.dom) {
     const t2 = tg.t, r = aevHit(c, t2, dmg);
     if (!r) return;
     addCredit(c, r.add);
@@ -5879,6 +5958,153 @@ function aevHit(c, adm, dmg) {
   }
   return { add, sunk, hp: Math.round(ev.hp), max: ev.max };
 }
+var DOM_TRIAL = process.env.DOM_TRIAL === "1";
+var domQueue = [];
+var domMatches = /* @__PURE__ */ new Map();
+var domPending = null;
+var domMatchOfSea = (sea2) => /^sea-dom-([a-z0-9]+)$/.exec(sea2 || "")?.[1];
+var domOpen = (c, now) => domWindowAt(now).open || DOM_TRIAL || !!c?.admin;
+var domNick = (c) => c.nick || "Kaptan";
+var domInMatch = (c) => [...domMatches.values()].some((m) => !m.result && m.teams.has(c.uid));
+function domLobby(c, now = Date.now()) {
+  const p2 = domPending;
+  return {
+    k: "lobby",
+    open: domOpen(c, now),
+    q: domQueue.slice(0, DOM_SIZE * 2).map(domNick),
+    me: domQueue.includes(c) || !!p2?.list.includes(c),
+    teams: p2 ? { r: p2.r.map(domNick), b: p2.b.map(domNick) } : null,
+    at: p2 ? p2.at : 0,
+    live: domMatches.size
+  };
+}
+function domBroadcast(now) {
+  const to = new Set([...all].filter((x) => x.domWatch));
+  for (const x of domQueue) to.add(x);
+  for (const x of domPending?.list ?? []) to.add(x);
+  for (const x of to) send(x, { t: "dom", d: domLobby(x, now) });
+}
+function domPump(now) {
+  if (domPending || domQueue.length < DOM_SIZE * 2) return false;
+  const list = domQueue.splice(0, DOM_SIZE * 2);
+  const t = domBalance(list, (x) => Number(x.econ?.ep) || 0);
+  domPending = { list, r: t.r, b: t.b, at: now + DOM_COUNTDOWN_MS };
+  return true;
+}
+function domDrop(c) {
+  const i = domQueue.indexOf(c);
+  if (i >= 0) domQueue.splice(i, 1);
+  if (domPending?.list.includes(c)) {
+    domQueue.unshift(...domPending.list.filter((x) => x !== c && all.has(x)));
+    domPending = null;
+  }
+}
+function domStart(now, pend = domPending) {
+  const id = import_node_crypto.default.randomUUID().replace(/-/g, "").slice(0, 10), teams = /* @__PURE__ */ new Map();
+  for (const x of pend.r) teams.set(x.uid, "r");
+  for (const x of pend.b) teams.set(x.uid, "b");
+  const m = { id, teams, nicks: { r: pend.r.map(domNick), b: pend.b.map(domNick) }, score: { r: 0, b: 0 }, zone: { cap: 0, own: null }, start: now, end: now + DOM_MATCH_MS, spent: /* @__PURE__ */ new Map(), result: null };
+  domMatches.set(id, m);
+  if (pend === domPending) domPending = null;
+  for (const x of pend.list) {
+    x.domTeam = teams.get(x.uid);
+    send(x, { t: "dom", d: { k: "start", id, team: x.domTeam, end: m.end, teams: m.nicks } });
+  }
+  log("HAK\u0130M\u0130YET BA\u015ELADI", id, m.nicks.r.join(","), "vs", m.nicks.b.join(","));
+  return m;
+}
+function domStep(m, room, now) {
+  let nr = 0, nb = 0;
+  for (const x of room || []) {
+    const tm = m.teams.get(x.uid);
+    if (!tm || !x.last || x.state && !(x.state.hp > 0)) continue;
+    if (Math.hypot(x.last.x - DOM_ZONE.x, x.last.y - DOM_ZONE.y) <= DOM_ZONE.r) {
+      if (tm === "r") nr++;
+      else nb++;
+    }
+  }
+  const { contested } = domZoneStep(m.zone, nr, nb);
+  if (m.zone.own && !contested) m.score[m.zone.own] = Math.min(DOM_WIN, m.score[m.zone.own] + 1);
+  const done = m.score.r >= DOM_WIN || m.score.b >= DOM_WIN || now >= m.end;
+  return { nr, nb, contested, done };
+}
+function domFinish(m, room) {
+  m.result = { win: domWinner(m.score) };
+  const out = [];
+  for (const x of room || []) {
+    const tm = m.teams.get(x.uid);
+    if (!tm) continue;
+    const add = domReward(tm, m.result.win, m.spent.get(x.uid) || 0);
+    addCredit(x, { pearls: add.pearls, ep: add.ep });
+    out.push([x, tm, add]);
+  }
+  for (const x of all) if (m.teams.has(x.uid)) x.domTeam = null;
+  return out;
+}
+function domTick(now) {
+  if (domPending) {
+    if (domPending.list.some((x) => !all.has(x) || !x.uid)) {
+      for (const x of domPending.list.filter((y) => !all.has(y))) domDrop(x);
+      domBroadcast(now);
+    } else if (now >= domPending.at) {
+      domStart(now);
+      domBroadcast(now);
+    }
+  }
+  for (const [id, m] of domMatches) {
+    const room = seas.get(`sea-dom-${id}`);
+    if (m.result) {
+      if (now - m.end > 6e4 || !room?.size) domMatches.delete(id);
+      continue;
+    }
+    const r = domStep(m, room, now);
+    const tick = JSON.stringify({ t: "dom", d: { k: "tick", s: [m.score.r, m.score.b], cap: m.zone.cap, own: m.zone.own, c: r.contested, n: [r.nr, r.nb], end: m.end } });
+    for (const x of room || []) send(x, tick);
+    if (r.done) {
+      const paid = domFinish(m, room);
+      m.end = now;
+      log("HAK\u0130M\u0130YET B\u0130TT\u0130", id, m.score.r, m.score.b, m.result.win ?? "berabere");
+      for (const [x, tm, add] of paid) {
+        send(x, { t: "dom", d: { k: "end", win: m.result.win, s: [m.score.r, m.score.b], team: tm, pearls: add.pearls, ep: add.ep } });
+        void flushCredit(x);
+      }
+    }
+  }
+}
+function onDom(c, d, now) {
+  const k = String(d?.k || "");
+  if (k === "watch") {
+    c.domWatch = !!d?.on;
+    send(c, { t: "dom", d: domLobby(c, now) });
+    return;
+  }
+  if (k === "q") {
+    if (d?.on) {
+      if (!domOpen(c, now)) {
+        send(c, { t: "dom", d: { k: "err", msg: "Deniz Hakimiyeti \u015Fu an kapal\u0131" } });
+        return;
+      }
+      if (domInMatch(c)) {
+        send(c, { t: "dom", d: { k: "err", msg: "Zaten bir ma\xE7tas\u0131n" } });
+        return;
+      }
+      if (!domQueue.includes(c) && !domPending?.list.includes(c)) domQueue.push(c);
+      domPump(now);
+    } else domDrop(c);
+    domBroadcast(now);
+    return;
+  }
+  if (k === "leave") {
+    const id = domMatchOfSea(c.sea);
+    const m = domMatches.get(id);
+    if (m && !m.result) {
+      m.teams.delete(c.uid);
+      c.domTeam = null;
+    }
+    return;
+  }
+}
+setInterval(() => domTick(Date.now()), 1e3).unref();
 async function flushCredit(c) {
   if (c.flushing || !c.uid) return;
   c.flushing = true;
@@ -6097,6 +6323,11 @@ wss.on("connection", (ws) => {
             }
           }
         }
+        if (c.domTeam && domMatchOfSea(c.sea) !== void 0) {
+          s.ship = "dom-" + c.domTeam;
+          s.tm = c.domTeam;
+          delete s.adm;
+        } else delete s.tm;
         c.last = { x: s.x, y: s.y, at: now };
         s.id = c.netId;
         queueState(c, s);
@@ -6115,7 +6346,7 @@ wss.on("connection", (ws) => {
           s.by = null;
           s.byNick = null;
         }
-        if (s.by) {
+        if (s.by && domMatchOfSea(c.sea) === void 0) {
           const k = [...seas.get(c.sea) || []].find((x) => x.netId === String(s.by));
           const add = spCredit(k, c.uid, now);
           if (add) addCredit(k, add);
@@ -6259,6 +6490,11 @@ wss.on("connection", (ws) => {
         c.guildId = await guildOf(c.uid).catch(() => c.guildId);
         return;
       }
+      case "dom": {
+        if (!c.rUse.hit(now)) return;
+        onDom(c, m.d, now);
+        return;
+      }
       case "chat": {
         if (!c.rChat.hit(now)) return;
         const text = String(m.d?.text || "").slice(0, LIMITS.chatLen).trim();
@@ -6303,6 +6539,7 @@ wss.on("connection", (ws) => {
     });
     leaveSea(c);
     all.delete(c);
+    domDrop(c);
     if (c.uid) log("\xC7IKI\u015E", `#${c.playerNo}`, c.nick);
   });
   ws.on("error", () => {
@@ -6385,6 +6622,17 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   checkState,
   chestPicked,
   chestReward,
+  domDrop,
+  domFinish,
+  domLobby,
+  domMatchOfSea,
+  domMatches,
+  domOpen,
+  domPending,
+  domPump,
+  domQueue,
+  domStart,
+  domStep,
   dpsCap,
   dpsTake,
   flushCredit,

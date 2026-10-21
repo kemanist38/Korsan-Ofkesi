@@ -1,0 +1,40 @@
+/* Deniz Hakimiyeti: giriş penceresi, maç üst çubuğu ve sonuç ekranı */
+.dom-overlay{position:fixed;z-index:60}
+.dom-log{width:min(720px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
+.dom-vs{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:14px;margin-top:16px}
+.dom-x{font:900 22px Cinzel;color:#f3d496;text-shadow:0 0 12px #000}
+.dom-side{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px;border-radius:9px;background:#071a21cc;border:1px solid #ffffff14}
+.dom-side.dom-r{border-color:#ff4a2a55;box-shadow:inset 0 0 30px #ff3a1a22}.dom-side.dom-b{border-color:#2fa8ff55;box-shadow:inset 0 0 30px #1a8aff22}
+.dom-side img{width:84px;height:84px;object-fit:contain;filter:drop-shadow(0 0 10px #0009)}
+.dom-side h3{margin:0;font:700 13px Cinzel;letter-spacing:.06em;text-align:center}
+.dom-r h3{color:#ff9a7a}.dom-b h3{color:#8fd2ff}
+.dom-slots{display:grid;gap:6px;width:100%}
+.dom-slot{height:34px;display:flex;align-items:center;justify-content:center;border:1px dashed #ffffff30;border-radius:6px;background:#0b1d22;color:#5e7478;font:700 11px Inter;letter-spacing:.08em;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0 6px}
+.dom-slot.on{border:1px solid #47e08a;background:linear-gradient(160deg,#1f7a45,#0f4a2a);color:#eafff1;box-shadow:0 0 12px #2fd17a66}
+.dom-status{text-align:center;color:#c9d7d6;font-size:13px;margin:14px 0 8px}.dom-status b{color:#ffd56a;font-size:16px}
+.dom-go{display:block;margin:0 auto;padding:12px 34px;border:1px solid #e0b65e;border-radius:7px;background:linear-gradient(160deg,#6d3b1f,#3a1d10);color:#ffe4a6;font:700 14px Cinzel;letter-spacing:.1em;cursor:pointer}
+.dom-go.leave{background:linear-gradient(160deg,#36424a,#1b2328);border-color:#8a9ba3;color:#dfe9ee}.dom-go:disabled{opacity:.55;cursor:default}
+.dom-rules{margin:16px 0 0;padding-left:18px;color:#8fa6a8;font-size:11px;line-height:1.6}.dom-rules b{color:#e6c37a}
+@media (max-width:560px){.dom-vs{grid-template-columns:1fr 1fr}.dom-x{display:none}.dom-side img{width:56px;height:56px}.dom-side h3{font-size:11px}}
+
+.dom-hud{position:fixed;top:150px;left:50%;transform:translateX(-50%);z-index:25;display:flex;align-items:center;gap:10px;padding:6px 10px;border:1px solid #c69b4e66;border-radius:10px;background:linear-gradient(160deg,#0f2a32ee,#06151bee);box-shadow:0 8px 24px #000a;pointer-events:auto}
+.dom-hud[hidden]{display:none}
+.dom-score{display:flex;align-items:center;gap:6px}.dom-score img{width:34px;height:34px;object-fit:contain}
+.dom-score b{font:900 20px Cinzel;min-width:38px;text-align:center}.dom-score.r b{color:#ff7a5a}.dom-score.b b{color:#6cc4ff}
+.dom-score.mine img{filter:drop-shadow(0 0 6px #ffe39a)}
+.dom-score i{display:block;width:90px;height:7px;border-radius:4px;background:#ffffff1a;overflow:hidden}.dom-score i u{display:block;height:100%}
+.dom-score.r i u{background:#ff4a2a}.dom-score.b i{transform:scaleX(-1)}.dom-score.b i u{background:#2fa8ff}
+.dom-mid{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:110px}
+.dom-mid strong{font:700 17px Inter;color:#f3e6c4}.dom-mid em{font:700 9px Inter;letter-spacing:.1em;font-style:normal;color:#b8c6c7}.dom-mid em.contest{color:#ffd56a}
+.dom-cap{position:relative;display:block;width:100px;height:4px;border-radius:2px;background:#ffffff1a}.dom-cap u{position:absolute;top:0;height:100%}.dom-cap u.r{right:50%;background:#ff4a2a}.dom-cap u.b{left:50%;background:#2fa8ff}
+.dom-quit{margin-top:2px;padding:2px 10px;border:1px solid #8a6a4a;border-radius:4px;background:#2e1e16;color:#e9c99a;font:700 8px Inter;letter-spacing:.1em;cursor:pointer}
+@media (max-width:700px){.dom-hud{top:92px;gap:5px;padding:4px 6px}.dom-score i{width:44px}.dom-score img{width:24px;height:24px}.dom-score b{font-size:15px;min-width:28px}.dom-mid{min-width:84px}.dom-cap{width:70px}}
+
+.dom-result{position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;background:#02090dcc}
+.dom-result section{width:min(380px,calc(100vw - 32px));padding:24px;text-align:center;border:1px solid #c69b4e88;border-radius:12px;background:linear-gradient(160deg,#123039,#06151b);box-shadow:0 25px 80px #000d}
+.dom-result img{width:110px;height:110px;object-fit:contain}
+.dom-result h2{margin:6px 0 2px;font:900 30px Cinzel;color:#f3d496;letter-spacing:.12em}.dom-result p{margin:0;color:#a8bcbd;font-size:12px}
+.dom-final{margin:12px 0;font:900 20px Cinzel}
+.dom-rew{display:flex;justify-content:center;gap:12px;margin-bottom:16px}.dom-rew b{padding:6px 10px;border-radius:6px;background:#0b1d22;color:#ffe08a;font:700 12px Inter}
+.dom-result button{padding:11px 30px;border:1px solid #e0b65e;border-radius:7px;background:linear-gradient(160deg,#6d3b1f,#3a1d10);color:#ffe4a6;font:700 13px Cinzel;letter-spacing:.1em;cursor:pointer}
+.world-dom{display:block;margin:10px auto 0;padding:9px 22px;border:1px solid #ffd27a;border-radius:7px;background:linear-gradient(#7a1e12,#3a0c06);color:#ffe2a0;font:800 12px Inter;letter-spacing:.06em;cursor:pointer}
