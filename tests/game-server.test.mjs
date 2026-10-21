@@ -333,3 +333,27 @@ test('domination: spawn at base, 5 s lock after sinking, no repair',()=>{
   // Tamir yok: can yalnız can emici payı kadar (tam can/200 sn) artabilir
   const t={domTeam:'r',maxHp:1000};S.noteHp(t,500,0);S.noteHp(t,1000,10_000);assert.ok(t.pvp.hp<=500+1000*10/200+1);
 });
+test('cursed waters: equal ships, spawn, fog damage, elimination order and rewards',async()=>{
+  const mk=uid=>({uid,nick:uid,netId:uid,econ:{ep:0},ws:{readyState:0},last:null});
+  const ten=Array.from({length:10},(_,i)=>mk('p'+i));const now=2e6;
+  S.lsQueue.push(...ten);assert.equal(S.lsPump(now),true);const m=S.lsStart(now,undefined,()=>.3);
+  assert.equal(m.players.size,10);assert.ok(ten.every(c=>c.lsOn&&c.pvp.hp>0));
+  const a=ten[0],pa=m.players.get('p0');
+  assert.deepEqual(S.lsMove(a,{x:100,y:100}),pa.spawn);// başlangıç noktası dışında doğamaz
+  const s={...pa.spawn};assert.equal(S.lsMove(a,s),null);assert.equal(s.tp,1);
+  // Sis: 60 sn sonra daralır, dışarıdaki gemi can kaybeder
+  for(const c of ten)c.last={...m.players.get(c.uid).spawn};a.last={x:-500,y:-500};const room=new Set(ten);
+  const r=S.lsStep(m,room,now+61_000,()=>.5);assert.equal(r.changed,true);assert.equal(m.fog.phase,1);
+  const hit=r.hits.find(([x])=>x===a);assert.ok(hit&&hit[1]>0);
+  // Can artmaz (tamir yok)
+  const hp=a.pvp.hp;S.noteHp(a,999999,now+70_000);assert.equal(a.pvp.hp,hp);
+  // Eleme sırası: ilk elenen 10., son kalan 1.
+  const out=S.lsOut(ten[1],ten[2],now);assert.equal(out.rank,10);assert.equal(out.add.pearls,50);
+  for(let i=3;i<10;i++)S.lsOut(ten[i],null,now);assert.equal(m.result,null);// 2 kaldı
+  S.lsFinish(m,now,ten);assert.equal(m.players.get('p0').rank+m.players.get('p2').rank,3);
+  const w=ten.find(c=>m.players.get(c.uid).rank===1);assert.ok((w.credit??w.grant.add).pearls>=500);assert.equal(m.players.get('p2').kills,1);S.lsMatches.delete(m.id);
+});
+test('cursed waters: last one standing ends the match',()=>{const mk=uid=>({uid,nick:uid,netId:uid,econ:{ep:0},ws:{readyState:0},last:null});
+  const ten=Array.from({length:10},(_,i)=>mk('q'+i));const now=3e6;S.lsQueue.push(...ten);S.lsPump(now);const m=S.lsStart(now);
+  for(let i=1;i<10;i++)S.lsOut(ten[i],null,now);assert.ok(m.result);assert.equal(m.players.get('q0').rank,1);
+  S.lsMatches.delete(m.id);});
