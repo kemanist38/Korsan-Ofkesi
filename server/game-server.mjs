@@ -418,6 +418,8 @@ export function towerHit(key,slot,guildId,dmg,heal,now=Date.now()){const i=islan
   return res;}
 async function dbRpc(fn,args){if(!SERVER_SECRET)return;const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:'POST',headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`,'content-type':'application/json'},body:JSON.stringify({p_secret:SERVER_SECRET,...args})});
   if(!r.ok)log('ADA kayıt hatası',fn,r.status,await r.text());}
+// Batırma sayısı (güverte nişanı): veritabanında; doğrulanmış batırmada 1 artar, girişte okunur, oyuncunun kendisine bildirilir
+async function sinkAdd(c,add){if(!c?.uid)return;const n=Number(await dbRpcJson('rival_sink',{p_uid:c.uid,p_add:add}).catch(()=>null));if(!Number.isFinite(n))return;c.sinks=n;send(c,{t:'sinks',d:{n}});}
 async function dbRpcJson(fn,args){if(!SERVER_SECRET)return null;const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:'POST',headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`,'content-type':'application/json'},body:JSON.stringify({p_secret:SERVER_SECRET,...args})});
   if(!r.ok){log('RPC hatası',fn,r.status,await r.text());return null;}return r.json();}
 export const seaMap=name=>{const m=/^sea-(\d)-(\d)$/.exec(name||'');return m?`${m[1]}/${m[2]}`:null;};
@@ -505,7 +507,7 @@ function siegeTick(now){const r=siegeRun;if(!r)return;siegeTickNo++;const room=s
 // Yakındakiler (NEAR birim) her turda, uzaktakiler saniyede bir güncellenir. Kimlik alanları (ad, gemi, rütbe…) yalnızca
 // değiştiğinde ya da alıcı ilk kez gördüğünde gönderilir.
 export const NEAR=1800,TICK_MS=100,FAR_EVERY=20;
-const IDENT=['nick','tag','ship','maxHp','sp','level','adm','tm'];
+const IDENT=['nick','tag','ship','maxHp','sp','level','adm','tm','sk'];
 function queueState(c,s){const id={};let changed=false;for(const k of IDENT)if(k in s){if(k==='nick')s.nick=c.nick;if(JSON.stringify(c.ident?.[k])!==JSON.stringify(s[k]))changed=true;id[k]=s[k];delete s[k];}
   if(changed){c.ident={...c.ident,...id};c.identVer=(c.identVer||0)+1;}c.state=s;c.stateVer=(c.stateVer||0)+1;}
 let tickNo=0;
@@ -826,7 +828,7 @@ wss.on('connection',ws=>{
       for(const x of all)if(x.uid===who.uid&&x!==c)x.ws.close(4004,'başka yerden bağlanıldı');
       Object.assign(c,who);c.admin=await isAdminToken(String(m.token||'')).catch(()=>false);c.netId=String(m.netId||'').slice(0,16)||Math.random().toString(36).slice(2,10);clearTimeout(authTimer);
       await loadEcon(c);if(!c.econ){ws.close(4003,'hesap verisi yüklenemedi');return;}
-      send(c,{t:'hello',id:c.netId,nick:c.nick,playerNo:c.playerNo});log('GİRİŞ',`#${c.playerNo}`,c.nick);if(!qkByUid.has(c.uid))qkByUid.set(c.uid,{});c.qk=qkByUid.get(c.uid);{const t=treasures.get(c.uid);if(t)send(c,{t:'tstate',d:{parts:t.parts,spot:t.spot}});}return;}
+      void sinkAdd(c,0);send(c,{t:'hello',id:c.netId,nick:c.nick,playerNo:c.playerNo});log('GİRİŞ',`#${c.playerNo}`,c.nick);if(!qkByUid.has(c.uid))qkByUid.set(c.uid,{});c.qk=qkByUid.get(c.uid);{const t=treasures.get(c.uid);if(t)send(c,{t:'tstate',d:{parts:t.parts,spot:t.spot}});}return;}
     if(!c.uid||!c.econ)return;
     switch(m.t){
       case'join':{const name=String(m.sea||'').slice(0,40);if(name===c.sea)return;if(!canJoin(c,name,now)){send(c,{t:'denied',reason:'harita kilitli'});return;}leaveSea(c);c.last=null;if(!name)return;
@@ -848,12 +850,13 @@ wss.on('connection',ws=>{
         if(c.admin){s.adm=1;s.ship=ADMIN_SHIP;if(aevOpen(c.sea)){const ev=aevState(c);s.hp=Math.round(ev.hp);s.maxHp=ev.max;if(now-(c.ahpAt||0)>1000){c.ahpAt=now;send(c,{t:'ahp',d:{hp:s.hp,max:ev.max}});}}}
         if(c.lsOn){const ph=c.pvp?.hp;if(num(s.hp)&&ph!=null)s.hp=Math.max(0,Math.min(s.hp,Math.round(ph)));s.ship='ls';delete s.adm;delete s.tag;}
         if(c.domTeam&&domMatchOfSea(c.sea)!==undefined){const ph=c.pvp?.hp;if(num(s.hp)&&ph!=null)s.hp=Math.max(0,Math.min(s.hp,Math.round(ph)));s.ship='dom-'+c.domTeam;s.tm=c.domTeam;delete s.adm;}else delete s.tm;
+        if('nick' in s)s.sk=c.sinks??0;
         c.last={x:s.x,y:s.y,at:now};s.id=c.netId;queueState(c,s);return;}
       case'fire':return; // oyuncular arası atış yalnız sunucu atışıyla (atk); oyuncunun bildirdiği hasar kabul edilmez
       case'sunk':{if(!c.sea)return;const s=m.d||{};s.victim=c.netId;s.victimNick=c.nick;
         // Batıran yalnızca son 60 sn'de bu oyuncuya ateş etmiş biri olabilir (arkadaşa SP yazdırma engeli)
         if(s.by&&!(now-(c.pvp?.from.get(String(s.by))??-1e12)<60_000)){suspect(c,'sahte batırma',String(s.by));s.by=null;s.byNick=null;}
-        if(s.by&&domMatchOfSea(c.sea)===undefined){const k=[...(seas.get(c.sea)||[])].find(x=>x.netId===String(s.by));const add=spCredit(k,c.uid,now);if(add)addCredit(k,add);}
+        if(s.by&&domMatchOfSea(c.sea)===undefined){const k=[...(seas.get(c.sea)||[])].find(x=>x.netId===String(s.by));const add=spCredit(k,c.uid,now);if(add){addCredit(k,add);void sinkAdd(k,1);}}
         if(c.domTeam)domSink(c,now);if(c.lsOn){lsOut(c,s.by?[...(seas.get(c.sea)||[])].find(x=>x.netId===String(s.by)):null,now);toSea(c,{t:'sunk',d:s});return;}pvpReset(c);toSea(c,{t:'sunk',d:s});return;}
       case'bkill':return; // Only accepted nkill events advance the boss counter.
       case'bhit':return; // oyuncunun bildirdiği hasar kabul edilmez (sunucu atışı ve mayın)

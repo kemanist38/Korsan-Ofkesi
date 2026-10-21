@@ -5487,6 +5487,13 @@ async function dbRpc(fn, args) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, { method: "POST", headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${SUPABASE_ANON}`, "content-type": "application/json" }, body: JSON.stringify({ p_secret: SERVER_SECRET, ...args }) });
   if (!r.ok) log("ADA kay\u0131t hatas\u0131", fn, r.status, await r.text());
 }
+async function sinkAdd(c, add) {
+  if (!c?.uid) return;
+  const n = Number(await dbRpcJson("rival_sink", { p_uid: c.uid, p_add: add }).catch(() => null));
+  if (!Number.isFinite(n)) return;
+  c.sinks = n;
+  send(c, { t: "sinks", d: { n } });
+}
 async function dbRpcJson(fn, args) {
   if (!SERVER_SECRET) return null;
   const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, { method: "POST", headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${SUPABASE_ANON}`, "content-type": "application/json" }, body: JSON.stringify({ p_secret: SERVER_SECRET, ...args }) });
@@ -5733,7 +5740,7 @@ function siegeTick(now) {
 var NEAR = 1800;
 var TICK_MS = 100;
 var FAR_EVERY = 20;
-var IDENT = ["nick", "tag", "ship", "maxHp", "sp", "level", "adm", "tm"];
+var IDENT = ["nick", "tag", "ship", "maxHp", "sp", "level", "adm", "tm", "sk"];
 function queueState(c, s) {
   const id = {};
   let changed = false;
@@ -6803,6 +6810,7 @@ wss.on("connection", (ws) => {
         ws.close(4003, "hesap verisi y\xFCklenemedi");
         return;
       }
+      void sinkAdd(c, 0);
       send(c, { t: "hello", id: c.netId, nick: c.nick, playerNo: c.playerNo });
       log("G\u0130R\u0130\u015E", `#${c.playerNo}`, c.nick);
       if (!qkByUid.has(c.uid)) qkByUid.set(c.uid, {});
@@ -6938,6 +6946,7 @@ wss.on("connection", (ws) => {
           s.tm = c.domTeam;
           delete s.adm;
         } else delete s.tm;
+        if ("nick" in s) s.sk = c.sinks ?? 0;
         c.last = { x: s.x, y: s.y, at: now };
         s.id = c.netId;
         queueState(c, s);
@@ -6959,7 +6968,10 @@ wss.on("connection", (ws) => {
         if (s.by && domMatchOfSea(c.sea) === void 0) {
           const k = [...seas.get(c.sea) || []].find((x) => x.netId === String(s.by));
           const add = spCredit(k, c.uid, now);
-          if (add) addCredit(k, add);
+          if (add) {
+            addCredit(k, add);
+            void sinkAdd(k, 1);
+          }
         }
         if (c.domTeam) domSink(c, now);
         if (c.lsOn) {
