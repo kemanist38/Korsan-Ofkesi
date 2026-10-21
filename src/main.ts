@@ -29,7 +29,7 @@ import {supa} from './supabase';
 import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
 import {loadLevelQuest,saveLevelQuest,levelQuestDone,levelQuestKill,levelQuestGoal,needsLevelQuest,levelQuestMap} from './level-quest';
 import {SPY_COST,SPY_SHIELD_PRICE,loadSpy,sendSpy,type SpyRival} from './spy';
-import {sendReport,sendLs,sendDom,netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,sendSalvo,sendUse,sendQuestDone,sendChest,sendDig,sendSparkle,sendNpcHits,sendLoadout,sendAttack,type NetNpc,type NetLootSpots,type NetTreasure,type NetDig,type NetLoot,type NetSiegeEnd,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
+import {sendDied,sendReport,sendLs,sendDom,netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,sendSalvo,sendUse,sendQuestDone,sendChest,sendDig,sendSparkle,sendNpcHits,sendLoadout,sendAttack,type NetNpc,type NetLootSpots,type NetTreasure,type NetDig,type NetLoot,type NetSiegeEnd,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
 import {AUCTION_MS,loadAuction,saveAuction,emptyAuction,auctionHour,auctionEnds,lotsFor,minNextBid,applyBid,wonLots,auctionId,type LotDef,type Bid} from './auction';
 import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,claimReward,GRADUATE_LEVEL,MAX_APPRENTICES,TOGETHER_XP_BONUS,APPRENTICE_MAX_LEVEL} from './mentorship';
 import {loadRivalSinks,saveRivalSinks} from './insignia';
@@ -624,6 +624,8 @@ const netHandlers:NetHandlers={
   arew:(d:{xp?:number;ep?:number;pearls?:number})=>{aevGain.xp+=d.xp??0;aevGain.ep+=d.ep??0;aevGain.pearls+=d.pearls??0;if(!aevGainTimer)aevGainTimer=setTimeout(()=>{aevGainTimer=0;const g=aevGain,p=[g.xp?`+${fmt(g.xp)} TP`:'',g.ep?`+${fmt(g.ep)} EP`:'',g.pearls?`+${fmt(g.pearls)} İnci`:''].filter(Boolean).join(' · ');aevGain={xp:0,ep:0,pearls:0};if(p)rewardNotice(`Yönetici gemisine hasar · ${p}`,'battle');},4000) as unknown as number;},
   dom:d=>onDomNet(d),
   sinks:n=>{rivalSinks=n;saveRivalSinks(n);},
+  respawn:p=>{player.x=p.x;player.y=p.y;player.speed=0;destination=null;routeTarget=null;camera.x=player.x;camera.y=player.y;freeLook=null;fleetSafe={x:p.x,y:p.y};},
+  rage:m=>{if(!rageActive(rage))rage.meter=m;},
   muted:left=>{const t=left>=86_400_000?`${Math.ceil(left/86_400_000)} gün`:left>=3_600_000?`${Math.ceil(left/3_600_000)} saat`:`${Math.ceil(left/60_000)} dakika`;chat.system(`Sohbet cezan var · ${t} sonra yazabilirsin (Oyun Kuralları)`);toast(`Sohbet cezası: ${t}`);},
   reported:()=>{toast('Bildirimin yönetime iletildi, teşekkürler');},
   ls:d=>onLsNet(d),
@@ -1129,7 +1131,7 @@ function respawn(){
   try{localStorage.setItem(WORLD_STORAGE,deathMap);}catch{}
   const spot=randomSafePlayerPoint();
   player.x=spot.x;player.y=spot.y;player.speed=0;destination=null;routeTarget=null;camera.x=player.x;camera.y=player.y;freeLook=null;
-  fleetSafe={x:spot.x,y:spot.y};collisionNotice=0;
+  fleetSafe={x:spot.x,y:spot.y};collisionNotice=0;if(session.account)sendDied();// hesaplı oyunda doğma noktası sunucudan gelir
   state.hp=Math.max(1,Math.round(effectiveMaxHp()*.1));state.repairing=true;state.invulnerable=4;state.attacking=false;selected=null;shots.length=0;salvoQueue.length=0;
   enemies.forEach(e=>{e.aggro=false;e.combatTimer=0;});ui('attack').classList.remove('active');
   mapFade=1;playSplash();saveAccount();toast(`Gemin battı — ${mapDef().key} ${coordLabel(player)} konumunda %10 gövdeyle yeniden doğdun`);

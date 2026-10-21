@@ -28,6 +28,7 @@ import {contribReward,earnsChest,victoryChest} from '../src/siege.ts';
 import {DOM_SIZE,DOM_COUNTDOWN_MS,DOM_MATCH_MS,DOM_WIN,DOM_ZONE,DOM_BASE,domWindowAt,domBalance,domZoneStep,domWinner,domReward} from '../src/domination.ts';
 import {LS_DROP_FIRST_MS,LS_DROP_EVERY_MS,LS_DROP_FALL_MS,LS_DROP_PICK_R,LS_DROP_LOOT,LS_ITEMS,LS_ITEM_MAX,LS_ITEM_RESPAWN_MS,LS_PICK_R,LS_SPEED_MS,lsEmptyInv,lsPickKind,LS_SIZE,LS_COUNTDOWN_MS,LS_LOADOUT,LS_HP,LS_START_R,LS_RADII,LS_PHASE_MS,LS_FOG_DPS,LS_MATCH_MS,lsZoneAt,lsNext,lsReward,lsSpawn} from '../src/cursed.ts';
 import {filterChat} from '../src/chat-filter.ts';
+import {RAGE_MAX,RAGE_SALVOS,RAGE_SECONDS,RAGE_PER_RIVAL,RAGE_PER_BOSS} from '../src/rage.ts';
 import {levelQuestGoal,levelQuestTargets,levelQuestMap} from '../src/level-quest.ts';
 
 const PORT=Number(process.env.PORT||3000);
@@ -558,7 +559,7 @@ async function mineTick(now){for(const [sea,list] of seaMines){const room=seas.g
     for(const t of f.towers)if(near(t.x,t.y,B)&&owner.ws)await towerApply(owner,t.key,t.slot,m.dmg,false,now);}}}
 // Sunucu atışı: NPC hedefi
 function bossApply(c,dmg){const r=bossHit(c.sea,c.uid,dmg);if(!r)return;const room=seas.get(c.sea);log('BOSS BATTI',c.sea,r.n,'kaptan');
-  {const map=seaMap(c.sea);for(const x of all){const sh=r.shares[x.uid];if(!sh)continue;const add=bossCredit(map,sh.share,r.n);if(add)addCredit(x,add);}}
+  {const map=seaMap(c.sea);for(const x of all){const sh=r.shares[x.uid];if(!sh)continue;const add=bossCredit(map,sh.share,r.n);if(add){addCredit(x,add);if(sh.share>=.03)rageGain(x,RAGE_PER_BOSS);}}}
   for(const x of room||[])send(x,{t:'bdown',d:{id:r.id,n:r.n,...(r.shares[x.uid]??{share:0,dmg:0})}});}
 function siegeApply(c,i,dmg){const r=siegeHitPiece(c.uid,c.nick,i,dmg);if(r?.damage>0)addCredit(c,siegeCredit(r.damage,siegeRun.caps.size,c.econ?.level));if(!r?.down&&r?.down!==0)return;toSea(c,{t:'sdown',d:{i:r.down}},true);if(r.won)siegeFinish();}
 // Sunucu atışı: hedef türü k = n (NPC), b (boss), s (kuşatma parçası), t (ada kulesi), p (oyuncu). Hasarı sunucu hesaplar.
@@ -575,11 +576,12 @@ export function attackTarget(c,d){const k=String(d?.k||'n'),id=String(d?.id??'')
 async function onAttack(c,d,now){if(!c.last)return;const tg=attackTarget(c,d);if(!tg)return;if(tg.ls){lsAttack(c,tg.t,now,d);return;}if(!c.ldRaw)return;c.ld=buildLoadout(c.econ,c.ldRaw);if(!c.ld)return;
   const a=String(d?.a||'iron');if(tg.dom&&(a==='heal'||tg.t.domTeam===c.domTeam))return;// Deniz Hakimiyeti: şifa güllesi yok, gülle yalnız rakibe
   if(!['iron','chain','fire','explosive','breaker','leech',...(tg.k==='p'||tg.k==='t'?['heal']:[])].includes(a))return;
-  const why=shotCheck(c,c.ld,a,tg.x===undefined?0:Math.hypot(c.last.x-tg.x,c.last.y-tg.y),now,!!d?.r);if(why){if(why!=='dolum')suspect(c,'atış',why);return;}
+  const rr=rageUse(c,!!d?.r,now);
+  const why=shotCheck(c,c.ld,a,tg.x===undefined?0:Math.hypot(c.last.x-tg.x,c.last.y-tg.y),now,rr);if(why){if(why!=='dolum')suspect(c,'atış',why);return;}
   const cap=c.ld.cannons;let k=Math.max(0,Math.floor(Number(d?.n)||0)),i=Math.max(0,Math.floor(Number(d?.i)||0));if(k+i>cap){const f=cap/(k+i);k=Math.floor(k*f);i=Math.floor(i*f);}if(a==='iron'){i+=k;k=0;}
   const before=c.econ,pool=c.sb?.pool??0;await applyUsage(c,{a,n:k,i,p:d?.p?1:0},null,now);if(c.sb)c.sb.pool=pool;// sunucu atışı hasar bütçesi doldurmaz (çift hasar olmasın)
   if(c.econ===before&&SERVER_SECRET&&!(process.env.BENCH_AUTH==='1'&&c.uid.startsWith('b')))return;// stok onaylanmadı
-  const raw=salvoDamage(c.ld,a,k,i,!!d?.p,!!d?.r),dmg=raw*targetFactor(a,tg.kind);
+  const raw=salvoDamage(c.ld,a,k,i,!!d?.p,rr),dmg=raw*targetFactor(a,tg.kind);
   if(tg.k==='n'){const live=seaNpcs.get(c.sea)?.list.get(tg.n.id);if(!live)return;const r=npcApply(c,c.sea,live,dmg,now);if(r.dead)npcDeath(c,r,now);return;}
   if(tg.k==='b'){bossApply(c,dmg);return;}
   if(tg.k==='s'){siegeApply(c,tg.i,dmg);return;}
@@ -635,10 +637,20 @@ export const domLocked=(c,now)=>!!c.domLock&&now<c.domLock.until;
 export function domSink(c,now){c.domLock={until:now+DOM_LOCK_MS,pos:null,spawn:true};}
 export function domMove(c,s,now){if(!num(s?.x)||!num(s?.y))return null;const base=DOM_BASE[c.domTeam];
   const spawn=!c.last||c.domLock?.spawn;
-  if(spawn){if(Math.hypot(s.x-base.x,s.y-base.y)>DOM_BASE_R)return{x:base.x,y:base.y};c.domLock={until:c.domLock?.until??0,pos:{x:s.x,y:s.y},spawn:false};s.tp=1;c.tpAt=0;return null;}
+  if(spawn){if(Math.hypot(s.x-base.x,s.y-base.y)>DOM_BASE_R)return{x:base.x,y:base.y};c.domLock={until:c.domLock?.until??0,pos:{x:s.x,y:s.y},spawn:false};s.tp=1;c.tpFree=true;return null;}
   delete s.tp;
   if(domLocked(c,now)&&c.domLock.pos&&Math.hypot(s.x-c.domLock.pos.x,s.y-c.domLock.pos.y)>DOM_LOCK_SLACK)return c.domLock.pos;
   return null;}
+// Işınlanma: yalnız sunucunun bildiği anlarda (sunucunun seçtiği doğma noktası, arena doğuşu, yönetici); başka her ani konum hız sayılır
+export function tpAllowed(c,s,now){if(c.admin)return true;if(c.tpFree){c.tpFree=false;return true;}
+  const t=c.tpTo;if(t&&now<t.until&&Math.hypot(s.x-t.x,s.y-t.y)<150){c.tpTo=null;return true;}
+  if(c.sea===SIEGE_ROOM&&Math.hypot(s.x-3000,s.y-2850)<260)return true;return false;}
+export function respawnPoint(c,rand=Math.random){const map=seaMap(c.sea);if(map&&MAPS[map]){const p=pickSpot(map,rand);return{x:p.x,y:p.y};}return null;}
+// Korsan Öfkesi barı sunucuda: yalnız doğrulanmış oyuncu batırma (+34) ve boss payı (+50) doldurur; dolu bar 2 salvo %25 verir
+export function rageGain(c,n){if(!c)return;c.rage=Math.min(RAGE_MAX,(c.rage||0)+n);send(c,{t:'rage',d:{m:c.rage}});}
+export function rageUse(c,want,now){if(!want)return false;if((c.rageLeft||0)>0&&now<(c.rageUntil||0)){c.rageLeft--;return true;}
+  if((c.rage||0)>=RAGE_MAX){c.rage=0;c.rageLeft=RAGE_SALVOS-1;c.rageUntil=now+RAGE_SECONDS*1000+500;send(c,{t:'rage',d:{m:0}});return true;}
+  suspect(c,'öfke','bar dolmadan');return false;}
 export function domPump(now){if(domPending||domQueue.length<DOM_SIZE*2)return false;const list=domQueue.splice(0,DOM_SIZE*2);
   const t=domBalance(list,x=>Number(x.econ?.ep)||0);domPending={list,r:t.r,b:t.b,at:now+DOM_COUNTDOWN_MS};return true;}
 export function domDrop(c){const i=domQueue.indexOf(c);if(i>=0)domQueue.splice(i,1);
@@ -712,7 +724,7 @@ export function lsStart(now,pend=lsPending,rand=Math.random){const id=crypto.ran
   log('LANETLİ SULAR BAŞLADI',id,order.length);return m;}
 // Doğuş yalnızca kendi başlangıç noktasında (300 birim içinde); sonrası normal hız denetimi
 export function lsMove(c,s){const m=lsMatches.get(c.lsMatch),p=m?.players.get(c.uid);if(!p||!num(s?.x)||!num(s?.y))return null;
-  if(!c.lsSpawned){if(Math.hypot(s.x-p.spawn.x,s.y-p.spawn.y)>300)return p.spawn;c.lsSpawned=true;s.tp=1;c.tpAt=0;return null;}delete s.tp;return null;}
+  if(!c.lsSpawned){if(Math.hypot(s.x-p.spawn.x,s.y-p.spawn.y)>300)return p.spawn;c.lsSpawned=true;s.tp=1;c.tpFree=true;return null;}delete s.tp;return null;}
 const lsAlive=m=>[...m.players.values()].filter(p=>p.alive).length;
 // Eleme: sıra = elenmeden önce hayatta kalan sayısı. Ödül hemen yazılır (ayrılan ödül almaz).
 export function lsOut(c,killer,now,left=false){const m=lsMatches.get(c.lsMatch),p=m?.players.get(c.uid);if(!m||!p?.alive||m.result)return null;
@@ -842,7 +854,7 @@ wss.on('connection',ws=>{
       case'state':{if(!c.sea||!c.rState.hit(now))return;const s=m.d;
         if(c.domTeam&&domMatchOfSea(c.sea)!==undefined){const r=domMove(c,s,now);if(r){send(c,{t:'pos',d:r});return;}}
         if(!c.lsOn&&lsMatchOfSea(c.sea)!==undefined)return;// elenen kaptan izleyicidir, gemisi görünmez
-        if(c.lsOn){const r=lsMove(c,s);if(r){send(c,{t:'pos',d:r});return;}s.maxHp=LS_HP;}let v=checkState(c.last,s,now);if(v==='bad')return;if(v==='speed'&&s.tp&&now-(c.tpAt||0)>8000){c.tpAt=now;v='ok';}delete s.tp;if(v==='bad')return;if(v==='speed'){suspect(c,'hız',`${Math.round(s.x)},${Math.round(s.y)}`);if(c.last)send(c,{t:'pos',d:{x:c.last.x,y:c.last.y}});return;}
+        if(c.lsOn){const r=lsMove(c,s);if(r){send(c,{t:'pos',d:r});return;}s.maxHp=LS_HP;}let v=checkState(c.last,s,now);if(v==='bad')return;if(v==='speed'&&s.tp&&tpAllowed(c,s,now))v='ok';delete s.tp;if(v==='bad')return;if(v==='speed'){suspect(c,'hız',`${Math.round(s.x)},${Math.round(s.y)}`);if(c.last)send(c,{t:'pos',d:{x:c.last.x,y:c.last.y}});return;}
         {const land=onLand(seaMap(c.sea),s.x,s.y);if(land){c.landHits=(c.landHits||0)+1;if(c.landHits%10===1)suspect(c,'karaya çıkma',land);if(c.last)send(c,{t:'pos',d:{x:c.last.x,y:c.last.y}});return;}}
         if(c.lsOn)c.maxHp=LS_HP;else if(num(s.maxHp)){const cap=hpCap(c.econ);if(s.maxHp>cap*1.02){suspect(c,'can sınırı',`${Math.round(s.maxHp)}>${cap}`);s.maxHp=cap;}c.maxHp=s.maxHp;}
         if(c.maxHp&&s.hp>c.maxHp)s.hp=c.maxHp;noteHp(c,s.hp,now);
@@ -856,6 +868,7 @@ wss.on('connection',ws=>{
       case'sunk':{if(!c.sea)return;const s=m.d||{};s.victim=c.netId;s.victimNick=c.nick;
         // Batıran yalnızca son 60 sn'de bu oyuncuya ateş etmiş biri olabilir (arkadaşa SP yazdırma engeli)
         if(s.by&&!(now-(c.pvp?.from.get(String(s.by))??-1e12)<60_000)){suspect(c,'sahte batırma',String(s.by));s.by=null;s.byNick=null;}
+        if(s.by){const k=[...(seas.get(c.sea)||[])].find(x=>x.netId===String(s.by));if(k)rageGain(k,RAGE_PER_RIVAL);}
         if(s.by&&domMatchOfSea(c.sea)===undefined){const k=[...(seas.get(c.sea)||[])].find(x=>x.netId===String(s.by));const add=spCredit(k,c.uid,now);if(add){addCredit(k,add);void sinkAdd(k,1);}}
         if(c.domTeam)domSink(c,now);if(c.lsOn){lsOut(c,s.by?[...(seas.get(c.sea)||[])].find(x=>x.netId===String(s.by)):null,now);toSea(c,{t:'sunk',d:s});return;}pvpReset(c);toSea(c,{t:'sunk',d:s});return;}
       case'bkill':return; // Only accepted nkill events advance the boss counter.
@@ -879,6 +892,8 @@ wss.on('connection',ws=>{
       case'tbuilt':{const key=String(m.d?.key||'');const i=islands.get(key);if(!i||!c.rKill.hit(now))return;await saveIslandHp({...i,hpDirty:true});const n=await loadIsland(key).catch(()=>null);if(n)sendRoom(key,{t:'isle',d:islandInfo(n)});return;}
       // Filoya girme/çıkma sonrası filo bilgisi yenilenir
       case'gref':{if(!c.rKill.hit(now))return;c.guildId=await guildOf(c.uid).catch(()=>c.guildId);return;}
+      // Gemi battı (NPC, kule, mayın ya da rakip): yeniden doğma noktasını sunucu seçer; ışınlanma yalnız oraya kabul edilir
+      case'died':{if(!c.sea||!c.rKill.hit(now))return;const p=respawnPoint(c);if(!p)return;c.tpTo={x:p.x,y:p.y,until:now+15_000};pvpReset(c);send(c,{t:'respawn',d:{x:p.x,y:p.y}});return;}
       case'dom':{if(!c.rUse.hit(now))return;onDom(c,m.d,now);return;}
       case'ls':{if(!c.rUse.hit(now))return;onLs(c,m.d,now);return;}
       case'chat':{if(!c.rChat.hit(now))return;const raw=String(m.d?.text||'').slice(0,LIMITS.chatLen).trim();if(!raw)return;
