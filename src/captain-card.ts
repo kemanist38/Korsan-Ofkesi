@@ -26,10 +26,10 @@ export function trioHtml(o:{level:number;xp:number;xpNeed:number;sp:number;sinks
 
 // Seçilen rakip kaptanın kartı (ekranın üst ortasında, hedef seçiliyken)
 const card=document.createElement('div');card.className='cc-card';card.hidden=true;document.body.append(card);let cardKey='';
-export function showPlayerCard(o:{name:string;level?:number;sp:number;tag?:string|null;adm?:boolean}|null){
+export function showPlayerCard(o:{name:string;level?:number;sp:number;sinks?:number;tag?:string|null;adm?:boolean}|null){
   if(!o){if(!card.hidden){card.hidden=true;cardKey='';}return;}
-  const r=battleRank(o.sp),t=insigniaTier(Math.round(o.sp/25)),key=`${o.name}|${o.level}|${o.sp}`;if(key===cardKey&&!card.hidden)return;cardKey=key;
-  card.innerHTML=`${o.level?levelBadge(o.level,'mid'):''}<div class="cc-who"><strong class="${o.adm?'adm':''}">${esc(o.name)}</strong><small>${o.adm?'Oyun yöneticisi':`${esc(r.name)} · ${fmt(o.sp)} SP${o.level?` · Seviye ${o.level}`:''}`}</small></div>${o.adm?'':rankBadge(r.index,'mid')+insigniaBadge(t,'card')}`;
+  const r=battleRank(o.sp),t=insigniaTier(o.sinks??0),key=`${o.name}|${o.level}|${o.sp}|${o.sinks}`;if(key===cardKey&&!card.hidden)return;cardKey=key;
+  card.innerHTML=`${o.level?levelBadge(o.level,'mid'):''}<div class="cc-who"><strong class="${o.adm?'adm':''}">${esc(o.name)}</strong><small>${o.adm?'Oyun yöneticisi':`${esc(r.name)} · ${fmt(o.sp)} SP${o.level?` · Seviye ${o.level}`:''}${o.sinks!==undefined?` · ${fmt(o.sinks)} batırma`:''}`}</small></div>${o.adm?'':rankBadge(r.index,'mid')+insigniaBadge(t,'card')}`;
   card.hidden=false;}
 
 // Rütbe atlama ekranı (seviye atlamadakine benzer kutlama)
