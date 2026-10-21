@@ -357,3 +357,20 @@ test('cursed waters: last one standing ends the match',()=>{const mk=uid=>({uid,
   const ten=Array.from({length:10},(_,i)=>mk('q'+i));const now=3e6;S.lsQueue.push(...ten);S.lsPump(now);const m=S.lsStart(now);
   for(let i=1;i<10;i++)S.lsOut(ten[i],null,now);assert.ok(m.result);assert.equal(m.players.get('q0').rank,1);
   S.lsMatches.delete(m.id);});
+test('cursed waters: scattered items, pickup and ammo use come from the server inventory',()=>{
+  const mk=uid=>({uid,nick:uid,netId:uid,econ:{ep:0},ws:{readyState:0},last:null});
+  const ten=Array.from({length:10},(_,i)=>mk('z'+i));const now=4e6;S.lsQueue.push(...ten);S.lsPump(now);const m=S.lsStart(now);
+  assert.ok(m.items.length>=20);const [a,b]=ten;const pa=m.players.get(a.uid),pb=m.players.get(b.uid);
+  assert.deepEqual(Object.values(pa.inv),[0,0,0,0,0,0]);// başlangıçta yalnız demir
+  const it=m.items[0];a.last={x:it[2]+2000,y:it[3]};assert.equal(S.lsPick(a,it[0],now).err,'uzak');
+  a.last={x:it[2]+10,y:it[3]};const r=S.lsPick(a,it[0],now);assert.ok(r.inv[it[1]]>0);assert.equal(m.items.find(x=>x[0]===it[0]),undefined);
+  // Ateş güllesi: envanterden 315 düşer; demir salvosundan güçlü. Kalkan hedefte 1 azalır.
+  pa.inv.fire=700;pb.inv.shield=3;a.last={x:1000,y:1000};b.last={x:1100,y:1000};a.lastAtk=0;b.maxHp=1e12;
+  const f1=S.lsAttack(a,b,now+10_000,{a:'fire'});assert.equal(f1.ammo,'fire');assert.equal(pa.inv.fire,385);assert.equal(pb.inv.shield,2);
+  pb.inv.shield=0;b.pvp=null;const f2=S.lsAttack(a,b,now+20_000,{a:'iron'});assert.equal(f2.ammo,'iron');
+  // Elinde olmayan gülleyi seçen demir atar
+  pa.inv.chain=0;const f3=S.lsAttack(a,b,now+30_000,{a:'chain'});assert.equal(f3.ammo,'iron');
+  // Yenilenme: toplananın yerine yenisi gelir
+  const before=m.items.length;S.lsStep(m,new Set(),now+60_000);assert.equal(m.items.length,before+1);
+  S.lsMatches.delete(m.id);
+});

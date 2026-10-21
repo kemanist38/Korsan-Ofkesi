@@ -37,7 +37,7 @@ import {RIVAL_SP,battleRank,loadRivalLog,claimRivalSp,dayKey,RANK_SHEET,RANK_COL
 import {setupChat} from './chat';
 import {DOM_TEAMS,DOM_ZONE,DOM_BASE,type DomTeam} from './domination';
 import {openDomLobby,closeDomLobby,domLobbyMsg,renderDomHud,showDomResult,type DomLobby,type DomRun,type DomEnd} from './dom-ui';
-import {LS_LOADOUT,LS_HP,LS_SPEED,LS_SALVO,LS_RELOAD,LS_FOG_DPS,lsZoneAt,type LsFog} from './cursed';
+import {LS_LOADOUT,LS_HP,LS_SPEED,LS_FOG_DPS,LS_ITEMS,LS_PICK_R,LS_SPEED_MS,LS_SPEED_BOOST,lsEmptyInv,lsZoneAt,type LsFog,type LsInv,type LsItem} from './cursed';
 import {openArena,openLsLobby,closeLsLobby,lsLobbyMsg,renderLsHud,showLsResult,type LsLobby,type LsRun,type LsOut} from './ls-ui';
 import {SIEGE_MS,HERO_DAMAGE,WALL_TOWERS,INNER_TOWERS,gateOf,gateLeft,siegeWindow,newSiege,loadSiege,saveSiege,siegePhase,siegeStats,siegeProgress,contribReward,earnsChest,victoryChest,ranking,loadTitle,grantTitle,HERO_TITLE,type SiegeSave} from './siege';
 import {dayEvent,spMult,xpMult,epMult,goldMult,sparkleMult,bossKillsNeeded} from './events';
@@ -1149,7 +1149,7 @@ function saveAccount(){localStorage.setItem(ACCOUNT_STORAGE,JSON.stringify({pear
 function myLoadout():Loadout{if(ls)return LS_LOADOUT;const eq=equipBonus(),el=eliteBonus();return{cannons:state.cannon,type:state.cannonType,upDamage:upgrades.damage,upReload:upgrades.reload,upRange:upgrades.range,
   crewDamage:bonus.damage,crewReload:bonus.reload,crewRange:bonus.range,equipDamage:eq.damage,equipReload:eq.reload,equipRange:eq.range,achDamage:achBonus().damage,eliteDamage:el.damage,eliteReload:el.reload,hero:heroDamage()};}
 function effectiveRange(){return rangeOf(myLoadout());}
-function effectiveSpeed(){if(ls)return LS_SPEED*(playerSlow>0?CHAIN_SLOW.factor:1);return(128+upgrades.speed*5)*bonus.speed*(1+equipBonus().speed+eliteBonus().speed)*(abilityActive('speed')?SPEED_BOOST:1)*(rageActive(rage)?RAGE_SPEED:1)*(playerSlow>0?CHAIN_SLOW.factor:1);}
+function effectiveSpeed(){if(ls)return LS_SPEED*(abilityActive('speed')?LS_SPEED_BOOST:1)*(playerSlow>0?CHAIN_SLOW.factor:1);return(128+upgrades.speed*5)*bonus.speed*(1+equipBonus().speed+eliteBonus().speed)*(abilityActive('speed')?SPEED_BOOST:1)*(rageActive(rage)?RAGE_SPEED:1)*(playerSlow>0?CHAIN_SLOW.factor:1);}
 function cannonCapacity(){return earnedEliteLevel()>0?ELITE_CANNON_CAPACITY:BASE_CANNONS;}
 function mountedCannonCount(){return (Object.keys(mountedCannons) as CannonKind[]).reduce((sum,kind)=>sum+mountedCannons[kind],0);}
 function cannonAsset(kind:CannonKind){
@@ -2095,32 +2095,46 @@ function update(dt:number){updateHealFlights(dt);{const rc=document.getElementBy
 
 // ---------------------------------------------------------------- Lanetli Sular: Hayatta Kalma (src/cursed.ts, src/ls-ui.ts)
 // Herkes eşit gemiyle (LS_LOADOUT, LS_HP) halkadaki yerinde doğar; demir gülle bedavadır. Sis, can ve eleme sunucuda; batan elenir.
-let lsHudClock=0;
+let lsHudClock=0;const lsPicking=new Set<number>();
+const lsHooks={leave:()=>leaveLs(),ammo:(a:'iron'|'chain'|'fire'|'explosive')=>{if(!ls)return;ls.ammo=a;state.ammo=a;renderLsHud(ls,lsHooks);},
+  powder:()=>{if(!ls)return;ls.powder=!ls.powder;renderLsHud(ls,lsHooks);},speed:()=>{if(ls&&ls.inv.speed>0)sendLs('speed');}};
+const lsItemImg:Partial<Record<LsItem,HTMLImageElement>>={};
+function lsImg(k:LsItem){let im=lsItemImg[k];if(!im){im=new Image();im.src=LS_ITEMS[k].icon;lsItemImg[k]=im;}return im;}
+// Eşyaları toplama: üstünden geçince sunucuya bildirilir (mesafeyi sunucu denetler)
+function lsPickTick(){if(!ls||ls.dead)return;for(const it of ls.items){if(lsPicking.has(it[0]))continue;if(Math.hypot(player.x-it[2],player.y-it[3])<LS_PICK_R){lsPicking.add(it[0]);sendLs('pick',{id:it[0]});}}}
+function drawLsItems(){if(!ls)return;const t=performance.now()/1000;for(const it of ls.items){if(!seenOnMap({x:it[2],y:it[3]}))continue;const p=worldToScreen({x:it[2],y:it[3]}),im=lsImg(it[1]),bob=Math.sin(t*2.4+it[0])*4;
+  ctx.save();ctx.globalAlpha=.55+.25*Math.sin(t*3+it[0]);ctx.fillStyle='#b47bff';ctx.beginPath();ctx.ellipse(p.x,p.y+14,26,9,0,0,7);ctx.fill();ctx.globalAlpha=1;
+  if(im.complete&&im.naturalWidth)ctx.drawImage(im,p.x-22,p.y-30+bob,44,44);ctx.restore();}}
 function openArenaModes(){openArena(openDom,()=>{if(ls){toast('Zaten Lanetli Sular maçındasın');return;}openLsLobby(domBlocked);});}
 function onLsNet(d:Record<string,unknown>&{k:string}){
   if(d.k==='lobby'){lsLobbyMsg(d as unknown as LsLobby);return;}
   if(d.k==='err'){toast(String(d.msg||''));return;}
-  if(d.k==='start'){if(dom||ls||siege)return;enterLs(d as unknown as {id:string;spawn:{x:number;y:number};n:number;fog:LsFog&{now:number}});return;}
+  if(d.k==='start'){if(dom||ls||siege)return;enterLs(d as unknown as {id:string;spawn:{x:number;y:number};n:number;fog:LsFog&{now:number};items:LsRun['items']});return;}
   if(!ls)return;
-  if(d.k==='fog'){const f=d.fog as LsFog&{now:number};ls.off=f.now-Date.now();ls.fog=f;ls.alive=Number(d.n)||ls.alive;if(f.phase>0)toast('Lanetli sis daralıyor! Beyaz halkanın içine gir');renderLsHud(ls,leaveLs);return;}
-  if(d.k==='alive'){ls.alive=Number(d.n)||0;if(d.out)rewardNotice(`${d.by?`${d.by}, `:''}${d.out} ${d.by?'kaptanını batırdı':'lanetli sulara gömüldü'} · ${ls.alive} kaptan kaldı`,'battle');renderLsHud(ls,leaveLs);return;}
+  if(d.k==='fog'){const f=d.fog as LsFog&{now:number};ls.off=f.now-Date.now();ls.fog=f;ls.alive=Number(d.n)||ls.alive;if(f.phase>0)toast('Lanetli sis daralıyor! Beyaz halkanın içine gir');renderLsHud(ls,lsHooks);return;}
+  if(d.k==='alive'){ls.alive=Number(d.n)||0;if(d.out)rewardNotice(`${d.by?`${d.by}, `:''}${d.out} ${d.by?'kaptanını batırdı':'lanetli sulara gömüldü'} · ${ls.alive} kaptan kaldı`,'battle');renderLsHud(ls,lsHooks);return;}
+  if(d.k==='items'){ls.items=d.items as LsRun['items'];for(const id of [...lsPicking])if(!ls.items.some(x=>x[0]===id))lsPicking.delete(id);return;}
+  if(d.k==='inv'){ls.inv=d.inv as LsInv;if(d.got){const g=LS_ITEMS[d.got as LsItem];rewardNotice(`${g.name} +${fmt(g.qty)}`,'none');playCoins();}
+    if(d.speed){abilityTimers.speed.active=LS_SPEED_MS/1000;toast('Hız iksiri içildi');}if(ls.ammo!=='iron'&&ls.inv[ls.ammo]<=0){ls.ammo='iron';state.ammo='iron';}renderLsHud(ls,lsHooks);return;}
   if(d.k==='burn'){if(ls.dead)return;const dmg=Number(d.dmg)||0;state.hp-=dmg;state.repairing=false;damageText(player.x,player.y,dmg,DMG_RED);return;}
-  if(d.k==='out'){const o=d as unknown as LsOut;ls.dead=true;renderLsHud(ls,leaveLs);playLevelUp();showLsResult(o,leaveLs);}}
-function enterLs(st:{id:string;spawn:{x:number;y:number};n:number;fog:LsFog&{now:number}}){closeLsLobby();sendLs('watch',{on:false});
-  lsOrigin={x:player.x,y:player.y};ls={id:st.id,n:st.n,alive:st.n,fog:st.fog,off:st.fog.now-Date.now(),start:st.fog.at,kills:0,dead:false};
+  if(d.k==='out'){const o=d as unknown as LsOut;ls.dead=true;renderLsHud(ls,lsHooks);playLevelUp();showLsResult(o,leaveLs);}}
+function enterLs(st:{id:string;spawn:{x:number;y:number};n:number;fog:LsFog&{now:number};items:LsRun['items']}){lsPicking.clear();closeLsLobby();sendLs('watch',{on:false});
+  lsOrigin={x:player.x,y:player.y};ls={id:st.id,n:st.n,alive:st.n,fog:st.fog,off:st.fog.now-Date.now(),start:st.fog.at,kills:0,dead:false,inv:lsEmptyInv(),items:st.items??[],ammo:'iron',powder:true};
   fleetSafe=null;fleetFields.clear();populateMap();state.ammo='iron';
   player.x=st.spawn.x;player.y=st.spawn.y;player.speed=0;destination=null;routeTarget=null;selected=null;state.attacking=false;ui('attack').classList.remove('active');
-  camera.x=player.x;camera.y=player.y;freeLook=null;state.hp=LS_HP;state.invulnerable=0;state.repairing=false;shots.length=0;salvoQueue.length=0;mapFade=1;playMapJump();renderLsHud(ls,leaveLs);
+  camera.x=player.x;camera.y=player.y;freeLook=null;state.hp=LS_HP;state.invulnerable=0;state.repairing=false;shots.length=0;salvoQueue.length=0;mapFade=1;playMapJump();renderLsHud(ls,lsHooks);
   rewardNotice('Lanetli Sular başladı · son kalan kaptan ol!','battle');}
 function lsDied(){if(!ls)return;ls.dead=true;state.hp=1;state.invulnerable=9999;state.attacking=false;selected=null;destination=null;routeTarget=null;player.speed=0;ui('attack').classList.remove('active');playSplash();toast('Gemin battı — elendin, sıran hesaplanıyor…');}
-function leaveLs(){if(!ls)return;if(!ls.dead)sendLs('leave');document.querySelector('.dom-result')?.remove();ls=null;renderLsHud(null,leaveLs);
+function leaveLs(){if(!ls)return;if(!ls.dead)sendLs('leave');document.querySelector('.dom-result')?.remove();ls=null;renderLsHud(null,lsHooks);
   const o=lsOrigin;lsOrigin=null;fleetSafe=null;fleetFields.clear();populateMap();if(o){player.x=o.x;player.y=o.y;}state.invulnerable=2;state.hp=Math.min(state.hp>1?state.hp:effectiveMaxHp(),effectiveMaxHp());
   player.speed=0;destination=null;routeTarget=null;selected=null;state.attacking=false;ui('attack').classList.remove('active');camera.x=player.x;camera.y=player.y;freeLook=null;mapFade=1;playMapJump();}
 // Eşit atış: herkes 40 demir gülle, aynı hasar ve dolum; stok düşmez, hasarı sunucu hesaplar
 function lsFire(){if(!ls||ls.dead||!selected)return;if(!(selected as Enemy).remote){stopAttack();return;}
+  const a=ls.ammo!=='iron'&&ls.inv[ls.ammo]>0?ls.ammo:'iron',loaded=a==='iron'?0:Math.min(LS_LOADOUT.cannons,ls.inv[a]),powder=ls.powder&&ls.inv.powder>0;
   const fx=Math.sin(player.angle),fy=-Math.cos(player.angle),tx=selected.x-player.x,ty=selected.y-player.y,side=fx*ty-fy*tx>0?-1:1;
-  salvoQueue.push({delay:0,target:selected,side,slot:0,damage:LS_SALVO,ammo:'iron',powder:false});
-  const tg=netTarget(selected);if(tg)sendAttack({...tg,a:'iron',n:0,i:LS_LOADOUT.cannons,p:0,r:0});player.cooldown=LS_RELOAD;}
+  const damage=salvoDamage(LS_LOADOUT,a,loaded,LS_LOADOUT.cannons-loaded,powder,false);
+  salvoQueue.push({delay:0,target:selected,side,slot:0,damage,ammo:a,powder});
+  const tg=netTarget(selected);if(tg)sendAttack({...tg,a,n:loaded,i:LS_LOADOUT.cannons-loaded,p:powder?1:0,r:0});player.cooldown=reloadTime(LS_LOADOUT,a);}
 // Lanetli sis: güvenli alanın dışı mor-karanlık; sonraki alan beyaz kesik halka
 function drawLsFog(w:number,h:number){if(!ls)return;const now=Date.now()+ls.off,z=lsZoneAt(ls.fog,now),p=worldToScreen(z),px=worldToScreen({x:z.x+Math.max(1,z.r),y:z.y}),py=worldToScreen({x:z.x,y:z.y+Math.max(1,z.r)});
   const rx=Math.abs(px.x-p.x),ry=Math.abs(py.y-p.y),vw=w/camera.zoom,vh=h/camera.zoom,pulse=.5+.15*Math.sin(performance.now()/300);
@@ -2361,7 +2375,8 @@ function updateEvents(dt:number){
 
   updateOwnTowers(dt);
   if(siege)updateSiege(dt);
-  if(ls){lsHudClock-=dt;if(lsHudClock<=0){lsHudClock=.5;renderLsHud(ls,leaveLs);}}
+  if(ls)lsPickTick();
+  if(ls){lsHudClock-=dt;if(lsHudClock<=0){lsHudClock=.5;renderLsHud(ls,lsHooks);}}
   if(dom){domHudClock-=dt;if(domHudClock<=0){domHudClock=.5;renderDomHud(dom,leaveDom);}}
   eventPanelClock-=dt;if(eventPanelClock>0)return;eventPanelClock=.25;
   const panel=ui('eventPanel'),rows:string[]=[];
@@ -2870,7 +2885,7 @@ function draw(){
   // Deniz: referanstan çıkarılmış kesintisiz doku, dünyaya sabitli tek katman
   const pattern=seaTilePattern(ctx);if(pattern){const vw=w/camera.zoom,vh=h/camera.zoom;pattern.setTransform(new DOMMatrix().translateSelf(-camera.x+w/2,-camera.y+h/2).scaleSelf(1.5,1.5));ctx.fillStyle=pattern;ctx.fillRect(w/2-vw/2,h/2-vh/2,vw,vh);}
   ctx.globalAlpha=.12;ctx.fillStyle=th.label;ctx.font='700 42px Cinzel';ctx.textAlign='center';for(const label of map.labels){const p=worldToScreen(label);ctx.fillText(label.text,p.x,p.y);}ctx.globalAlpha=1;
-  drawMapEdges();if(dom)drawDomZone();islands.forEach(i=>{if(onScreen(i,i.r+260))drawIsland(i);});drawFleetIsland();lootChests.forEach(c=>{if(seenOnMap(c))drawLootChest(c);});drawTreasureMark();sparkles.forEach(g=>{if(seenOnMap(g))drawSparkle(g);});mines.forEach(m=>{if(!seenOnMap(m))return;const p=worldToScreen(m);drawMineSprite(ctx,p.x,p.y,performance.now(),m.arm>0,m.life<5);});
+  drawMapEdges();if(dom)drawDomZone();if(ls)drawLsItems();islands.forEach(i=>{if(onScreen(i,i.r+260))drawIsland(i);});drawFleetIsland();lootChests.forEach(c=>{if(seenOnMap(c))drawLootChest(c);});drawTreasureMark();sparkles.forEach(g=>{if(seenOnMap(g))drawSparkle(g);});mines.forEach(m=>{if(!seenOnMap(m))return;const p=worldToScreen(m);drawMineSprite(ctx,p.x,p.y,performance.now(),m.arm>0,m.life<5);});
   particles.forEach(p=>{if(UNDER.has(p.kind))drawParticle(p);});wrecks.forEach(w=>atShipScale(w,()=>drawWreck(w)));shots.forEach(drawShotShadow);
   if(selected&&targetExists(selected)&&seenOnMap(selected))drawTargetMarker(selected);
   // Görüş sisi: gemiden uzaktaki NPC, kaptan, sandık ve pırıltı çizilmez (mini haritadan kamera kaydırılsa da)
@@ -2907,6 +2922,7 @@ function drawMinimap(){const W=188,H=133,sx=(x:number)=>x/WORLD_WIDTH*W,sy=(y:nu
   if(hasFleetIsland()){const f=mapDef().fleet;drawFleetBase(mini,th.fleet,f.x,f.y);}
   mini.restore();
   if(ls){const f=ls.fog,z=lsZoneAt(f,Date.now()+ls.off);mini.save();mini.fillStyle='#3a1260aa';mini.beginPath();mini.rect(0,0,W,H);mini.ellipse(sx(z.x),sy(z.y),Math.max(0,z.r)/WORLD_WIDTH*W,Math.max(0,z.r)/WORLD_HEIGHT*H,0,0,7);mini.fill('evenodd');mini.restore();
+    mini.fillStyle='#d6b4ff';for(const it of ls.items)if(seenOnMap({x:it[2],y:it[3]}))mini.fillRect(sx(it[2])-1,sy(it[3])-1,2,2);
     if(f.phase>0){mini.strokeStyle='#ffffffcc';mini.lineWidth=1;mini.beginPath();mini.ellipse(sx(f.to.x),sy(f.to.y),f.to.r/WORLD_WIDTH*W+.01,f.to.r/WORLD_HEIGHT*H+.01,0,0,7);mini.stroke();}}
   if(dom){const z=DOM_ZONE;mini.strokeStyle=dom.own?DOM_TEAMS[dom.own].color:'#f3d496';mini.lineWidth=1.5;mini.beginPath();mini.ellipse(sx(z.x),sy(z.y),z.r/WORLD_WIDTH*W,z.r/WORLD_HEIGHT*H,0,0,7);mini.stroke();
     for(const t of ['r','b'] as DomTeam[]){mini.fillStyle=DOM_TEAMS[t].color;mini.fillRect(sx(DOM_BASE[t].x)-3,sy(DOM_BASE[t].y)-3,6,6);}}
