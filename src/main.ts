@@ -37,7 +37,7 @@ import {RIVAL_SP,battleRank,loadRivalLog,claimRivalSp,dayKey,RANK_SHEET,RANK_COL
 import {setupChat} from './chat';
 import {DOM_TEAMS,DOM_ZONE,DOM_BASE,type DomTeam} from './domination';
 import {openDomLobby,closeDomLobby,domLobbyMsg,renderDomHud,showDomResult,type DomLobby,type DomRun,type DomEnd} from './dom-ui';
-import {LS_LOADOUT,LS_HP,LS_SPEED,LS_FOG_DPS,LS_ITEMS,LS_PICK_R,LS_SPEED_MS,LS_SPEED_BOOST,LS_DROP_PICK_R,LS_DROP_FALL_MS,lsEmptyInv,lsZoneAt,type LsFog,type LsInv,type LsItem,type LsDrop} from './cursed';
+import {LS_SHIP,LS_LOADOUT,LS_HP,LS_SPEED,LS_FOG_DPS,LS_ITEMS,LS_PICK_R,LS_SPEED_MS,LS_SPEED_BOOST,LS_DROP_PICK_R,LS_DROP_FALL_MS,lsEmptyInv,lsZoneAt,type LsFog,type LsInv,type LsItem,type LsDrop} from './cursed';
 import {openArena,openLsLobby,closeLsLobby,lsLobbyMsg,renderLsHud,showLsResult,type LsLobby,type LsRun,type LsOut} from './ls-ui';
 import {SIEGE_MS,HERO_DAMAGE,WALL_TOWERS,INNER_TOWERS,gateOf,gateLeft,siegeWindow,newSiege,loadSiege,saveSiege,siegePhase,siegeStats,siegeProgress,contribReward,earnsChest,victoryChest,ranking,loadTitle,grantTitle,HERO_TITLE,type SiegeSave} from './siege';
 import {dayEvent,spMult,xpMult,epMult,goldMult,sparkleMult,bossKillsNeeded} from './events';
@@ -1941,7 +1941,7 @@ const isoFace={east:false,north:false};let isoMove:IsoMove|null=null;
 // Bütün gemiler (başlangıç gemisi dahil) Seafight usulü 4 çaprazda merdiven hareketiyle gider
 const isoShip=()=>true;
 // 16 yönlü görseli olan gemi (özel tasarım ya da elit): hedefe dümdüz gider, görünüş gidiş yönünden seçilir
-const dir16Sprite=()=>ls?STARTER_DIR16:dom?DOM_TEAMS[dom.team].ship:session.isAdmin?ADMIN_DIR16:activeSpecialDesign?PIRATE_RAGE_DESIGN.dir16:eliteEnabled()?ELITE_DIR16[eliteShip().id]??null:STARTER_DIR16;
+const dir16Sprite=()=>ls?LS_SHIP:dom?DOM_TEAMS[dom.team].ship:session.isAdmin?ADMIN_DIR16:activeSpecialDesign?PIRATE_RAGE_DESIGN.dir16:eliteEnabled()?ELITE_DIR16[eliteShip().id]??null:STARTER_DIR16;
 // Düz gidiş (16 yönlü gemiler): yerde sabit hız, ekranda dikey bileşen yarı ölçekli (çapraz hareketle aynı perspektif)
 function straightAdvance(px:number,py:number,tx:number,ty:number,V:number,dt:number){
   const dx=tx-px,dy=ty-py,gx=dx,gy=dy*2,g=Math.hypot(gx,gy);
@@ -2785,7 +2785,7 @@ function captainHit(t:Enemy,s:Shot,from:Enemy|null){const dmg=Math.round(s.damag
   if(s.ammo==='leech'&&from){const h=leechHeal(dmg,true,from.maxHp);if(h>0){from.hp=Math.min(from.maxHp,from.hp+h);spawnSoul(t,from);}}
   if(from&&t.captain&&!t.captain.foe)t.captain.foe=from;if(t.hp<=0)sinkEnemy(t);}
 // Kaptan gemisi karesi: 16 yönlü görsel (çevrim içi oyuncu kendi yönünü gönderir; yoksa hızdan ya da son çaprazdan) ya da 4 çapraz
-function captainFrame(e:Enemy):[HTMLImageElement,number,number,number,number]|null{const c=e.captain!,d16=e.remoteShip==='dom-r'?DOM_TEAMS.r.ship:e.remoteShip==='dom-b'?DOM_TEAMS.b.ship:e.remoteShip==='admin'?ADMIN_DIR16:e.remoteShip==='starter'?STARTER_DIR16:ELITE_DIR16[c.elite];
+function captainFrame(e:Enemy):[HTMLImageElement,number,number,number,number]|null{const c=e.captain!,d16=e.remoteShip==='ls'?LS_SHIP:e.remoteShip==='dom-r'?DOM_TEAMS.r.ship:e.remoteShip==='dom-b'?DOM_TEAMS.b.ship:e.remoteShip==='admin'?ADMIN_DIR16:e.remoteShip==='starter'?STARTER_DIR16:ELITE_DIR16[c.elite];
   if(d16){const im=eliteIsoImage(d16);if(im.complete&&im.naturalWidth){const h=im.naturalHeight,r=e.remote;
     let k=e.dir16;if(k==null&&r&&Math.hypot(r.vx,r.vy)>25)k=(8+Math.round(Math.atan2(r.vy*2,r.vx)/(Math.PI/8))+16)%16;
     if(k==null){const f=e.face??{east:true,north:false};k=f.north?(f.east?6:2):(f.east?10:14);}

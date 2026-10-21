@@ -5,6 +5,8 @@ import {salvoDamage,reloadTime,rangeOf,type Loadout} from './combat';
 export const LS_NAME='Lanetli Sular: Hayatta Kalma';
 export const LS_SIZE=10,LS_COUNTDOWN_MS=15_000;
 export const LS_ICON='/assets/ls-icon-v1.webp';
+// Haritaya giren herkes aynı lanetli gemi görünümüyle (lanetli.sular.glb → 16 yön)
+export const LS_SHIP='/assets/ls-ship-dir16-v1.webp';
 // Eşit gemi: herkes tam top kapasitesiyle (315 döküm top), geliştirmesiz, bonussuz. Başlangıçta yalnız demir gülle (bedava, stoktan düşmez);
 // özel gülle ve malzemeler denize saçılmıştır, pırıltı gibi yenilenir, toplanıp kullanılır (envanter maça özeldir, hesaba geçmez).
 export const LS_LOADOUT:Loadout={cannons:315,type:'cast',upDamage:0,upReload:0,upRange:0,crewDamage:1,crewReload:1,crewRange:0,equipDamage:0,equipReload:0,equipRange:0,achDamage:0,eliteDamage:0,eliteReload:0,hero:0};
