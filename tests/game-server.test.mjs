@@ -319,3 +319,17 @@ test('domination: window, balance, zone and match flow',()=>{
   assert.deepEqual(mine,{pearls:300,ep:300});assert.equal(lost.pearls,100);assert.equal(red[0].credit.ep,300);
   S.domMatches.delete(m.id);
 });
+test('domination: spawn at base, 5 s lock after sinking, no repair',()=>{
+  const c={domTeam:'r',last:null,ws:{readyState:0}};const now=1e6;
+  assert.deepEqual(S.domMove(c,{x:3000,y:2000},now),{x:700,y:2000});// ilk giriş üs dışında olamaz
+  assert.equal(S.domMove(c,{x:720,y:2010},now),null);c.last={x:720,y:2010,at:now};
+  assert.equal(S.domMove(c,{x:1500,y:2000},now+100),null);// kilit yokken serbest
+  S.domSink(c,now);c.last={x:1500,y:2000,at:now};
+  assert.deepEqual(S.domMove(c,{x:1500,y:2000},now+50),{x:700,y:2000});// batınca üste doğmak zorunda
+  const s={x:650,y:1950};assert.equal(S.domMove(c,s,now+60),null);assert.equal(s.tp,1);
+  assert.deepEqual(S.domMove(c,{x:900,y:1950},now+1000),{x:650,y:1950});// 5 sn kıpırdayamaz
+  assert.equal(S.domLocked(c,now+1000),true);assert.equal(S.domLocked(c,now+5001),false);
+  assert.equal(S.domMove(c,{x:900,y:1950},now+5100),null);
+  // Tamir yok: can yalnız can emici payı kadar (tam can/200 sn) artabilir
+  const t={domTeam:'r',maxHp:1000};S.noteHp(t,500,0);S.noteHp(t,1000,10_000);assert.ok(t.pvp.hp<=500+1000*10/200+1);
+});
