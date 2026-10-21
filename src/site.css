@@ -100,3 +100,4 @@ body.home .nav nav a.on,body.home .nav nav a:not(.btn):hover{color:#f3c56b;borde
 @media (max-width:760px){.hero2{padding-top:180px}.hero2-text{max-width:none;width:100%}}
 .lg-closed{display:flex;flex-direction:column;gap:4px;margin-top:6px;padding:10px 12px;border:1px solid #b8904e88;border-radius:8px;background:#2a1a10cc;text-align:center}
 .lg-closed b{color:#f1c662;font-size:13px;letter-spacing:.08em}.lg-closed span{color:#d8c6a4;font-size:12px;line-height:1.4}
+.legal ul{margin:6px 0 10px;padding-left:20px;line-height:1.65}.legal li{margin:4px 0}.legal a{color:#e0b04f}

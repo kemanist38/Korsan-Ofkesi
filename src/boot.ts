@@ -5,7 +5,9 @@ import './auth.css';
 import {supa} from './supabase';
 import {loginWithName,setRemember,enforceRemember,sendReset,SIGNUPS_OPEN} from './login';
 import {session} from './session';
-import {onAppLink} from './native';
+import {onAppLink,isNativeApp,openExternal,SITE_URL} from './native';
+// Yasal sayfa bağlantıları: sitede yeni sekmede, uygulamada uygulama içi tarayıcıda (oyundan çıkmadan) açılır
+function bindLegal(){document.querySelectorAll<HTMLAnchorElement>('a[data-legal]').forEach(a=>a.onclick=e=>{e.preventDefault();const path=a.getAttribute('href')!;if(isNativeApp())void openExternal(SITE_URL+path);else window.open(path,'_blank','noopener');});}
 import {applySave,claimOwner,collectSave} from './cloud-save';
 import {nickError,saveProfile,NICK_MAX} from './profile';
 import type {SupabaseClient,User} from '@supabase/supabase-js';
@@ -27,8 +29,10 @@ function showLogin(sb:SupabaseClient,mode:'login'|'register'='login'){
   card(reg?'YENİ KAPTAN':'GİRİŞ',`<div class="auth-tabs"><button data-mode="login" class="${reg?'':'on'}">GİRİŞ</button>${SIGNUPS_OPEN?`<button data-mode="register" class="${reg?'on':''}">KAYIT OL</button>`:''}</div>${SIGNUPS_OPEN?'':'<p class="auth-closed">Kapalı test dönemi · yeni kayıt alınmıyor. Kayıtlar açılışla birlikte açılacak.</p>'}
   <form id="authForm">${reg?`<input id="authNick" placeholder="Kullanıcı adı (oyunda kaptan adın olur)" maxlength="${NICK_MAX}" autocomplete="username" spellcheck="false" required/><input id="authEmail" type="email" placeholder="E-posta (şifre sıfırlama için)" autocomplete="email" required/>`:`<input id="authEmail" placeholder="Kullanıcı adı" autocomplete="username" spellcheck="false" autocapitalize="off" required/>`}
   <input id="authPass" type="password" placeholder="Şifre (en az 6 karakter)" autocomplete="${reg?'new-password':'current-password'}" minlength="6" required/>
+  ${reg?'<label class="auth-terms"><input id="authTerms" type="checkbox" required/><span><a href="/sartlar/" data-legal>Hizmet Sözleşmesi</a>\'ni, <a href="/gizlilik/" data-legal>Gizlilik Politikası</a>\'nı ve <a href="/kurallar/" data-legal>Oyun Kuralları</a>\'nı okudum, kabul ediyorum. Kayıt olarak bu sözleşmeleri kabul etmiş olursun.</span></label>':''}
   <button type="submit" class="auth-main">${reg?'HESAP OLUŞTUR':'DENİZE AÇIL'}</button></form>
-  ${reg?'':'<button class="auth-link" id="authForgot">Şifremi unuttum</button>'}${GUEST_TEST?'<button class="auth-guest" id="authGuest">TEST: GİRİŞSİZ OYNA</button>':''}`);
+  ${reg?'':'<button class="auth-link" id="authForgot">Şifremi unuttum</button>'}<p class="auth-legal">${reg?'':'Giriş yaparak <a href="/sartlar/" data-legal>Hizmet Sözleşmesi</a>, <a href="/gizlilik/" data-legal>Gizlilik Politikası</a> ve <a href="/kurallar/" data-legal>Oyun Kuralları</a>\'nı kabul etmiş olursun.<br>'}© 2026 Pirate Rage: Korsan Öfkesi. Tüm hakları saklıdır.</p>${GUEST_TEST?'<button class="auth-guest" id="authGuest">TEST: GİRİŞSİZ OYNA</button>':''}`);
+  bindLegal();
   const guest=document.getElementById('authGuest');if(guest)guest.onclick=()=>{overlay().remove();void startGame();};
   document.querySelectorAll<HTMLButtonElement>('.auth-tabs button').forEach(b=>b.onclick=()=>showLogin(sb,b.dataset.mode as 'login'|'register'));
   const forgot=document.getElementById('authForgot');if(forgot)forgot.onclick=async()=>{const email=prompt('Hesabının e-posta adresini yaz, yeni şifre belirleme bağlantısı gönderelim:')?.trim()??'';if(!email)return;const err=await sendReset(sb,email);msg(err??'Bağlantı e-postana gönderildi. Gelen kutunu (ve spam klasörünü) kontrol et.',!err);};
