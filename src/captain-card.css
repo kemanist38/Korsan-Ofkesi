@@ -1,0 +1,22 @@
+/* Kaptan kimliği: seviye amblemi, rütbe madalyası, güverte nişanı */
+.cc-level{display:inline-block;flex:none;aspect-ratio:1;background:url(/assets/level-badges-v1.webp) no-repeat;background-size:800% 100%;filter:drop-shadow(0 2px 4px #000c)}
+.cc-rank{display:inline-block;flex:none;aspect-ratio:1;background-repeat:no-repeat;filter:drop-shadow(0 2px 4px #000c)}
+.cc-insignia{display:inline-block;flex:none;aspect-ratio:512/176;background-repeat:no-repeat;background-size:100% 500%;filter:drop-shadow(0 2px 4px #000c)}
+.cc-level.mid,.cc-rank.mid{width:44px}.cc-insignia.card{width:96px}
+.cc-level.big,.cc-rank.big{width:86px}.cc-insignia.big{width:190px;margin:13px 0}
+.cc-rank.hero{width:min(40vmin,240px);filter:drop-shadow(0 0 24px #ffb43acc) drop-shadow(0 6px 10px #000)}
+
+.cc-card{position:fixed;left:50%;top:calc(var(--strip,20px) + 30px);transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:10px;padding:6px 12px;border:1px solid #c69b4e88;border-radius:12px;background:linear-gradient(160deg,#1c1210ee,#08090bee);box-shadow:0 8px 22px #000b;pointer-events:none;max-width:calc(100vw - 24px)}
+.cc-card[hidden]{display:none}
+.cc-card .cc-who{display:flex;flex-direction:column;min-width:0}
+.cc-card strong{font:800 14px Inter,sans-serif;color:#ffe6a6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cc-card strong.adm{color:#ff9a1f}
+.cc-card small{font:700 10.5px Inter,sans-serif;color:#b9c7c6;white-space:nowrap}
+@media (max-width:700px){.cc-card{top:calc(var(--strip,20px) + 76px);gap:6px;padding:4px 8px}.cc-level.mid,.cc-rank.mid{width:34px}.cc-insignia.card{width:70px}.cc-card strong{font-size:12px}}
+
+.cc-trio{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
+.cc-trio article{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border:1px solid #c69b4e55;border-radius:10px;background:radial-gradient(circle at 50% 20%,#3a2414,#0b1418 75%)}
+.cc-trio strong{font:700 13px Cinzel,serif;color:#f3d496;text-align:center}
+.cc-bar{position:relative;display:block;width:100%;height:16px;border:1px solid #ad8154;border-radius:8px;background:#0a0705;overflow:hidden}
+.cc-bar em{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#b8862e,#ffd36a)}
+.cc-bar b{position:absolute;inset:0;display:grid;place-items:center;font:800 9.5px Inter,sans-serif;color:#fff;text-shadow:0 1px 2px #000,0 0 3px #000;white-space:nowrap}
+@media (max-width:560px){.cc-trio{grid-template-columns:1fr}.cc-level.big,.cc-rank.big{width:70px}}
