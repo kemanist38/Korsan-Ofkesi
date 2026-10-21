@@ -3782,8 +3782,11 @@ __export(game_server_exports, {
   pvpReset: () => pvpReset,
   questCooldowns: () => questCooldowns,
   questCredit: () => questCredit,
+  rageGain: () => rageGain,
+  rageUse: () => rageUse,
   rcAuthOk: () => rcAuthOk,
   resetSiege: () => resetSiege,
+  respawnPoint: () => respawnPoint,
   saveServerState: () => saveServerState,
   sbTake: () => sbTake,
   seaMap: () => seaMap,
@@ -3803,6 +3806,7 @@ __export(game_server_exports, {
   sparklePicked: () => sparklePicked,
   sparkleReward: () => sparkleReward,
   towerHit: () => towerHit,
+  tpAllowed: () => tpAllowed,
   treasureDig: () => treasureDig,
   treasures: () => treasures,
   verifyOsb: () => verifyOsb,
@@ -4165,7 +4169,12 @@ var IRON_EP_PER_BALL = 0.2;
 var ELITE_POINTS_PER_BALL = { chain: 1, fire: 1, breaker: 1, explosive: 2, leech: 2, heal: 2 };
 
 // src/rage.ts
+var RAGE_MAX = 100;
 var RAGE_DAMAGE = 1.25;
+var RAGE_SALVOS = 2;
+var RAGE_SECONDS = 4;
+var RAGE_PER_RIVAL = 34;
+var RAGE_PER_BOSS = 50;
 
 // src/combat.ts
 var CANNONS = {
@@ -5958,7 +5967,10 @@ function bossApply(c, dmg) {
       const sh = r.shares[x.uid];
       if (!sh) continue;
       const add = bossCredit(map, sh.share, r.n);
-      if (add) addCredit(x, add);
+      if (add) {
+        addCredit(x, add);
+        if (sh.share >= 0.03) rageGain(x, RAGE_PER_BOSS);
+      }
     }
   }
   for (const x of room || []) send(x, { t: "bdown", d: { id: r.id, n: r.n, ...r.shares[x.uid] ?? { share: 0, dmg: 0 } } });
@@ -6017,7 +6029,8 @@ async function onAttack(c, d, now) {
   const a = String(d?.a || "iron");
   if (tg.dom && (a === "heal" || tg.t.domTeam === c.domTeam)) return;
   if (!["iron", "chain", "fire", "explosive", "breaker", "leech", ...tg.k === "p" || tg.k === "t" ? ["heal"] : []].includes(a)) return;
-  const why = shotCheck(c, c.ld, a, tg.x === void 0 ? 0 : Math.hypot(c.last.x - tg.x, c.last.y - tg.y), now, !!d?.r);
+  const rr = rageUse(c, !!d?.r, now);
+  const why = shotCheck(c, c.ld, a, tg.x === void 0 ? 0 : Math.hypot(c.last.x - tg.x, c.last.y - tg.y), now, rr);
   if (why) {
     if (why !== "dolum") suspect(c, "at\u0131\u015F", why);
     return;
@@ -6037,7 +6050,7 @@ async function onAttack(c, d, now) {
   await applyUsage(c, { a, n: k, i, p: d?.p ? 1 : 0 }, null, now);
   if (c.sb) c.sb.pool = pool;
   if (c.econ === before && SERVER_SECRET && !(process.env.BENCH_AUTH === "1" && c.uid.startsWith("b"))) return;
-  const raw = salvoDamage(c.ld, a, k, i, !!d?.p, !!d?.r), dmg = raw * targetFactor(a, tg.kind);
+  const raw = salvoDamage(c.ld, a, k, i, !!d?.p, rr), dmg = raw * targetFactor(a, tg.kind);
   if (tg.k === "n") {
     const live = seaNpcs.get(c.sea)?.list.get(tg.n.id);
     if (!live) return;
@@ -6174,12 +6187,55 @@ function domMove(c, s, now) {
     if (Math.hypot(s.x - base.x, s.y - base.y) > DOM_BASE_R) return { x: base.x, y: base.y };
     c.domLock = { until: c.domLock?.until ?? 0, pos: { x: s.x, y: s.y }, spawn: false };
     s.tp = 1;
-    c.tpAt = 0;
+    c.tpFree = true;
     return null;
   }
   delete s.tp;
   if (domLocked(c, now) && c.domLock.pos && Math.hypot(s.x - c.domLock.pos.x, s.y - c.domLock.pos.y) > DOM_LOCK_SLACK) return c.domLock.pos;
   return null;
+}
+function tpAllowed(c, s, now) {
+  if (c.admin) return true;
+  if (c.tpFree) {
+    c.tpFree = false;
+    return true;
+  }
+  const t = c.tpTo;
+  if (t && now < t.until && Math.hypot(s.x - t.x, s.y - t.y) < 150) {
+    c.tpTo = null;
+    return true;
+  }
+  if (c.sea === SIEGE_ROOM && Math.hypot(s.x - 3e3, s.y - 2850) < 260) return true;
+  return false;
+}
+function respawnPoint(c, rand = Math.random) {
+  const map = seaMap(c.sea);
+  if (map && MAPS[map]) {
+    const p2 = pickSpot(map, rand);
+    return { x: p2.x, y: p2.y };
+  }
+  return null;
+}
+function rageGain(c, n) {
+  if (!c) return;
+  c.rage = Math.min(RAGE_MAX, (c.rage || 0) + n);
+  send(c, { t: "rage", d: { m: c.rage } });
+}
+function rageUse(c, want, now) {
+  if (!want) return false;
+  if ((c.rageLeft || 0) > 0 && now < (c.rageUntil || 0)) {
+    c.rageLeft--;
+    return true;
+  }
+  if ((c.rage || 0) >= RAGE_MAX) {
+    c.rage = 0;
+    c.rageLeft = RAGE_SALVOS - 1;
+    c.rageUntil = now + RAGE_SECONDS * 1e3 + 500;
+    send(c, { t: "rage", d: { m: 0 } });
+    return true;
+  }
+  suspect(c, "\xF6fke", "bar dolmadan");
+  return false;
 }
 function domPump(now) {
   if (domPending || domQueue.length < DOM_SIZE * 2) return false;
@@ -6410,7 +6466,7 @@ function lsMove(c, s) {
     if (Math.hypot(s.x - p2.spawn.x, s.y - p2.spawn.y) > 300) return p2.spawn;
     c.lsSpawned = true;
     s.tp = 1;
-    c.tpAt = 0;
+    c.tpFree = true;
     return null;
   }
   delete s.tp;
@@ -6887,10 +6943,7 @@ wss.on("connection", (ws) => {
         }
         let v = checkState(c.last, s, now);
         if (v === "bad") return;
-        if (v === "speed" && s.tp && now - (c.tpAt || 0) > 8e3) {
-          c.tpAt = now;
-          v = "ok";
-        }
+        if (v === "speed" && s.tp && tpAllowed(c, s, now)) v = "ok";
         delete s.tp;
         if (v === "bad") return;
         if (v === "speed") {
@@ -6964,6 +7017,10 @@ wss.on("connection", (ws) => {
           suspect(c, "sahte bat\u0131rma", String(s.by));
           s.by = null;
           s.byNick = null;
+        }
+        if (s.by) {
+          const k = [...seas.get(c.sea) || []].find((x) => x.netId === String(s.by));
+          if (k) rageGain(k, RAGE_PER_RIVAL);
         }
         if (s.by && domMatchOfSea(c.sea) === void 0) {
           const k = [...seas.get(c.sea) || []].find((x) => x.netId === String(s.by));
@@ -7117,6 +7174,16 @@ wss.on("connection", (ws) => {
       case "gref": {
         if (!c.rKill.hit(now)) return;
         c.guildId = await guildOf(c.uid).catch(() => c.guildId);
+        return;
+      }
+      // Gemi battı (NPC, kule, mayın ya da rakip): yeniden doğma noktasını sunucu seçer; ışınlanma yalnız oraya kabul edilir
+      case "died": {
+        if (!c.sea || !c.rKill.hit(now)) return;
+        const p2 = respawnPoint(c);
+        if (!p2) return;
+        c.tpTo = { x: p2.x, y: p2.y, until: now + 15e3 };
+        pvpReset(c);
+        send(c, { t: "respawn", d: { x: p2.x, y: p2.y } });
         return;
       }
       case "dom": {
@@ -7365,8 +7432,11 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   pvpReset,
   questCooldowns,
   questCredit,
+  rageGain,
+  rageUse,
   rcAuthOk,
   resetSiege,
+  respawnPoint,
   saveServerState,
   sbTake,
   seaMap,
@@ -7386,6 +7456,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   sparklePicked,
   sparkleReward,
   towerHit,
+  tpAllowed,
   treasureDig,
   treasures,
   verifyOsb,

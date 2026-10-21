@@ -401,3 +401,12 @@ test('chat moderation: duration parsing, admin mute and unmute',()=>{
 test('rival sinks count only with a credited (verified, daily-limited) sink',()=>{
   const k={uid:'killer1'},now=7e6;let n=0;for(let i=0;i<5;i++)if(S.spCredit(k,'victim1',now))n++;assert.equal(n,3);assert.equal(S.spCredit(k,'killer1',now),null);
 });
+test('teleport only to the server-chosen respawn point; rage only when the server meter is full',()=>{
+  const c={sea:'sea-3-1',ws:{readyState:0},strikes:0,playerNo:1,nick:'t'};const now=8e6;
+  assert.equal(S.tpAllowed(c,{x:100,y:100},now),false);// sebepsiz ışınlanma yok
+  const p=S.respawnPoint(c,()=>.5);assert.ok(p);c.tpTo={x:p.x,y:p.y,until:now+15000};
+  assert.equal(S.tpAllowed(c,{x:p.x+2000,y:p.y},now),false);assert.equal(S.tpAllowed(c,{x:p.x+20,y:p.y},now),true);assert.equal(S.tpAllowed(c,{x:p.x,y:p.y},now),false);// tek kullanımlık
+  assert.equal(S.rageUse(c,true,now),false);// bar boş
+  S.rageGain(c,34);S.rageGain(c,34);S.rageGain(c,34);assert.equal(c.rage,100);
+  assert.equal(S.rageUse(c,true,now),true);assert.equal(c.rage,0);assert.equal(S.rageUse(c,true,now+1000),true);assert.equal(S.rageUse(c,true,now+2000),false);// 2 salvo
+});
