@@ -82,3 +82,5 @@ html.touch .corner-buttons{top:calc(var(--strip) * -1 + 3px)!important}
   .corner-buttons .round-button{width:40px!important;height:40px!important}
 }
 @media (max-width:700px){.strip-stats .top-level{width:34px!important;height:34px!important;margin:-2px 2px -14px}}
+/* Seviye amblemi üst çerçevede gösterilmez; kaptan adının yanında durur */
+.strip-stats .top-level{display:none!important}

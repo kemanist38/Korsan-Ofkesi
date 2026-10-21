@@ -1566,10 +1566,12 @@ function drawRankBadge(c:CanvasRenderingContext2D,rank:number,x:number,y:number,
   const i=rankIcon(rank),cell=rankSheet.naturalWidth/RANK_COLS;c.drawImage(rankSheet,(i%RANK_COLS)*cell,Math.floor(i/RANK_COLS)*cell,cell,cell,x,y-size/2,size,size);return true;}
 // Kaptan adı (gölgeli, degrade yazı + rütbe rozeti) her karede yeniden çizilince kalabalık haritada kareyi yiyordu:
 // etiket ekran ölçeğinde bir kez ayrı tuvale çizilir, sonra tek drawImage ile basılır.
+// Rütbe rozeti ve seviye amblemi ad yazısıyla orantılı: yazı boyunun bu katı, yazının ortasına hizalı
+const NAME_BADGE=1.8;
 const nameCache=new Map<string,{c:HTMLCanvasElement;w:number;pad:number;h:number;sc:number}>();
 function renderCaptainName(tag:string,nick:string,size:number,rank:number,sc:number,adm=false){
   const m=document.createElement('canvas').getContext('2d')!,font=`900 ${size}px Inter, "Arial Black", sans-serif`;m.font=font;
-  const text=tag?`${tag} ${nick}`:nick,w=m.measureText(text).width,bs=rank>=0?Math.round(size*2.6):0,pad=8,tw=w+(bs?bs+3:0),h=Math.max(bs,size*1.6)+pad*2;
+  const text=tag?`${tag} ${nick}`:nick,w=m.measureText(text).width,bs=rank>=0?Math.round(size*NAME_BADGE):0,pad=8,tw=w+(bs?bs+3:0),h=Math.max(bs,size*1.6)+pad*2;
   const c=document.createElement('canvas');c.width=Math.ceil((tw+pad*2)*sc);c.height=Math.ceil(h*sc);const g=c.getContext('2d')!;g.scale(sc,sc);
   const y=h/2;g.font=font;g.textBaseline='middle';g.textAlign='left';g.lineJoin='round';if(bs)drawRankBadge(g,rank,pad,y,bs);const tx=pad+(bs?bs+3:0);
   // Yönetici adı altın-kırmızı, kırmızı parıltılı
@@ -1581,16 +1583,16 @@ function drawCaptainName(x:number,y:number,tag:string,nick:string,size=17,rank=-
   const key=`${size}|${rank}|${sc}|${tag}|${nick}|${adm?1:0}`;let l=ready?nameCache.get(key):undefined;
   if(!l){l=renderCaptainName(tag,nick,size,rank,sc,adm);if(ready){if(nameCache.size>300)nameCache.clear();nameCache.set(key,l);}}
   // Ad gemiye ortalı; rütbe rozeti adın soluna taşar
-  const bs=rank>=0?Math.round(size*2.6):0;ctx.drawImage(l.c,x-l.w/2-(bs?bs+3:0)-l.pad,y-l.h/2,l.c.width/l.sc,l.c.height/l.sc);return l.w;}
+  const bs=rank>=0?Math.round(size*NAME_BADGE):0;ctx.drawImage(l.c,x-l.w/2-(bs?bs+3:0)-l.pad,y-l.h/2,l.c.width/l.sc,l.c.height/l.sc);return l.w;}
 // Güverte nişanı: batırılan rakip sayısına göre kademe; geminin altında değil, kaptan profilinde ve oyuncu kartında büyük gösterilir
 let rivalSinks=ELITE_TEST_MODE?Math.max(loadRivalSinks(),12_500):loadRivalSinks();
-// Adın sağındaki küçük seviye amblemi (üst çerçevedeki rozetin aynısı)
+// Adın sağındaki küçük seviye amblemi
 const levelSheet=new Image();levelSheet.src='/assets/level-badges-v1.webp';
 function drawLevelMark(x:number,y:number,level:number,size:number){if(!levelSheet.complete||!levelSheet.naturalWidth)return;const i=Math.max(1,Math.min(MAX_LEVEL,level))-1,fw=levelSheet.naturalWidth/8;
   ctx.save();ctx.imageSmoothingQuality='high';ctx.shadowColor='#000c';ctx.shadowBlur=4;ctx.drawImage(levelSheet,i*fw,0,fw,levelSheet.naturalHeight,x-size/2,y-size/2,size,size);ctx.restore();}
 function drawPlayerLabel(){
   const p=worldToScreen(player),y=p.y+60,tag=guild?`[${guild.tag}]`:'',nick=profile.nick;
-  const w=drawCaptainName(p.x,y,tag,nick,17,battleRank(state.battlePoints).index,session.isAdmin);drawLevelMark(p.x+w/2+22,y,state.level,38);
+  const w=drawCaptainName(p.x,y,tag,nick,17,battleRank(state.battlePoints).index,session.isAdmin);drawLevelMark(p.x+w/2+4+17*NAME_BADGE/2,y,state.level,Math.round(17*NAME_BADGE));
 }
 // ---------------------------------------------------------------- Filo: hazine, bağış ve kule dikme
 function openGuild(){renderGuild();ui('guildOverlay').classList.add('open');void refreshCloudGuild();}
@@ -2820,7 +2822,7 @@ function captainFrame(e:Enemy):[HTMLImageElement,number,number,number,number]|nu
 let crowdedSea=false;
 function drawCaptain(e:Enemy,s:Vec){const fr=captainFrame(e);if(!fr)return;const [im,sx,h,D,ky]=fr;
   if(!crowdedSea)drawHullWater(e,100);ctx.save();ctx.translate(s.x,s.y);if((e.frozen??0)>0)ctx.filter='saturate(.4) brightness(1.3) hue-rotate(160deg)';ctx.drawImage(im,sx,0,h,h,-D/2,-D*ky,D,D);ctx.restore();
-  const top=-122;if(siege&&isAlly(e))drawHealthBar(s.x,s.y+44,80,e.hp/e.maxHp,'#4fd18a');else if(dom&&e.remote?.tm)drawHealthBar(s.x,s.y+44,80,e.hp/e.maxHp,DOM_TEAMS[e.remote.tm as DomTeam]?.color??'#ccc');{const sp=e.remote?.sp??TEST_RANKERS.find(r=>r.nick===e.name)?.sp??0,show=!settings.hideOthersInsignia;const w=drawCaptainName(s.x,s.y+top-11,'',e.name,14,show?battleRank(sp).index:-1,!!e.remote?.adm);if(e.remote?.level)drawLevelMark(s.x+w/2+20,s.y+top-11,e.remote.level,32);}}
+  const top=-122;if(siege&&isAlly(e))drawHealthBar(s.x,s.y+44,80,e.hp/e.maxHp,'#4fd18a');else if(dom&&e.remote?.tm)drawHealthBar(s.x,s.y+44,80,e.hp/e.maxHp,DOM_TEAMS[e.remote.tm as DomTeam]?.color??'#ccc');{const sp=e.remote?.sp??TEST_RANKERS.find(r=>r.nick===e.name)?.sp??0,show=!settings.hideOthersInsignia;const w=drawCaptainName(s.x,s.y+top-11,'',e.name,14,show?battleRank(sp).index:-1,!!e.remote?.adm);if(e.remote?.level)drawLevelMark(s.x+w/2+4+14*NAME_BADGE/2,s.y+top-11,e.remote.level,Math.round(14*NAME_BADGE));}}
 // Capture once at death, then fade the same pose without new particles or assets.
 function spawnWreck(o:Enemy){
   if(!onScreen(o,320))return;
