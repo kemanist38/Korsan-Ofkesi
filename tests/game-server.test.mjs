@@ -410,3 +410,9 @@ test('teleport only to the server-chosen respawn point; rage only when the serve
   S.rageGain(c,34);S.rageGain(c,34);S.rageGain(c,34);assert.equal(c.rage,100);
   assert.equal(S.rageUse(c,true,now),true);assert.equal(c.rage,0);assert.equal(S.rageUse(c,true,now+1000),true);assert.equal(S.rageUse(c,true,now+2000),false);// 2 salvo
 });
+test('server NPCs cannot sail through islands',async()=>{
+  const key=Object.keys(S.MAPS_FOR_TEST??{}).find(k=>S.MAPS_FOR_TEST[k].islands.length)??null;
+  const m=key?S.MAPS_FOR_TEST[key]:null;assert.ok(m,"a map with islands exists");const is=m.islands[0],shore=is.r*.72+28;
+  const n={id:`${key}:1`,def:{speed:200},x:is.x-shore-30,y:is.y,hx:is.x-shore-30,hy:is.y,wx:is.x+shore+300,wy:is.y,aggro:null,aggroUntil:0};
+  for(let i=0;i<200;i++){S.npcMove(n,.2,[],0);assert.ok(Math.hypot(n.x-is.x,n.y-is.y)>=shore-.5,'NPC stays out of the island');}
+});
