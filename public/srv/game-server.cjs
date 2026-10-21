@@ -3733,6 +3733,20 @@ __export(game_server_exports, {
   lootInfo: () => lootInfo,
   lootTake: () => lootTake,
   lootTick: () => lootTick,
+  lsAttack: () => lsAttack,
+  lsDrop: () => lsDrop,
+  lsFinish: () => lsFinish,
+  lsLobby: () => lsLobby,
+  lsMatchOfSea: () => lsMatchOfSea,
+  lsMatches: () => lsMatches,
+  lsMove: () => lsMove,
+  lsOpen: () => lsOpen,
+  lsOut: () => lsOut,
+  lsPending: () => lsPending,
+  lsPump: () => lsPump,
+  lsQueue: () => lsQueue,
+  lsStart: () => lsStart,
+  lsStep: () => lsStep,
   noteHp: () => noteHp,
   noteSalvo: () => noteSalvo,
   noteUse: () => noteUse,
@@ -4403,6 +4417,36 @@ function domWinner(s) {
 }
 var domReward = (team, win, balls) => ({ pearls: win === null ? DOM_PEARLS.draw : win === team ? DOM_PEARLS.win : DOM_PEARLS.lose, ep: Math.max(0, Math.round(balls)) * DOM_EP_PER_BALL });
 
+// src/cursed.ts
+var LS_SIZE = 10;
+var LS_COUNTDOWN_MS = 15e3;
+var LS_LOADOUT = { cannons: 40, type: "cast", upDamage: 0, upReload: 0, upRange: 0, crewDamage: 1, crewReload: 1, crewRange: 0, equipDamage: 0, equipReload: 0, equipRange: 0, achDamage: 0, eliteDamage: 0, eliteReload: 0, hero: 0 };
+var LS_SALVO = Math.round(salvoDamage(LS_LOADOUT, "iron", 0, LS_LOADOUT.cannons, false, false));
+var LS_RELOAD = reloadTime(LS_LOADOUT, "iron");
+var LS_RANGE = rangeOf(LS_LOADOUT);
+var LS_HP = LS_SALVO * 14;
+var LS_START_R = 3700;
+var LS_RADII = [2300, 1400, 750, 300, 0];
+var LS_PHASE_MS = 6e4;
+var LS_SHRINK_MS = 2e4;
+var LS_FOG_DPS = [0.02, 0.04, 0.08, 0.15, 0.25, 0.25];
+var LS_MATCH_MS = LS_PHASE_MS * (LS_RADII.length + 1);
+var LS_PEARLS = [500, 300, 200];
+var LS_PEARLS_REST = 50;
+var LS_KILL_PEARLS = 25;
+var LS_EP_PER_BALL = 2;
+function lsZoneAt(f, now) {
+  const k = Math.max(0, Math.min(1, (now - f.at) / LS_SHRINK_MS));
+  return { x: f.from.x + (f.to.x - f.from.x) * k, y: f.from.y + (f.to.y - f.from.y) * k, r: f.from.r + (f.to.r - f.from.r) * k };
+}
+function lsNext(cur, r, rand = Math.random) {
+  const room = Math.max(0, cur.r - r), a = rand() * Math.PI * 2, d = Math.sqrt(rand()) * room;
+  const x = Math.max(r, Math.min(6e3 - r, cur.x + Math.cos(a) * d)), y = Math.max(r, Math.min(4e3 - r, cur.y + Math.sin(a) * d));
+  return { x: r ? x : cur.x + Math.cos(a) * d, y: r ? y : cur.y + Math.sin(a) * d, r };
+}
+var lsReward = (rank, kills, balls) => ({ pearls: (LS_PEARLS[rank - 1] ?? LS_PEARLS_REST) + kills * LS_KILL_PEARLS, ep: Math.max(0, Math.round(balls)) * LS_EP_PER_BALL });
+var lsSpawn = (i, n) => ({ x: Math.round(3e3 + Math.cos(i / n * Math.PI * 2) * 1700), y: Math.round(2e3 + Math.sin(i / n * Math.PI * 2) * 1300) });
+
 // src/level-quest.ts
 var levelQuestTargets = (level) => ({ ships: [`n${level}-1-heavy`, `n${level}-2-heavy`], tier: level });
 var levelQuestMap = (level) => `${level}/1`;
@@ -4561,7 +4605,7 @@ var COMBAT_HEAL_SECONDS = 200;
 var COMBAT_MS = 1e4;
 function noteHp(t, hp, now) {
   const p2 = pvpOf(t), max = t.maxHp || hp, secs = t.domTeam || now - (p2.hitAt ?? -1e12) < COMBAT_MS ? COMBAT_HEAL_SECONDS : HEAL_SECONDS;
-  p2.hp = p2.hp === null ? hp : Math.min(hp, Math.min(max, p2.hp + Math.max(0, now - p2.at) * max / secs / 1e3));
+  p2.hp = p2.hp === null ? Math.min(hp, max) : Math.min(hp, Math.min(max, p2.hp + (t.lsOn ? 0 : Math.max(0, now - p2.at) * max / secs / 1e3)));
   p2.at = now;
 }
 function godCheck(t) {
@@ -5111,6 +5155,13 @@ function canJoin(c, name, now = Date.now()) {
   if (c.admin && name !== SIEGE_ROOM && MAPS[seaMap(name)]) return true;
   if (!c.econ) return false;
   if (name === SIEGE_ROOM) return siegeWindowAt(now).open || SIEGE_TRIAL;
+  {
+    const id = lsMatchOfSea(name);
+    if (id !== void 0) {
+      const m = lsMatches.get(id);
+      return !!m && !m.result && !!m.players.get(c.uid)?.alive;
+    }
+  }
   {
     const id = domMatchOfSea(name);
     if (id !== void 0) {
@@ -5830,6 +5881,10 @@ function attackTarget(c, d) {
     const f = MAPS[key].fleet, [dx, dy] = FLEET.towers[slot] ?? [0, 0];
     return { k, key, slot, x: f.x + dx, y: f.y + dy, kind: "tower" };
   }
+  if (k === "p" && lsMatchOfSea(c.sea) !== void 0) {
+    const t = [...seas.get(c.sea) || []].find((x) => x.netId === id && x !== c);
+    return t?.last && t.lsOn && c.lsOn ? { k, t, x: t.last.x, y: t.last.y, kind: "player", ls: true } : null;
+  }
   if (k === "p" && domMatchOfSea(c.sea) !== void 0) {
     const t = [...seas.get(c.sea) || []].find((x) => x.netId === id && x !== c);
     return t?.last && t.domTeam && !domLocked(t, Date.now()) ? { k, t, x: t.last.x, y: t.last.y, kind: "player", dom: true } : null;
@@ -5843,9 +5898,14 @@ function attackTarget(c, d) {
   return null;
 }
 async function onAttack(c, d, now) {
-  if (!c.ldRaw || !c.last) return;
+  if (!c.last) return;
   const tg = attackTarget(c, d);
   if (!tg) return;
+  if (tg.ls) {
+    lsAttack(c, tg.t, now);
+    return;
+  }
+  if (!c.ldRaw) return;
   c.ld = buildLoadout(c.econ, c.ldRaw);
   if (!c.ld) return;
   const a = String(d?.a || "iron");
@@ -6117,10 +6177,11 @@ function onDom(c, d, now) {
         send(c, { t: "dom", d: { k: "err", msg: "Deniz Hakimiyeti \u015Fu an kapal\u0131" } });
         return;
       }
-      if (domInMatch(c)) {
+      if (domInMatch(c) || lsInMatch(c)) {
         send(c, { t: "dom", d: { k: "err", msg: "Zaten bir ma\xE7tas\u0131n" } });
         return;
       }
+      lsDrop(c);
       if (!domQueue.includes(c) && !domPending?.list.includes(c)) domQueue.push(c);
       domPump(now);
     } else domDrop(c);
@@ -6138,6 +6199,232 @@ function onDom(c, d, now) {
   }
 }
 setInterval(() => domTick(Date.now()), 1e3).unref();
+var LS_TRIAL = process.env.LS_TRIAL === "1";
+var lsQueue = [];
+var lsMatches = /* @__PURE__ */ new Map();
+var lsPending = null;
+var lsMatchOfSea = (sea2) => /^sea-ls-([a-z0-9]+)$/.exec(sea2 || "")?.[1];
+var lsOpen = (c, now) => domWindowAt(now).open || LS_TRIAL || !!c?.admin;
+var lsInMatch = (c) => [...lsMatches.values()].some((m) => !m.result && m.players.get(c.uid)?.alive);
+function lsLobby(c, now = Date.now()) {
+  const p2 = lsPending;
+  return { k: "lobby", open: lsOpen(c, now), q: (p2 ? p2.list : lsQueue.slice(0, LS_SIZE)).map(domNick), me: lsQueue.includes(c) || !!p2?.list.includes(c), at: p2 ? p2.at : 0, live: lsMatches.size };
+}
+function lsBroadcast(now) {
+  const to = new Set([...all].filter((x) => x.lsWatch));
+  for (const x of lsQueue) to.add(x);
+  for (const x of lsPending?.list ?? []) to.add(x);
+  for (const x of to) send(x, { t: "ls", d: lsLobby(x, now) });
+}
+function lsPump(now) {
+  if (lsPending || lsQueue.length < LS_SIZE) return false;
+  lsPending = { list: lsQueue.splice(0, LS_SIZE), at: now + LS_COUNTDOWN_MS };
+  return true;
+}
+function lsDrop(c) {
+  const i = lsQueue.indexOf(c);
+  if (i >= 0) lsQueue.splice(i, 1);
+  if (lsPending?.list.includes(c)) {
+    lsQueue.unshift(...lsPending.list.filter((x) => x !== c && all.has(x)));
+    lsPending = null;
+  }
+}
+var lsFogInfo = (m) => ({ from: m.fog.from, to: m.fog.to, at: m.fog.at, phase: m.fog.phase, now: Date.now() });
+function lsStart(now, pend = lsPending, rand = Math.random) {
+  const id = import_node_crypto.default.randomUUID().replace(/-/g, "").slice(0, 10), players = /* @__PURE__ */ new Map();
+  const order = [...pend.list].sort(() => rand() - 0.5);
+  order.forEach((x, i) => players.set(x.uid, { nick: domNick(x), alive: true, kills: 0, balls: 0, rank: 0, spawn: lsSpawn(i, order.length) }));
+  const z = { x: 3e3, y: 2e3, r: LS_START_R };
+  const m = { id, players, fog: { from: z, to: z, at: now, phase: 0 }, start: now, end: now + LS_MATCH_MS, result: null };
+  lsMatches.set(id, m);
+  if (pend === lsPending) lsPending = null;
+  for (const x of order) {
+    const p2 = players.get(x.uid);
+    x.lsOn = true;
+    x.lsMatch = id;
+    x.lsSpawned = false;
+    x.maxHp = LS_HP;
+    pvpReset(x);
+    if (x.pvp) x.pvp.hp = LS_HP;
+    else {
+      x.pvp = { budget: null, heal: null, hp: LS_HP, at: now, from: /* @__PURE__ */ new Map() };
+    }
+    send(x, { t: "ls", d: { k: "start", id, spawn: p2.spawn, n: order.length, end: m.end, fog: lsFogInfo(m) } });
+  }
+  log("LANETL\u0130 SULAR BA\u015ELADI", id, order.length);
+  return m;
+}
+function lsMove(c, s) {
+  const m = lsMatches.get(c.lsMatch), p2 = m?.players.get(c.uid);
+  if (!p2 || !num(s?.x) || !num(s?.y)) return null;
+  if (!c.lsSpawned) {
+    if (Math.hypot(s.x - p2.spawn.x, s.y - p2.spawn.y) > 300) return p2.spawn;
+    c.lsSpawned = true;
+    s.tp = 1;
+    c.tpAt = 0;
+    return null;
+  }
+  delete s.tp;
+  return null;
+}
+var lsAlive = (m) => [...m.players.values()].filter((p2) => p2.alive).length;
+function lsOut(c, killer, now, left = false) {
+  const m = lsMatches.get(c.lsMatch), p2 = m?.players.get(c.uid);
+  if (!m || !p2?.alive || m.result) return null;
+  p2.alive = false;
+  p2.rank = lsAlive(m) + 1;
+  c.lsOn = false;
+  pvpReset(c);
+  if (c.netId && lsMatchOfSea(c.sea) === m.id) toSea(c, { t: "leave", id: c.netId });
+  const k = killer && killer !== c && killer.lsOn ? m.players.get(killer.uid) : null;
+  if (k) k.kills++;
+  const add = lsReward(p2.rank, p2.kills, p2.balls);
+  if (!left) {
+    addCredit(c, add);
+    send(c, { t: "ls", d: { k: "out", rank: p2.rank, n: m.players.size, kills: p2.kills, ...add } });
+    void flushCredit(c);
+  }
+  const room = seas.get(`sea-ls-${m.id}`);
+  const msg = JSON.stringify({ t: "ls", d: { k: "alive", n: lsAlive(m), out: p2.nick, by: k?.nick ?? null } });
+  for (const x of room || []) send(x, msg);
+  if (lsAlive(m) <= 1) lsFinish(m, now, [...all, c, ...killer ? [killer] : []]);
+  return { rank: p2.rank, add };
+}
+function lsFinish(m, now, clients = [...all]) {
+  if (m.result) return;
+  const alive = [...m.players].filter(([, p2]) => p2.alive).map(([uid, p2]) => ({ uid, p: p2, x: clients.find((y) => y.uid === uid && y.lsMatch === m.id) })).sort((a, b) => (b.x?.pvp?.hp ?? -1) - (a.x?.pvp?.hp ?? -1));
+  alive.forEach(({ p: p2, x }, i) => {
+    p2.alive = false;
+    p2.rank = i + 1;
+    if (!x) return;
+    x.lsOn = false;
+    const add = lsReward(p2.rank, p2.kills, p2.balls);
+    addCredit(x, add);
+    send(x, { t: "ls", d: { k: "out", rank: p2.rank, n: m.players.size, kills: p2.kills, win: p2.rank === 1, ...add } });
+    void flushCredit(x);
+  });
+  for (const p2 of m.players.values()) p2.alive = false;
+  m.result = { at: now };
+  m.end = now;
+  log("LANETL\u0130 SULAR B\u0130TT\u0130", m.id, alive[0]?.p.nick ?? "-");
+}
+function lsAttack(c, t, now) {
+  const m = lsMatches.get(c.lsMatch), me = m?.players.get(c.uid);
+  if (!me?.alive || !m.players.get(t.uid)?.alive) return;
+  const why = shotCheck(c, LS_LOADOUT, "iron", Math.hypot(c.last.x - t.last.x, c.last.y - t.last.y), now, false);
+  if (why) {
+    if (why !== "dolum") suspect(c, "at\u0131\u015F", why);
+    return;
+  }
+  me.balls += LS_LOADOUT.cannons;
+  const raw = salvoDamage(LS_LOADOUT, "iron", 0, LS_LOADOUT.cannons, false, false) * targetFactor("iron", "player");
+  const f = { from: c.netId, to: t.netId, x: Math.round(c.last.x), y: Math.round(c.last.y), tx: Math.round(t.last.x), ty: Math.round(t.last.y), ammo: "iron", damage: pvpGuard(t, raw, now) };
+  pvpOf(t).from.set(c.netId, now);
+  toNear(c, { t: "fire", d: f }, t.netId);
+  if (godCheck(t)) {
+    suspect(t, "\xF6l\xFCms\xFCz");
+    send(t, { t: "forceSink", d: { by: c.netId, byNick: c.nick } });
+    toSea(t, { t: "sunk", d: { victim: t.netId, victimNick: t.nick, by: c.netId, byNick: c.nick } });
+    lsOut(t, c, now);
+  }
+}
+function lsStep(m, room, now, rand = Math.random) {
+  let changed = false;
+  if (m.fog.phase < LS_RADII.length && now >= m.start + (m.fog.phase + 1) * LS_PHASE_MS) {
+    const cur = lsZoneAt(m.fog, now);
+    m.fog = { from: cur, to: lsNext(cur, LS_RADII[m.fog.phase], rand), at: now, phase: m.fog.phase + 1 };
+    changed = true;
+  }
+  const z = lsZoneAt(m.fog, now), hits = [];
+  for (const x of room || []) {
+    if (!x.lsOn || x.lsMatch !== m.id || !x.last) continue;
+    if (Math.hypot(x.last.x - z.x, x.last.y - z.y) <= z.r) continue;
+    const dmg = Math.round(LS_HP * LS_FOG_DPS[Math.min(m.fog.phase, LS_FOG_DPS.length - 1)]);
+    const p2 = pvpOf(x);
+    if (p2.hp === null) p2.hp = LS_HP;
+    p2.hp -= dmg;
+    hits.push([x, dmg, p2.hp <= 0]);
+  }
+  return { changed, hits };
+}
+function lsTick(now) {
+  if (lsPending) {
+    if (lsPending.list.some((x) => !all.has(x) || !x.uid)) {
+      for (const x of lsPending.list.filter((y) => !all.has(y))) lsDrop(x);
+      lsBroadcast(now);
+    } else if (now >= lsPending.at) {
+      lsStart(now);
+      lsBroadcast(now);
+    }
+  }
+  for (const [id, m] of lsMatches) {
+    const room = seas.get(`sea-ls-${id}`);
+    if (m.result) {
+      if (now - m.end > 6e4 || !room?.size) lsMatches.delete(id);
+      continue;
+    }
+    for (const [uid, p2] of m.players) {
+      if (!p2.alive) continue;
+      const x = [...all].find((y) => y.uid === uid);
+      if (!x || now - m.start > 2e4 && x.sea !== `sea-ls-${id}`) {
+        if (x) lsOut(x, null, now, true);
+        else {
+          p2.alive = false;
+          p2.rank = lsAlive(m) + 1;
+        }
+      }
+    }
+    if (m.result) continue;
+    if (lsAlive(m) <= 1) {
+      lsFinish(m, now);
+      continue;
+    }
+    const r = lsStep(m, room, now);
+    if (r.changed) {
+      const msg = JSON.stringify({ t: "ls", d: { k: "fog", fog: lsFogInfo(m), n: lsAlive(m) } });
+      for (const x of room || []) send(x, msg);
+    }
+    for (const [x, dmg, dead] of r.hits) {
+      send(x, { t: "ls", d: { k: "burn", dmg } });
+      if (dead) {
+        send(x, { t: "forceSink", d: { by: "", byNick: "Lanetli Sis" } });
+        toSea(x, { t: "sunk", d: { victim: x.netId, victimNick: x.nick, by: null, byNick: "Lanetli Sis" } });
+        lsOut(x, null, now);
+      }
+    }
+    if (now >= m.end) lsFinish(m, now);
+  }
+}
+function onLs(c, d, now) {
+  const k = String(d?.k || "");
+  if (k === "watch") {
+    c.lsWatch = !!d?.on;
+    send(c, { t: "ls", d: lsLobby(c, now) });
+    return;
+  }
+  if (k === "q") {
+    if (d?.on) {
+      if (!lsOpen(c, now)) {
+        send(c, { t: "ls", d: { k: "err", msg: "Lanetli Sular \u015Fu an kapal\u0131" } });
+        return;
+      }
+      if (lsInMatch(c) || domInMatch(c)) {
+        send(c, { t: "ls", d: { k: "err", msg: "Zaten bir ma\xE7tas\u0131n" } });
+        return;
+      }
+      domDrop(c);
+      if (!lsQueue.includes(c) && !lsPending?.list.includes(c)) lsQueue.push(c);
+      lsPump(now);
+    } else lsDrop(c);
+    lsBroadcast(now);
+    return;
+  }
+  if (k === "leave") {
+    if (c.lsOn) lsOut(c, null, now, true);
+    return;
+  }
+}
+setInterval(() => lsTick(Date.now()), 1e3).unref();
 async function flushCredit(c) {
   if (c.flushing || !c.uid) return;
   c.flushing = true;
@@ -6317,6 +6604,15 @@ wss.on("connection", (ws) => {
             return;
           }
         }
+        if (!c.lsOn && lsMatchOfSea(c.sea) !== void 0) return;
+        if (c.lsOn) {
+          const r = lsMove(c, s);
+          if (r) {
+            send(c, { t: "pos", d: r });
+            return;
+          }
+          s.maxHp = LS_HP;
+        }
         let v = checkState(c.last, s, now);
         if (v === "bad") return;
         if (v === "speed" && s.tp && now - (c.tpAt || 0) > 8e3) {
@@ -6339,7 +6635,8 @@ wss.on("connection", (ws) => {
             return;
           }
         }
-        if (num(s.maxHp)) {
+        if (c.lsOn) c.maxHp = LS_HP;
+        else if (num(s.maxHp)) {
           const cap = hpCap(c.econ);
           if (s.maxHp > cap * 1.02) {
             suspect(c, "can s\u0131n\u0131r\u0131", `${Math.round(s.maxHp)}>${cap}`);
@@ -6362,6 +6659,13 @@ wss.on("connection", (ws) => {
               send(c, { t: "ahp", d: { hp: s.hp, max: ev.max } });
             }
           }
+        }
+        if (c.lsOn) {
+          const ph = c.pvp?.hp;
+          if (num(s.hp) && ph != null) s.hp = Math.max(0, Math.min(s.hp, Math.round(ph)));
+          s.ship = "starter";
+          delete s.adm;
+          delete s.tag;
         }
         if (c.domTeam && domMatchOfSea(c.sea) !== void 0) {
           const ph = c.pvp?.hp;
@@ -6394,6 +6698,11 @@ wss.on("connection", (ws) => {
           if (add) addCredit(k, add);
         }
         if (c.domTeam) domSink(c, now);
+        if (c.lsOn) {
+          lsOut(c, s.by ? [...seas.get(c.sea) || []].find((x) => x.netId === String(s.by)) : null, now);
+          toSea(c, { t: "sunk", d: s });
+          return;
+        }
         pvpReset(c);
         toSea(c, { t: "sunk", d: s });
         return;
@@ -6425,6 +6734,7 @@ wss.on("connection", (ws) => {
         return;
       // NPC batırmasını sunucu kendisi sayar (npcDeath); oyuncunun bildirdiği batırma kabul edilmez
       case "salvo": {
+        if (c.lsOn) return;
         if (!c.rSalvo.hit(now)) {
           suspect(c, "salvo h\u0131z\u0131");
           return;
@@ -6433,7 +6743,7 @@ wss.on("connection", (ws) => {
         return;
       }
       case "use": {
-        if (!c.rUse.hit(now)) return;
+        if (c.lsOn || !c.rUse.hit(now)) return;
         const id = String(m.d?.id || ""), before = c.econ;
         await applyUsage(c, null, id, now);
         if (id === "mine" && (c.econ !== before || !SERVER_SECRET || process.env.BENCH_AUTH === "1" && c.uid.startsWith("b"))) {
@@ -6538,6 +6848,11 @@ wss.on("connection", (ws) => {
         onDom(c, m.d, now);
         return;
       }
+      case "ls": {
+        if (!c.rUse.hit(now)) return;
+        onLs(c, m.d, now);
+        return;
+      }
       case "chat": {
         if (!c.rChat.hit(now)) return;
         const text = String(m.d?.text || "").slice(0, LIMITS.chatLen).trim();
@@ -6583,6 +6898,7 @@ wss.on("connection", (ws) => {
     leaveSea(c);
     all.delete(c);
     domDrop(c);
+    lsDrop(c);
     if (c.uid) log("\xC7IKI\u015E", `#${c.playerNo}`, c.nick);
   });
   ws.on("error", () => {
@@ -6699,6 +7015,20 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   lootInfo,
   lootTake,
   lootTick,
+  lsAttack,
+  lsDrop,
+  lsFinish,
+  lsLobby,
+  lsMatchOfSea,
+  lsMatches,
+  lsMove,
+  lsOpen,
+  lsOut,
+  lsPending,
+  lsPump,
+  lsQueue,
+  lsStart,
+  lsStep,
   noteHp,
   noteSalvo,
   noteUse,
