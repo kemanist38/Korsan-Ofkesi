@@ -20,11 +20,14 @@ export function setupCapPlate(o:{nick:()=>string}){
     const n=m.querySelector<HTMLElement>('.chat-n')!;setInterval(()=>{const c=$('#chatToggle .chat-n');n.hidden=!c||c.hidden;n.textContent=c?.textContent??'';},500);
     m.onclick=()=>{if(!$('.chat')?.classList.contains('open'))$<HTMLButtonElement>('#chatToggle')?.click();$<HTMLButtonElement>('[data-chat-tab="pm"]')?.click();};}
 }
-// Haritanın sağında: alt alta Dünya, Görevler, Etkinlikler; Dünya'nın sağında aynı sırada Grup, Arkadaşlar, Arena
+// Haritanın sağında Dünya; Görevler, Grup, Arkadaşlar, Arena ve Etkinlikler sol üstte tek sırada
 function setupSideButtons(){const cl=$('.map-cluster');if(!cl)return;
   const ev=document.createElement('button');ev.type='button';ev.className='world-map-button cp-ev';ev.setAttribute('aria-label','Etkinlikler');
   ev.innerHTML='<img src="/assets/icon-events-v1.webp" alt="" draggable="false"/><span>ETKİNLİKLER</span>';
-  ev.onclick=e=>{e.stopPropagation();$<HTMLButtonElement>('.map-cluster .day-badge')?.click();};cl.append(ev);cl.classList.add('cp-side');}
+  ev.onclick=e=>{e.stopPropagation();$<HTMLButtonElement>('.map-cluster .day-badge')?.click();};cl.classList.add('cp-side');
+  // Dünya dışındakiler sol üstte tek sıra
+  const row=document.createElement('div');row.className='cp-top';document.body.append(row);
+  for(const q of ['#openQuestTop','.grp-btn','.fr-btn','.arena-button']){const b=$(q);if(b)row.append(b);}row.append(ev);}
 // Casus: menü penceresinin başında
 function setupMenuSpy(){const spy=$('#spyGo'),grid=$('#menuOverlay .menu-grid');if(!spy||!grid)return;
   const w=document.createElement('div');w.className='cp-spy';w.innerHTML='<img src="/assets/icon-spy-v1.webp" alt="" draggable="false"/><b>CASUS GÖNDER</b>';w.append(spy);grid.before(w);}
