@@ -1,0 +1,28 @@
+/* Deniz Antlaşması: üstteki rozet ve oylama penceresi */
+.treaty-pill{position:fixed;left:50%;top:calc(var(--strip,40px) + 8px);transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:6px;padding:3px 12px 3px 4px;border:1px solid #c69b4e88;border-radius:18px;background:linear-gradient(160deg,#2a1a10ee,#120a06ee);color:#f3e2bd;font:700 11px Inter,sans-serif;cursor:pointer;box-shadow:0 4px 14px #000a}
+.treaty-pill[hidden]{display:none}
+.treaty-pill img{width:28px;height:28px;object-fit:contain}
+.treaty-pill span{display:flex;align-items:center;gap:6px;white-space:nowrap}.treaty-pill b{color:#ffd56a;letter-spacing:.06em}
+.treaty-pill i{display:block;width:70px;height:6px;border-radius:3px;background:#ffffff1a;overflow:hidden}.treaty-pill em{display:block;height:100%;background:linear-gradient(90deg,#c9892a,#ffe08a)}
+.treaty-pill.vote{border-color:#ffd56a;animation:treatyPulse 1.6s ease-in-out infinite}.treaty-pill.fx b{color:#7fe0b0}
+@keyframes treatyPulse{0%,100%{box-shadow:0 0 0 #ffd56a00}50%{box-shadow:0 0 16px #ffd56a99}}
+@media (max-width:700px){.treaty-pill{top:calc(var(--strip,40px) + 26px);font-size:10px}.treaty-pill img{width:22px;height:22px}.treaty-pill i{width:46px}}
+.treaty-overlay{position:fixed;z-index:60}
+.treaty-log{width:min(720px,calc(100vw - 24px));max-height:calc(100vh - 24px)}
+.treaty-head{display:flex;align-items:center;gap:12px;margin-top:12px}.treaty-head img{width:64px;height:64px;object-fit:contain;flex:none}
+.treaty-status{margin:0;color:#c9d7d6;font-size:13px;line-height:1.5}.treaty-status b{color:#ffd56a}
+.treaty-opts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.treaty-opt{display:flex;flex-direction:column;gap:6px;padding:12px;border:1px solid #c69b4e55;border-radius:9px;background:linear-gradient(160deg,#0d2730,#06151b);color:#e8dcc0;text-align:left;cursor:pointer}
+.treaty-opt:disabled{cursor:default}.treaty-opt:not(:disabled):hover{border-color:#ffd56a}
+.treaty-opt b{font:700 13px Cinzel,serif;color:#f3d496}.treaty-opt small{color:#9fb1b3;font-size:11px;line-height:1.4;flex:1}
+.treaty-opt i{display:block;height:7px;border-radius:4px;background:#ffffff14;overflow:hidden}.treaty-opt em{display:block;height:100%;background:linear-gradient(90deg,#c9892a,#ffe08a)}
+.treaty-opt span{font:700 11px Inter,sans-serif;color:#e6c37a}
+.treaty-opt.mine{border-color:#47e08a;box-shadow:0 0 12px #2fd17a55}.treaty-opt.win{border-color:#ffd56a;box-shadow:0 0 16px #ffd56a66}
+.treaty-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+.treaty-cols h4{margin:0 0 6px;font:700 11px Inter,sans-serif;letter-spacing:.1em;color:#e6c37a}
+.treaty-top,.treaty-prizes{margin:0;padding:0;list-style:none;display:grid;gap:4px;font-size:12px;color:#c9d7d6}
+.treaty-top li{display:flex;gap:6px}.treaty-top li span{margin-left:auto;color:#ffd56a}.treaty-top .empty{color:#6f8587}
+.treaty-prizes b,.treaty-top b{color:#f3d496}
+.treaty-mine{margin:8px 0 0;font-size:12px;color:#9fb1b3}.treaty-mine b{color:#ffd56a}
+.treaty-note{margin:14px 0 0;color:#7f9799;font-size:11px}
+@media (max-width:560px){.treaty-opts,.treaty-cols{grid-template-columns:1fr}}

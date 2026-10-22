@@ -3811,6 +3811,14 @@ __export(game_server_exports, {
   tpAllowed: () => tpAllowed,
   treasureDig: () => treasureDig,
   treasures: () => treasures,
+  treaty: () => treaty,
+  treatyFinish: () => treatyFinish,
+  treatyInfo: () => treatyInfo,
+  treatyPick: () => treatyPick,
+  treatyReset: () => treatyReset,
+  treatyStart: () => treatyStart,
+  treatyTick: () => treatyTick,
+  treatyVote: () => treatyVote,
   verifyOsb: () => verifyOsb,
   verifyToken: () => verifyToken
 });
@@ -4301,15 +4309,57 @@ var BY_WEEKDAY = {
   2: { id: "boss", day: "Sal\u0131", name: "Boss Av\u0131", desc: "Boss, gereken bat\u0131rman\u0131n yar\u0131s\u0131nda \xE7\u0131kar" },
   3: { id: "gold", day: "\xC7ar\u015Famba", name: "Alt\u0131n G\xFCn\xFC", desc: "T\xFCm alt\u0131n kazan\xE7lar\u0131 %50 fazla" },
   5: { id: "siege", day: "Cuma", name: "B\xFCy\xFCk Ku\u015Fatma", desc: "20:00\u201322:00 \xB7 b\xFCt\xFCn kaptanlar birlikte Kara Kale'ye sald\u0131r\u0131r" },
-  4: { id: "pearl", day: "Per\u015Fembe", name: "\u0130nci Av\u0131", desc: "Denizde 2 kat inci p\u0131r\u0131lt\u0131s\u0131, 2 kat h\u0131zl\u0131 yenilenir" }
+  4: { id: "treaty", day: "Per\u015Fembe", name: "Deniz Antla\u015Fmas\u0131", desc: "B\xFCt\xFCn denizlerde p\u0131r\u0131lt\u0131 topla; hedef dolunca 1/1'de Deniz El\xE7isi \xE7\u0131kar, 30 dk oylama, se\xE7ilen etki 24 saat" }
 };
 var dayEvent = (d = /* @__PURE__ */ new Date()) => BY_WEEKDAY[d.getDay()] ?? null;
 var is = (id, d) => dayEvent(d)?.id === id;
+var treatyFx = null;
+var setTreatyFx = (fx) => {
+  treatyFx = fx;
+};
+var treatyFxOn = (id, now = Date.now()) => !!treatyFx && treatyFx.id === id && now < treatyFx.until;
 var spMult = (d) => is("sp", d) ? 2 : 1;
-var xpMult = (d) => is("tp", d) ? 1.5 : 1;
+var xpMult = (d) => (is("tp", d) ? 1.5 : 1) + (treatyFxOn("xp", d?.getTime()) ? 0.1 : 0);
 var epMult = (d) => is("ep", d) ? 1.5 : 1;
-var goldMult = (d) => is("gold", d) ? 1.5 : 1;
-var sparkleMult = (d) => is("pearl", d) ? 2 : 1;
+var goldMult = (d) => (is("gold", d) ? 1.5 : 1) + (treatyFxOn("gold", d?.getTime()) ? 0.1 : 0);
+var treatyPartMult = () => treatyFxOn("treasure") ? 2 : 1;
+var TREATY_KILL_AMMO = 10;
+
+// src/treaty.ts
+var TREATY_FX = {
+  dmg: { name: "Sava\u015F Antla\u015Fmas\u0131", desc: "NPC ve boss'a %5 fazla hasar (PvP'ye i\u015Flemez)" },
+  treasure: { name: "Hazine Antla\u015Fmas\u0131", desc: "Sand\u0131klardan hazine par\xE7as\u0131 \xE7\u0131kma \u015Fans\u0131 2 kat" },
+  ammo: { name: "Cephane Antla\u015Fmas\u0131", desc: "Bat\u0131rd\u0131\u011F\u0131n her NPC'den +10 Ate\u015F G\xFCllesi" },
+  gold: { name: "Alt\u0131n Antla\u015Fmas\u0131", desc: "B\xFCt\xFCn alt\u0131n kazan\xE7lar\u0131 %10 fazla" },
+  xp: { name: "Tecr\xFCbe Antla\u015Fmas\u0131", desc: "B\xFCt\xFCn TP kazan\xE7lar\u0131 %10 fazla" }
+};
+var TREATY_FX_IDS = Object.keys(TREATY_FX);
+var TREATY_MAP = "1/1";
+var TREATY_VOTE_MS = 30 * 6e4;
+var TREATY_FX_MS = 24 * 36e5;
+var TREATY_MIN_PICKS = 10;
+var TREATY_ENVOY_R = 140;
+var TREATY_PRIZES = [{ pearls: 300, gold: 15e4 }, { pearls: 200, gold: 1e5 }, { pearls: 100, gold: 5e4 }];
+var TREATY_JOIN = { pearls: 25, gold: 25e3 };
+var treatyGoal = (active) => Math.max(300, Math.min(5e3, Math.round(active) * 15));
+function treatyTally(options, votes, double) {
+  const t = options.map(() => 0);
+  for (const [uid, o] of Object.entries(votes)) if (o >= 0 && o < t.length) t[o] += uid === double ? 2 : 1;
+  return t;
+}
+function treatyWinner(tally, rand = Math.random) {
+  const best = Math.max(...tally), idx = tally.flatMap((v, i) => v === best ? [i] : []);
+  return idx[Math.floor(rand() * idx.length)];
+}
+function treatyRewards(contrib) {
+  const out = /* @__PURE__ */ new Map();
+  contrib.filter(([, n]) => n >= TREATY_MIN_PICKS).forEach(([uid, n], i) => {
+    void n;
+    const p2 = TREATY_PRIZES[i];
+    out.set(uid, { pearls: TREATY_JOIN.pearls + (p2?.pearls ?? 0), gold: TREATY_JOIN.gold + (p2?.gold ?? 0), rank: p2 ? i + 1 : 0 });
+  });
+  return out;
+}
 
 // src/siege.ts
 var SIEGE_START_H = 20;
@@ -4821,6 +4871,7 @@ function killCredit(c, id, now) {
   const add = { gold: G(def.gold), xp: X(def.xp) };
   add.st_npc = 1;
   if (npc2.role === "heavy") add.st_heavy = 1;
+  if (treatyFxOn("ammo")) add.a_fire = TREATY_KILL_AMMO;
   c.qk ??= {};
   c.qk[id] = (c.qk[id] || 0) + 1;
   const lvl = Math.round(Number(c.econ?.level) || 1);
@@ -4898,7 +4949,7 @@ function chestPicked(c, now, rand = Math.random) {
   t.chest.t = now;
   if (t.chest.pool < 1) return { err: "h\u0131z" };
   t.chest.pool -= 1;
-  if (rand() >= PART_CHANCE) return { parts: t.parts };
+  if (rand() >= PART_CHANCE * treatyPartMult()) return { parts: t.parts };
   t.parts++;
   if (t.parts >= TREASURE_PARTS && !t.spot) {
     t.parts -= TREASURE_PARTS;
@@ -4927,7 +4978,7 @@ function lootFor(c, rand = Math.random) {
   if (c.loot?.map !== map) {
     c.loot = { map, ch: [], sp: [], seq: 0, chT: Date.now() };
     for (let i = 0; i < LOOT.chests; i++) lootAdd(c.loot, "ch", rand);
-    for (let i = 0; i < LOOT.sparkles * sparkleMult(); i++) lootAdd(c.loot, "sp", rand);
+    for (let i = 0; i < LOOT.sparkles; i++) lootAdd(c.loot, "sp", rand);
   }
   return c.loot;
 }
@@ -5269,6 +5320,7 @@ function npcDeathCredit(c, def, map, share) {
   if (share >= NPC_KILL_SHARE) {
     add.st_npc = 1;
     if (def.role === "heavy") add.st_heavy = 1;
+    if (treatyFxOn("ammo")) add.a_fire = TREATY_KILL_AMMO;
     c.qk ??= {};
     c.qk[def.id] = (c.qk[def.id] || 0) + 1;
     const lvl = Math.round(Number(c.econ?.level) || 1);
@@ -6772,6 +6824,159 @@ function onLs(c, d, now) {
   }
 }
 setInterval(() => lsTick(Date.now()), 1e3).unref();
+var TREATY_FILE = process.env.TREATY_FILE || "/opt/game/treaty.json";
+var treaty = { day: "", phase: "idle", goal: 0, count: 0, contrib: {}, options: [], votes: {}, voteEnd: 0, fx: null, double: null, seen: {}, envoy: null };
+var treatyDirty = false;
+var treatyCastAt = 0;
+var treatyCastDue = false;
+function loadTreaty() {
+  if (process.env.NODE_ENV === "test") return;
+  try {
+    treaty = { ...treaty, ...JSON.parse(import_node_fs.default.readFileSync(TREATY_FILE, "utf8")) };
+    setTreatyFx(treaty.fx);
+  } catch {
+  }
+}
+function saveTreaty() {
+  if (process.env.NODE_ENV === "test" || !treatyDirty) return;
+  treatyDirty = false;
+  try {
+    import_node_fs.default.writeFileSync(TREATY_FILE + ".tmp", JSON.stringify(treaty));
+    import_node_fs.default.renameSync(TREATY_FILE + ".tmp", TREATY_FILE);
+  } catch (e) {
+    log("ANTLA\u015EMA kay\u0131t hatas\u0131", e?.code);
+  }
+}
+var treatyReset = () => {
+  treaty = { day: "", phase: "idle", goal: 0, count: 0, contrib: {}, options: [], votes: {}, voteEnd: 0, fx: null, double: null, seen: {}, envoy: null };
+  setTreatyFx(null);
+};
+var dayKey = (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+function treatyEnvoySpot() {
+  const m = MAPS[TREATY_MAP], sp = m.spawn;
+  for (const [dx, dy] of [[420, -260], [-420, -260], [420, 260], [-420, 260], [0, -480], [600, 0]]) {
+    const x = sp.x + dx, y = sp.y + dy;
+    if (x < 200 || y < 200 || x > WORLD_WIDTH - 200 || y > WORLD_HEIGHT - 200) continue;
+    if (m.islands.some((is2) => Math.hypot(x - is2.x, y - is2.y) < is2.r + TREATY_ENVOY_R)) continue;
+    if (Math.hypot(x - m.fleet.x, y - m.fleet.y) < FLEET.islandR + TREATY_ENVOY_R) continue;
+    return { map: TREATY_MAP, x, y };
+  }
+  const p2 = pickSpot(TREATY_MAP);
+  return { map: TREATY_MAP, x: p2.x, y: p2.y };
+}
+var treatySorted = () => Object.entries(treaty.contrib).sort((a, b) => b[1][1] - a[1][1] || a[1][2] - b[1][2]);
+function treatyInfo(c, now = Date.now()) {
+  const showVote = treaty.phase === "vote" || treaty.phase === "done";
+  return {
+    phase: treaty.phase,
+    goal: treaty.goal,
+    count: treaty.count,
+    options: treaty.options,
+    tally: showVote ? treatyTally(treaty.options, treaty.votes, treaty.double) : [],
+    voteEnd: treaty.voteEnd,
+    now,
+    fx: treaty.fx && now < treaty.fx.until ? treaty.fx : null,
+    envoy: treaty.phase === "vote" ? treaty.envoy : null,
+    top: treatySorted().slice(0, 3).map(([, v]) => [v[0], v[1]]),
+    mine: treaty.contrib[c?.uid]?.[1] ?? 0,
+    myVote: treaty.votes[c?.uid] ?? -1,
+    double: !!c?.uid && treaty.double === c.uid
+  };
+}
+function treatyCast() {
+  treatyCastAt = Date.now();
+  treatyCastDue = false;
+  for (const x of all) if (x.uid) send(x, { t: "treaty", d: treatyInfo(x, treatyCastAt) });
+}
+function treatyStart(now, rand = Math.random) {
+  const cut = now - 24 * 36e5;
+  for (const [u, t] of Object.entries(treaty.seen)) if (t < cut) delete treaty.seen[u];
+  const ids = [...TREATY_FX_IDS];
+  for (let i = ids.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+  }
+  Object.assign(treaty, { day: dayKey(new Date(now)), phase: "collect", goal: treatyGoal(Object.keys(treaty.seen).length), count: 0, contrib: {}, options: ids.slice(0, 3), votes: {}, voteEnd: 0, envoy: null });
+  treatyDirty = true;
+}
+function treatyPick(c, now) {
+  if (treaty.phase !== "collect" || !c.uid) return;
+  const e = treaty.contrib[c.uid] ??= [c.nick, 0, now];
+  e[0] = c.nick;
+  e[1]++;
+  e[2] = now;
+  treaty.count++;
+  treatyDirty = true;
+  treatyCastDue = true;
+  if (treaty.count >= treaty.goal) {
+    treaty.phase = "vote";
+    treaty.voteEnd = now + TREATY_VOTE_MS;
+    treaty.envoy = treatyEnvoySpot();
+    log("ANTLA\u015EMA oylama a\xE7\u0131ld\u0131", treaty.goal);
+    treatyCast();
+    const msg = JSON.stringify({ t: "chat", d: { nick: "Deniz El\xE7isi", tag: null, adm: true, text: `\u{1F4DC} Antla\u015Fma hedefi doldu! Deniz El\xE7isi ${TREATY_MAP}'de demir att\u0131, oylama 30 dakika a\xE7\u0131k.`, at: now } });
+    for (const x of all) if (x.uid) send(x, msg);
+  }
+}
+function treatyVote(c, o, now) {
+  if (treaty.phase !== "vote" || now >= treaty.voteEnd) return { err: "Oylama a\xE7\u0131k de\u011Fil" };
+  if (!(o >= 0 && o < treaty.options.length)) return { err: "Ge\xE7ersiz se\xE7im" };
+  treaty.votes[c.uid] = o;
+  treatyDirty = true;
+  return { ok: true };
+}
+function grantUid(uid, add) {
+  const c = [...all].find((x) => x.uid === uid);
+  if (c) {
+    addCredit(c, add);
+    return c;
+  }
+  const p2 = { uid, grant: { id: import_node_crypto.default.randomUUID(), add }, credit: null };
+  pendingCredits.set(p2.grant.id, p2);
+  return null;
+}
+function treatyFinish(now, rand = Math.random) {
+  const tally = treatyTally(treaty.options, treaty.votes, treaty.double), win = treaty.options[treatyWinner(tally, rand)];
+  treaty.fx = { id: win, until: now + TREATY_FX_MS };
+  setTreatyFx(treaty.fx);
+  treaty.phase = "done";
+  const sorted = treatySorted(), rw = treatyRewards(sorted.map(([u, v]) => [u, v[1]]));
+  for (const [uid, r] of rw) {
+    const c = grantUid(uid, { pearls: r.pearls, gold: r.gold });
+    if (c) send(c, { t: "treaty", d: { ...treatyInfo(c, now), reward: r } });
+  }
+  treaty.double = sorted[0] && sorted[0][1][1] >= 10 ? sorted[0][0] : null;
+  treatyDirty = true;
+  log("ANTLA\u015EMA", TREATY_FX[win].name, tally.join("/"), "\xF6d\xFCl", rw.size);
+  treatyCast();
+  const msg = JSON.stringify({ t: "chat", d: { nick: "Deniz El\xE7isi", tag: null, adm: true, text: `\u{1F4DC} Antla\u015Fma imzaland\u0131: ${TREATY_FX[win].name} 24 saat ge\xE7erli. ${TREATY_FX[win].desc}.`, at: now } });
+  for (const x of all) if (x.uid) send(x, msg);
+  return win;
+}
+function treatyTick(now) {
+  const d = new Date(now), today = dayEvent(d)?.id === "treaty";
+  if (treaty.phase === "vote") {
+    if (now >= treaty.voteEnd) treatyFinish(now);
+    return;
+  }
+  if (today && treaty.day !== dayKey(d)) {
+    treatyStart(now);
+    treatyCast();
+    return;
+  }
+  if (treaty.phase === "collect" && !today) {
+    treaty.phase = "fail";
+    treatyDirty = true;
+    treatyCast();
+    return;
+  }
+  if (treaty.phase === "collect" && treatyCastDue && now - treatyCastAt > 3e3) treatyCast();
+}
+loadTreaty();
+setInterval(() => {
+  treatyTick(Date.now());
+  saveTreaty();
+}, 2e3).unref();
 async function flushCredit(c) {
   if (c.flushing || !c.uid) return;
   c.flushing = true;
@@ -6910,6 +7115,9 @@ wss.on("connection", (ws) => {
       void sinkAdd(c, 0);
       send(c, { t: "hello", id: c.netId, nick: c.nick, playerNo: c.playerNo });
       log("G\u0130R\u0130\u015E", `#${c.playerNo}`, c.nick);
+      treaty.seen[c.uid] = Date.now();
+      treatyDirty = true;
+      send(c, { t: "treaty", d: treatyInfo(c) });
       if (!qkByUid.has(c.uid)) qkByUid.set(c.uid, {});
       c.qk = qkByUid.get(c.uid);
       {
@@ -7139,6 +7347,16 @@ wss.on("connection", (ws) => {
         send(c, { t: "qres", d: { id, ok: true } });
         return;
       }
+      case "treaty": {
+        if (!c.uid || !c.rUse.hit(now)) return;
+        const r = treatyVote(c, Number(m.d?.o), now);
+        if (r.err) {
+          send(c, { t: "treaty", d: { ...treatyInfo(c), err: r.err } });
+          return;
+        }
+        send(c, { t: "treaty", d: treatyInfo(c) });
+        return;
+      }
       case "spk": {
         if (!c.sea || !c.rUse.hit(now)) return;
         {
@@ -7157,6 +7375,7 @@ wss.on("connection", (ws) => {
         const sr = sparkleReward(c);
         addCredit(c, sr.add);
         send(c, { t: "spkr", d: sr.out });
+        treatyPick(c, now);
         return;
       }
       case "chest": {
@@ -7503,6 +7722,14 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   tpAllowed,
   treasureDig,
   treasures,
+  treaty,
+  treatyFinish,
+  treatyInfo,
+  treatyPick,
+  treatyReset,
+  treatyStart,
+  treatyTick,
+  treatyVote,
   verifyOsb,
   verifyToken
 });

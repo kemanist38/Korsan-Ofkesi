@@ -416,3 +416,17 @@ test('server NPCs cannot sail through islands',async()=>{
   const n={id:`${key}:1`,def:{speed:200},x:is.x-shore-30,y:is.y,hx:is.x-shore-30,hy:is.y,wx:is.x+shore+300,wy:is.y,aggro:null,aggroUntil:0};
   for(let i=0;i<200;i++){S.npcMove(n,.2,[],0);assert.ok(Math.hypot(n.x-is.x,n.y-is.y)>=shore-.5,'NPC stays out of the island');}
 });
+test('Deniz Antlaşması: sparkles fill the goal, vote opens, winner applies for 24h and rewards go to collectors',()=>{
+  S.treatyReset();const now=Date.UTC(2026,9,22,10);S.treaty.seen={a:now,b:now};S.treatyStart(now,()=>0.3);
+  assert.equal(S.treaty.phase,'collect');assert.equal(S.treaty.goal,300,'at least 300');assert.equal(S.treaty.options.length,3);
+  const a={uid:'a',nick:'A'},b={uid:'b',nick:'B'};
+  for(let i=0;i<290;i++)S.treatyPick(a,now+i);for(let i=0;i<9;i++)S.treatyPick(b,now+i);
+  assert.equal(S.treaty.phase,'collect');assert.ok(S.treatyVote(a,0,now).err,'no vote before the goal');
+  S.treatyPick(b,now+400);assert.equal(S.treaty.phase,'vote');assert.ok(S.treaty.envoy?.map==='1/1');
+  assert.ok(S.treatyVote(a,1,now+500).ok);assert.ok(S.treatyVote(b,0,now+500).ok);assert.ok(S.treatyVote(b,5,now+500).err);
+  S.treaty.double='a';S.treatyTick(S.treaty.voteEnd+1);
+  assert.equal(S.treaty.phase,'done');assert.equal(S.treaty.fx.id,S.treaty.options[1],'double vote wins');
+  const grants=[...S.pendingCredits.values()].filter(p=>p.uid==='a'||p.uid==='b');
+  assert.deepEqual(grants.find(p=>p.uid==='a').grant.add,{pearls:325,gold:175000});assert.deepEqual(grants.find(p=>p.uid==='b').grant.add,{pearls:225,gold:125000});
+  assert.equal(S.treaty.double,'a');for(const p of grants)S.pendingCredits.delete(p.grant.id);S.treatyReset();
+});

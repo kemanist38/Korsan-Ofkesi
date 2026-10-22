@@ -12,8 +12,13 @@ test('each weekday gives its own bonus',()=>{
   assert.equal(E.epMult(day(5)),1.5);
   assert.equal(E.bossKillsNeeded(200,day(6)),100);assert.equal(E.bossKillsNeeded(200,day(5)),200);
   assert.equal(E.goldMult(day(7)),1.5);assert.equal(E.goldMult(day(8)),1);
-  assert.equal(E.sparkleMult(day(8)),2);assert.equal(E.sparkleMult(day(7)),1);
+  assert.equal(E.dayEvent(day(8)).id,'treaty','Perşembe Deniz Antlaşması');
   assert.equal(E.dayEvent(day(9)).id,'siege','Cuma Büyük Kuşatma');
+});
+test('treaty effects add to the day bonus and expire',()=>{
+  const now=day(7).getTime();E.setTreatyFx({id:'gold',until:now+1000});
+  assert.equal(E.goldMult(day(7)),1.6);assert.equal(E.goldMult(new Date(now+2000)),1.5);
+  E.setTreatyFx({id:'xp',until:now+1000});assert.equal(E.xpMult(day(7)),1.1);assert.equal(E.goldMult(day(7)),1.5);E.setTreatyFx(null);
 });
 test('time left until midnight',()=>{
   assert.equal(E.untilMidnight(new Date(2026,9,3,18,48)),'5 sa 12 dk');

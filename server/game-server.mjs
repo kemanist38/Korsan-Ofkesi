@@ -19,7 +19,8 @@ import {cumulativeEliteBonus,ELITE_CANNON_CAPACITY} from '../src/elite-progressi
 import {ACHIEVEMENTS,MAIN_COLLECTION} from '../src/achievements.ts';
 import {officerSlots,OFFICER_MAX_RANK,talentPoints,TALENTS} from '../src/crew.ts';
 import {MINE,CONSUMABLES} from '../src/arsenal.ts';
-import {sparkleMult,goldMult,xpMult,epMult,spMult} from '../src/events.ts';
+import {goldMult,xpMult,epMult,spMult,dayEvent,setTreatyFx,treatyFxOn,treatyPartMult,TREATY_KILL_AMMO} from '../src/events.ts';
+import {TREATY_FX,TREATY_FX_IDS,TREATY_MAP,TREATY_VOTE_MS,TREATY_FX_MS,TREATY_ENVOY_R,treatyGoal,treatyTally,treatyWinner,treatyRewards} from '../src/treaty.ts';
 import {HERO_DAMAGE,HERO_DAYS} from '../src/siege.ts';
 import {createChest} from '../src/loot.ts';
 import {fleetReward,LEVEL_XP} from '../src/campaign.ts';
@@ -179,7 +180,7 @@ export function killCredit(c,id,now){const map=seaMap(c.sea);if(!map||!MAPS[map]
   if((c.sb?.pool??0)<def.hp*.6){b.miss++;return{err:'mermi',flag:b.miss>=10};}
   sbTake(c,def.hp*.6);b.pool=Math.max(0,b.pool-def.hp);b.miss=0;
   const add={gold:G(def.gold),xp:X(def.xp)};
-  add.st_npc=1;if(npc.role==='heavy')add.st_heavy=1;
+  add.st_npc=1;if(npc.role==='heavy')add.st_heavy=1;if(treatyFxOn('ammo'))add.a_fire=TREATY_KILL_AMMO;
   c.qk??={};c.qk[id]=(c.qk[id]||0)+1;
   const lvl=Math.round(Number(c.econ?.level)||1);if(npc&&lvl>=2&&map===levelQuestMap(lvl)&&levelQuestTargets(lvl).ships.includes(id))add.lqk=1;
   return{add};}
@@ -213,17 +214,17 @@ export function pickSpot(map,rand=Math.random){const m=MAPS[map];
 // Sandık: denizde aynı anda en çok 4 sandık, 22 sn'de bir yenisi → kova 6 sandık, 18 sn'de bir dolar
 export function chestPicked(c,now,rand=Math.random){const map=seaMap(c.sea);if(!map||!MAPS[map])return{err:'deniz'};const t=treOf(c.uid);
   t.chest.pool=Math.min(6,t.chest.pool+Math.max(0,now-t.chest.t)/18_000);t.chest.t=now;if(t.chest.pool<1)return{err:'hız'};t.chest.pool-=1;
-  if(rand()>=PART_CHANCE)return{parts:t.parts};t.parts++;
+  if(rand()>=PART_CHANCE*treatyPartMult())return{parts:t.parts};t.parts++;
   if(t.parts>=TREASURE_PARTS&&!t.spot){t.parts-=TREASURE_PARTS;t.spot=pickSpot(map,rand);return{parts:t.parts,spot:t.spot,found:true};}
   return{parts:t.parts,found:true};}
-// Pırıltı toplama sınırsızdır; yalnız imkânsız hız reddedilir: art arda 40 (inci gününde haritada 24 pırıltı olur), sonra saniyede 1,5.
+// Pırıltı toplama sınırsızdır; yalnız imkânsız hız reddedilir: art arda 40, sonra saniyede 1,5.
 export function sparklePicked(c,now){const map=seaMap(c.sea);if(!map||!MAPS[map])return{err:'deniz'};c.spb??={pool:40,t:now};
   c.spb.pool=Math.min(40,c.spb.pool+Math.max(0,now-c.spb.t)*1.5/1000);c.spb.t=now;if(c.spb.pool<1)return{err:'hız'};c.spb.pool-=1;
   c.qk??={};const k='spk:'+map;c.qk[k]=Math.min(200,(c.qk[k]||0)+1);return{ok:true};}
 // Sandık ve pırıltı yerleri sunucuda (oyuncuya özel): alım yalnızca sunucunun verdiği yerde ve geminin yanındayken sayılır
 export const LOOT={chests:3,chestMax:4,chestRespawn:22_000,sparkles:12,chestR:46,sparkleR:40,slack:110};
 export function lootFor(c,rand=Math.random){const map=seaMap(c.sea);if(!map||!MAPS[map])return null;
-  if(c.loot?.map!==map){c.loot={map,ch:[],sp:[],seq:0,chT:Date.now()};for(let i=0;i<LOOT.chests;i++)lootAdd(c.loot,'ch',rand);for(let i=0;i<LOOT.sparkles*sparkleMult();i++)lootAdd(c.loot,'sp',rand);}
+  if(c.loot?.map!==map){c.loot={map,ch:[],sp:[],seq:0,chT:Date.now()};for(let i=0;i<LOOT.chests;i++)lootAdd(c.loot,'ch',rand);for(let i=0;i<LOOT.sparkles;i++)lootAdd(c.loot,'sp',rand);}
   return c.loot;}
 function lootAdd(l,kind,rand=Math.random){const p=pickSpot(l.map,rand);l[kind].push([++l.seq,Math.round(p.x),Math.round(p.y)]);}
 export const lootInfo=l=>({ch:l.ch,sp:l.sp});
@@ -327,7 +328,7 @@ export function npcApply(c,sea,n,d,now){d=Math.min(d,n.hp);n.hp-=d;n.hpDirty=tru
   const total=[...n.dmg.values()].reduce((a,v)=>a+v,0)||1;return{dealt:d,dead:n,shares:[...n.dmg].map(([uid,v])=>[uid,v/total])};}
 // Batış ödülü: altın/TP payla (×2,5 bonus payı), batırma sayaçları payı %30 üstündekilere
 export function npcDeathCredit(c,def,map,share){const add={gold:G(def.gold*share*(1+.05*talentRank(c,'bounty'))),xp:X(def.xp*share)};
-  if(share>=NPC_KILL_SHARE){add.st_npc=1;if(def.role==='heavy')add.st_heavy=1;c.qk??={};c.qk[def.id]=(c.qk[def.id]||0)+1;
+  if(share>=NPC_KILL_SHARE){add.st_npc=1;if(def.role==='heavy')add.st_heavy=1;if(treatyFxOn('ammo'))add.a_fire=TREATY_KILL_AMMO;c.qk??={};c.qk[def.id]=(c.qk[def.id]||0)+1;
     const lvl=Math.round(Number(c.econ?.level)||1);if(lvl>=2&&map===levelQuestMap(lvl)&&levelQuestTargets(lvl).ships.includes(def.id))add.lqk=1;}
   return add;}
 export class Rate{constructor(perWindow,windowMs){this.n=perWindow;this.w=windowMs;this.t=[];}hit(now){while(this.t.length&&now-this.t[0]>this.w)this.t.shift();if(this.t.length>=this.n)return false;this.t.push(now);return true;}}
@@ -807,6 +808,48 @@ function onLs(c,d,now){const k=String(d?.k||'');
   if(k==='speed'){const inv=lsSpeed(c,now);if(inv)send(c,{t:'ls',d:{k:'inv',inv,speed:1}});return;}}
 setInterval(()=>lsTick(Date.now()),1000).unref();
 
+// ---------------------------------------------------------------- Deniz Antlaşması (src/treaty.ts)
+// Perşembe günü pırıltılar ortak sayaca yazılır; hedef dolunca oylama, sonra 24 saatlik etki ve ödüller. Durum dosyada saklanır.
+const TREATY_FILE=process.env.TREATY_FILE||'/opt/game/treaty.json';
+export let treaty={day:'',phase:'idle',goal:0,count:0,contrib:{},options:[],votes:{},voteEnd:0,fx:null,double:null,seen:{},envoy:null};
+let treatyDirty=false,treatyCastAt=0,treatyCastDue=false;
+function loadTreaty(){if(process.env.NODE_ENV==='test')return;try{treaty={...treaty,...JSON.parse(fs.readFileSync(TREATY_FILE,'utf8'))};setTreatyFx(treaty.fx);}catch{}}
+function saveTreaty(){if(process.env.NODE_ENV==='test'||!treatyDirty)return;treatyDirty=false;try{fs.writeFileSync(TREATY_FILE+'.tmp',JSON.stringify(treaty));fs.renameSync(TREATY_FILE+'.tmp',TREATY_FILE);}catch(e){log('ANTLAŞMA kayıt hatası',e?.code);}}
+export const treatyReset=()=>{treaty={day:'',phase:'idle',goal:0,count:0,contrib:{},options:[],votes:{},voteEnd:0,fx:null,double:null,seen:{},envoy:null};setTreatyFx(null);};
+const dayKey=d=>`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+// Elçi 1/1'de doğma noktasının yakınında, adaların dışında demir atar
+function treatyEnvoySpot(){const m=MAPS[TREATY_MAP],sp=m.spawn;for(const [dx,dy] of [[420,-260],[-420,-260],[420,260],[-420,260],[0,-480],[600,0]]){const x=sp.x+dx,y=sp.y+dy;
+  if(x<200||y<200||x>WORLD_WIDTH-200||y>WORLD_HEIGHT-200)continue;if(m.islands.some(is=>Math.hypot(x-is.x,y-is.y)<is.r+TREATY_ENVOY_R))continue;if(Math.hypot(x-m.fleet.x,y-m.fleet.y)<FLEET.islandR+TREATY_ENVOY_R)continue;return{map:TREATY_MAP,x,y};}
+  const p=pickSpot(TREATY_MAP);return{map:TREATY_MAP,x:p.x,y:p.y};}
+const treatySorted=()=>Object.entries(treaty.contrib).sort((a,b)=>b[1][1]-a[1][1]||a[1][2]-b[1][2]);
+export function treatyInfo(c,now=Date.now()){const showVote=treaty.phase==='vote'||treaty.phase==='done';
+  return{phase:treaty.phase,goal:treaty.goal,count:treaty.count,options:treaty.options,tally:showVote?treatyTally(treaty.options,treaty.votes,treaty.double):[],voteEnd:treaty.voteEnd,now,
+    fx:treaty.fx&&now<treaty.fx.until?treaty.fx:null,envoy:treaty.phase==='vote'?treaty.envoy:null,top:treatySorted().slice(0,3).map(([,v])=>[v[0],v[1]]),
+    mine:treaty.contrib[c?.uid]?.[1]??0,myVote:treaty.votes[c?.uid]??-1,double:!!c?.uid&&treaty.double===c.uid};}
+function treatyCast(){treatyCastAt=Date.now();treatyCastDue=false;for(const x of all)if(x.uid)send(x,{t:'treaty',d:treatyInfo(x,treatyCastAt)});}
+// Yeni tur: Perşembe başında hedef son 24 saatte giren kaptan sayısına göre belirlenir, 3 etki rastgele seçilir
+export function treatyStart(now,rand=Math.random){const cut=now-24*3600_000;for(const [u,t] of Object.entries(treaty.seen))if(t<cut)delete treaty.seen[u];
+  const ids=[...TREATY_FX_IDS];for(let i=ids.length-1;i>0;i--){const j=Math.floor(rand()*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]];}
+  Object.assign(treaty,{day:dayKey(new Date(now)),phase:'collect',goal:treatyGoal(Object.keys(treaty.seen).length),count:0,contrib:{},options:ids.slice(0,3),votes:{},voteEnd:0,envoy:null});treatyDirty=true;}
+export function treatyPick(c,now){if(treaty.phase!=='collect'||!c.uid)return;const e=treaty.contrib[c.uid]??=[c.nick,0,now];e[0]=c.nick;e[1]++;e[2]=now;treaty.count++;treatyDirty=true;treatyCastDue=true;
+  if(treaty.count>=treaty.goal){treaty.phase='vote';treaty.voteEnd=now+TREATY_VOTE_MS;treaty.envoy=treatyEnvoySpot();log('ANTLAŞMA oylama açıldı',treaty.goal);treatyCast();
+    const msg=JSON.stringify({t:'chat',d:{nick:'Deniz Elçisi',tag:null,adm:true,text:`📜 Antlaşma hedefi doldu! Deniz Elçisi ${TREATY_MAP}'de demir attı, oylama 30 dakika açık.`,at:now}});for(const x of all)if(x.uid)send(x,msg);}}
+export function treatyVote(c,o,now){if(treaty.phase!=='vote'||now>=treaty.voteEnd)return{err:'Oylama açık değil'};if(!(o>=0&&o<treaty.options.length))return{err:'Geçersiz seçim'};
+  treaty.votes[c.uid]=o;treatyDirty=true;return{ok:true};}
+// Ödül: çevrimiçi kaptanın kazancına, çevrimdışıysa bekleyen kazanç olarak veritabanına (economy_grant_once) yazılır
+function grantUid(uid,add){const c=[...all].find(x=>x.uid===uid);if(c){addCredit(c,add);return c;}const p={uid,grant:{id:crypto.randomUUID(),add},credit:null};pendingCredits.set(p.grant.id,p);return null;}
+export function treatyFinish(now,rand=Math.random){const tally=treatyTally(treaty.options,treaty.votes,treaty.double),win=treaty.options[treatyWinner(tally,rand)];
+  treaty.fx={id:win,until:now+TREATY_FX_MS};setTreatyFx(treaty.fx);treaty.phase='done';const sorted=treatySorted(),rw=treatyRewards(sorted.map(([u,v])=>[u,v[1]]));
+  for(const [uid,r] of rw){const c=grantUid(uid,{pearls:r.pearls,gold:r.gold});if(c)send(c,{t:'treaty',d:{...treatyInfo(c,now),reward:r}});}
+  treaty.double=sorted[0]&&sorted[0][1][1]>=10?sorted[0][0]:null;treatyDirty=true;log('ANTLAŞMA',TREATY_FX[win].name,tally.join('/'),'ödül',rw.size);
+  treatyCast();const msg=JSON.stringify({t:'chat',d:{nick:'Deniz Elçisi',tag:null,adm:true,text:`📜 Antlaşma imzalandı: ${TREATY_FX[win].name} 24 saat geçerli. ${TREATY_FX[win].desc}.`,at:now}});for(const x of all)if(x.uid)send(x,msg);return win;}
+export function treatyTick(now){const d=new Date(now),today=dayEvent(d)?.id==='treaty';
+  if(treaty.phase==='vote'){if(now>=treaty.voteEnd)treatyFinish(now);return;}
+  if(today&&treaty.day!==dayKey(d)){treatyStart(now);treatyCast();return;}
+  if(treaty.phase==='collect'&&!today){treaty.phase='fail';treatyDirty=true;treatyCast();return;}
+  if(treaty.phase==='collect'&&treatyCastDue&&now-treatyCastAt>3000)treatyCast();}
+loadTreaty();setInterval(()=>{treatyTick(Date.now());saveTreaty();},2000).unref();
+
 // Doğrulanan kazançlar 20 saniyede bir veritabanına yazılır; dönen değerlerle oyuncunun seviyesi tazelenir
 export async function flushCredit(c){
   if(c.flushing||!c.uid)return;c.flushing=true;
@@ -847,7 +890,7 @@ wss.on('connection',ws=>{
       for(const x of all)if(x.uid===who.uid&&x!==c)x.ws.close(4004,'başka yerden bağlanıldı');
       Object.assign(c,who);c.admin=await isAdminToken(String(m.token||'')).catch(()=>false);c.netId=String(m.netId||'').slice(0,16)||Math.random().toString(36).slice(2,10);clearTimeout(authTimer);
       await loadEcon(c);if(!c.econ){ws.close(4003,'hesap verisi yüklenemedi');return;}
-      void sinkAdd(c,0);send(c,{t:'hello',id:c.netId,nick:c.nick,playerNo:c.playerNo});log('GİRİŞ',`#${c.playerNo}`,c.nick);if(!qkByUid.has(c.uid))qkByUid.set(c.uid,{});c.qk=qkByUid.get(c.uid);{const t=treasures.get(c.uid);if(t)send(c,{t:'tstate',d:{parts:t.parts,spot:t.spot}});}return;}
+      void sinkAdd(c,0);send(c,{t:'hello',id:c.netId,nick:c.nick,playerNo:c.playerNo});log('GİRİŞ',`#${c.playerNo}`,c.nick);treaty.seen[c.uid]=Date.now();treatyDirty=true;send(c,{t:'treaty',d:treatyInfo(c)});if(!qkByUid.has(c.uid))qkByUid.set(c.uid,{});c.qk=qkByUid.get(c.uid);{const t=treasures.get(c.uid);if(t)send(c,{t:'tstate',d:{parts:t.parts,spot:t.spot}});}return;}
     if(!c.uid||!c.econ)return;
     switch(m.t){
       case'join':{const name=String(m.sea||'').slice(0,40);if(name===c.sea)return;if(!canJoin(c,name,now)){send(c,{t:'denied',reason:'harita kilitli'});return;}leaveSea(c);c.last=null;if(!name)return;
@@ -890,7 +933,8 @@ wss.on('connection',ws=>{
         if(id==='mine'&&(c.econ!==before||!SERVER_SECRET||(process.env.BENCH_AUTH==='1'&&c.uid.startsWith('b')))){const mn=placeMine(c,Number(m.d?.x),Number(m.d?.y),now);if(mn)toSea(c,{t:'mine',d:{id:mn.id,x:mn.x,y:mn.y,by:c.netId}});}return;}
       case'qdone':{if(!c.uid||!c.rKill.hit(now))return;const id=String(m.d?.id||'');const r=questCredit(c,id,now);
         if(r.err){if(r.err==='bekleme')suspect(c,'görev bekleme',id);send(c,{t:'qres',d:{id,ok:false,err:r.err}});return;}addCredit(c,r.add);send(c,{t:'qres',d:{id,ok:true}});return;}
-      case'spk':{if(!c.sea||!c.rUse.hit(now))return;{const t=lootTake(c,'sp',m.d?.id);if(t.err){if(t.err==='uzak')suspect(c,'uzak pırıltı');return;}send(c,{t:'loot',d:lootInfo(c.loot)});}const r=sparklePicked(c,now);if(r.err){if(r.err==='hız')suspect(c,'pırıltı hızı');return;}const sr=sparkleReward(c);addCredit(c,sr.add);send(c,{t:'spkr',d:sr.out});return;}
+      case'treaty':{if(!c.uid||!c.rUse.hit(now))return;const r=treatyVote(c,Number(m.d?.o),now);if(r.err){send(c,{t:'treaty',d:{...treatyInfo(c),err:r.err}});return;}send(c,{t:'treaty',d:treatyInfo(c)});return;}
+      case'spk':{if(!c.sea||!c.rUse.hit(now))return;{const t=lootTake(c,'sp',m.d?.id);if(t.err){if(t.err==='uzak')suspect(c,'uzak pırıltı');return;}send(c,{t:'loot',d:lootInfo(c.loot)});}const r=sparklePicked(c,now);if(r.err){if(r.err==='hız')suspect(c,'pırıltı hızı');return;}const sr=sparkleReward(c);addCredit(c,sr.add);send(c,{t:'spkr',d:sr.out});treatyPick(c,now);return;}
       case'chest':{if(!c.sea||!c.rKill.hit(now))return;{const t=lootTake(c,'ch',m.d?.id);if(t.err){if(t.err==='uzak')suspect(c,'uzak sandık');return;}send(c,{t:'loot',d:lootInfo(c.loot)});}const r=chestPicked(c,now);if(r.err){if(r.err==='hız')suspect(c,'sandık hızı');return;}{const cr=chestReward(c,m.d?.g);addCredit(c,cr.add);send(c,{t:'chestr',d:cr.out});}if(r.found)send(c,{t:'tstate',d:{parts:r.parts,spot:treOf(c.uid).spot,part:true}});return;}
       case'tdig':{if(!c.sea||!c.rKill.hit(now))return;const r=treasureDig(c);if(r.err){send(c,{t:'tdig',d:{ok:false,err:r.err}});return;}addCredit(c,r.add);send(c,{t:'tdig',d:{ok:true,reward:r.reward}});return;}
       case'spy':{if(!c.rKill.hit(now))return;await onSpy(c,m.d?.nick);return;}

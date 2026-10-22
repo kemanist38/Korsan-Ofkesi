@@ -44,7 +44,9 @@ import {openDomLobby,closeDomLobby,domLobbyMsg,renderDomHud,showDomResult,type D
 import {LS_SHIP,LS_LOADOUT,LS_HP,LS_SPEED,LS_FOG_DPS,LS_ITEMS,LS_PICK_R,LS_SPEED_MS,LS_SPEED_BOOST,LS_DROP_PICK_R,LS_DROP_FALL_MS,lsEmptyInv,lsZoneAt,type LsFog,type LsInv,type LsItem,type LsDrop} from './cursed';
 import {openArena,openLsLobby,closeLsLobby,lsLobbyMsg,renderLsHud,showLsResult,type LsLobby,type LsRun,type LsOut} from './ls-ui';
 import {SIEGE_MS,HERO_DAMAGE,WALL_TOWERS,INNER_TOWERS,gateOf,gateLeft,siegeWindow,newSiege,loadSiege,saveSiege,siegePhase,siegeStats,siegeProgress,contribReward,earnsChest,victoryChest,ranking,loadTitle,grantTitle,HERO_TITLE,type SiegeSave} from './siege';
-import {dayEvent,spMult,xpMult,epMult,goldMult,sparkleMult,bossKillsNeeded} from './events';
+import {dayEvent,spMult,xpMult,epMult,goldMult,bossKillsNeeded,setTreatyFx,treatyDmgMult} from './events';
+import {treatyMsg,openTreaty,treatyEnvoy,TREATY_ENVOY} from './treaty-ui';
+import {TREATY_ENVOY_R} from './treaty';
 import {TALENTS,OFFICERS,OFFICER_MAX_RANK,officerCost,officerSlots,talentPoints,loadCrew,saveCrew,spentPoints,computeBonus,type TalentId,type OfficerId} from './crew';
 import {FLEET_MASK} from './fleetMask';
 import {drawVfx} from './vfx';
@@ -362,6 +364,7 @@ addEventListener('keyup',e=>keys.delete(e.key.toLowerCase()));
 addEventListener('beforeunload',saveAccount);
 function worldClick(e:{clientX:number;clientY:number}){
   const world={x:(e.clientX-innerWidth/2)/camera.zoom+camera.x,y:(e.clientY-innerHeight/2)/camera.zoom+camera.y};
+  {const v=treatyEnvoy();if(v&&v.map===currentMap&&dist(world,v)<TREATY_ENVOY_R*.6){openTreaty();return;}}
   if(hasFleetIsland()&&fleetOwner()==='player'&&guild){
     const f=mapDef().fleet,slots=islandSlots(guild,currentMap);
     const slot=FLEET.towers.map(([dx,dy],i)=>({x:f.x+dx,y:f.y+dy,i})).sort((a,b)=>b.y-a.y).find(t=>towerContains(world,t,!!slots[t.i]))?.i;
@@ -404,14 +407,15 @@ const MOBILE_HUD=true;
 function fitHud(){const [vw,vh]=MOBILE_HUD?[880,480]:[1180,640];uiScale=Math.max(.5,Math.min(1,innerWidth/vw,innerHeight/vh));document.documentElement.style.setProperty('--ui',String(uiScale));document.documentElement.classList.toggle('touch',MOBILE_HUD);}
 fitHud();
 // Günün etkinliği: mini haritada dünya ikonunun yanında kısa rozet (ör. "İnci ×2"); tıklayınca haftalık takvim açılır
-const DAY_SHORT:Record<string,string>={sp:'SP ×2',tp:'TP +%50',ep:'EP +%50',boss:'Boss ×2',gold:'Altın +%50',pearl:'İnci ×2',siege:'Kuşatma'};
+const DAY_SHORT:Record<string,string>={sp:'SP ×2',tp:'TP +%50',ep:'EP +%50',boss:'Boss ×2',gold:'Altın +%50',treaty:'Antlaşma',siege:'Kuşatma'};
 const dayEventEl=document.createElement('button');dayEventEl.className='day-badge';dayEventEl.type='button';document.querySelector('.map-cluster')!.append(dayEventEl);
 const dayPop=document.createElement('div');dayPop.className='day-pop';document.querySelector('.map-cluster')!.append(dayPop);
 dayEventEl.onclick=e=>{e.stopPropagation();renderDayPop();dayPop.classList.toggle('open');};
 addEventListener('pointerdown',e=>{if(!dayPop.contains(e.target as Node)&&e.target!==dayEventEl)dayPop.classList.remove('open');});
 let dayEventText='';
 function renderDayPop(){const today=dayEvent()?.id,w=siegeWindow(),join=w.open||ELITE_TEST_MODE;
-  dayPop.innerHTML=`<h4>HAFTALIK ETKİNLİKLER</h4><ul>${[1,2,3,4,5,6,0].map(d=>{const ev=dayEvent(new Date(2026,9,4+d));return ev?`<li class="${ev.id===today?'on':''}"><b>${ev.day}</b><span>${ev.name}</span><small>${ev.desc}</small></li>`:'';}).join('')}</ul>${join?`<button data-siege-join>${w.open?'KUŞATMAYA KATIL':'TEST · KUŞATMA'}</button>`:''}<button data-dom-join>⚔ ARENA</button>`;
+  dayPop.innerHTML=`<h4>HAFTALIK ETKİNLİKLER</h4><ul>${[1,2,3,4,5,6,0].map(d=>{const ev=dayEvent(new Date(2026,9,4+d));return ev?`<li class="${ev.id===today?'on':''}"><b>${ev.day}</b><span>${ev.name}</span><small>${ev.desc}</small></li>`:'';}).join('')}</ul>${join?`<button data-siege-join>${w.open?'KUŞATMAYA KATIL':'TEST · KUŞATMA'}</button>`:''}<button data-dom-join>⚔ ARENA</button>${today==='treaty'?'<button data-treaty>📜 DENİZ ANTLAŞMASI</button>':''}`;
+  {const t=dayPop.querySelector('[data-treaty]') as HTMLButtonElement|null;if(t)t.onclick=()=>{dayPop.classList.remove('open');openTreaty();};}
   {const d=dayPop.querySelector('[data-dom-join]') as HTMLButtonElement|null;if(d)d.onclick=()=>{dayPop.classList.remove('open');openArenaModes();};}
   const b=dayPop.querySelector('[data-siege-join]') as HTMLButtonElement|null;if(b)b.onclick=()=>{dayPop.classList.remove('open');enterSiege();};}
 function renderDayEvent(force=false){const ev=dayEvent(),w=siegeWindow();
@@ -629,6 +633,7 @@ const netHandlers:NetHandlers={
   muted:left=>{const t=left>=86_400_000?`${Math.ceil(left/86_400_000)} gün`:left>=3_600_000?`${Math.ceil(left/3_600_000)} saat`:`${Math.ceil(left/60_000)} dakika`;chat.system(`Sohbet cezan var · ${t} sonra yazabilirsin (Oyun Kuralları)`);toast(`Sohbet cezası: ${t}`);},
   reported:()=>{toast('Bildirimin yönetime iletildi, teşekkürler');},
   ls:d=>onLsNet(d),
+  treaty:d=>{setTreatyFx(d.fx);treatyMsg(d);if(d.err)toast(d.err);if(d.reward)rewardNotice(`Deniz Antlaşması ödülü${d.reward.rank?` · ${d.reward.rank}. sıra`:''} · +${fmt(d.reward.pearls)} inci · +${fmt(d.reward.gold)} altın`,'gain');},
   ahp:d=>{adminEv={...d,at:performance.now()};},
   aboom:(id:string)=>{const e=remoteOf(id);if(e){burst(e.x,e.y,true);burst(e.x,e.y,true);playExplosion();splashAt(e.x,e.y,220);}},
   bid:b=>receiveBid(b),
@@ -883,7 +888,7 @@ function populateMap(){
   spawnTestCaptains();
   if(!session.account){
   for(let i=0;i<3;i++){const p=randomSeaPoint(0);lootChests.push(createChest('drift',p.x,p.y,bonus.gilded,map.tier));}
-  for(let i=0;i<SPARKLE_COUNT*sparkleMult();i++)spawnSparkle();}
+  for(let i=0;i<SPARKLE_COUNT;i++)spawnSparkle();}
   ui('mapName').textContent=`${map.key} · ${map.name}`;ui('mapSubtitle').textContent=map.safe?'SAVAŞA KAPALI':`${theme().name.toLocaleUpperCase('tr')} · SEVİYE ${map.tier}`;ui('mapBadge').className=`map-badge ${map.safe?'safe':'danger-'+Math.min(3,Math.ceil(map.tier/3))}`;
 }
 // Yönetici ışınlanması: dünya haritasındaki düğme ya da sohbette "/git 3/1"
@@ -2083,7 +2088,7 @@ function update(dt:number){updateHealFlights(dt);{const rc=document.getElementBy
         if(isAlly(e))continue;
         if(e.remote&&dist(s,e)<(e.hitRadius??25)){s.hit=true;s.life=0;burst(e.x,e.y);playHit();continue;}
         if(s.net&&!e.remote&&dist(s,e)<(e.hitRadius??25)){s.hit=true;s.life=0;e.aggro=true;e.combatTimer=12;e.lastHitBy='player';burst(e.x,e.y);playHit();damageText(e.x,e.y,Math.round(s.damage*(s.ammo==='fire'?FIRE_NPC_FACTOR:1)),s.powder?DMG_GOLD:DMG_RED);continue;}
-        if(dist(s,e)<(e.hitRadius??25)){const rawHit=(s.damage*(s.ammo==='breaker'&&e.tower?SPECIAL_AMMO.breaker.towerFactor:1)*(s.ammo==='fire'&&!e.tower&&!e.captain?FIRE_NPC_FACTOR:1)*(s.ammo==='explosive'&&e.captain?EXPLOSIVE_PLAYER_FACTOR:1));const hit=e.captain?pvpClamp(e.pvp??=newPvpBudget(e.maxHp,performance.now()/1000),e.maxHp,rawHit,performance.now()/1000):rawHit;s.hit=true;if(s.slow)e.slowTimer=Math.max(e.slowTimer,s.slow);if(s.splash)towerSplash(s,e);e.aggro=true;e.lastHitBy='player';e.combatTimer=12;if(s.ammo==='chain'&&e.captain)e.slowTimer=CHAIN_SLOW.seconds;e.hp-=hit;siegeHit(e,hit,profile.nick);damageText(e.x,e.y,hit,s.powder?DMG_GOLD:DMG_RED);burst(e.x,e.y);playHit();ammoImpact(s,e,hit);s.life=0;
+        if(dist(s,e)<(e.hitRadius??25)){const rawHit=(s.damage*(!e.captain&&!e.tower?treatyDmgMult():1)*(s.ammo==='breaker'&&e.tower?SPECIAL_AMMO.breaker.towerFactor:1)*(s.ammo==='fire'&&!e.tower&&!e.captain?FIRE_NPC_FACTOR:1)*(s.ammo==='explosive'&&e.captain?EXPLOSIVE_PLAYER_FACTOR:1));const hit=e.captain?pvpClamp(e.pvp??=newPvpBudget(e.maxHp,performance.now()/1000),e.maxHp,rawHit,performance.now()/1000):rawHit;s.hit=true;if(s.slow)e.slowTimer=Math.max(e.slowTimer,s.slow);if(s.splash)towerSplash(s,e);e.aggro=true;e.lastHitBy='player';e.combatTimer=12;if(s.ammo==='chain'&&e.captain)e.slowTimer=CHAIN_SLOW.seconds;e.hp-=hit;siegeHit(e,hit,profile.nick);damageText(e.x,e.y,hit,s.powder?DMG_GOLD:DMG_RED);burst(e.x,e.y);playHit();ammoImpact(s,e,hit);s.life=0;
           if(e.hp<=0)sinkEnemy(e);
         }
       }
@@ -2686,7 +2691,7 @@ function updateSparkles(dt:number){
     for(let n=0;n<8;n++){const a=Math.random()*Math.PI*2,sp=30+Math.random()*50;particles.push({x:g.x,y:g.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:.5,maxLife:.5,kind:'foam'});}
     particles.push({x:g.x,y:g.y-10,vx:0,vy:-26,life:1.1,maxLife:1.1,kind:'damage',text:label});
     if(routeTarget&&dist(routeTarget,g)<4){routeTarget=null;destination=null;}
-    sparkleQueue.push(SPARKLE_RESPAWN/sparkleMult());}
+    sparkleQueue.push(SPARKLE_RESPAWN);}
   for(let i=sparkleQueue.length-1;i>=0;i--){sparkleQueue[i]-=dt;if(sparkleQueue[i]<=0){sparkleQueue.splice(i,1);spawnSparkle();}}
 }
 function drawSparkle(g:{x:number;y:number;seed:number;born:number}){const s=worldToScreen(g),now=performance.now();drawSeaSparkle(ctx,s.x,s.y,now,g.seed,Math.min(1,(now-g.born)/600));}
@@ -2721,6 +2726,11 @@ function drawEliteDirectionalShip(s:Vec){
 }
 // 16 yönlü görsel yüklenene kadar (ilk saniye) gemi çizilmez; eski 4 yönlü yedek görseller kaldırıldı
 function drawPlayerShip(){drawEliteDirectionalShip(worldToScreen(player));}
+// Deniz Elçisi: oylama süresince 1/1'de demir atmış bekler; dokununca oylama penceresi açılır
+const envoyImg=new Image();envoyImg.src=TREATY_ENVOY;
+function drawTreatyEnvoy(){const v=treatyEnvoy();if(!v||v.map!==currentMap||!onScreen(v,TREATY_ENVOY_R*2)||!envoyImg.complete)return;const s=worldToScreen(v),t=performance.now()/1000,z=TREATY_ENVOY_R*1.45;
+  ctx.save();ctx.globalAlpha=.35+.15*Math.sin(t*2);ctx.fillStyle='#ffd56a';ctx.beginPath();ctx.ellipse(s.x,s.y+z*.28,z*.48,z*.14,0,0,7);ctx.fill();ctx.restore();
+  ctx.drawImage(envoyImg,s.x-z/2,s.y-z/2+Math.sin(t*1.3)*3,z,z);drawCaptainName(s.x,s.y+z*.42,'','Deniz Elçisi',15,-1,true);}
 function drawIsland(i:WorldIsland){const s=worldToScreen(i);if(drawIslandSprite(ctx,i,s.x,s.y))return;const g=ctx.createRadialGradient(s.x-20,s.y-30,10,s.x,s.y,i.r);g.addColorStop(0,'#617c4e');g.addColorStop(.5,'#3c593e');g.addColorStop(.66,'#b9a16b');g.addColorStop(.72,'#17434a');g.addColorStop(1,'#0b2b35');ctx.fillStyle=g;ctx.beginPath();for(let n=0;n<18;n++){const a=n/18*Math.PI*2,r=i.r*(.78+Math.sin(n*4.7)*.09);const x=s.x+Math.cos(a)*r,y=s.y+Math.sin(a)*r;n?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();ctx.fill();for(let n=0;n<7;n++){const a=n*2.1,r=i.r*.38;ctx.fillStyle='#213c2d';ctx.beginPath();ctx.arc(s.x+Math.cos(a)*r,s.y+Math.sin(a)*r,7+n%3*2,0,7);ctx.fill();}}
 // İç adanın arkasında bir gemi varsa kale ve üst kule kaideleri gemilerin üstüne yeniden çizilir; o kaidelerdeki kuleler de
 function drawFleetOccluders(){if(!hasFleetIsland())return;const f=mapDef().fleet,behind=(v:Vec)=>Math.abs(v.x-f.x)<380&&v.y-f.y<-88&&v.y-f.y>-250;
@@ -2923,7 +2933,7 @@ function draw(){
   // Deniz: referanstan çıkarılmış kesintisiz doku, dünyaya sabitli tek katman
   const pattern=seaTilePattern(ctx);if(pattern){const vw=w/camera.zoom,vh=h/camera.zoom;pattern.setTransform(new DOMMatrix().translateSelf(-camera.x+w/2,-camera.y+h/2).scaleSelf(1.5,1.5));ctx.fillStyle=pattern;ctx.fillRect(w/2-vw/2,h/2-vh/2,vw,vh);}
   ctx.globalAlpha=.12;ctx.fillStyle=th.label;ctx.font='700 42px Cinzel';ctx.textAlign='center';for(const label of map.labels){const p=worldToScreen(label);ctx.fillText(label.text,p.x,p.y);}ctx.globalAlpha=1;
-  drawMapEdges();if(dom)drawDomZone();if(ls)drawLsItems();islands.forEach(i=>{if(onScreen(i,i.r+260))drawIsland(i);});drawFleetIsland();lootChests.forEach(c=>{if(seenOnMap(c))drawLootChest(c);});drawTreasureMark();sparkles.forEach(g=>{if(seenOnMap(g))drawSparkle(g);});mines.forEach(m=>{if(!seenOnMap(m))return;const p=worldToScreen(m);drawMineSprite(ctx,p.x,p.y,performance.now(),m.arm>0,m.life<5);});
+  drawMapEdges();if(dom)drawDomZone();if(ls)drawLsItems();islands.forEach(i=>{if(onScreen(i,i.r+260))drawIsland(i);});drawFleetIsland();drawTreatyEnvoy();lootChests.forEach(c=>{if(seenOnMap(c))drawLootChest(c);});drawTreasureMark();sparkles.forEach(g=>{if(seenOnMap(g))drawSparkle(g);});mines.forEach(m=>{if(!seenOnMap(m))return;const p=worldToScreen(m);drawMineSprite(ctx,p.x,p.y,performance.now(),m.arm>0,m.life<5);});
   particles.forEach(p=>{if(UNDER.has(p.kind))drawParticle(p);});wrecks.forEach(w=>atShipScale(w,()=>drawWreck(w)));shots.forEach(drawShotShadow);
   if(selected&&targetExists(selected)&&seenOnMap(selected))drawTargetMarker(selected);
   // Görüş sisi: gemiden uzaktaki NPC, kaptan, sandık ve pırıltı çizilmez (mini haritadan kamera kaydırılsa da)
