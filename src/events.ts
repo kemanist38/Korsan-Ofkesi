@@ -13,18 +13,18 @@ const BY_WEEKDAY:Partial<Record<number,DayEvent>>={
 };
 export const dayEvent=(d=new Date())=>BY_WEEKDAY[d.getDay()]??null;
 const is=(id:DayEventId,d?:Date)=>dayEvent(d)?.id===id;
-// Deniz Antlaşması etkisi: oylamada seçilen etki 24 saat herkese işler. Sunucu belirler, oyun sunucudan gelen değeri kullanır.
+// Deniz Antlaşması etkisi: seçilen etki 24 saat, o turda en az 40 pırıltı toplamış kaptanlara işler. Sunucu belirler;
+// oyun yalnız kendisine işleyen etkiyi kurar (setTreatyFx), sunucu ise kaptan başına `tr` ile verir.
 export type TreatyFxId='dmg'|'treasure'|'ammo'|'gold'|'xp';
 let treatyFx:{id:TreatyFxId;until:number}|null=null;
 export const setTreatyFx=(fx:{id:TreatyFxId;until:number}|null)=>{treatyFx=fx;};
 export const treatyFxOn=(id:TreatyFxId,now=Date.now())=>!!treatyFx&&treatyFx.id===id&&now<treatyFx.until;
 // Aynı türden günlük etkinlikle çarpılmaz, eklenir (Altın Günü %50 + antlaşma %10 = %60)
 export const spMult=(d?:Date)=>is('sp',d)?2:1;
-export const xpMult=(d?:Date)=>(is('tp',d)?1.5:1)+(treatyFxOn('xp',d?.getTime())?.1:0);
+export const xpMult=(d?:Date,tr=treatyFxOn('xp',d?.getTime()))=>(is('tp',d)?1.5:1)+(tr?.1:0);
 export const epMult=(d?:Date)=>is('ep',d)?1.5:1;
-export const goldMult=(d?:Date)=>(is('gold',d)?1.5:1)+(treatyFxOn('gold',d?.getTime())?.1:0);
+export const goldMult=(d?:Date,tr=treatyFxOn('gold',d?.getTime()))=>(is('gold',d)?1.5:1)+(tr?.1:0);
 export const treatyDmgMult=()=>treatyFxOn('dmg')?1.05:1;
-export const treatyPartMult=()=>treatyFxOn('treasure')?2:1;
 export const TREATY_KILL_AMMO=10;
 export const bossKillsNeeded=(base:number,d?:Date)=>is('boss',d)?Math.ceil(base/2):base;
 // Gece yarısına kalan süre: "5 sa 12 dk"
