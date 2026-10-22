@@ -52,9 +52,3 @@ function render(){const d=info,t=now();
     <div class="treaty-cols"><div><h4>EN ÇOK TOPLAYANLAR</h4><ol class="treaty-top">${top}</ol><p class="treaty-mine">Katkın: <b>${fmt(d.mine)}</b> / ${TREATY_MIN_PICKS}${infoTip(d.mine<TREATY_MIN_PICKS?`Oy, etki ve ödül için <b>${TREATY_MIN_PICKS-d.mine}</b> pırıltı daha topla.`:'Oy, etki ve ödül hakkın var.')}</p></div>
     <div><h4>ÖDÜLLER${infoTip(`Birinci, sonraki oylamada <b>2 oy</b> sayılır. En az ${TREATY_MIN_PICKS} pırıltı toplayan herkes katılım ödülü alır; ilk 3 sıra ödülünü ayrıca alır.`)}</h4><ul class="treaty-prizes">${TREATY_PRIZES.map((p,i)=>`<li><b>${i+1}.</b> ${fmt(p.pearls)} inci · ${k(p.gold)} altın</li>`).join('')}<li><b>${TREATY_MIN_PICKS}+</b> ${fmt(TREATY_JOIN.pearls)} inci · ${k(TREATY_JOIN.gold)} altın</li></ul></div></div>`;
   body.querySelectorAll<HTMLButtonElement>('.treaty-opt').forEach(b=>b.onclick=()=>sendTreatyVote(Number(b.dataset.o)));}
-// Sağdaki etkinlik panelinde (hazine kartıyla aynı tarzda) gösterilecek satır
-export function treatyRow():string|null{const d=info;if(!d)return null;const t=now();
-  if(d.phase==='vote'&&t<d.voteEnd)return`<button class="event-row treaty" data-treaty><img src="${TREATY_ICON}" alt=""/><span><small>DENİZ ANTLAŞMASI · OYLAMA</small><strong>${clock(d.voteEnd-t)} kaldı</strong></span></button>`;
-  if(d.fx&&t<d.fx.until)return`<button class="event-row treaty" data-treaty><img src="${TREATY_ICON}" alt=""/><span><small>${TREATY_FX[d.fx.id].name.toLocaleUpperCase('tr')}</small><strong>${d.fxMine?`${clock(d.fx.until-t)} kaldı`:'Sana işlemiyor'}</strong></span></button>`;
-  if(d.phase==='collect')return`<button class="event-row treaty" data-treaty><img src="${TREATY_ICON}" alt=""/><span><small>DENİZ ANTLAŞMASI</small><strong>${fmt(d.count)} / ${fmt(d.goal)} pırıltı</strong><i><em style="width:${Math.min(100,d.count/d.goal*100)}%"></em></i></span></button>`;
-  return null;}
