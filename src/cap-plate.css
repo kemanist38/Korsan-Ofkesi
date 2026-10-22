@@ -91,3 +91,12 @@ html .info-strip::before,html .info-strip::after{content:none!important}
 .cap-plate .cp-hp .status-line b,.cap-plate .cp-hp .status-line span{font-size:9px!important;line-height:12px!important}
 .cap-plate .cp-tp .status-line b,.cap-plate .cp-sp .status-line b,.cap-plate .cp-tp .status-line span,.cap-plate .cp-sp .status-line span{font-size:7px!important;line-height:9px!important}
 .cap-plate .cp-nick{font-size:9px!important;line-height:11px}
+/* İnce plaka: seviye amblemi yok, yalnız çerçevenin dikdörtgen kısmı */
+.cap-plate{width:280px!important;height:52px!important;background-size:124% 100%!important;background-position:100% 0!important}
+.cap-plate .cp-socket{display:none!important}
+.cap-plate .cp-info{left:16px;right:16px;top:9px;bottom:9px}
+/* Bilgisayarda düğmeler mini haritanın hemen üstünde, sol üstte */
+@media (min-width:1101px){.cp-top{left:12px;top:28px;gap:6px}.map-cluster{margin-top:84px!important}.map-cluster.cp-side.cp-side.cp-side .day-pop{left:12px!important;top:84px!important}}
+.cap-plate{height:60px!important;background-size:127% 100%!important}
+.cap-plate .cp-info{left:24px;right:22px;top:13px;bottom:13px}
+@media (min-width:1101px){.map-cluster{margin-top:74px!important}}
