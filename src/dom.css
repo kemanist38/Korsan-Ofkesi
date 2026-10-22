@@ -66,3 +66,4 @@
 .chat-menu button{flex:1;padding:7px 4px;border:1px solid #8a6a4a;border-radius:5px;background:#2e1e16;color:#f1d397;font:800 10px Inter;cursor:pointer}
 .chat-menu button[data-a="report"]{border-color:#b0413a;color:#ffc9bd}
 .settings-legal{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:8px;font-size:12px}.settings-legal a{color:#e0b04f}
+.dom-rules-i{margin:14px 0 0;text-align:center}
