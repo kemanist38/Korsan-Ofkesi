@@ -44,19 +44,25 @@ body.hud-v3 .strip-stats,body.hud-v3 .map-cluster{display:none!important}
 .hud3 .h3-btns .h3-ev{background:none!important}.hud3 .h3-btns .h3-ev img{width:52px!important;height:52px!important}
 .hud3 .h3-btns span{position:absolute!important;top:52px!important;left:50%!important;transform:translateX(-50%)!important;font:700 7px Cinzel,serif!important;letter-spacing:.06em;color:#f0cc82!important;text-shadow:0 1px 2px #000,0 0 3px #000;white-space:nowrap}
 .hud3 .h3-btns .day-pop{position:absolute!important;left:0!important;top:206px!important;transform:none!important}
-/* Sağ üst: altın ve inci */
-.h3-res{position:fixed;right:186px;top:10px;z-index:46;display:flex;gap:8px}
-.h3-res span{display:flex;align-items:center;gap:6px;height:30px;padding:0 6px 0 4px;border:1px solid #8a6a3a;border-radius:15px;background:linear-gradient(#2a1d22,#120e10);box-shadow:inset 0 0 0 2px #0c090a,0 3px 8px #000a}
-.h3-res i.sprite{width:22px!important;height:22px!important}
-.h3-res b{min-width:54px;font:800 12px Inter,sans-serif;color:#ffe6a6;text-align:right}
-.h3-res button{width:20px;height:20px;border:1px solid #b78357;border-radius:50%;background:#3a6a2a;color:#fff;font:800 13px/1 Inter,sans-serif;cursor:pointer}
+/* Sağ üst: altın ve inci kutuları (yuvada ikon, ortada sayı, sağda +), zarf ve ayarlar */
+.h3-res{position:fixed;right:10px;top:58px;z-index:46;display:flex;align-items:center;gap:6px;transform:scale(.82);transform-origin:100% 0}
+.h3-box{position:relative;display:block;width:190px;height:49px;background:url(/assets/hud-res-box-v1.webp) 0 0/100% 100% no-repeat;filter:drop-shadow(0 3px 6px #000a)}
+.h3-box i.sprite{position:absolute;left:12px;top:8px;width:32px!important;height:32px!important}
+.h3-box b{position:absolute;left:46px;right:50px;top:0;bottom:0;display:grid;place-items:center;font:800 13px Inter,sans-serif;color:#ffe6a6;text-shadow:0 1px 2px #000}
+.h3-box button{position:absolute;left:153px;top:12px;width:25px;height:25px;border:0;border-radius:50%;background:transparent;cursor:pointer}
+.h3-box button:hover{box-shadow:0 0 10px #ffd56a99}
+.h3-sys{position:relative;width:44px;height:44px;padding:0;border:0;background:none;cursor:pointer;filter:drop-shadow(0 3px 6px #000c)}
+.h3-sys img{width:100%;height:100%;object-fit:contain}.h3-sys:hover{filter:drop-shadow(0 0 8px #ffd56a88)}
+.h3-sys .chat-n{position:absolute;top:-2px;right:-4px}
+#chatToggle.h3-chat{background:none!important;border:0!important;box-shadow:none!important;width:56px!important;height:56px!important;padding:0!important}
+#chatToggle.h3-chat img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 6px #000c)}
 /* Menü: casus */
 .h3-spy{display:flex;align-items:center;gap:10px;margin:0 0 10px;padding:8px 10px;border:1px solid #725047;border-radius:8px;background:#1d1719}
-.h3-spy>b{font:700 11px Inter,sans-serif;letter-spacing:.08em;color:#edc78c;white-space:nowrap}
+.h3-spy>img{width:44px;height:auto}.h3-spy>b{font:700 11px Inter,sans-serif;letter-spacing:.08em;color:#edc78c;white-space:nowrap}
 .h3-spy .spy-go{position:static!important;display:flex!important;flex:1;gap:6px;transform:none!important}
 .h3-spy .spy-go input{flex:1;min-width:0}
-@media (max-height:520px){.hud3{--h3:.62}.h3-res{right:132px;top:6px;transform:scale(.78);transform-origin:100% 0}body.hud-v3 .treaty-pill{transform:translateX(-50%) scale(.62)!important;transform-origin:50% 0}}
-@media (max-width:700px){.hud3{--h3:.6}.h3-res{right:8px;top:46px;transform:scale(.72);transform-origin:100% 0}.h3-res b{min-width:40px}}
+@media (max-height:520px){.hud3{--h3:.62}.h3-res{right:8px;top:50px;transform:scale(.6);transform-origin:100% 0}body.hud-v3 .treaty-pill{transform:translateX(-50%) scale(.62)!important;transform-origin:50% 0}}
+@media (max-width:700px){.hud3{--h3:.6}.h3-res{right:auto;left:50%;top:268px;transform:translateX(-50%) scale(.6);transform-origin:50% 0}}
 /* Etkinlik afişi (üst orta): süslü afiş, ikon soldaki yuvada, yazı ve çubuk ortada */
 body.hud-v3 .treaty-pill{top:6px!important;width:360px;height:79px;padding:0 64px 0 92px!important;border:0!important;border-radius:0!important;background:url(/assets/hud-event-banner-v1.webp) 0 0/100% 100% no-repeat!important;box-shadow:none!important;filter:drop-shadow(0 4px 10px #000b);justify-content:center}
 body.hud-v3 .treaty-pill img{position:absolute;left:44px;top:24px;width:32px!important;height:32px!important}
