@@ -4576,7 +4576,7 @@ function filterChat(text) {
 var DUEL_BETS = [0, 500];
 var DUEL_CUT = 0.1;
 var DUEL_MS = 18e4;
-var DUEL_R = 600;
+var DUEL_R = 380;
 var DUEL_ASK_MS = 2e4;
 var DUEL_NEAR = 1500;
 var DUEL_LEVEL_GAP = 2;
