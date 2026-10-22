@@ -7,9 +7,9 @@ body.hud-v3 .strip-stats,body.hud-v3 .map-cluster{display:none!important}
 .hud3>*{pointer-events:auto}
 /* Plaka: 380×85, solda seviye yuvası, sağda ad + can + TP */
 .h3-plate{position:absolute;left:0;top:0;width:380px;height:85px;background:url(/assets/hud-captain-plate-v1.webp) 0 0/100% 100% no-repeat;filter:drop-shadow(0 4px 8px #000b)}
-.h3-socket{position:absolute;left:14px;top:18px;width:54px;height:54px;display:grid;place-items:center}
-.h3-socket #level{position:relative!important;inset:auto!important;left:auto!important;top:auto!important;transform:none!important;margin:0!important;display:block!important;width:58px!important;height:58px!important;border:0!important;border-radius:50%!important;background-color:transparent!important;background-image:url(/assets/level-badges-v1.webp)!important;background-size:800% 100%!important;background-repeat:no-repeat!important;color:transparent!important;font-size:0!important;box-shadow:none!important;filter:drop-shadow(0 2px 4px #000c);animation:none}
-.h3-socket #level::before{content:'';position:absolute;inset:-3px;border-radius:50%;background:conic-gradient(#ffd36a var(--lvp,0%),#ffffff14 0);-webkit-mask:radial-gradient(closest-side,#0000 86%,#000 89%,#000 99%,#0000 100%);mask:radial-gradient(closest-side,#0000 86%,#000 89%,#000 99%,#0000 100%)}
+.h3-socket{position:absolute;left:19px;top:19px;width:48px;height:48px;border-radius:50%;overflow:hidden;display:grid;place-items:center;box-shadow:inset 0 0 0 2px #c9a24f,inset 0 0 6px #000}
+.h3-socket #level{position:relative!important;inset:auto!important;left:auto!important;top:auto!important;transform:none!important;margin:0!important;display:block!important;width:68px!important;height:68px!important;flex:none;border:0!important;border-radius:50%!important;background-color:transparent!important;background-image:url(/assets/level-badges-v1.webp)!important;background-size:800% 100%!important;background-repeat:no-repeat!important;color:transparent!important;font-size:0!important;box-shadow:none!important;filter:none;animation:none}
+.h3-socket #level::before{content:none!important}
 .h3-socket #level::after{content:none!important}
 .h3-info{position:absolute;left:92px;right:22px;top:24px;bottom:22px;display:flex;flex-direction:column;justify-content:center;gap:3px}
 .h3-row{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0}
@@ -22,23 +22,24 @@ body.hud-v3 .strip-stats,body.hud-v3 .map-cluster{display:none!important}
 .h3-hp .status-line>i{height:13px!important}.h3-hp .status-line>i>em{background:linear-gradient(90deg,#8e1717,#e04a2e)!important}
 .h3-tp .status-line>i{height:8px!important}.h3-tp .status-line>i>em{background:linear-gradient(90deg,#56229a,#b15aff)!important}.h3-tp .status-line b{font-size:7px!important}
 .h3-sp .status-line{width:96px!important}.h3-sp .status-line>i{height:10px!important}.h3-sp .status-line>i>em{background:linear-gradient(90deg,#2a4fb8,#5f8bff)!important}.h3-sp .status-line b{font-size:7.5px!important}
-.hud3 #netPill{position:absolute;left:250px;top:300px;transform:scale(.85);transform-origin:0 0}
-/* Pusula mini harita: 236 kare çerçeve, iç daire çapı ~152 */
-.h3-map{position:absolute;left:0;top:90px;width:236px;height:236px}
-.h3-frame{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;filter:drop-shadow(0 6px 12px #000c)}
-.h3-sea{position:absolute;left:41px;top:43px;width:154px;height:154px;border-radius:50%;overflow:hidden;background:radial-gradient(circle,#123446,#06121a 80%);display:grid;place-items:center}
-.hud3 #minimap{position:static!important;display:block!important;width:150px!important;height:106px!important;border:0!important;border-radius:4px!important;box-shadow:none!important;background:transparent!important}
-.hud3 .zoom-controls{position:absolute!important;left:auto!important;right:-6px!important;top:auto!important;bottom:26px!important;z-index:3;display:flex!important;flex-direction:column;gap:4px;width:auto!important;height:auto!important;margin:0!important;padding:0!important;border:0!important;background:none!important}
+.hud3 #netPill{position:absolute;left:246px;top:166px;transform:scale(.85);transform-origin:0 0}
+/* Mini harita: ince altın halkalı yuvarlak deniz */
+.h3-map{position:absolute;left:4px;top:92px;width:164px;height:164px}
+.h3-sea{position:absolute;inset:0;border-radius:50%;overflow:hidden;background:radial-gradient(circle,#123446,#06121a 80%);display:grid;place-items:center;border:3px solid #c9a24f;box-shadow:0 0 0 1px #3a2410,inset 0 0 0 1px #3a2410,0 6px 14px #000b}
+.hud3 #minimap{position:static!important;display:block!important;width:158px!important;height:112px!important;border:0!important;border-radius:4px!important;box-shadow:none!important;background:transparent!important}
+.hud3 .zoom-controls{position:absolute!important;left:auto!important;right:-14px!important;top:auto!important;bottom:4px!important;z-index:3;display:flex!important;flex-direction:column;gap:4px;width:auto!important;height:auto!important;margin:0!important;padding:0!important;border:0!important;background:none!important}
 .hud3 .zoom-controls span{display:none!important}
 .hud3 .zoom-controls button{position:static!important;width:24px!important;height:24px!important;border:1px solid #b78357!important;border-radius:50%!important;background:radial-gradient(circle at 40% 35%,#4a2a22,#171214)!important;color:#f0cc82!important;font:800 15px Inter,sans-serif!important;line-height:1!important;cursor:pointer;box-shadow:0 2px 5px #000a}
-.h3-loc{position:absolute;left:0;top:324px;width:236px;display:flex;flex-direction:column;align-items:center}
+.h3-loc{position:absolute;left:4px;top:262px;width:164px;display:flex;flex-direction:column;align-items:center}
 .hud3 #mapBadge{position:static!important;display:flex!important;flex-direction:row;align-items:center;gap:6px;padding:3px 10px!important;border:1px solid #725047!important;border-radius:12px!important;background:linear-gradient(#2a1d22ee,#141114ee)!important;cursor:pointer}
 .hud3 #mapBadge strong,.hud3 #mapBadge small{display:none}
 .hud3 #mapBadge .map-coord{position:static!important;font:800 11px Inter,sans-serif!important;color:#ffe6a6!important;background:none!important;border:0!important;padding:0!important}
 .hud3 .h3-go{position:static!important;display:none!important;margin-top:4px;transform:none!important}
 .hud3 .h3-go.open{display:flex!important}
 /* Menü düğmeleri: 2 sütun × 3 sıra, haritanın sağında */
-.h3-btns{position:absolute;left:244px;top:96px;display:grid;grid-template-columns:repeat(2,56px);grid-auto-rows:66px;gap:2px 6px}
+.h3-btns{position:absolute;left:182px;top:92px;display:grid;grid-template-columns:repeat(4,56px);grid-template-rows:repeat(3,66px);gap:2px 4px}
+.h3-btns #openWorldMap{grid-area:1/1}.h3-btns #openQuestTop{grid-area:2/1}.h3-btns .h3-ev{grid-area:3/1}
+.h3-btns .grp-btn{grid-area:1/2}.h3-btns .fr-btn{grid-area:1/3}.h3-btns .arena-button{grid-area:1/4}
 .hud3 .h3-btns .world-map-button,.hud3 .h3-btns .quest-bust{position:relative!important;left:auto!important;top:auto!important;width:52px!important;height:52px!important;margin:0!important;padding:0!important;border:0!important;border-radius:50%!important;background:url(/assets/hud-button-frame-v1.webp) center/100% 100% no-repeat!important;box-shadow:0 4px 10px #000a!important;display:grid!important;place-items:center;overflow:visible!important}
 .hud3 .h3-btns .world-map-button img,.hud3 .h3-btns .quest-bust img{width:38px!important;height:38px!important;margin:0!important;border-radius:50%;object-fit:contain}
 .hud3 .h3-btns .h3-ev{background:none!important}.hud3 .h3-btns .h3-ev img{width:52px!important;height:52px!important}
@@ -62,7 +63,7 @@ body.hud-v3 .strip-stats,body.hud-v3 .map-cluster{display:none!important}
 .h3-spy .spy-go{position:static!important;display:flex!important;flex:1;gap:6px;transform:none!important}
 .h3-spy .spy-go input{flex:1;min-width:0}
 @media (max-height:520px){.hud3{--h3:.62}.h3-res{right:8px;top:50px;transform:scale(.6);transform-origin:100% 0}body.hud-v3 .treaty-pill{transform:translateX(-50%) scale(.62)!important;transform-origin:50% 0}}
-@media (max-width:700px){.hud3{--h3:.6}.h3-res{right:auto;left:50%;top:268px;transform:translateX(-50%) scale(.6);transform-origin:50% 0}}
+@media (max-width:700px){.hud3{--h3:.6}.h3-res{right:8px;left:auto;top:196px;transform:scale(.55);transform-origin:100% 0}}
 /* Etkinlik afişi (üst orta): süslü afiş, ikon soldaki yuvada, yazı ve çubuk ortada */
 body.hud-v3 .treaty-pill{top:6px!important;width:360px;height:79px;padding:0 64px 0 92px!important;border:0!important;border-radius:0!important;background:url(/assets/hud-event-banner-v1.webp) 0 0/100% 100% no-repeat!important;box-shadow:none!important;filter:drop-shadow(0 4px 10px #000b);justify-content:center}
 body.hud-v3 .treaty-pill img{position:absolute;left:44px;top:24px;width:32px!important;height:32px!important}
@@ -70,3 +71,11 @@ body.hud-v3 .treaty-pill span{flex-direction:column;gap:3px!important;font-size:
 body.hud-v3 .treaty-pill i{width:150px!important;height:6px!important}
 body.hud-v3 .treaty-pill.vote{animation:none}
 @media (max-width:700px){body.hud-v3 .treaty-pill{top:214px!important;transform:translateX(-50%) scale(.62)!important;transform-origin:50% 0}}
+
+/* Antlaşma artık sağdaki etkinlik panelinde (hazine kartı gibi); çıkış menüde; köşede yalnız market ve menü */
+body.hud-v3 .treaty-pill{display:none!important}
+body.hud-v3 #logoutCorner{display:none!important}
+#menuLogout svg{width:34px;height:34px;color:#f0c593}
+.event-row.treaty img{width:34px;height:34px;object-fit:contain}
+body.hud-v3 .event-panel,html.touch body.hud-v3 .event-panel{top:112px!important}
+@media (max-width:700px){body.hud-v3 .event-panel,html.touch body.hud-v3 .event-panel{top:236px!important}}
