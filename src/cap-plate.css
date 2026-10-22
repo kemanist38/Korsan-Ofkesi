@@ -100,3 +100,16 @@ html .info-strip::before,html .info-strip::after{content:none!important}
 .cap-plate{height:60px!important;background-size:127% 100%!important}
 .cap-plate .cp-info{left:24px;right:22px;top:13px;bottom:13px}
 @media (min-width:1101px){.map-cluster{margin-top:74px!important}}
+/* Yatay telefon: düğmeler sol üstte bağlantı rozetinin yanında, yazısız; antlaşma rozeti plakanın altında */
+@media (max-height:520px) and (min-width:701px){
+  .cp-top{left:auto;right:auto;left:clamp(118px,15vw,140px);top:4px;gap:4px}
+  .cp-top>button{width:32px!important;height:32px!important}.cp-top>button img,.cp-top>.cp-ev img{width:26px!important;height:26px!important}
+  .cp-top>button span{display:none!important}
+  .map-cluster.cp-side.cp-side.cp-side .day-pop{left:118px!important;top:44px!important}
+  .treaty-pill{top:58px!important;padding:2px 10px 2px 3px;font-size:10px}.treaty-pill img{width:22px;height:22px}.treaty-pill i{width:50px}
+}
+@media (max-height:520px) and (min-width:701px){
+  .cap-plate{transform:translateX(-50%) scale(.72)!important;transform-origin:50% 0!important}
+  .cp-top{left:112px;gap:3px}.cp-top>button{width:28px!important;height:28px!important}.cp-top>button img,.cp-top>.cp-ev img{width:24px!important;height:24px!important}
+  .treaty-pill{top:48px!important;transform:translateX(-50%) scale(.75)!important;transform-origin:50% 0}
+}
