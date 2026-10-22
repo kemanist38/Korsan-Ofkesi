@@ -633,7 +633,7 @@ const netHandlers:NetHandlers={
   muted:left=>{const t=left>=86_400_000?`${Math.ceil(left/86_400_000)} gün`:left>=3_600_000?`${Math.ceil(left/3_600_000)} saat`:`${Math.ceil(left/60_000)} dakika`;chat.system(`Sohbet cezan var · ${t} sonra yazabilirsin (Oyun Kuralları)`);toast(`Sohbet cezası: ${t}`);},
   reported:()=>{toast('Bildirimin yönetime iletildi, teşekkürler');},
   ls:d=>onLsNet(d),
-  treaty:d=>{setTreatyFx(d.fx);treatyMsg(d);if(d.err)toast(d.err);if(d.reward)rewardNotice(`Deniz Antlaşması ödülü${d.reward.rank?` · ${d.reward.rank}. sıra`:''} · +${fmt(d.reward.pearls)} inci · +${fmt(d.reward.gold)} altın`,'gain');},
+  treaty:d=>{setTreatyFx(d.fxMine?d.fx:null);treatyMsg(d);if(d.err)toast(d.err);if(d.reward)rewardNotice(`Deniz Antlaşması ödülü${d.reward.rank?` · ${d.reward.rank}. sıra`:''} · +${fmt(d.reward.pearls)} inci · +${fmt(d.reward.gold)} altın`,'gain');},
   ahp:d=>{adminEv={...d,at:performance.now()};},
   aboom:(id:string)=>{const e=remoteOf(id);if(e){burst(e.x,e.y,true);burst(e.x,e.y,true);playExplosion();splashAt(e.x,e.y,220);}},
   bid:b=>receiveBid(b),

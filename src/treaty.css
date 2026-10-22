@@ -4,7 +4,7 @@
 .treaty-pill img{width:28px;height:28px;object-fit:contain}
 .treaty-pill span{display:flex;align-items:center;gap:6px;white-space:nowrap}.treaty-pill b{color:#ffd56a;letter-spacing:.06em}
 .treaty-pill i{display:block;width:70px;height:6px;border-radius:3px;background:#ffffff1a;overflow:hidden}.treaty-pill em{display:block;height:100%;background:linear-gradient(90deg,#c9892a,#ffe08a)}
-.treaty-pill.vote{border-color:#ffd56a;animation:treatyPulse 1.6s ease-in-out infinite}.treaty-pill.fx b{color:#7fe0b0}
+.treaty-pill.vote{border-color:#ffd56a;animation:treatyPulse 1.6s ease-in-out infinite}.treaty-pill.fx b{color:#7fe0b0}.treaty-pill.off{opacity:.75}.treaty-pill.off b{color:#9fb1b3}
 @keyframes treatyPulse{0%,100%{box-shadow:0 0 0 #ffd56a00}50%{box-shadow:0 0 16px #ffd56a99}}
 @media (max-width:700px){.treaty-pill{top:calc(var(--strip,40px) + 26px);font-size:10px}.treaty-pill img{width:22px;height:22px}.treaty-pill i{width:46px}}
 .treaty-overlay{position:fixed;z-index:60}

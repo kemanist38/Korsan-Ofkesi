@@ -18,7 +18,7 @@ test('each weekday gives its own bonus',()=>{
 test('treaty effects add to the day bonus and expire',()=>{
   const now=day(7).getTime();E.setTreatyFx({id:'gold',until:now+1000});
   assert.equal(E.goldMult(day(7)),1.6);assert.equal(E.goldMult(new Date(now+2000)),1.5);
-  E.setTreatyFx({id:'xp',until:now+1000});assert.equal(E.xpMult(day(7)),1.1);assert.equal(E.goldMult(day(7)),1.5);E.setTreatyFx(null);
+  E.setTreatyFx({id:'xp',until:now+1000});assert.equal(E.xpMult(day(7)),1.1);assert.equal(E.xpMult(day(7),false),1,'not eligible');assert.equal(E.goldMult(day(7)),1.5);E.setTreatyFx(null);
 });
 test('time left until midnight',()=>{
   assert.equal(E.untilMidnight(new Date(2026,9,3,18,48)),'5 sa 12 dk');

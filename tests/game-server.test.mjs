@@ -420,13 +420,14 @@ test('Deniz Antlaşması: sparkles fill the goal, vote opens, winner applies for
   S.treatyReset();const now=Date.UTC(2026,9,22,10);S.treaty.seen={a:now,b:now};S.treatyStart(now,()=>0.3);
   assert.equal(S.treaty.phase,'collect');assert.equal(S.treaty.goal,300,'at least 300');assert.equal(S.treaty.options.length,3);
   const a={uid:'a',nick:'A'},b={uid:'b',nick:'B'};
-  for(let i=0;i<290;i++)S.treatyPick(a,now+i);for(let i=0;i<9;i++)S.treatyPick(b,now+i);
+  for(let i=0;i<220;i++)S.treatyPick(a,now+i);for(let i=0;i<9;i++)S.treatyPick(b,now+i);const z={uid:'z',nick:'Z'};for(let i=0;i<39;i++)S.treatyPick(z,now+i);
   assert.equal(S.treaty.phase,'collect');assert.ok(S.treatyVote(a,0,now).err,'no vote before the goal');
-  S.treatyPick(b,now+400);assert.equal(S.treaty.phase,'vote');assert.ok(S.treaty.envoy?.map==='1/1');
+  for(let i=0;i<31;i++)S.treatyPick(b,now+400+i);assert.equal(S.treaty.phase,'collect');S.treatyPick(b,now+500);assert.equal(S.treaty.phase,'vote');assert.ok(S.treaty.envoy?.map==='1/1');
   assert.ok(S.treatyVote(a,1,now+500).ok);assert.ok(S.treatyVote(b,0,now+500).ok);assert.ok(S.treatyVote(b,5,now+500).err);
   S.treaty.double='a';S.treatyTick(S.treaty.voteEnd+1);
   assert.equal(S.treaty.phase,'done');assert.equal(S.treaty.fx.id,S.treaty.options[1],'double vote wins');
-  const grants=[...S.pendingCredits.values()].filter(p=>p.uid==='a'||p.uid==='b');
+  assert.deepEqual(Object.keys(S.treaty.elig).sort(),['a','b'],'effect only for 40+ collectors');assert.equal(S.treatyInfo(z,S.treaty.voteEnd+2).fxMine,false);assert.equal(S.treatyInfo(a,S.treaty.voteEnd+2).fxMine,true);
+  const grants=[...S.pendingCredits.values()].filter(p=>p.uid==='a'||p.uid==='b'||p.uid==='z');assert.ok(!grants.some(p=>p.uid==='z'),'39 picks: no reward');
   assert.deepEqual(grants.find(p=>p.uid==='a').grant.add,{pearls:325,gold:175000});assert.deepEqual(grants.find(p=>p.uid==='b').grant.add,{pearls:225,gold:125000});
   assert.equal(S.treaty.double,'a');for(const p of grants)S.pendingCredits.delete(p.grant.id);S.treatyReset();
 });

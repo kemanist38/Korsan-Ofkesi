@@ -4314,15 +4314,11 @@ var BY_WEEKDAY = {
 var dayEvent = (d = /* @__PURE__ */ new Date()) => BY_WEEKDAY[d.getDay()] ?? null;
 var is = (id, d) => dayEvent(d)?.id === id;
 var treatyFx = null;
-var setTreatyFx = (fx) => {
-  treatyFx = fx;
-};
 var treatyFxOn = (id, now = Date.now()) => !!treatyFx && treatyFx.id === id && now < treatyFx.until;
 var spMult = (d) => is("sp", d) ? 2 : 1;
-var xpMult = (d) => (is("tp", d) ? 1.5 : 1) + (treatyFxOn("xp", d?.getTime()) ? 0.1 : 0);
+var xpMult = (d, tr = treatyFxOn("xp", d?.getTime())) => (is("tp", d) ? 1.5 : 1) + (tr ? 0.1 : 0);
 var epMult = (d) => is("ep", d) ? 1.5 : 1;
-var goldMult = (d) => (is("gold", d) ? 1.5 : 1) + (treatyFxOn("gold", d?.getTime()) ? 0.1 : 0);
-var treatyPartMult = () => treatyFxOn("treasure") ? 2 : 1;
+var goldMult = (d, tr = treatyFxOn("gold", d?.getTime())) => (is("gold", d) ? 1.5 : 1) + (tr ? 0.1 : 0);
 var TREATY_KILL_AMMO = 10;
 
 // src/treaty.ts
@@ -4337,7 +4333,7 @@ var TREATY_FX_IDS = Object.keys(TREATY_FX);
 var TREATY_MAP = "1/1";
 var TREATY_VOTE_MS = 30 * 6e4;
 var TREATY_FX_MS = 24 * 36e5;
-var TREATY_MIN_PICKS = 10;
+var TREATY_MIN_PICKS = 40;
 var TREATY_ENVOY_R = 140;
 var TREATY_PRIZES = [{ pearls: 300, gold: 15e4 }, { pearls: 200, gold: 1e5 }, { pearls: 100, gold: 5e4 }];
 var TREATY_JOIN = { pearls: 25, gold: 25e3 };
@@ -4796,8 +4792,9 @@ function dpsTake(c, dmg, now) {
   return { ok, flag: d.over > rate * 6 };
 }
 var talentRank = (c, id) => Number(c?.ld?.tal?.[id]) || 0;
-var G = (n) => Math.round(n * goldMult());
-var X = (n) => Math.round(n * xpMult());
+var trOn = (c, id) => !!treaty.fx && treaty.fx.id === id && Date.now() < treaty.fx.until && !!c?.uid && !!treaty.elig?.[c.uid];
+var G = (n, c) => Math.round(n * goldMult(void 0, trOn(c, "gold")));
+var X = (n, c) => Math.round(n * xpMult(void 0, trOn(c, "xp")));
 var AMMO_MULT = { iron: 1, chain: 1.25, fire: 2.5 * 1.8, explosive: 2.5, breaker: 2.25 * 2.6, leech: 3, heal: 0 };
 function perBall(ammo, st) {
   return 20 * 1.38 * (1 + (st ? Number(st.u_damage) || 0 : 10) * 0.11) * (AMMO_MULT[ammo] ?? 1) * 1.4 * 2.2;
@@ -4868,10 +4865,10 @@ function killCredit(c, id, now) {
   sbTake(c, def.hp * 0.6);
   b.pool = Math.max(0, b.pool - def.hp);
   b.miss = 0;
-  const add = { gold: G(def.gold), xp: X(def.xp) };
+  const add = { gold: G(def.gold, c), xp: X(def.xp, c) };
   add.st_npc = 1;
   if (npc2.role === "heavy") add.st_heavy = 1;
-  if (treatyFxOn("ammo")) add.a_fire = TREATY_KILL_AMMO;
+  if (trOn(c, "ammo")) add.a_fire = TREATY_KILL_AMMO;
   c.qk ??= {};
   c.qk[id] = (c.qk[id] || 0) + 1;
   const lvl = Math.round(Number(c.econ?.level) || 1);
@@ -4904,13 +4901,13 @@ function questCredit(c, id, now) {
     }
   }
   cd.set(id, now);
-  return { add: { pearls: q.pearls, gold: G(q.gold), xp: X(q.xp), ep: Math.round(questEp(q.tier) * epMult()), st_quest: 1 } };
+  return { add: { pearls: q.pearls, gold: G(q.gold, c), xp: X(q.xp, c), ep: Math.round(questEp(q.tier) * epMult()), st_quest: 1 } };
 }
 var bossPool = (n) => 1 + 0.6 * (Math.min(5, Math.max(1, n)) - 1);
-function bossCredit(map, share, n) {
+function bossCredit(map, share, n, c) {
   if (!MAPS[map] || !(share > 0)) return null;
   const b = bossFor(map), pool = bossPool(n);
-  const add = { gold: G(Math.round(NPCS[b.trigger].gold * 20 * pool * share)), xp: X(Math.round(b.xp * pool * share)) };
+  const add = { gold: G(Math.round(NPCS[b.trigger].gold * 20 * pool * share), c), xp: X(Math.round(b.xp * pool * share), c) };
   if (share >= 0.03) {
     add.ep = Math.round(bossEp(b.tier) * epMult());
     add.st_boss = 1;
@@ -4918,9 +4915,9 @@ function bossCredit(map, share, n) {
   }
   return add;
 }
-function siegeCredit(dmg, n, level) {
+function siegeCredit(dmg, n, level, c) {
   const r = contribReward(dmg, Math.max(1, n), Math.max(1, Math.min(8, Math.round(Number(level) || 8))));
-  return { gold: G(r.gold), xp: X(r.xp), pearls: r.pearls };
+  return { gold: G(r.gold, c), xp: X(r.xp, c), pearls: r.pearls };
 }
 var treasures = /* @__PURE__ */ new Map();
 var treOf = (uid) => {
@@ -4949,7 +4946,7 @@ function chestPicked(c, now, rand = Math.random) {
   t.chest.t = now;
   if (t.chest.pool < 1) return { err: "h\u0131z" };
   t.chest.pool -= 1;
-  if (rand() >= PART_CHANCE * treatyPartMult()) return { parts: t.parts };
+  if (rand() >= PART_CHANCE * (trOn(c, "treasure") ? 2 : 1)) return { parts: t.parts };
   t.parts++;
   if (t.parts >= TREASURE_PARTS && !t.spot) {
     t.parts -= TREASURE_PARTS;
@@ -5042,7 +5039,7 @@ function treasureDig(c) {
   if (map !== t.spot.map || !c.last || Math.hypot(c.last.x - t.spot.x, c.last.y - t.spot.y) > DIG_RADIUS + 60) return { err: "yer" };
   const m = MAPS[map], r = treasureReward(m.tier, NPCS[m.npcs[0]].gold);
   t.spot = null;
-  return { reward: r, add: { gold: G(r.gold), pearls: r.pearls, st_treasure: 1, [r.ammo === "chain" ? "chain" : "a_" + r.ammo]: r.ammoQty, a_powder: r.powder, a_shield: r.shield } };
+  return { reward: r, add: { gold: G(r.gold, c), pearls: r.pearls, st_treasure: 1, [r.ammo === "chain" ? "chain" : "a_" + r.ammo]: r.ammoQty, a_powder: r.powder, a_shield: r.shield } };
 }
 var pendingCredits = /* @__PURE__ */ new Map();
 var STATE_FILE = process.env.STATE_FILE || "/opt/game/state.json";
@@ -5316,11 +5313,11 @@ function npcApply(c, sea2, n, d, now) {
   return { dealt: d, dead: n, shares: [...n.dmg].map(([uid, v]) => [uid, v / total]) };
 }
 function npcDeathCredit(c, def, map, share) {
-  const add = { gold: G(def.gold * share * (1 + 0.05 * talentRank(c, "bounty"))), xp: X(def.xp * share) };
+  const add = { gold: G(def.gold * share * (1 + 0.05 * talentRank(c, "bounty")), c), xp: X(def.xp * share, c) };
   if (share >= NPC_KILL_SHARE) {
     add.st_npc = 1;
     if (def.role === "heavy") add.st_heavy = 1;
-    if (treatyFxOn("ammo")) add.a_fire = TREATY_KILL_AMMO;
+    if (trOn(c, "ammo")) add.a_fire = TREATY_KILL_AMMO;
     c.qk ??= {};
     c.qk[def.id] = (c.qk[def.id] || 0) + 1;
     const lvl = Math.round(Number(c.econ?.level) || 1);
@@ -6059,7 +6056,7 @@ function bossApply(c, dmg) {
     for (const x of all) {
       const sh = r.shares[x.uid];
       if (!sh) continue;
-      const add = bossCredit(map, sh.share, r.n);
+      const add = bossCredit(map, sh.share, r.n, x);
       if (add) {
         addCredit(x, add);
         if (sh.share >= 0.03) rageGain(x, RAGE_PER_BOSS);
@@ -6070,7 +6067,7 @@ function bossApply(c, dmg) {
 }
 function siegeApply(c, i, dmg) {
   const r = siegeHitPiece(c.uid, c.nick, i, dmg);
-  if (r?.damage > 0) addCredit(c, siegeCredit(r.damage, siegeRun.caps.size, c.econ?.level));
+  if (r?.damage > 0) addCredit(c, siegeCredit(r.damage, siegeRun.caps.size, c.econ?.level, c));
   if (!r?.down && r?.down !== 0) return;
   toSea(c, { t: "sdown", d: { i: r.down } }, true);
   if (r.won) siegeFinish();
@@ -6825,7 +6822,7 @@ function onLs(c, d, now) {
 }
 setInterval(() => lsTick(Date.now()), 1e3).unref();
 var TREATY_FILE = process.env.TREATY_FILE || "/opt/game/treaty.json";
-var treaty = { day: "", phase: "idle", goal: 0, count: 0, contrib: {}, options: [], votes: {}, voteEnd: 0, fx: null, double: null, seen: {}, envoy: null };
+var treaty = { day: "", phase: "idle", goal: 0, count: 0, contrib: {}, options: [], votes: {}, voteEnd: 0, fx: null, elig: {}, double: null, seen: {}, envoy: null };
 var treatyDirty = false;
 var treatyCastAt = 0;
 var treatyCastDue = false;
@@ -6833,7 +6830,6 @@ function loadTreaty() {
   if (process.env.NODE_ENV === "test") return;
   try {
     treaty = { ...treaty, ...JSON.parse(import_node_fs.default.readFileSync(TREATY_FILE, "utf8")) };
-    setTreatyFx(treaty.fx);
   } catch {
   }
 }
@@ -6848,8 +6844,7 @@ function saveTreaty() {
   }
 }
 var treatyReset = () => {
-  treaty = { day: "", phase: "idle", goal: 0, count: 0, contrib: {}, options: [], votes: {}, voteEnd: 0, fx: null, double: null, seen: {}, envoy: null };
-  setTreatyFx(null);
+  treaty = { day: "", phase: "idle", goal: 0, count: 0, contrib: {}, options: [], votes: {}, voteEnd: 0, fx: null, elig: {}, double: null, seen: {}, envoy: null };
 };
 var dayKey = (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 function treatyEnvoySpot() {
@@ -6876,6 +6871,7 @@ function treatyInfo(c, now = Date.now()) {
     voteEnd: treaty.voteEnd,
     now,
     fx: treaty.fx && now < treaty.fx.until ? treaty.fx : null,
+    fxMine: !!treaty.fx && now < treaty.fx.until && !!treaty.elig?.[c?.uid],
     envoy: treaty.phase === "vote" ? treaty.envoy : null,
     top: treatySorted().slice(0, 3).map(([, v]) => [v[0], v[1]]),
     mine: treaty.contrib[c?.uid]?.[1] ?? 0,
@@ -6937,15 +6933,16 @@ function grantUid(uid, add) {
 }
 function treatyFinish(now, rand = Math.random) {
   const tally = treatyTally(treaty.options, treaty.votes, treaty.double), win = treaty.options[treatyWinner(tally, rand)];
+  const sorted = treatySorted();
   treaty.fx = { id: win, until: now + TREATY_FX_MS };
-  setTreatyFx(treaty.fx);
+  treaty.elig = Object.fromEntries(sorted.filter(([, v]) => v[1] >= TREATY_MIN_PICKS).map(([u]) => [u, 1]));
   treaty.phase = "done";
-  const sorted = treatySorted(), rw = treatyRewards(sorted.map(([u, v]) => [u, v[1]]));
+  const rw = treatyRewards(sorted.map(([u, v]) => [u, v[1]]));
   for (const [uid, r] of rw) {
     const c = grantUid(uid, { pearls: r.pearls, gold: r.gold });
     if (c) send(c, { t: "treaty", d: { ...treatyInfo(c, now), reward: r } });
   }
-  treaty.double = sorted[0] && sorted[0][1][1] >= 10 ? sorted[0][0] : null;
+  treaty.double = sorted[0] && sorted[0][1][1] >= TREATY_MIN_PICKS ? sorted[0][0] : null;
   treatyDirty = true;
   log("ANTLA\u015EMA", TREATY_FX[win].name, tally.join("/"), "\xF6d\xFCl", rw.size);
   treatyCast();

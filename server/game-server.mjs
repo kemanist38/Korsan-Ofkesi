@@ -19,8 +19,8 @@ import {cumulativeEliteBonus,ELITE_CANNON_CAPACITY} from '../src/elite-progressi
 import {ACHIEVEMENTS,MAIN_COLLECTION} from '../src/achievements.ts';
 import {officerSlots,OFFICER_MAX_RANK,talentPoints,TALENTS} from '../src/crew.ts';
 import {MINE,CONSUMABLES} from '../src/arsenal.ts';
-import {goldMult,xpMult,epMult,spMult,dayEvent,setTreatyFx,treatyFxOn,treatyPartMult,TREATY_KILL_AMMO} from '../src/events.ts';
-import {TREATY_FX,TREATY_FX_IDS,TREATY_MAP,TREATY_VOTE_MS,TREATY_FX_MS,TREATY_ENVOY_R,treatyGoal,treatyTally,treatyWinner,treatyRewards} from '../src/treaty.ts';
+import {goldMult,xpMult,epMult,spMult,dayEvent,TREATY_KILL_AMMO} from '../src/events.ts';
+import {TREATY_FX,TREATY_FX_IDS,TREATY_MIN_PICKS,TREATY_MAP,TREATY_VOTE_MS,TREATY_FX_MS,TREATY_ENVOY_R,treatyGoal,treatyTally,treatyWinner,treatyRewards} from '../src/treaty.ts';
 import {HERO_DAMAGE,HERO_DAYS} from '../src/siege.ts';
 import {createChest} from '../src/loot.ts';
 import {fleetReward,LEVEL_XP} from '../src/campaign.ts';
@@ -146,7 +146,9 @@ export function dpsTake(c,dmg,now){const rate=dpsCap(c.econ?.level??8);c.dps??={
 // Ödülü sunucu kesin hesaplar (oyunla aynı formül): etkinlik günü çarpanları ve Ödül Avcısı yeteneği sunucuda.
 // Ekonomi eşitlemesi sunucunun verdiğini olduğu gibi yazar; oyuncunun kendi hesapladığı kazanç sayılmaz.
 const talentRank=(c,id)=>Number(c?.ld?.tal?.[id])||0;
-const G=n=>Math.round(n*goldMult()),X=n=>Math.round(n*xpMult());
+// Deniz Antlaşması etkisi yalnız o turda en az 40 pırıltı toplamış kaptana işler (treaty.elig)
+const trOn=(c,id)=>!!treaty.fx&&treaty.fx.id===id&&Date.now()<treaty.fx.until&&!!c?.uid&&!!treaty.elig?.[c.uid];
+const G=(n,c)=>Math.round(n*goldMult(undefined,trOn(c,'gold'))),X=(n,c)=>Math.round(n*xpMult(undefined,trOn(c,'xp')));
 // Salvo bütçesi (015): oyuncunun bildirdiği salvolar en çok ne kadar hasar verebilir. Gülle başına üst sınır: top hasarı
 // (en güçlü top) × geliştirme × gülle çarpanı × hedef türü (1,4) × ateş yanması (1,8) × diğer bonuslar (2,2). Bildirilen
 // gülle sayısı gemideki top sayısını aşamaz. Batırma, boss, kuşatma, kule ve PvP hasarı bu bütçeden düşer.
@@ -179,8 +181,8 @@ export function killCredit(c,id,now){const map=seaMap(c.sea);if(!map||!MAPS[map]
   if(b.pool<def.hp*.5){b.miss++;return{err:'hız',flag:b.miss>=10};}
   if((c.sb?.pool??0)<def.hp*.6){b.miss++;return{err:'mermi',flag:b.miss>=10};}
   sbTake(c,def.hp*.6);b.pool=Math.max(0,b.pool-def.hp);b.miss=0;
-  const add={gold:G(def.gold),xp:X(def.xp)};
-  add.st_npc=1;if(npc.role==='heavy')add.st_heavy=1;if(treatyFxOn('ammo'))add.a_fire=TREATY_KILL_AMMO;
+  const add={gold:G(def.gold,c),xp:X(def.xp,c)};
+  add.st_npc=1;if(npc.role==='heavy')add.st_heavy=1;if(trOn(c,'ammo'))add.a_fire=TREATY_KILL_AMMO;
   c.qk??={};c.qk[id]=(c.qk[id]||0)+1;
   const lvl=Math.round(Number(c.econ?.level)||1);if(npc&&lvl>=2&&map===levelQuestMap(lvl)&&levelQuestTargets(lvl).ships.includes(id))add.lqk=1;
   return{add};}
@@ -194,14 +196,14 @@ export function questCredit(c,id,now){const q=QUESTS.find(x=>x.id===id);if(!q)re
   if(q.kind==='sparkle'){c.qk??={};const k='spk:'+q.map;if((c.qk[k]||0)<q.required)return{err:'sayı',have:c.qk[k]||0};c.qk[k]-=q.required;}
   if(q.kind==='npc'){c.qk??={};const have=q.ids.reduce((a,k)=>a+(c.qk[k]||0),0);if(have<q.required)return{err:'sayı',have};
     let need=q.required;for(const k of q.ids){const t=Math.min(need,c.qk[k]||0);c.qk[k]-=t;need-=t;}}
-  cd.set(id,now);return{add:{pearls:q.pearls,gold:G(q.gold),xp:X(q.xp),ep:Math.round(questEp(q.tier)*epMult()),st_quest:1}};}
+  cd.set(id,now);return{add:{pearls:q.pearls,gold:G(q.gold,c),xp:X(q.xp,c),ep:Math.round(questEp(q.tier)*epMult()),st_quest:1}};}
 // Boss ödülü: payı sunucu bilir; katılımcıya oyunun formülüyle (havuz × pay) kazanç hakkı yazılır
 export const bossPool=n=>1+.6*(Math.min(5,Math.max(1,n))-1);
-export function bossCredit(map,share,n){if(!MAPS[map]||!(share>0))return null;const b=bossFor(map),pool=bossPool(n);
-  const add={gold:G(Math.round(NPCS[b.trigger].gold*20*pool*share)),xp:X(Math.round(b.xp*pool*share))};
+export function bossCredit(map,share,n,c){if(!MAPS[map]||!(share>0))return null;const b=bossFor(map),pool=bossPool(n);
+  const add={gold:G(Math.round(NPCS[b.trigger].gold*20*pool*share),c),xp:X(Math.round(b.xp*pool*share),c)};
   if(share>=.03){add.ep=Math.round(bossEp(b.tier)*epMult());add.st_boss=1;add.pearls=b.pearls;}return add;}
 // Kuşatma: kabul edilen her hasar için katkı ödülü (oyunun formülüyle) kazanç hakkı olarak
-export function siegeCredit(dmg,n,level){const r=contribReward(dmg,Math.max(1,n),Math.max(1,Math.min(8,Math.round(Number(level)||8))));return{gold:G(r.gold),xp:X(r.xp),pearls:r.pearls};}
+export function siegeCredit(dmg,n,level,c){const r=contribReward(dmg,Math.max(1,n),Math.max(1,Math.min(8,Math.round(Number(level)||8))));return{gold:G(r.gold,c),xp:X(r.xp,c),pearls:r.pearls};}
 // Hazine avı: oyun yalnız toplanan sandığı bildirir; parça zarını sunucu atar, 4 parçada hazine yerini sunucu seçer,
 // kazıyı (oyuncu o denizde ve noktada mı) ve ödülü sunucu onaylar. Sandık bildirimi sandık çıkma hızıyla sınırlıdır.
 export const treasures=new Map(); // uid → {parts, spot, chest:{pool,t}}
@@ -214,7 +216,7 @@ export function pickSpot(map,rand=Math.random){const m=MAPS[map];
 // Sandık: denizde aynı anda en çok 4 sandık, 22 sn'de bir yenisi → kova 6 sandık, 18 sn'de bir dolar
 export function chestPicked(c,now,rand=Math.random){const map=seaMap(c.sea);if(!map||!MAPS[map])return{err:'deniz'};const t=treOf(c.uid);
   t.chest.pool=Math.min(6,t.chest.pool+Math.max(0,now-t.chest.t)/18_000);t.chest.t=now;if(t.chest.pool<1)return{err:'hız'};t.chest.pool-=1;
-  if(rand()>=PART_CHANCE*treatyPartMult())return{parts:t.parts};t.parts++;
+  if(rand()>=PART_CHANCE*(trOn(c,'treasure')?2:1))return{parts:t.parts};t.parts++;
   if(t.parts>=TREASURE_PARTS&&!t.spot){t.parts-=TREASURE_PARTS;t.spot=pickSpot(map,rand);return{parts:t.parts,spot:t.spot,found:true};}
   return{parts:t.parts,found:true};}
 // Pırıltı toplama sınırsızdır; yalnız imkânsız hız reddedilir: art arda 40, sonra saniyede 1,5.
@@ -248,7 +250,7 @@ export function sparkleReward(c,rand=Math.random){const tier=MAPS[seaMap(c.sea)]
 export function treasureDig(c){const t=treOf(c.uid);if(!t.spot)return{err:'harita'};const map=seaMap(c.sea);
   if(map!==t.spot.map||!c.last||Math.hypot(c.last.x-t.spot.x,c.last.y-t.spot.y)>DIG_RADIUS+60)return{err:'yer'};
   const m=MAPS[map],r=treasureReward(m.tier,NPCS[m.npcs[0]].gold);t.spot=null;
-  return{reward:r,add:{gold:G(r.gold),pearls:r.pearls,st_treasure:1,[r.ammo==='chain'?'chain':'a_'+r.ammo]:r.ammoQty,a_powder:r.powder,a_shield:r.shield}};}
+  return{reward:r,add:{gold:G(r.gold,c),pearls:r.pearls,st_treasure:1,[r.ammo==='chain'?'chain':'a_'+r.ammo]:r.ammoQty,a_powder:r.powder,a_shield:r.shield}};}
 // Görev sayaçları, bekleme süreleri ve hazine durumu sunucu dosyasında saklanır (yeniden başlatmada kaybolmaz)
 export const pendingCredits=new Map();
 const STATE_FILE=process.env.STATE_FILE||'/opt/game/state.json';const qkByUid=new Map();
@@ -327,8 +329,8 @@ export function npcApply(c,sea,n,d,now){d=Math.min(d,n.hp);n.hp-=d;n.hpDirty=tru
   const st=seaNpcs.get(sea);st.list.delete(n.id);st.respawn.push(now+NPC_RESPAWN_MS);
   const total=[...n.dmg.values()].reduce((a,v)=>a+v,0)||1;return{dealt:d,dead:n,shares:[...n.dmg].map(([uid,v])=>[uid,v/total])};}
 // Batış ödülü: altın/TP payla (×2,5 bonus payı), batırma sayaçları payı %30 üstündekilere
-export function npcDeathCredit(c,def,map,share){const add={gold:G(def.gold*share*(1+.05*talentRank(c,'bounty'))),xp:X(def.xp*share)};
-  if(share>=NPC_KILL_SHARE){add.st_npc=1;if(def.role==='heavy')add.st_heavy=1;if(treatyFxOn('ammo'))add.a_fire=TREATY_KILL_AMMO;c.qk??={};c.qk[def.id]=(c.qk[def.id]||0)+1;
+export function npcDeathCredit(c,def,map,share){const add={gold:G(def.gold*share*(1+.05*talentRank(c,'bounty')),c),xp:X(def.xp*share,c)};
+  if(share>=NPC_KILL_SHARE){add.st_npc=1;if(def.role==='heavy')add.st_heavy=1;if(trOn(c,'ammo'))add.a_fire=TREATY_KILL_AMMO;c.qk??={};c.qk[def.id]=(c.qk[def.id]||0)+1;
     const lvl=Math.round(Number(c.econ?.level)||1);if(lvl>=2&&map===levelQuestMap(lvl)&&levelQuestTargets(lvl).ships.includes(def.id))add.lqk=1;}
   return add;}
 export class Rate{constructor(perWindow,windowMs){this.n=perWindow;this.w=windowMs;this.t=[];}hit(now){while(this.t.length&&now-this.t[0]>this.w)this.t.shift();if(this.t.length>=this.n)return false;this.t.push(now);return true;}}
@@ -567,9 +569,9 @@ async function mineTick(now){for(const [sea,list] of seaMines){const room=seas.g
     for(const t of f.towers)if(near(t.x,t.y,B)&&owner.ws)await towerApply(owner,t.key,t.slot,m.dmg,false,now);}}}
 // Sunucu atışı: NPC hedefi
 function bossApply(c,dmg){const r=bossHit(c.sea,c.uid,dmg);if(!r)return;const room=seas.get(c.sea);log('BOSS BATTI',c.sea,r.n,'kaptan');
-  {const map=seaMap(c.sea);for(const x of all){const sh=r.shares[x.uid];if(!sh)continue;const add=bossCredit(map,sh.share,r.n);if(add){addCredit(x,add);if(sh.share>=.03)rageGain(x,RAGE_PER_BOSS);}}}
+  {const map=seaMap(c.sea);for(const x of all){const sh=r.shares[x.uid];if(!sh)continue;const add=bossCredit(map,sh.share,r.n,x);if(add){addCredit(x,add);if(sh.share>=.03)rageGain(x,RAGE_PER_BOSS);}}}
   for(const x of room||[])send(x,{t:'bdown',d:{id:r.id,n:r.n,...(r.shares[x.uid]??{share:0,dmg:0})}});}
-function siegeApply(c,i,dmg){const r=siegeHitPiece(c.uid,c.nick,i,dmg);if(r?.damage>0)addCredit(c,siegeCredit(r.damage,siegeRun.caps.size,c.econ?.level));if(!r?.down&&r?.down!==0)return;toSea(c,{t:'sdown',d:{i:r.down}},true);if(r.won)siegeFinish();}
+function siegeApply(c,i,dmg){const r=siegeHitPiece(c.uid,c.nick,i,dmg);if(r?.damage>0)addCredit(c,siegeCredit(r.damage,siegeRun.caps.size,c.econ?.level,c));if(!r?.down&&r?.down!==0)return;toSea(c,{t:'sdown',d:{i:r.down}},true);if(r.won)siegeFinish();}
 // Sunucu atışı: hedef türü k = n (NPC), b (boss), s (kuşatma parçası), t (ada kulesi), p (oyuncu). Hasarı sunucu hesaplar.
 // Konumu sunucunun bildiği hedeflerde (NPC, ada kulesi, oyuncu) menzil de denetlenir.
 export function attackTarget(c,d){const k=String(d?.k||'n'),id=String(d?.id??'');
@@ -811,11 +813,11 @@ setInterval(()=>lsTick(Date.now()),1000).unref();
 // ---------------------------------------------------------------- Deniz Antlaşması (src/treaty.ts)
 // Perşembe günü pırıltılar ortak sayaca yazılır; hedef dolunca oylama, sonra 24 saatlik etki ve ödüller. Durum dosyada saklanır.
 const TREATY_FILE=process.env.TREATY_FILE||'/opt/game/treaty.json';
-export let treaty={day:'',phase:'idle',goal:0,count:0,contrib:{},options:[],votes:{},voteEnd:0,fx:null,double:null,seen:{},envoy:null};
+export let treaty={day:'',phase:'idle',goal:0,count:0,contrib:{},options:[],votes:{},voteEnd:0,fx:null,elig:{},double:null,seen:{},envoy:null};
 let treatyDirty=false,treatyCastAt=0,treatyCastDue=false;
-function loadTreaty(){if(process.env.NODE_ENV==='test')return;try{treaty={...treaty,...JSON.parse(fs.readFileSync(TREATY_FILE,'utf8'))};setTreatyFx(treaty.fx);}catch{}}
+function loadTreaty(){if(process.env.NODE_ENV==='test')return;try{treaty={...treaty,...JSON.parse(fs.readFileSync(TREATY_FILE,'utf8'))};}catch{}}
 function saveTreaty(){if(process.env.NODE_ENV==='test'||!treatyDirty)return;treatyDirty=false;try{fs.writeFileSync(TREATY_FILE+'.tmp',JSON.stringify(treaty));fs.renameSync(TREATY_FILE+'.tmp',TREATY_FILE);}catch(e){log('ANTLAŞMA kayıt hatası',e?.code);}}
-export const treatyReset=()=>{treaty={day:'',phase:'idle',goal:0,count:0,contrib:{},options:[],votes:{},voteEnd:0,fx:null,double:null,seen:{},envoy:null};setTreatyFx(null);};
+export const treatyReset=()=>{treaty={day:'',phase:'idle',goal:0,count:0,contrib:{},options:[],votes:{},voteEnd:0,fx:null,elig:{},double:null,seen:{},envoy:null};};
 const dayKey=d=>`${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
 // Elçi 1/1'de doğma noktasının yakınında, adaların dışında demir atar
 function treatyEnvoySpot(){const m=MAPS[TREATY_MAP],sp=m.spawn;for(const [dx,dy] of [[420,-260],[-420,-260],[420,260],[-420,260],[0,-480],[600,0]]){const x=sp.x+dx,y=sp.y+dy;
@@ -824,7 +826,7 @@ function treatyEnvoySpot(){const m=MAPS[TREATY_MAP],sp=m.spawn;for(const [dx,dy]
 const treatySorted=()=>Object.entries(treaty.contrib).sort((a,b)=>b[1][1]-a[1][1]||a[1][2]-b[1][2]);
 export function treatyInfo(c,now=Date.now()){const showVote=treaty.phase==='vote'||treaty.phase==='done';
   return{phase:treaty.phase,goal:treaty.goal,count:treaty.count,options:treaty.options,tally:showVote?treatyTally(treaty.options,treaty.votes,treaty.double):[],voteEnd:treaty.voteEnd,now,
-    fx:treaty.fx&&now<treaty.fx.until?treaty.fx:null,envoy:treaty.phase==='vote'?treaty.envoy:null,top:treatySorted().slice(0,3).map(([,v])=>[v[0],v[1]]),
+    fx:treaty.fx&&now<treaty.fx.until?treaty.fx:null,fxMine:!!treaty.fx&&now<treaty.fx.until&&!!treaty.elig?.[c?.uid],envoy:treaty.phase==='vote'?treaty.envoy:null,top:treatySorted().slice(0,3).map(([,v])=>[v[0],v[1]]),
     mine:treaty.contrib[c?.uid]?.[1]??0,myVote:treaty.votes[c?.uid]??-1,double:!!c?.uid&&treaty.double===c.uid};}
 function treatyCast(){treatyCastAt=Date.now();treatyCastDue=false;for(const x of all)if(x.uid)send(x,{t:'treaty',d:treatyInfo(x,treatyCastAt)});}
 // Yeni tur: Perşembe başında hedef son 24 saatte giren kaptan sayısına göre belirlenir, 3 etki rastgele seçilir
@@ -839,9 +841,9 @@ export function treatyVote(c,o,now){if(treaty.phase!=='vote'||now>=treaty.voteEn
 // Ödül: çevrimiçi kaptanın kazancına, çevrimdışıysa bekleyen kazanç olarak veritabanına (economy_grant_once) yazılır
 function grantUid(uid,add){const c=[...all].find(x=>x.uid===uid);if(c){addCredit(c,add);return c;}const p={uid,grant:{id:crypto.randomUUID(),add},credit:null};pendingCredits.set(p.grant.id,p);return null;}
 export function treatyFinish(now,rand=Math.random){const tally=treatyTally(treaty.options,treaty.votes,treaty.double),win=treaty.options[treatyWinner(tally,rand)];
-  treaty.fx={id:win,until:now+TREATY_FX_MS};setTreatyFx(treaty.fx);treaty.phase='done';const sorted=treatySorted(),rw=treatyRewards(sorted.map(([u,v])=>[u,v[1]]));
+  const sorted=treatySorted();treaty.fx={id:win,until:now+TREATY_FX_MS};treaty.elig=Object.fromEntries(sorted.filter(([,v])=>v[1]>=TREATY_MIN_PICKS).map(([u])=>[u,1]));treaty.phase='done';const rw=treatyRewards(sorted.map(([u,v])=>[u,v[1]]));
   for(const [uid,r] of rw){const c=grantUid(uid,{pearls:r.pearls,gold:r.gold});if(c)send(c,{t:'treaty',d:{...treatyInfo(c,now),reward:r}});}
-  treaty.double=sorted[0]&&sorted[0][1][1]>=10?sorted[0][0]:null;treatyDirty=true;log('ANTLAŞMA',TREATY_FX[win].name,tally.join('/'),'ödül',rw.size);
+  treaty.double=sorted[0]&&sorted[0][1][1]>=TREATY_MIN_PICKS?sorted[0][0]:null;treatyDirty=true;log('ANTLAŞMA',TREATY_FX[win].name,tally.join('/'),'ödül',rw.size);
   treatyCast();const msg=JSON.stringify({t:'chat',d:{nick:'Deniz Elçisi',tag:null,adm:true,text:`📜 Antlaşma imzalandı: ${TREATY_FX[win].name} 24 saat geçerli. ${TREATY_FX[win].desc}.`,at:now}});for(const x of all)if(x.uid)send(x,msg);return win;}
 export function treatyTick(now){const d=new Date(now),today=dayEvent(d)?.id==='treaty';
   if(treaty.phase==='vote'){if(now>=treaty.voteEnd)treatyFinish(now);return;}
