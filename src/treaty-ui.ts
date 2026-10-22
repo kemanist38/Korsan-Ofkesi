@@ -38,7 +38,7 @@ function render(){const d=info,t=now();
   if(!d){body.innerHTML='<p class="treaty-status">Bekleniyor…</p>';return;}
   const total=d.tally.reduce((a,b)=>a+b,0)||1,voting=d.phase==='vote'&&t<d.voteEnd,winner=d.fx?.id;
   const cards=d.options.map((id,i)=>{const fx=TREATY_FX[id],pct=d.tally.length?Math.round(d.tally[i]/total*100):0,mine=d.myVote===i;
-    return`<button class="treaty-opt ${mine?'mine':''} ${!voting&&winner===id?'win':''}" data-o="${i}" ${voting&&netOnline()?'':'disabled'}><b>${fx.name}</b><small>${fx.desc}</small>${d.tally.length?`<i><em style="width:${pct}%"></em></i><span>%${pct}${mine?' · senin oyun':''}</span>`:''}</button>`;}).join('');
+    return`<button class="treaty-opt ${mine?'mine':''} ${!voting&&winner===id?'win':''}" data-o="${i}" ${voting&&netOnline()&&d.mine>=TREATY_MIN_PICKS?'':'disabled'}><b>${fx.name}</b><small>${fx.desc}</small>${d.tally.length?`<i><em style="width:${pct}%"></em></i><span>%${pct}${mine?' · senin oyun':''}</span>`:''}</button>`;}).join('');
   const status=voting?`Deniz Elçisi ${TREATY_MAP}'de bekliyor · oylama bitimine <b>${clock(d.voteEnd-t)}</b>${d.double?' · oyun 2 sayılıyor':''}`
     :d.phase==='collect'?`Bütün denizlerde pırıltı topla: <b>${fmt(d.count)} / ${fmt(d.goal)}</b>. Hedef dolunca Deniz Elçisi ${TREATY_MAP}'de demir atar ve oylama açılır.`
     :d.fx&&t<d.fx.until?`İmzalandı: <b>${TREATY_FX[d.fx.id].name}</b> · ${clock(d.fx.until-t)} daha geçerli${d.fxMine?' · sana işliyor':` · bu turda ${TREATY_MIN_PICKS} pırıltı toplamadığın için sana işlemiyor`}`
@@ -46,7 +46,7 @@ function render(){const d=info,t=now();
   const top=d.top.length?d.top.map(([n,c],i)=>`<li><b>${i+1}.</b> ${esc(n)}<span>${fmt(c)} pırıltı</span></li>`).join(''):'<li class="empty">Henüz pırıltı toplanmadı</li>';
   body.innerHTML=`<div class="treaty-head"><img src="${TREATY_ICON}" alt=""/><p class="treaty-status">${status}</p></div>
     ${d.options.length?`<div class="treaty-opts">${cards}</div>`:''}
-    <div class="treaty-cols"><div><h4>EN ÇOK TOPLAYANLAR</h4><ol class="treaty-top">${top}</ol><p class="treaty-mine">Senin katkın: <b>${fmt(d.mine)}</b> pırıltı${d.mine<TREATY_MIN_PICKS?` · etki ve ödül için ${TREATY_MIN_PICKS-d.mine} daha`:' · etki ve ödül hakkın var'}</p></div>
+    <div class="treaty-cols"><div><h4>EN ÇOK TOPLAYANLAR</h4><ol class="treaty-top">${top}</ol><p class="treaty-mine">Senin katkın: <b>${fmt(d.mine)}</b> pırıltı${d.mine<TREATY_MIN_PICKS?` · oy, etki ve ödül için ${TREATY_MIN_PICKS-d.mine} daha`:' · oy, etki ve ödül hakkın var'}</p></div>
     <div><h4>ÖDÜLLER</h4><ul class="treaty-prizes">${TREATY_PRIZES.map((p,i)=>`<li><b>${i+1}.</b> ${fmt(p.pearls)} inci + ${fmt(p.gold)} altın${i===0?' · sonraki oylamada oyun 2 sayılır':''}</li>`).join('')}<li><b>${TREATY_MIN_PICKS}+</b> pırıltı toplayan herkese ${fmt(TREATY_JOIN.pearls)} inci + ${fmt(TREATY_JOIN.gold)} altın</li></ul></div></div>
-    <p class="treaty-note">Seçilen etki 24 saat, bu turda en az ${TREATY_MIN_PICKS} pırıltı toplayan kaptanlara işler. Oylama 30 dakika sürer; oyunu süre bitene kadar değiştirebilirsin.</p>`;
+    <p class="treaty-note">Oy kullanma, etki ve ödül hakkı yalnız bu turda en az ${TREATY_MIN_PICKS} pırıltı toplayan kaptanlarındır. Seçilen etki 24 saat sürer. Oylama 30 dakika sürer; oyunu süre bitene kadar değiştirebilirsin.</p>`;
   body.querySelectorAll<HTMLButtonElement>('.treaty-opt').forEach(b=>b.onclick=()=>sendTreatyVote(Number(b.dataset.o)));}

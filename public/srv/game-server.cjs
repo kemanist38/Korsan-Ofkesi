@@ -6917,6 +6917,7 @@ function treatyPick(c, now) {
 function treatyVote(c, o, now) {
   if (treaty.phase !== "vote" || now >= treaty.voteEnd) return { err: "Oylama a\xE7\u0131k de\u011Fil" };
   if (!(o >= 0 && o < treaty.options.length)) return { err: "Ge\xE7ersiz se\xE7im" };
+  if ((treaty.contrib[c.uid]?.[1] ?? 0) < TREATY_MIN_PICKS) return { err: `Oy i\xE7in bu turda en az ${TREATY_MIN_PICKS} p\u0131r\u0131lt\u0131 toplam\u0131\u015F olmal\u0131s\u0131n` };
   treaty.votes[c.uid] = o;
   treatyDirty = true;
   return { ok: true };
