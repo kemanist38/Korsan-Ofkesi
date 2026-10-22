@@ -1,6 +1,6 @@
 // Kaptan plakası: üst çerçevenin ortasından sarkan plaka; solda seviye amblemi (yuvarlak, altın halkalı), sağda kaptan adı,
 // SP, can (HP) ve TP çubukları. Çubuklar ve amblem oyunun kendi öğeleridir (kimlikleri aynı), yalnız yeni kutuya taşınır.
-// Sohbet düğmesi parşömen, sağ üstte özel mesajlar için mühürlü mektup.
+// Sohbet düğmesi parşömen; özel mesajlar sohbetin Özel sekmesinde (mühürlü mektup ikonu).
 import './cap-plate.css';
 const $=<T extends HTMLElement=HTMLElement>(s:string)=>document.querySelector<T>(s);
 export function setupCapPlate(o:{nick:()=>string;logout:()=>void;canLogout:()=>boolean}){
@@ -14,11 +14,6 @@ export function setupCapPlate(o:{nick:()=>string;logout:()=>void;canLogout:()=>b
   const nick=plate.querySelector<HTMLElement>('.cp-nick')!;const setNick=()=>{const n=o.nick();if(nick.textContent!==n)nick.textContent=n;};setNick();setInterval(setNick,2000);
   // Sohbet: parşömen ikonu
   const ct=$('#chatToggle');if(ct){ct.querySelector('svg')?.remove();const im=document.createElement('img');im.src='/assets/icon-chat-v1.webp';im.alt='';im.draggable=false;ct.prepend(im);ct.classList.add('cp-chat');}
-  // Mektup: sohbetin Özel sekmesini açar; okunmamış sayısı sohbet düğmesindekiyle aynı
-  const corner=$('.corner-buttons');if(corner){const m=document.createElement('button');m.className='round-button cp-mail';m.setAttribute('aria-label','Özel mesajlar');
-    m.innerHTML='<img src="/assets/icon-mail-v1.webp" alt="" draggable="false"/><i class="chat-n" hidden></i>';corner.prepend(m);
-    const n=m.querySelector<HTMLElement>('.chat-n')!;setInterval(()=>{const c=$('#chatToggle .chat-n');n.hidden=!c||c.hidden;n.textContent=c?.textContent??'';},500);
-    m.onclick=()=>{if(!$('.chat')?.classList.contains('open'))$<HTMLButtonElement>('#chatToggle')?.click();$<HTMLButtonElement>('[data-chat-tab="pm"]')?.click();};}
 }
 // Haritanın sağında Dünya; Görevler, Grup, Arkadaşlar, Arena ve Etkinlikler sol üstte tek sırada
 function setupSideButtons(){const cl=$('.map-cluster');if(!cl)return;

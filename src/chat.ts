@@ -18,7 +18,7 @@ try{localStorage.removeItem(OLD_STORAGE);}catch{}
 
 export function setupChat(me:()=>{nick:string;tag:string|null;adm?:boolean},onSend?:(tab:ChatTab,who:string,text:string)=>void,onReport?:(nick:string,why:string)=>void,pm?:{friends:()=>PmPeer[];send:(id:string,text:string)=>void}){
   const root=document.createElement('div');root.className='chat';
-  root.innerHTML=`<section class="chat-box" id="chatBox" aria-label="Sohbet"><header class="chat-tabs"><button data-chat-tab="global">Global</button><button data-chat-tab="fleet">Filo</button><button data-chat-tab="pm">Özel<i class="chat-n" hidden></i></button><span class="chat-close" title="Kapat">×</span></header>
+  root.innerHTML=`<section class="chat-box" id="chatBox" aria-label="Sohbet"><header class="chat-tabs"><button data-chat-tab="global">Global</button><button data-chat-tab="fleet">Filo</button><button data-chat-tab="pm"><img class="chat-pm-ic" src="/assets/icon-mail-v1.webp" alt="" draggable="false"/>Özel<i class="chat-n" hidden></i></button><span class="chat-close" title="Kapat">×</span></header>
     <div class="chat-peer" hidden></div><div class="chat-log" id="chatLog"></div><form class="chat-form" id="chatForm"><input id="chatInput" maxlength="120" autocomplete="off" placeholder="Mesaj yaz…"/><button type="submit">Gönder</button></form></section>
     <button class="chat-toggle" id="chatToggle" aria-label="Sohbet" title="Sohbet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v10H9l-5 4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><i class="chat-dot"></i><i class="chat-n" hidden></i></button>`;
   document.body.append(root);
