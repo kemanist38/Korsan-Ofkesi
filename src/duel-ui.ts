@@ -19,10 +19,13 @@ const RULES=`<ul><li>Yalnız savaşa kapalı denizlerde (1/1, 1/2); sadece iki r
 // Rakip kartının altındaki düğme ve bahis seçimi
 const btn=document.createElement('div');btn.className='duel-btn';btn.hidden=true;document.body.append(btn);
 let btnKey='';
-export function duelSelect(t:{id:string;nick:string}|null){const show=!!t&&!myDuel()&&!inDuel(t.id);const key=show?`${t!.id}|${sent?.to===t!.id&&Date.now()<sent.until}`:'';
+// Kapatılan (×) oyuncu için düğme, başka bir oyuncu seçilene kadar gösterilmez
+let closedFor='';
+export function duelSelect(t:{id:string;nick:string}|null){if(!t||t.id!==closedFor)closedFor='';const show=!!t&&t.id!==closedFor&&!myDuel()&&!inDuel(t.id);const key=show?`${t!.id}|${sent?.to===t!.id&&Date.now()<sent.until}`:'';
   if(key===btnKey)return;btnKey=key;target=show?t:null;btn.hidden=!show;if(!show)return;
   if(sent&&sent.to===t!.id&&Date.now()<sent.until){btn.innerHTML=`<span class="duel-wait">⚔ Teklif gönderildi · bekleniyor</span>`;return;}
-  btn.innerHTML=`<b>⚔ DÜELLO${infoTip(RULES)}</b>${DUEL_BETS.map(bet=>`<button data-bet="${bet}">${bet?`${fmt(bet)} İNCİ`:'BAHİSSİZ'}</button>`).join('')}`;
+  btn.innerHTML=`<b>⚔ DÜELLO${infoTip(RULES)}</b>${DUEL_BETS.map(bet=>`<button data-bet="${bet}">${bet?`${fmt(bet)} İNCİ`:'BAHİSSİZ'}</button>`).join('')}<button class="duel-x" aria-label="Kapat">×</button>`;
+  btn.querySelector<HTMLButtonElement>('.duel-x')!.onclick=()=>{closedFor=t!.id;btn.hidden=true;};
   btn.querySelectorAll<HTMLButtonElement>('button[data-bet]').forEach(b=>b.onclick=()=>{if(target)sendDuel('ask',{to:target.id,bet:Number(b.dataset.bet)});});}
 
 // Gelen teklif

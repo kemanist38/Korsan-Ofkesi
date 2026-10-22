@@ -448,3 +448,22 @@ test('düello: savaşa kapalı denizde yalnız iki rakip savaşır, bahis kazana
   const hi=mk('4','uh',1200,7);S.seas.get('sea-1-1').add(hi);box.length=0;await S.onDuel(hi,{k:'ask',to:'3',bet:500},now);assert.match(box[0][1].d.msg,/seviye farkı/);
   S.seas.delete('sea-1-1');S.duelInvites.clear();
 });
+test('grup: aynı denizdeki üye sayısına göre ek TP, görev sayacı yalnız son vuruşta, en çok 4 kişi',()=>{
+  const box=[];const mk=(id,nick,sea='sea-3-1')=>({netId:id,uid:'u'+id,nick,sea,last:{x:0,y:0},econ:{level:3},ws:{readyState:1,send:m=>box.push([id,JSON.parse(m)])}});
+  const a=mk('1','A'),b=mk('2','B'),c=mk('3','C'),d=mk('4','D'),e=mk('5','E');for(const x of [a,b,c,d,e])S.all.add(x);
+  S.onGroup(a,{k:'inv',nick:'b'},0);S.onGroup(b,{k:'yes'},10);assert.equal(S.groupBonus(a),1.15);
+  S.onGroup(a,{k:'inv',nick:'C'},20);S.onGroup(c,{k:'yes'},30);assert.equal(S.groupBonus(a),1.10);
+  S.onGroup(a,{k:'inv',nick:'D'},40);S.onGroup(d,{k:'yes'},50);assert.equal(S.groupBonus(b),1.05);
+  box.length=0;S.onGroup(a,{k:'inv',nick:'E'},60);assert.match(box.find(([to])=>to==='1')[1].d.msg,/dolu/);
+  d.sea='sea-1-1';assert.equal(S.groupBonus(a),1.10,'only members in the same sea count');
+  const def=S.NPCS_FOR_TEST?.['n3-1-light']??{id:'n3-1-light',gold:100,xp:100,role:'light'};
+  assert.equal(S.npcDeathCredit(b,def,'3/1',.5,true).st_npc,undefined,'group mate who did not land the last hit gets no counter');
+  assert.equal(S.npcDeathCredit(a,def,'3/1',.5,false).st_npc,1);
+  S.groupLeave(b);S.groupLeave(c);S.groupLeave(d);assert.equal(a.grp,null,'group of one dissolves');
+  for(const x of [a,b,c,d,e])S.all.delete(x);
+});
+test('özel mesaj küfrü: 1. kez 24 saat susturma, 2. kez hesap kapanır',async()=>{
+  const box=[];let closed=0;const c={uid:'pmz',nick:'Zeki',ws:{readyState:1,send:m=>box.push(JSON.parse(m)),close:()=>closed++}};
+  assert.equal(await S.pmStrike(c,0),1);assert.ok(S.muteLeft('Zeki',1000)>23*3600_000);
+  assert.equal(await S.pmStrike(c,0),2);await new Promise(r=>setTimeout(r,350));assert.equal(closed,1);S.mutes.delete('zeki');
+});

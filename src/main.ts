@@ -29,7 +29,7 @@ import {supa} from './supabase';
 import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
 import {loadLevelQuest,saveLevelQuest,levelQuestDone,levelQuestKill,levelQuestGoal,needsLevelQuest,levelQuestMap} from './level-quest';
 import {SPY_COST,SPY_SHIELD_PRICE,loadSpy,sendSpy,type SpyRival} from './spy';
-import {sendDied,sendReport,sendLs,sendDom,netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,sendSalvo,sendUse,sendQuestDone,sendChest,sendDig,sendSparkle,sendNpcHits,sendLoadout,sendAttack,type NetNpc,type NetLootSpots,type NetTreasure,type NetDig,type NetLoot,type NetSiegeEnd,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
+import {sendPm,sendDied,sendReport,sendLs,sendDom,netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,sendSalvo,sendUse,sendQuestDone,sendChest,sendDig,sendSparkle,sendNpcHits,sendLoadout,sendAttack,type NetNpc,type NetLootSpots,type NetTreasure,type NetDig,type NetLoot,type NetSiegeEnd,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
 import {AUCTION_MS,loadAuction,saveAuction,emptyAuction,auctionHour,auctionEnds,lotsFor,minNextBid,applyBid,wonLots,auctionId,type LotDef,type Bid} from './auction';
 import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,claimReward,GRADUATE_LEVEL,MAX_APPRENTICES,TOGETHER_XP_BONUS,APPRENTICE_MAX_LEVEL} from './mentorship';
 import {loadRivalSinks,saveRivalSinks} from './insignia';
@@ -46,6 +46,8 @@ import {openArena,openLsLobby,closeLsLobby,lsLobbyMsg,renderLsHud,showLsResult,t
 import {SIEGE_MS,HERO_DAMAGE,WALL_TOWERS,INNER_TOWERS,gateOf,gateLeft,siegeWindow,newSiege,loadSiege,saveSiege,siegePhase,siegeStats,siegeProgress,contribReward,earnsChest,victoryChest,ranking,loadTitle,grantTitle,HERO_TITLE,type SiegeSave} from './siege';
 import {dayEvent,spMult,xpMult,epMult,goldMult,bossKillsNeeded,setTreatyFx,treatyDmgMult} from './events';
 import {infoTip} from './info-tip';
+import {setupSocial,friendMsg,groupMsg,groupPick,friendList} from './social-ui';
+import {DUEL_MAPS} from './duel';
 import {duelMsg,duelSelect,renderDuelHud,setDuelMe,duelList,duelPartner} from './duel-ui';
 import {treatyMsg,openTreaty,treatyEnvoy,TREATY_ENVOY} from './treaty-ui';
 import {TREATY_ENVOY_R} from './treaty';
@@ -315,7 +317,8 @@ let guild:Guild|null=loadGuild();
 let buildType:TowerType='cannon';
 let focusedFoundation:string|null=null;
 const profile=loadProfile();
-const chat=setupChat(()=>({nick:profile.nick,tag:guild?.tag??null,adm:session.isAdmin}),(tab,who,text)=>{const g=/^\/git\s+(\d\/\d)$/i.exec(text.trim());if(session.isAdmin&&g){adminTeleport(g[1]);return;}if(tab==='global')sendChat({nick:who,text,at:Date.now()});},(nick,why)=>{if(!session.account){toast('Bildirim için giriş yapmalısın');return;}sendReport(nick,why);});
+const chat=setupChat(()=>({nick:profile.nick,tag:guild?.tag??null,adm:session.isAdmin}),(tab,who,text)=>{const g=/^\/git\s+(\d\/\d)$/i.exec(text.trim());if(session.isAdmin&&g){adminTeleport(g[1]);return;}if(tab==='global')sendChat({nick:who,text,at:Date.now()});},(nick,why)=>{if(!session.account){toast('Bildirim için giriş yapmalısın');return;}sendReport(nick,why);},
+  {friends:()=>friendList().filter(f=>f.ok).map(f=>({id:f.id,nick:f.nick,on:f.on})),send:(id,text)=>sendPm(id,text)});
 function escapeHtml(t:string){return t.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));}
 // HUD 10 Hz güncellenir; DOM yalnız içerik değişince yazılır (her karede yeniden kurmak donmaya yol açıyordu)
 const towerRuins=loadRuins();
@@ -496,7 +499,8 @@ ui('recenterShip').onclick=recenterShip;{// Üst çerçeve: solda casus, ortada 
   const cluster=document.querySelector('.map-cluster')!,placeCoord=()=>{const go=ui('coordGo'),host=innerWidth<=700?document.querySelector('.hud')!:cluster;if(go.parentElement!==host)host.prepend(go);};
   placeCoord();addEventListener('resize',placeCoord);
   const arena=document.createElement('button');arena.className='world-map-button arena-button';arena.setAttribute('aria-label','Arena');arena.innerHTML='<img src="/assets/arena-icon-v1.webp" alt="" draggable="false"/><span>ARENA</span>';
-  arena.onclick=()=>openArenaModes();cluster.append(arena);}
+  arena.onclick=()=>openArenaModes();cluster.append(arena);
+  setupSocial({uid:()=>session.account?.uid??'',openPm:(id,nick)=>chat.openPm(id,nick),toast});}
   // Altın ve inci: üst çerçeveden alınıp mağaza/tersane sekmelerinin sol başına (menü açıkken görünür)
   {const res=document.querySelector('.strip-res');if(res){res.classList.add('tabs-res');ui('shopTabs').prepend(res);}}{const rc=ui('recenterShip');rc.className='combat-action recenter-btn';rc.innerHTML='<b><svg viewBox="0 0 48 48" width="70%" height="70%" aria-hidden="true"><g fill="none" stroke="#ffe09b" stroke-width="3" stroke-linecap="round"><circle cx="24" cy="24" r="12"/><circle cx="24" cy="24" r="4" fill="#ffe09b"/><path d="M24 4v40M4 24h40M9.9 9.9l28.2 28.2M38.1 9.9 9.9 38.1"/></g><g fill="#ffe09b"><circle cx="24" cy="4" r="2.6"/><circle cx="24" cy="44" r="2.6"/><circle cx="4" cy="24" r="2.6"/><circle cx="44" cy="24" r="2.6"/><circle cx="9.9" cy="9.9" r="2.6"/><circle cx="38.1" cy="38.1" r="2.6"/><circle cx="38.1" cy="9.9" r="2.6"/><circle cx="9.9" cy="38.1" r="2.6"/></g></svg></b><span>GEMİ</span>';rc.title='Gemiyi ortala';ui('combatControls').appendChild(rc);}
 ui('openWorldMap').onclick=openWorldMap;ui('closeWorldMap').onclick=closeWorldMap;
@@ -635,6 +639,9 @@ const netHandlers:NetHandlers={
   muted:left=>{const t=left>=86_400_000?`${Math.ceil(left/86_400_000)} gün`:left>=3_600_000?`${Math.ceil(left/3_600_000)} saat`:`${Math.ceil(left/60_000)} dakika`;chat.system(`Sohbet cezan var · ${t} sonra yazabilirsin (Oyun Kuralları)`);toast(`Sohbet cezası: ${t}`);},
   reported:()=>{toast('Bildirimin yönetime iletildi, teşekkürler');},
   ls:d=>onLsNet(d),
+  fr:d=>{friendMsg(d);chat.refresh();},
+  pm:d=>{if(d.k==='err'){toast(String(d.msg));chat.pmSystem(String(d.msg));return;}if(d.k==='msg')chat.pmReceive({peer:String(d.mine?d.to:d.from),peerNick:String(d.mine?d.tn:d.nick),who:String(d.nick),text:String(d.text),at:Number(d.at)||Date.now(),mine:!!d.mine});},
+  grp:d=>groupMsg(d),
   duel:d=>duelMsg(d,toast,n=>{state.pearls=Math.max(0,state.pearls+n);session.pearlServerAdd?.(n);saveAccount();updateUI();}),
   treaty:d=>{setTreatyFx(d.fxMine?d.fx:null);treatyMsg(d);if(d.err)toast(d.err);if(d.reward)rewardNotice(`Deniz Antlaşması ödülü${d.reward.rank?` · ${d.reward.rank}. sıra`:''} · +${fmt(d.reward.pearls)} inci · +${fmt(d.reward.gold)} altın`,'gain');},
   ahp:d=>{adminEv={...d,at:performance.now()};},
@@ -1959,7 +1966,7 @@ function updateUI(){
 
 let visibleCombatTargets:Target[]=[];
 function renderCombatTargets(){
-  {const e=selected as Enemy|null;setDuelMe(myNetId);duelSelect(e&&e.kind==='ship'&&e.remote&&!e.remote.adm&&targetExists(e)&&mapDef().safe&&!siege&&!dom&&!ls&&session.account?{id:e.remote.id,nick:e.name}:null);renderDuelHud();showPlayerCard(e&&e.kind==='ship'&&e.captain&&targetExists(e)?{name:e.name,level:e.remote?.level,sp:e.remote?.sp??TEST_RANKERS.find(r=>r.nick===e.name)?.sp??0,sinks:e.remote?.sinks,adm:!!e.remote?.adm}:null);}
+  {const e=selected as Enemy|null;setDuelMe(myNetId);groupPick(e&&e.kind==='ship'&&e.remote&&!e.remote.adm&&targetExists(e)?{nick:e.name}:null);duelSelect(e&&e.kind==='ship'&&e.remote&&!e.remote.adm&&targetExists(e)&&DUEL_MAPS.includes(currentMap)&&!siege&&!dom&&!ls&&session.account?{id:e.remote.id,nick:e.name}:null);renderDuelHud();showPlayerCard(e&&e.kind==='ship'&&e.captain&&targetExists(e)?{name:e.name,level:e.remote?.level,sp:e.remote?.sp??TEST_RANKERS.find(r=>r.nick===e.name)?.sp??0,sinks:e.remote?.sinks,adm:!!e.remote?.adm}:null);}
   const targets:Target[]=[];
   const add=(target:Target|null)=>{if(target&&targetExists(target)&&!targets.includes(target))targets.push(target);};
   add(selected);enemies.forEach(enemy=>{if(enemy.aggro)add(enemy);});

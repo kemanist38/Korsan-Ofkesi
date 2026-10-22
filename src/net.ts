@@ -2,6 +2,7 @@
 // hasar ve hız sunucuda denetlenir (server/game-server.mjs). Yedek yol yoktur: bağlantı koparsa oyun sürekli yeniden dener
 // ve ekranda uyarı gösterir; boss, filo adaları ve kuşatma yalnızca sunucuyla çalışır.
 import type {TreatyInfo} from './treaty';
+import type {FriendRow,GroupState} from './social';
 import {supa} from './supabase';
 import {session} from './session';
 const GAME_WS='wss://game.piraterage.com/ws';
@@ -29,7 +30,7 @@ export type NetDig={ok:boolean;err?:string;reward?:{gold:number;pearls:number;am
 export type NetLoot={kind?:string;pearls?:number;powder?:number;shield?:number;ammo?:string;ammoQty?:number;speed?:number;mine?:number};
 export type NetNpc={id:string;d:string;x:number;y:number;hp:number;max:number};
 export type NetLootSpots={ch:[number,number,number][];sp:[number,number,number][]};
-export type NetHandlers={duel?:(d:{k:string;[x:string]:unknown})=>void;treaty?:(d:TreatyInfo&{err?:string;reward?:{pearls:number;gold:number;rank:number}})=>void;respawn?:(p:{x:number;y:number})=>void;rage?:(m:number)=>void;sinks?:(n:number)=>void;muted?:(left:number)=>void;reported?:()=>void;ls?:(d:Record<string,unknown>&{k:string})=>void;dom?:(d:Record<string,unknown>&{k:string})=>void;ahp?:(d:{hp:number;max:number})=>void;arew?:(d:{xp?:number;ep?:number;pearls?:number})=>void;aboom?:(id:string)=>void;loot?:(d:NetLootSpots)=>void;npcList?:(l:NetNpc[])=>void;npcSpawn?:(n:NetNpc)=>void;mine?:(d:{id:string;x:number;y:number;by:string})=>void;mboom?:(d:{id:string;x:number;y:number})=>void;mhit?:(d:{dmg:number;by:string})=>void;npcPos?:(d:{p:[string,number,number][];h:[string,number][];f?:[string,string,number][]})=>void;npcShare?:(d:{id:string;share:number})=>void;npcDie?:(id:string)=>void;chestReward?:(r:NetLoot)=>void;sparkleReward?:(r:NetLoot)=>void;treasure?:(t:NetTreasure)=>void;dig?:(d:NetDig)=>void;spy?:(r:NetSpy)=>void;pos?:(p:{x:number;y:number})=>void;forceSink?:(d:{by:string;byNick:string})=>void;siegeState?:(s:NetSiege)=>void;siegeHp?:(l:[number,number,number][])=>void;siegeDown?:(i:number)=>void;siegeRank?:(d:{n:number;top:[string,number][];mine:number})=>void;siegeEnd?:(d:NetSiegeEnd)=>void;island?:(i:NetIsland)=>void;towerHp?:(key:string,s:[number,number][])=>void;towerDown?:(key:string,slot:number,by:string)=>void;
+export type NetHandlers={fr?:(d:{k:string;list?:FriendRow[];err?:string;note?:string})=>void;pm?:(d:{k:string;from?:string;nick?:string;to?:string;tn?:string;text?:string;at?:number;mine?:boolean;msg?:string})=>void;grp?:(d:GroupState&{k:string;from?:string;gid?:string;msg?:string})=>void;duel?:(d:{k:string;[x:string]:unknown})=>void;treaty?:(d:TreatyInfo&{err?:string;reward?:{pearls:number;gold:number;rank:number}})=>void;respawn?:(p:{x:number;y:number})=>void;rage?:(m:number)=>void;sinks?:(n:number)=>void;muted?:(left:number)=>void;reported?:()=>void;ls?:(d:Record<string,unknown>&{k:string})=>void;dom?:(d:Record<string,unknown>&{k:string})=>void;ahp?:(d:{hp:number;max:number})=>void;arew?:(d:{xp?:number;ep?:number;pearls?:number})=>void;aboom?:(id:string)=>void;loot?:(d:NetLootSpots)=>void;npcList?:(l:NetNpc[])=>void;npcSpawn?:(n:NetNpc)=>void;mine?:(d:{id:string;x:number;y:number;by:string})=>void;mboom?:(d:{id:string;x:number;y:number})=>void;mhit?:(d:{dmg:number;by:string})=>void;npcPos?:(d:{p:[string,number,number][];h:[string,number][];f?:[string,string,number][]})=>void;npcShare?:(d:{id:string;share:number})=>void;npcDie?:(id:string)=>void;chestReward?:(r:NetLoot)=>void;sparkleReward?:(r:NetLoot)=>void;treasure?:(t:NetTreasure)=>void;dig?:(d:NetDig)=>void;spy?:(r:NetSpy)=>void;pos?:(p:{x:number;y:number})=>void;forceSink?:(d:{by:string;byNick:string})=>void;siegeState?:(s:NetSiege)=>void;siegeHp?:(l:[number,number,number][])=>void;siegeDown?:(i:number)=>void;siegeRank?:(d:{n:number;top:[string,number][];mine:number})=>void;siegeEnd?:(d:NetSiegeEnd)=>void;island?:(i:NetIsland)=>void;towerHp?:(key:string,s:[number,number][])=>void;towerDown?:(key:string,slot:number,by:string)=>void;
   islandCaptured?:(d:{key:string;tag:string;by:string;nick:string})=>void;islandAlert?:(key:string)=>void;boss?:(b:NetBoss)=>void;bossHp?:(id:string,hp:number)=>void;bossDown?:(d:NetBossDown)=>void;bossGone?:(id:string)=>void;state:(s:NetState)=>void;leave:(id:string)=>void;fire:(f:NetFire)=>void;sunk:(s:NetSunk)=>void;chat:(c:NetChat)=>void;bid?:(b:NetBid)=>void;bidAsk?:(hour:number)=>void;bidKnown?:(bids:NetBid[])=>void};
 
 const ID_KEY='yedi-deniz-net-id';
@@ -70,6 +71,9 @@ async function connectWs(){const sb=supa();if(!sb||!session.account){netStatus='
       case'dom':handlers?.dom?.(m.d as Record<string,unknown>&{k:string});break;
       case'respawn':handlers?.respawn?.(m.d as {x:number;y:number});break;
       case'rage':handlers?.rage?.(Number((m.d as {m:number}).m)||0);break;
+      case'fr':handlers?.fr?.(m.d as never);break;
+      case'pm':handlers?.pm?.(m.d as never);break;
+      case'grp':handlers?.grp?.(m.d as never);break;
       case'duel':handlers?.duel?.(m.d as {k:string});break;
       case'treaty':handlers?.treaty?.(m.d as TreatyInfo);break;
       case'sinks':handlers?.sinks?.(Number((m.d as {n:number}).n)||0);break;
@@ -144,6 +148,9 @@ export const sendReport=(nick:string,why:string)=>wsSend('report',{nick,why});
 // Gemi battı: yeniden doğma noktasını sunucu seçer (ışınlanma yalnız oraya kabul edilir)
 export const sendDied=()=>wsSend('died');
 export const sendTreatyVote=(o:number)=>wsSend('treaty',{o});
+export const sendFriend=(k:string,d:Record<string,unknown>={})=>wsSend('fr',{k,...d});
+export const sendPm=(to:string,text:string)=>wsSend('pm',{to,text});
+export const sendGroup=(k:string,d:Record<string,unknown>={})=>wsSend('grp',{k,...d});
 export const sendDuel=(k:string,d:Record<string,unknown>={})=>wsSend('duel',{k,...d});
 export const sendChat=(c:NetChat)=>wsSend('chat',c);
 export const sendBid=(b:NetBid)=>wsSend('bid',b);

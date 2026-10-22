@@ -1,0 +1,37 @@
+/* Arkadaşlar ve grup */
+.social-btn svg{width:26px;height:26px;fill:none;stroke:#f0cc82;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.social-btn.grp-btn svg{fill:#f0cc8233}.social-btn.grp-btn.active{box-shadow:0 0 12px #ffb648,0 7px 20px #000b}
+.world-map-button.fr-btn{top:226px!important}.world-map-button.grp-btn{top:296px!important}
+.social-n{position:absolute;top:-4px;right:-6px;min-width:18px;padding:1px 4px;border-radius:9px;background:#d8361f;color:#fff;font:800 10px Inter,sans-serif;font-style:normal;text-align:center;box-shadow:0 0 0 2px #190f13}
+.social-n[hidden],.social-win[hidden],.social-ask[hidden]{display:none}
+.social-win{position:fixed;left:250px;top:calc(var(--strip,40px) + 70px);z-index:60;width:min(340px,calc(100vw - 24px));max-height:calc(100dvh - var(--strip,40px) - 90px);overflow:auto;padding:12px;border:1px solid #725047;border-radius:10px;background:linear-gradient(135deg,#211a1ef2,#111216f2);box-shadow:inset 0 0 0 3px #111013,0 16px 40px #000c;color:#eee0d3}
+.social-win header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #9e513b55}
+.social-win h3{margin:0;font:700 14px Cinzel,serif;color:#edc78c;letter-spacing:.08em}
+.social-win .x{width:28px;height:28px;border:1px solid #805045;border-radius:5px;background:#281c20;color:#f0c5a6;font-size:18px;cursor:pointer}
+.social-win h4{margin:10px 0 4px;font:700 10px Inter,sans-serif;letter-spacing:.1em;color:#c9a06a}
+.social-win .add{display:flex;gap:6px;align-items:center}
+.social-win input{flex:1;min-width:0;height:30px;padding:0 8px;border:1px solid #6a4a40;border-radius:5px;background:#120e10;color:#f3e2bd;font:600 12px Inter,sans-serif}
+.social-win button{padding:5px 9px;border:1px solid #ae6244;border-radius:5px;background:linear-gradient(#65302a,#31191c);color:#ffe1af;font:800 10px Inter,sans-serif;cursor:pointer}
+.social-win button.ghost{border-color:#6a5550;background:#261c20;color:#d9c8bf}.social-win button.del{padding:5px 8px}
+.social-win .row{display:flex;align-items:center;gap:6px;padding:6px 4px;border-bottom:1px solid #ffffff0d}
+.social-win .row>div{flex:1;min-width:0;display:flex;flex-direction:column}
+.social-win .row b{font:700 12px Inter,sans-serif;color:#d9c8bf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.social-win .row.on b{color:#ffe6a6}
+.social-win .row small{font:600 10.5px Inter,sans-serif;color:#9a8a84}.social-win .row.on small{color:#ffb648}
+.social-win .row.on>div::before{content:'';position:absolute;margin:5px 0 0 -9px;width:6px;height:6px;border-radius:50%;background:#7fe07a}
+.social-win .empty{color:#87766f;font-size:12px;margin:4px 0}
+.social-win .bonus{margin:0 0 6px;font-size:12px;color:#d7cdc9;display:flex;align-items:center}.social-win .bonus b{color:#ffd56a;margin-left:4px}
+.social-win .pick{font-size:11.5px;color:#9a8a84;margin:8px 0 4px}.social-win .pick b{color:#ffe6a6}
+.social-win .leave{margin-top:10px;width:100%;border-color:#6a5550;background:#261c20;color:#d9c8bf}
+.social-ask{position:fixed;left:50%;top:26%;transform:translateX(-50%);z-index:70;width:min(320px,calc(100vw - 24px));padding:14px;border:1px solid #b78357;border-radius:10px;background:linear-gradient(135deg,#2a1d22,#121014);box-shadow:0 18px 50px #000d;color:#eee0d3;text-align:center}
+.social-ask h3{margin:0 0 6px;font:700 15px Cinzel,serif;color:#edc78c}.social-ask p{margin:0;font-size:13px}.social-ask b{color:#ffd56a}
+.social-ask div{display:flex;gap:8px;justify-content:center;margin-top:12px}
+.social-ask button{padding:8px 16px;border:1px solid #ae6244;border-radius:7px;background:linear-gradient(#65302a,#31191c);color:#ffe1af;font:800 12px Inter,sans-serif;cursor:pointer}.social-ask .no{border-color:#6a5550;background:#261c20;color:#d9c8bf}
+/* Sohbet: özel sekmesi */
+.chat-n{position:absolute;top:-5px;right:-6px;min-width:18px;padding:1px 4px;border-radius:9px;background:#d8361f;color:#fff;font:800 9.5px Inter,sans-serif;font-style:normal;text-align:center}
+.chat-n[hidden]{display:none}.chat-tabs button{position:relative}
+.chat-peer{display:flex;flex-wrap:wrap;gap:4px;padding:6px 8px;border-bottom:1px solid #c69a4e33}.chat-peer[hidden]{display:none}
+.chat-peer button{position:relative;padding:3px 8px;border:1px solid #6a4a40;border-radius:10px;background:#1d1517;color:#e6d2b0;font:700 10.5px Inter,sans-serif;cursor:pointer}
+.chat-peer button.on{border-color:#ffb648;color:#ffe6a6}.chat-peer button.off{opacity:.55}.chat-peer button i{margin-left:4px;color:#ff8a6a;font-style:normal}
+.chat-peer small{color:#9a8a84;font-size:11px}
+@media (max-width:700px){.social-win{left:50%;transform:translateX(-50%);top:calc(var(--strip,40px) + 170px)}}
+html .chat.open{z-index:50!important}
