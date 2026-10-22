@@ -3691,6 +3691,7 @@ __export(game_server_exports, {
   aevPools: () => aevPools,
   aevState: () => aevState,
   aevTier: () => aevTier,
+  all: () => all,
   attackTarget: () => attackTarget,
   bossCredit: () => bossCredit,
   bossHit: () => bossHit,
@@ -3732,7 +3733,13 @@ __export(game_server_exports, {
   duelTick: () => duelTick,
   duels: () => duels,
   flushCredit: () => flushCredit,
+  friendSets: () => friendSets,
+  friendView: () => friendView,
   godCheck: () => godCheck,
+  groupBonus: () => groupBonus,
+  groupInvites: () => groupInvites,
+  groupLeave: () => groupLeave,
+  groups: () => groups,
   guildOf: () => guildOf,
   heroUntil: () => heroUntil,
   hpCap: () => hpCap,
@@ -3779,6 +3786,7 @@ __export(game_server_exports, {
   npcShore: () => npcShore,
   npcSpawn: () => npcSpawn,
   onDuel: () => onDuel,
+  onGroup: () => onGroup,
   onLand: () => onLand,
   osbMatch: () => osbMatch,
   parseDuration: () => parseDuration,
@@ -3789,6 +3797,7 @@ __export(game_server_exports, {
   perBall: () => perBall,
   pickSpot: () => pickSpot,
   placeMine: () => placeMine,
+  pmStrike: () => pmStrike,
   pvpGuard: () => pvpGuard,
   pvpHeal: () => pvpHeal,
   pvpReset: () => pvpReset,
@@ -3818,6 +3827,7 @@ __export(game_server_exports, {
   spCredit: () => spCredit,
   sparklePicked: () => sparklePicked,
   sparkleReward: () => sparkleReward,
+  strikesMem: () => strikesMem,
   towerHit: () => towerHit,
   tpAllowed: () => tpAllowed,
   treasureDig: () => treasureDig,
@@ -3831,7 +3841,8 @@ __export(game_server_exports, {
   treatyTick: () => treatyTick,
   treatyVote: () => treatyVote,
   verifyOsb: () => verifyOsb,
-  verifyToken: () => verifyToken
+  verifyToken: () => verifyToken,
+  whereOf: () => whereOf
 });
 module.exports = __toCommonJS(game_server_exports);
 var import_node_http = __toESM(require("node:http"), 1);
@@ -4571,8 +4582,14 @@ function bad(w) {
 function filterChat(text) {
   return text.replace(/\S+/g, (w) => bad(w) ? "*".repeat(Math.min(8, w.length)) : w);
 }
+var chatHasBad = (text) => text.split(/\s+/).some(bad);
+
+// src/social.ts
+var GROUP_MAX = 4;
+var groupMult = (n) => n >= 4 ? 1.05 : n === 3 ? 1.1 : n === 2 ? 1.15 : 1;
 
 // src/duel.ts
+var DUEL_MAPS = ["1/1", "1/2"];
 var DUEL_BETS = [0, 500];
 var DUEL_CUT = 0.1;
 var DUEL_MS = 18e4;
@@ -4626,7 +4643,12 @@ async function verifyToken(token) {
   const rows = p2.ok ? await p2.json() : [];
   const prof = rows[0];
   if (!prof) return null;
-  return { uid: user.id, nick: prof.nick, playerNo: prof.player_no, banned: !!prof.banned, guildId: await guildOf(user.id).catch(() => 0) };
+  let banned = !!prof.banned;
+  if (banned) {
+    const b = await dbRpcJson("ban_check", { p_uid: user.id }).catch(() => null);
+    if (b === false) banned = false;
+  }
+  return { uid: user.id, nick: prof.nick, playerNo: prof.player_no, banned, guildId: await guildOf(user.id).catch(() => 0) };
 }
 async function guildOf(uid) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/guild_members?user_id=eq.${uid}&select=guild_id`, { headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${SUPABASE_ANON}` } });
@@ -4833,7 +4855,7 @@ function dpsTake(c, dmg, now) {
 var talentRank = (c, id) => Number(c?.ld?.tal?.[id]) || 0;
 var trOn = (c, id) => !!treaty.fx && treaty.fx.id === id && Date.now() < treaty.fx.until && !!c?.uid && !!treaty.elig?.[c.uid];
 var G = (n, c) => Math.round(n * goldMult(void 0, trOn(c, "gold")));
-var X = (n, c) => Math.round(n * xpMult(void 0, trOn(c, "xp")));
+var X = (n, c) => Math.round(n * xpMult(void 0, trOn(c, "xp")) * groupBonus(c));
 var AMMO_MULT = { iron: 1, chain: 1.25, fire: 2.5 * 1.8, explosive: 2.5, breaker: 2.25 * 2.6, leech: 3, heal: 0 };
 function perBall(ammo, st) {
   return 20 * 1.38 * (1 + (st ? Number(st.u_damage) || 0 : 10) * 0.11) * (AMMO_MULT[ammo] ?? 1) * 1.4 * 2.2;
@@ -5351,9 +5373,9 @@ function npcApply(c, sea2, n, d, now) {
   const total = [...n.dmg.values()].reduce((a, v) => a + v, 0) || 1;
   return { dealt: d, dead: n, shares: [...n.dmg].map(([uid, v]) => [uid, v / total]) };
 }
-function npcDeathCredit(c, def, map, share) {
+function npcDeathCredit(c, def, map, share, noCount = false) {
   const add = { gold: G(def.gold * share * (1 + 0.05 * talentRank(c, "bounty")), c), xp: X(def.xp * share, c) };
-  if (share >= NPC_KILL_SHARE) {
+  if (share >= NPC_KILL_SHARE && !noCount) {
     add.st_npc = 1;
     if (def.role === "heavy") add.st_heavy = 1;
     if (trOn(c, "ammo")) add.a_fire = TREATY_KILL_AMMO;
@@ -6001,7 +6023,7 @@ function npcDeath(c, r, now) {
     for (const [uid, share] of r.shares) {
       const x = [...room].find((p2) => p2.uid === uid) ?? [...all].find((p2) => p2.uid === uid);
       if (!x) continue;
-      addCredit(x, npcDeathCredit(x, def, map, share));
+      addCredit(x, npcDeathCredit(x, def, map, share, x !== c && !!x.grp && x.grp === c.grp));
       send(x, { t: "nkilled", d: { id: r.dead.id, share } });
     }
     const m = JSON.stringify({ t: "ndie", d: { id: r.dead.id } });
@@ -6865,6 +6887,212 @@ function onLs(c, d, now) {
   }
 }
 setInterval(() => lsTick(Date.now()), 1e3).unref();
+async function rpcTry(fn, args) {
+  if (!SERVER_SECRET) return { err: "Sunucu haz\u0131r de\u011Fil" };
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, { method: "POST", headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${SUPABASE_ANON}`, "content-type": "application/json" }, body: JSON.stringify({ p_secret: SERVER_SECRET, ...args }) });
+    const j = await r.json().catch(() => null);
+    if (!r.ok) return { err: String(j?.message || "\u0130\u015Flem yap\u0131lamad\u0131").replace(/^.*?: /, "") };
+    return { data: j };
+  } catch {
+    return { err: "Ba\u011Flant\u0131 hatas\u0131" };
+  }
+}
+var friendSets = /* @__PURE__ */ new Map();
+var strikesMem = /* @__PURE__ */ new Map();
+var onlineByUid = (uid) => {
+  for (const x of all) if (x.uid === uid) return x;
+  return null;
+};
+var whereOf = (x) => !x?.sea ? "Limanda" : x.domTeam ? "Deniz Hakimiyeti" : x.lsOn ? "Lanetli Sular" : x.sea === SIEGE_ROOM ? "B\xFCy\xFCk Ku\u015Fatma" : seaMap(x.sea) ? `${seaMap(x.sea)}${x.last ? ` \xB7 ${coordLabel(x.last)}` : ""}` : "Denizde";
+async function loadFriends(c) {
+  const r = await rpcTry("friend_list", { p_uid: c.uid });
+  if (Array.isArray(r.data)) {
+    c.friends = r.data;
+    c.frAt = Date.now();
+    friendSets.set(c.uid, new Set(r.data.filter((f) => f.ok).map((f) => f.id)));
+  }
+  return c.friends ?? [];
+}
+var friendView = (c) => (c.friends ?? []).map((f) => {
+  const o = f.ok ? onlineByUid(f.id) : null;
+  return { id: f.id, nick: f.nick, ok: !!f.ok, in: !!f.in, on: !!o, at: o ? whereOf(o) : "" };
+});
+function friendPing(c) {
+  for (const id of friendSets.get(c.uid) ?? []) {
+    const o = onlineByUid(id);
+    if (o) send(o, { t: "fr", d: { k: "list", list: friendView(o) } });
+  }
+}
+async function onFriend(c, d, now) {
+  const k = String(d.k || ""), done = async (err) => {
+    await loadFriends(c);
+    send(c, { t: "fr", d: { k: "list", list: friendView(c), err } });
+  };
+  if (k === "list") {
+    if (!c.friends || now - (c.frAt || 0) > 15e3) await loadFriends(c);
+    send(c, { t: "fr", d: { k: "list", list: friendView(c) } });
+    return;
+  }
+  if (k === "add") {
+    const nick = String(d.nick || "").trim().slice(0, 24);
+    if (!nick) return;
+    const r = await rpcTry("friend_request", { p_uid: c.uid, p_nick: nick });
+    if (r.err) {
+      await done(r.err);
+      return;
+    }
+    await done();
+    const t = onlineByUid(r.data.id);
+    if (t) {
+      await loadFriends(t);
+      send(t, { t: "fr", d: { k: "list", list: friendView(t), note: r.data.ok ? `${c.nick} ile art\u0131k arkada\u015Fs\u0131n\u0131z` : `${c.nick} sana arkada\u015Fl\u0131k iste\u011Fi g\xF6nderdi` } });
+    }
+    return;
+  }
+  if (k === "ans" || k === "del") {
+    const id = String(d.id || "");
+    if (!/^[0-9a-f-]{36}$/.test(id)) return;
+    const r = k === "ans" ? await rpcTry("friend_answer", { p_uid: c.uid, p_from: id, p_ok: !!d.ok }) : await rpcTry("friend_remove", { p_uid: c.uid, p_other: id });
+    await done(r.err);
+    const t = onlineByUid(id);
+    if (t) {
+      await loadFriends(t);
+      send(t, { t: "fr", d: { k: "list", list: friendView(t) } });
+    }
+  }
+}
+async function onPm(c, d, now) {
+  const to = String(d.to || ""), text = String(d.text || "").trim().slice(0, LIMITS.chatLen);
+  if (!text) return;
+  if (!friendSets.get(c.uid)?.has(to)) {
+    send(c, { t: "pm", d: { k: "err", msg: "Yaln\u0131z arkada\u015Flar\u0131na mesaj atabilirsin" } });
+    return;
+  }
+  const mu = muteLeft(c.nick, now);
+  if (mu > 0) {
+    send(c, { t: "muted", d: { left: mu } });
+    return;
+  }
+  if (chatHasBad(text)) {
+    await pmStrike(c, now);
+    return;
+  }
+  const t = onlineByUid(to);
+  if (!t) {
+    send(c, { t: "pm", d: { k: "err", msg: "Arkada\u015F\u0131n \xE7evrim d\u0131\u015F\u0131" } });
+    return;
+  }
+  const msg = { k: "msg", from: c.uid, nick: c.nick, to, text, at: now };
+  send(t, { t: "pm", d: msg });
+  send(c, { t: "pm", d: { ...msg, mine: true, tn: t.nick } });
+}
+async function pmStrike(c, now) {
+  const r = await rpcTry("chat_strike", { p_uid: c.uid });
+  const n = typeof r.data === "number" ? r.data : (strikesMem.get(c.uid) || 0) + 1;
+  strikesMem.set(c.uid, n);
+  log("K\xDCF\xDCR CEZASI", c.nick, n);
+  if (n <= 1) {
+    mutes.set(muteKey(c.nick), now + 24 * 36e5);
+    saveMutes();
+    send(c, { t: "pm", d: { k: "err", msg: "Mesaj\u0131nda k\xFCf\xFCr var, g\xF6nderilmedi. 24 saat sohbet ve \xF6zel mesaj yazamazs\u0131n. Tekrarlan\u0131rsa hesab\u0131n kapat\u0131l\u0131r." } });
+    send(c, { t: "muted", d: { left: 24 * 36e5 } });
+    return n;
+  }
+  send(c, { t: "pm", d: { k: "err", msg: n === 2 ? "K\xFCf\xFCr nedeniyle hesab\u0131n 7 g\xFCn kapat\u0131ld\u0131." : "K\xFCf\xFCr nedeniyle hesab\u0131n kal\u0131c\u0131 olarak kapat\u0131ld\u0131." } });
+  setTimeout(() => c.ws?.close?.(4002, "hesap kapal\u0131"), 300);
+  return n;
+}
+var groups = /* @__PURE__ */ new Map();
+var groupInvites = /* @__PURE__ */ new Map();
+var groupSeq = 0;
+function groupBonus(c) {
+  const g2 = c?.grp ? groups.get(c.grp) : null;
+  if (!g2 || !c.sea) return 1;
+  let n = 0;
+  for (const x of g2.members) if (x.sea === c.sea) n++;
+  return groupMult(n);
+}
+var groupView = (g2) => ({ id: g2.id, lead: g2.lead.uid, members: [...g2.members].map((x) => ({ uid: x.uid, nick: x.nick, at: whereOf(x) })) });
+function groupCast(g2) {
+  const v = groupView(g2);
+  for (const x of g2.members) send(x, { t: "grp", d: { k: "state", ...v, bonus: Math.round((groupBonus(x) - 1) * 100) } });
+}
+function groupLeave(c) {
+  const g2 = c.grp ? groups.get(c.grp) : null;
+  c.grp = null;
+  if (!g2) return;
+  g2.members.delete(c);
+  send(c, { t: "grp", d: { k: "state", id: null } });
+  if (g2.members.size < 2) {
+    for (const x of g2.members) {
+      x.grp = null;
+      send(x, { t: "grp", d: { k: "state", id: null, note: "Grup da\u011F\u0131ld\u0131" } });
+    }
+    groups.delete(g2.id);
+    return;
+  }
+  if (g2.lead === c) g2.lead = [...g2.members][0];
+  groupCast(g2);
+}
+function onGroup(c, d, now) {
+  const k = String(d.k || ""), err = (msg) => send(c, { t: "grp", d: { k: "err", msg } });
+  if (k === "inv") {
+    const nick = String(d.nick || "").trim().toLocaleLowerCase("tr");
+    const t = [...all].find((x) => x.uid && x.nick?.toLocaleLowerCase("tr") === nick);
+    if (!t) return err("Kaptan \xE7evrim i\xE7i de\u011Fil");
+    if (t === c) return err("Kendini davet edemezsin");
+    if (t.grp) return err(`${t.nick} zaten bir grupta`);
+    let g2 = c.grp ? groups.get(c.grp) : null;
+    if (g2 && g2.lead !== c) return err("Davet yaln\u0131z grup lideri yapabilir");
+    if (g2 && g2.members.size >= GROUP_MAX) return err(`Grup dolu (${GROUP_MAX} ki\u015Fi)`);
+    if (!g2) {
+      g2 = { id: `g${++groupSeq}`, lead: c, members: /* @__PURE__ */ new Set([c]) };
+      groups.set(g2.id, g2);
+      c.grp = g2.id;
+    }
+    groupInvites.set(t.uid, { gid: g2.id, at: now });
+    send(t, { t: "grp", d: { k: "inv", from: c.nick, gid: g2.id } });
+    groupCast(g2);
+    send(c, { t: "grp", d: { k: "note", msg: `${t.nick} gruba davet edildi` } });
+    return;
+  }
+  if (k === "yes") {
+    const inv = groupInvites.get(c.uid);
+    groupInvites.delete(c.uid);
+    const g2 = inv && now - inv.at < 6e4 ? groups.get(inv.gid) : null;
+    if (!g2) return err("Davetin s\xFCresi doldu");
+    if (g2.members.size >= GROUP_MAX) return err("Grup dolu");
+    if (c.grp) groupLeave(c);
+    g2.members.add(c);
+    c.grp = g2.id;
+    groupCast(g2);
+    return;
+  }
+  if (k === "no") {
+    const inv = groupInvites.get(c.uid);
+    groupInvites.delete(c.uid);
+    const g2 = inv ? groups.get(inv.gid) : null;
+    if (g2) send(g2.lead, { t: "grp", d: { k: "note", msg: `${c.nick} daveti reddetti` } });
+    return;
+  }
+  if (k === "leave") {
+    groupLeave(c);
+    return;
+  }
+  if (k === "kick") {
+    const g2 = c.grp ? groups.get(c.grp) : null;
+    if (!g2 || g2.lead !== c) return;
+    const t = [...g2.members].find((x) => x.uid === String(d.uid));
+    if (t && t !== c) {
+      groupLeave(t);
+      send(t, { t: "grp", d: { k: "note", msg: "Gruptan \xE7\u0131kar\u0131ld\u0131n" } });
+    }
+  }
+}
+setInterval(() => {
+  for (const g2 of groups.values()) groupCast(g2);
+}, 5e3).unref();
 var DUEL_FILE = process.env.DUEL_FILE || "/opt/game/duels.json";
 var duels = /* @__PURE__ */ new Map();
 var duelInvites = /* @__PURE__ */ new Map();
@@ -6888,7 +7116,7 @@ var duelInfo = (d) => ({ id: d.id, a: d.a.netId, b: d.b.netId, an: d.a.nick, bn:
 var duelErr = (c, msg) => send(c, { t: "duel", d: { k: "err", msg } });
 function duelCheck(a, b, bet, now = Date.now()) {
   if (!a.uid || !b?.uid || a === b) return "Rakip bulunamad\u0131";
-  if (!MAPS[seaMap(a.sea)]?.safe || a.sea !== b.sea) return "D\xFCello yaln\u0131z sava\u015Fa kapal\u0131 denizlerde (1/1, 1/2) yap\u0131l\u0131r";
+  if (!DUEL_MAPS.includes(seaMap(a.sea)) || a.sea !== b.sea) return "D\xFCello yaln\u0131z sava\u015Fa kapal\u0131 denizlerde (1/1, 1/2) yap\u0131l\u0131r";
   if (a.duel || b.duel) return "Kaptanlardan biri zaten d\xFCelloda";
   if (a.domTeam || b.domTeam || a.lsOn || b.lsOn) return "Kaptan arenada";
   if (!a.last || !b.last || Math.hypot(a.last.x - b.last.x, a.last.y - b.last.y) > DUEL_NEAR) return "Rakibe daha \xE7ok yakla\u015F";
@@ -7308,6 +7536,10 @@ wss.on("connection", (ws) => {
       void sinkAdd(c, 0);
       send(c, { t: "hello", id: c.netId, nick: c.nick, playerNo: c.playerNo });
       log("G\u0130R\u0130\u015E", `#${c.playerNo}`, c.nick);
+      void loadFriends(c).then(() => {
+        send(c, { t: "fr", d: { k: "list", list: friendView(c) } });
+        friendPing(c);
+      });
       treaty.seen[c.uid] = Date.now();
       treatyDirty = true;
       send(c, { t: "treaty", d: treatyInfo(c) });
@@ -7548,6 +7780,21 @@ wss.on("connection", (ws) => {
         send(c, { t: "qres", d: { id, ok: true } });
         return;
       }
+      case "fr": {
+        if (!c.uid || !c.rUse.hit(now)) return;
+        await onFriend(c, m.d || {}, now);
+        return;
+      }
+      case "pm": {
+        if (!c.uid || !c.rChat.hit(now)) return;
+        await onPm(c, m.d || {}, now);
+        return;
+      }
+      case "grp": {
+        if (!c.uid || !c.rUse.hit(now)) return;
+        onGroup(c, m.d || {}, now);
+        return;
+      }
       case "duel": {
         if (!c.uid || !c.rUse.hit(now)) return;
         await onDuel(c, m.d || {}, now);
@@ -7726,6 +7973,8 @@ wss.on("connection", (ws) => {
   });
   ws.on("close", () => {
     clearTimeout(authTimer);
+    if (c.grp) groupLeave(c);
+    if (c.uid) setTimeout(() => friendPing(c), 50);
     clearTimeout(c.econTimer);
     void flushCredit(c);
     if (c.uid && c.last && seaMap(c.sea)) void dbRpc("spy_seen", { p_uid: c.uid, p_map: seaMap(c.sea), p_x: Math.round(c.last.x), p_y: Math.round(c.last.y) }).catch(() => {
@@ -7808,6 +8057,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   aevPools,
   aevState,
   aevTier,
+  all,
   attackTarget,
   bossCredit,
   bossHit,
@@ -7849,7 +8099,13 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   duelTick,
   duels,
   flushCredit,
+  friendSets,
+  friendView,
   godCheck,
+  groupBonus,
+  groupInvites,
+  groupLeave,
+  groups,
   guildOf,
   heroUntil,
   hpCap,
@@ -7896,6 +8152,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   npcShore,
   npcSpawn,
   onDuel,
+  onGroup,
   onLand,
   osbMatch,
   parseDuration,
@@ -7906,6 +8163,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   perBall,
   pickSpot,
   placeMine,
+  pmStrike,
   pvpGuard,
   pvpHeal,
   pvpReset,
@@ -7935,6 +8193,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   spCredit,
   sparklePicked,
   sparkleReward,
+  strikesMem,
   towerHit,
   tpAllowed,
   treasureDig,
@@ -7948,5 +8207,6 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   treatyTick,
   treatyVote,
   verifyOsb,
-  verifyToken
+  verifyToken,
+  whereOf
 });

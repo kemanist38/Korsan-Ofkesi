@@ -28,8 +28,9 @@ import {ELITE_SHIPS} from '../src/elite-ships.ts';
 import {contribReward,earnsChest,victoryChest} from '../src/siege.ts';
 import {DOM_SIZE,DOM_COUNTDOWN_MS,DOM_MATCH_MS,DOM_WIN,DOM_ZONE,DOM_BASE,domWindowAt,domBalance,domZoneStep,domWinner,domReward} from '../src/domination.ts';
 import {LS_DROP_FIRST_MS,LS_DROP_EVERY_MS,LS_DROP_FALL_MS,LS_DROP_PICK_R,LS_DROP_LOOT,LS_ITEMS,LS_ITEM_MAX,LS_ITEM_RESPAWN_MS,LS_PICK_R,LS_SPEED_MS,lsEmptyInv,lsPickKind,LS_SIZE,LS_COUNTDOWN_MS,LS_LOADOUT,LS_HP,LS_START_R,LS_RADII,LS_PHASE_MS,LS_FOG_DPS,LS_MATCH_MS,lsZoneAt,lsNext,lsReward,lsSpawn} from '../src/cursed.ts';
-import {filterChat} from '../src/chat-filter.ts';
-import {DUEL_BETS,DUEL_MS,DUEL_R,DUEL_ASK_MS,DUEL_NEAR,DUEL_LEVEL_GAP,duelPot,duelLeft,duelUse} from '../src/duel.ts';
+import {filterChat,chatHasBad} from '../src/chat-filter.ts';
+import {GROUP_MAX,groupMult} from '../src/social.ts';
+import {DUEL_MAPS,DUEL_BETS,DUEL_MS,DUEL_R,DUEL_ASK_MS,DUEL_NEAR,DUEL_LEVEL_GAP,duelPot,duelLeft,duelUse} from '../src/duel.ts';
 import {RAGE_MAX,RAGE_SALVOS,RAGE_SECONDS,RAGE_PER_RIVAL,RAGE_PER_BOSS} from '../src/rage.ts';
 import {levelQuestGoal,levelQuestTargets,levelQuestMap} from '../src/level-quest.ts';
 
@@ -51,7 +52,9 @@ export async function verifyToken(token){
   if(!u.ok)return null;const user=await u.json();
   const p=await fetch(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${user.id}&select=nick,player_no,banned`,{headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${token}`}});
   const rows=p.ok?await p.json():[];const prof=rows[0];if(!prof)return null;
-  return{uid:user.id,nick:prof.nick,playerNo:prof.player_no,banned:!!prof.banned,guildId:await guildOf(user.id).catch(()=>0)};
+  // Süreli ban bittiyse sunucu kaldırır (033_social.sql); denetlenemezse ban sürer
+  let banned=!!prof.banned;if(banned){const b=await dbRpcJson('ban_check',{p_uid:user.id}).catch(()=>null);if(b===false)banned=false;}
+  return{uid:user.id,nick:prof.nick,playerNo:prof.player_no,banned,guildId:await guildOf(user.id).catch(()=>0)};
 }
 export async function guildOf(uid){const r=await fetch(`${SUPABASE_URL}/rest/v1/guild_members?user_id=eq.${uid}&select=guild_id`,{headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`}});
   const rows=r.ok?await r.json():[];return Number(rows[0]?.guild_id||0);}
@@ -149,7 +152,7 @@ export function dpsTake(c,dmg,now){const rate=dpsCap(c.econ?.level??8);c.dps??={
 const talentRank=(c,id)=>Number(c?.ld?.tal?.[id])||0;
 // Deniz Antlaşması etkisi yalnız o turda en az 40 pırıltı toplamış kaptana işler (treaty.elig)
 const trOn=(c,id)=>!!treaty.fx&&treaty.fx.id===id&&Date.now()<treaty.fx.until&&!!c?.uid&&!!treaty.elig?.[c.uid];
-const G=(n,c)=>Math.round(n*goldMult(undefined,trOn(c,'gold'))),X=(n,c)=>Math.round(n*xpMult(undefined,trOn(c,'xp')));
+const G=(n,c)=>Math.round(n*goldMult(undefined,trOn(c,'gold'))),X=(n,c)=>Math.round(n*xpMult(undefined,trOn(c,'xp'))*groupBonus(c));
 // Salvo bütçesi (015): oyuncunun bildirdiği salvolar en çok ne kadar hasar verebilir. Gülle başına üst sınır: top hasarı
 // (en güçlü top) × geliştirme × gülle çarpanı × hedef türü (1,4) × ateş yanması (1,8) × diğer bonuslar (2,2). Bildirilen
 // gülle sayısı gemideki top sayısını aşamaz. Batırma, boss, kuşatma, kule ve PvP hasarı bu bütçeden düşer.
@@ -330,8 +333,8 @@ export function npcApply(c,sea,n,d,now){d=Math.min(d,n.hp);n.hp-=d;n.hpDirty=tru
   const st=seaNpcs.get(sea);st.list.delete(n.id);st.respawn.push(now+NPC_RESPAWN_MS);
   const total=[...n.dmg.values()].reduce((a,v)=>a+v,0)||1;return{dealt:d,dead:n,shares:[...n.dmg].map(([uid,v])=>[uid,v/total])};}
 // Batış ödülü: altın/TP payla (×2,5 bonus payı), batırma sayaçları payı %30 üstündekilere
-export function npcDeathCredit(c,def,map,share){const add={gold:G(def.gold*share*(1+.05*talentRank(c,'bounty')),c),xp:X(def.xp*share,c)};
-  if(share>=NPC_KILL_SHARE){add.st_npc=1;if(def.role==='heavy')add.st_heavy=1;if(trOn(c,'ammo'))add.a_fire=TREATY_KILL_AMMO;c.qk??={};c.qk[def.id]=(c.qk[def.id]||0)+1;
+export function npcDeathCredit(c,def,map,share,noCount=false){const add={gold:G(def.gold*share*(1+.05*talentRank(c,'bounty')),c),xp:X(def.xp*share,c)};
+  if(share>=NPC_KILL_SHARE&&!noCount){add.st_npc=1;if(def.role==='heavy')add.st_heavy=1;if(trOn(c,'ammo'))add.a_fire=TREATY_KILL_AMMO;c.qk??={};c.qk[def.id]=(c.qk[def.id]||0)+1;
     const lvl=Math.round(Number(c.econ?.level)||1);if(lvl>=2&&map===levelQuestMap(lvl)&&levelQuestTargets(lvl).ships.includes(def.id))add.lqk=1;}
   return add;}
 export class Rate{constructor(perWindow,windowMs){this.n=perWindow;this.w=windowMs;this.t=[];}hit(now){while(this.t.length&&now-this.t[0]>this.w)this.t.shift();if(this.t.length>=this.n)return false;this.t.push(now);return true;}}
@@ -364,7 +367,7 @@ async function applyUsage(c,salvo,item,now){
 
 // ---------------------------------------------------------------- Sunucu
 export const seas=new Map(); // ad → Set<Client>
-const all=new Set();
+export const all=new Set();
 const log=(...a)=>console.log(new Date().toISOString(),...a);
 // Şüpheli kayıtları: bellekte son 500, ayrıca dosyaya (yönetici paneli /flags ile okur)
 const FLAG_FILE=process.env.FLAG_FILE||'/opt/game/flags.jsonl';const flags=[];
@@ -543,7 +546,7 @@ function onNpcHit(c,list,now){const map=seaMap(c.sea);if(!map||!Array.isArray(li
   for(const it of list.slice(0,40)){if(!Array.isArray(it))continue;const r=npcHit(c,c.sea,it[0],Number(it[1]),now);if(!r)continue;if(r.flag){suspect(c,'saniyelik hasar','npc');if(c.dps)c.dps.over=0;}
     if(r.dead)npcDeath(c,r,now);}}
 function npcDeath(c,r,now){{const map=seaMap(c.sea);const room=seas.get(c.sea)||new Set(),def=r.dead.def;
-    for(const [uid,share] of r.shares){const x=[...room].find(p=>p.uid===uid)??[...all].find(p=>p.uid===uid);if(!x)continue;addCredit(x,npcDeathCredit(x,def,map,share));send(x,{t:'nkilled',d:{id:r.dead.id,share}});}
+    for(const [uid,share] of r.shares){const x=[...room].find(p=>p.uid===uid)??[...all].find(p=>p.uid===uid);if(!x)continue;addCredit(x,npcDeathCredit(x,def,map,share,x!==c&&!!x.grp&&x.grp===c.grp));/* grup içinde görev sayacı yalnız son vuruşu yapana */send(x,{t:'nkilled',d:{id:r.dead.id,share}});}
     const m=JSON.stringify({t:'ndie',d:{id:r.dead.id}});for(const x of room)send(x,m);
     if(def.id===bossFor(map).trigger){const b=bossKill(c.sea,BOSS_KILLS,now);if(b)toSea(c,{t:'boss',d:bossInfo(c.sea,b)},true);}}}
 // ---------------------------------------------------------------- Mayınlar (sunucuda)
@@ -816,6 +819,56 @@ function onLs(c,d,now){const k=String(d?.k||'');
 setInterval(()=>lsTick(Date.now()),1000).unref();
 
 
+
+// ---------------------------------------------------------------- Arkadaşlar, özel mesaj ve grup (src/social.ts, 033_social.sql)
+// Arkadaşlık karşılıklı onaylıdır ve veritabanında durur; çevrim içi arkadaşın denizi ve koordinatı sunucudan gelir.
+// Özel mesaj yalnız arkadaşlar arasında, saklanmaz. Küfürde mesaj gitmez: 1. kez 24 saat susturma, 2. kez 7 gün, 3. kez kalıcı ban.
+async function rpcTry(fn,args){if(!SERVER_SECRET)return{err:'Sunucu hazır değil'};
+  try{const r=await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:'POST',headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`,'content-type':'application/json'},body:JSON.stringify({p_secret:SERVER_SECRET,...args})});
+    const j=await r.json().catch(()=>null);if(!r.ok)return{err:String(j?.message||'İşlem yapılamadı').replace(/^.*?: /,'')};return{data:j};}catch{return{err:'Bağlantı hatası'};}}
+export const friendSets=new Map(),strikesMem=new Map();
+const onlineByUid=uid=>{for(const x of all)if(x.uid===uid)return x;return null;};
+export const whereOf=x=>!x?.sea?'Limanda':x.domTeam?'Deniz Hakimiyeti':x.lsOn?'Lanetli Sular':x.sea===SIEGE_ROOM?'Büyük Kuşatma':seaMap(x.sea)?`${seaMap(x.sea)}${x.last?` · ${coordLabel(x.last)}`:''}`:'Denizde';
+async function loadFriends(c){const r=await rpcTry('friend_list',{p_uid:c.uid});if(Array.isArray(r.data)){c.friends=r.data;c.frAt=Date.now();friendSets.set(c.uid,new Set(r.data.filter(f=>f.ok).map(f=>f.id)));}return c.friends??[];}
+export const friendView=c=>(c.friends??[]).map(f=>{const o=f.ok?onlineByUid(f.id):null;return{id:f.id,nick:f.nick,ok:!!f.ok,in:!!f.in,on:!!o,at:o?whereOf(o):''};});
+// Arkadaş girince/çıkınca çevrim içi arkadaşlarının listesi tazelenir
+function friendPing(c){for(const id of friendSets.get(c.uid)??[]){const o=onlineByUid(id);if(o)send(o,{t:'fr',d:{k:'list',list:friendView(o)}});}}
+async function onFriend(c,d,now){const k=String(d.k||''),done=async(err)=>{await loadFriends(c);send(c,{t:'fr',d:{k:'list',list:friendView(c),err}});};
+  if(k==='list'){if(!c.friends||now-(c.frAt||0)>15_000)await loadFriends(c);send(c,{t:'fr',d:{k:'list',list:friendView(c)}});return;}
+  if(k==='add'){const nick=String(d.nick||'').trim().slice(0,24);if(!nick)return;const r=await rpcTry('friend_request',{p_uid:c.uid,p_nick:nick});if(r.err){await done(r.err);return;}
+    await done();const t=onlineByUid(r.data.id);if(t){await loadFriends(t);send(t,{t:'fr',d:{k:'list',list:friendView(t),note:r.data.ok?`${c.nick} ile artık arkadaşsınız`:`${c.nick} sana arkadaşlık isteği gönderdi`}});}return;}
+  if(k==='ans'||k==='del'){const id=String(d.id||'');if(!/^[0-9a-f-]{36}$/.test(id))return;const r=k==='ans'?await rpcTry('friend_answer',{p_uid:c.uid,p_from:id,p_ok:!!d.ok}):await rpcTry('friend_remove',{p_uid:c.uid,p_other:id});
+    await done(r.err);const t=onlineByUid(id);if(t){await loadFriends(t);send(t,{t:'fr',d:{k:'list',list:friendView(t)}});}}}
+async function onPm(c,d,now){const to=String(d.to||''),text=String(d.text||'').trim().slice(0,LIMITS.chatLen);if(!text)return;
+  if(!friendSets.get(c.uid)?.has(to)){send(c,{t:'pm',d:{k:'err',msg:'Yalnız arkadaşlarına mesaj atabilirsin'}});return;}
+  const mu=muteLeft(c.nick,now);if(mu>0){send(c,{t:'muted',d:{left:mu}});return;}
+  if(chatHasBad(text)){await pmStrike(c,now);return;}
+  const t=onlineByUid(to);if(!t){send(c,{t:'pm',d:{k:'err',msg:'Arkadaşın çevrim dışı'}});return;}
+  const msg={k:'msg',from:c.uid,nick:c.nick,to,text,at:now};send(t,{t:'pm',d:msg});send(c,{t:'pm',d:{...msg,mine:true,tn:t.nick}});}
+export async function pmStrike(c,now){const r=await rpcTry('chat_strike',{p_uid:c.uid});const n=typeof r.data==='number'?r.data:(strikesMem.get(c.uid)||0)+1;strikesMem.set(c.uid,n);log('KÜFÜR CEZASI',c.nick,n);
+  if(n<=1){mutes.set(muteKey(c.nick),now+24*3600_000);saveMutes();send(c,{t:'pm',d:{k:'err',msg:'Mesajında küfür var, gönderilmedi. 24 saat sohbet ve özel mesaj yazamazsın. Tekrarlanırsa hesabın kapatılır.'}});send(c,{t:'muted',d:{left:24*3600_000}});return n;}
+  send(c,{t:'pm',d:{k:'err',msg:n===2?'Küfür nedeniyle hesabın 7 gün kapatıldı.':'Küfür nedeniyle hesabın kalıcı olarak kapatıldı.'}});setTimeout(()=>c.ws?.close?.(4002,'hesap kapalı'),300);return n;}
+// Grup: en çok 4 kaptan. Aynı denizdeki grup üyesi sayısına göre ek TP: 2 kişi %15, 3 kişi %10, 4 kişi %5.
+export const groups=new Map(),groupInvites=new Map();let groupSeq=0;
+export function groupBonus(c){const g=c?.grp?groups.get(c.grp):null;if(!g||!c.sea)return 1;let n=0;for(const x of g.members)if(x.sea===c.sea)n++;return groupMult(n);}
+const groupView=g=>({id:g.id,lead:g.lead.uid,members:[...g.members].map(x=>({uid:x.uid,nick:x.nick,at:whereOf(x)}))});
+function groupCast(g){const v=groupView(g);for(const x of g.members)send(x,{t:'grp',d:{k:'state',...v,bonus:Math.round((groupBonus(x)-1)*100)}});}
+export function groupLeave(c){const g=c.grp?groups.get(c.grp):null;c.grp=null;if(!g)return;g.members.delete(c);send(c,{t:'grp',d:{k:'state',id:null}});
+  if(g.members.size<2){for(const x of g.members){x.grp=null;send(x,{t:'grp',d:{k:'state',id:null,note:'Grup dağıldı'}});}groups.delete(g.id);return;}
+  if(g.lead===c)g.lead=[...g.members][0];groupCast(g);}
+export function onGroup(c,d,now){const k=String(d.k||''),err=msg=>send(c,{t:'grp',d:{k:'err',msg}});
+  if(k==='inv'){const nick=String(d.nick||'').trim().toLocaleLowerCase('tr');const t=[...all].find(x=>x.uid&&x.nick?.toLocaleLowerCase('tr')===nick);
+    if(!t)return err('Kaptan çevrim içi değil');if(t===c)return err('Kendini davet edemezsin');if(t.grp)return err(`${t.nick} zaten bir grupta`);
+    let g=c.grp?groups.get(c.grp):null;if(g&&g.lead!==c)return err('Davet yalnız grup lideri yapabilir');if(g&&g.members.size>=GROUP_MAX)return err(`Grup dolu (${GROUP_MAX} kişi)`);
+    if(!g){g={id:`g${++groupSeq}`,lead:c,members:new Set([c])};groups.set(g.id,g);c.grp=g.id;}
+    groupInvites.set(t.uid,{gid:g.id,at:now});send(t,{t:'grp',d:{k:'inv',from:c.nick,gid:g.id}});groupCast(g);send(c,{t:'grp',d:{k:'note',msg:`${t.nick} gruba davet edildi`}});return;}
+  if(k==='yes'){const inv=groupInvites.get(c.uid);groupInvites.delete(c.uid);const g=inv&&now-inv.at<60_000?groups.get(inv.gid):null;if(!g)return err('Davetin süresi doldu');
+    if(g.members.size>=GROUP_MAX)return err('Grup dolu');if(c.grp)groupLeave(c);g.members.add(c);c.grp=g.id;groupCast(g);return;}
+  if(k==='no'){const inv=groupInvites.get(c.uid);groupInvites.delete(c.uid);const g=inv?groups.get(inv.gid):null;if(g)send(g.lead,{t:'grp',d:{k:'note',msg:`${c.nick} daveti reddetti`}});return;}
+  if(k==='leave'){groupLeave(c);return;}
+  if(k==='kick'){const g=c.grp?groups.get(c.grp):null;if(!g||g.lead!==c)return;const t=[...g.members].find(x=>x.uid===String(d.uid));if(t&&t!==c){groupLeave(t);send(t,{t:'grp',d:{k:'note',msg:'Gruptan çıkarıldın'}});}}}
+setInterval(()=>{for(const g of groups.values())groupCast(g);},5000).unref();
+
 // ---------------------------------------------------------------- Açık deniz düellosu (src/duel.ts)
 // Savaşa kapalı denizlerde iki kaptan anlaşınca yalnız birbirleriyle savaşır. Bahis (500 inci) düello başında iki taraftan
 // veritabanında kilitlenir (032_duel.sql); kazanan toplamın %90'ını alır. Hak sayıları dosyada saklanır.
@@ -828,7 +881,7 @@ export const duelInfo=d=>({id:d.id,a:d.a.netId,b:d.b.netId,an:d.a.nick,bn:d.b.ni
 const duelErr=(c,msg)=>send(c,{t:'duel',d:{k:'err',msg}});
 // Teklif ve kabulde aynı denetimler: savaşa kapalı deniz, aynı deniz, yakın, ikisi de boşta; bahisliyse seviye farkı ve hak
 export function duelCheck(a,b,bet,now=Date.now()){if(!a.uid||!b?.uid||a===b)return'Rakip bulunamadı';
-  if(!MAPS[seaMap(a.sea)]?.safe||a.sea!==b.sea)return'Düello yalnız savaşa kapalı denizlerde (1/1, 1/2) yapılır';
+  if(!DUEL_MAPS.includes(seaMap(a.sea))||a.sea!==b.sea)return'Düello yalnız savaşa kapalı denizlerde (1/1, 1/2) yapılır';
   if(a.duel||b.duel)return'Kaptanlardan biri zaten düelloda';if(a.domTeam||b.domTeam||a.lsOn||b.lsOn)return'Kaptan arenada';
   if(!a.last||!b.last||Math.hypot(a.last.x-b.last.x,a.last.y-b.last.y)>DUEL_NEAR)return'Rakibe daha çok yaklaş';
   if(!DUEL_BETS.includes(bet))return'Geçersiz bahis';
@@ -949,7 +1002,7 @@ wss.on('connection',ws=>{
       for(const x of all)if(x.uid===who.uid&&x!==c)x.ws.close(4004,'başka yerden bağlanıldı');
       Object.assign(c,who);c.admin=await isAdminToken(String(m.token||'')).catch(()=>false);c.netId=String(m.netId||'').slice(0,16)||Math.random().toString(36).slice(2,10);clearTimeout(authTimer);
       await loadEcon(c);if(!c.econ){ws.close(4003,'hesap verisi yüklenemedi');return;}
-      void sinkAdd(c,0);send(c,{t:'hello',id:c.netId,nick:c.nick,playerNo:c.playerNo});log('GİRİŞ',`#${c.playerNo}`,c.nick);treaty.seen[c.uid]=Date.now();treatyDirty=true;send(c,{t:'treaty',d:treatyInfo(c)});if(!qkByUid.has(c.uid))qkByUid.set(c.uid,{});c.qk=qkByUid.get(c.uid);{const t=treasures.get(c.uid);if(t)send(c,{t:'tstate',d:{parts:t.parts,spot:t.spot}});}return;}
+      void sinkAdd(c,0);send(c,{t:'hello',id:c.netId,nick:c.nick,playerNo:c.playerNo});log('GİRİŞ',`#${c.playerNo}`,c.nick);void loadFriends(c).then(()=>{send(c,{t:'fr',d:{k:'list',list:friendView(c)}});friendPing(c);});treaty.seen[c.uid]=Date.now();treatyDirty=true;send(c,{t:'treaty',d:treatyInfo(c)});if(!qkByUid.has(c.uid))qkByUid.set(c.uid,{});c.qk=qkByUid.get(c.uid);{const t=treasures.get(c.uid);if(t)send(c,{t:'tstate',d:{parts:t.parts,spot:t.spot}});}return;}
     if(!c.uid||!c.econ)return;
     switch(m.t){
       case'join':{const name=String(m.sea||'').slice(0,40);if(name===c.sea)return;if(!canJoin(c,name,now)){send(c,{t:'denied',reason:'harita kilitli'});return;}leaveSea(c);c.last=null;if(!name)return;
@@ -994,6 +1047,9 @@ wss.on('connection',ws=>{
         if(id==='mine'&&(c.econ!==before||!SERVER_SECRET||(process.env.BENCH_AUTH==='1'&&c.uid.startsWith('b')))){const mn=placeMine(c,Number(m.d?.x),Number(m.d?.y),now);if(mn)toSea(c,{t:'mine',d:{id:mn.id,x:mn.x,y:mn.y,by:c.netId}});}return;}
       case'qdone':{if(!c.uid||!c.rKill.hit(now))return;const id=String(m.d?.id||'');const r=questCredit(c,id,now);
         if(r.err){if(r.err==='bekleme')suspect(c,'görev bekleme',id);send(c,{t:'qres',d:{id,ok:false,err:r.err}});return;}addCredit(c,r.add);send(c,{t:'qres',d:{id,ok:true}});return;}
+      case'fr':{if(!c.uid||!c.rUse.hit(now))return;await onFriend(c,m.d||{},now);return;}
+      case'pm':{if(!c.uid||!c.rChat.hit(now))return;await onPm(c,m.d||{},now);return;}
+      case'grp':{if(!c.uid||!c.rUse.hit(now))return;onGroup(c,m.d||{},now);return;}
       case'duel':{if(!c.uid||!c.rUse.hit(now))return;await onDuel(c,m.d||{},now);return;}
       case'treaty':{if(!c.uid||!c.rUse.hit(now))return;const r=treatyVote(c,Number(m.d?.o),now);if(r.err){send(c,{t:'treaty',d:{...treatyInfo(c),err:r.err}});return;}send(c,{t:'treaty',d:treatyInfo(c)});return;}
       case'spk':{if(!c.sea||!c.rUse.hit(now))return;{const t=lootTake(c,'sp',m.d?.id);if(t.err){if(t.err==='uzak')suspect(c,'uzak pırıltı');return;}send(c,{t:'loot',d:lootInfo(c.loot)});}const r=sparklePicked(c,now);if(r.err){if(r.err==='hız')suspect(c,'pırıltı hızı');return;}const sr=sparkleReward(c);addCredit(c,sr.add);send(c,{t:'spkr',d:sr.out});treatyPick(c,now);return;}
@@ -1031,7 +1087,7 @@ wss.on('connection',ws=>{
       .catch(e=>{log('PAKET reddedildi',c.playerNo,e?.name||'hata');})
       .finally(()=>{pending--;});
   });
-  ws.on('close',()=>{clearTimeout(authTimer);clearTimeout(c.econTimer);void flushCredit(c);if(c.uid&&c.last&&seaMap(c.sea))void dbRpc('spy_seen',{p_uid:c.uid,p_map:seaMap(c.sea),p_x:Math.round(c.last.x),p_y:Math.round(c.last.y)}).catch(()=>{});leaveSea(c);all.delete(c);domDrop(c);lsDrop(c);if(c.uid)log('ÇIKIŞ',`#${c.playerNo}`,c.nick);});
+  ws.on('close',()=>{clearTimeout(authTimer);if(c.grp)groupLeave(c);if(c.uid)setTimeout(()=>friendPing(c),50);clearTimeout(c.econTimer);void flushCredit(c);if(c.uid&&c.last&&seaMap(c.sea))void dbRpc('spy_seen',{p_uid:c.uid,p_map:seaMap(c.sea),p_x:Math.round(c.last.x),p_y:Math.round(c.last.y)}).catch(()=>{});leaveSea(c);all.delete(c);domDrop(c);lsDrop(c);if(c.uid)log('ÇIKIŞ',`#${c.playerNo}`,c.nick);});
   ws.on('error',()=>{});
 });
 // Ölü bağlantıları temizle

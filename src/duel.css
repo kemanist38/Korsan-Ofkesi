@@ -14,3 +14,4 @@
 .duel-hud b{color:#ffb648;letter-spacing:.08em}.duel-hud strong{color:#fff;font-size:14px}.duel-hud em{font-style:normal;color:#ffd56a}
 .duel-hud button{padding:4px 9px;border:1px solid #6a5550;border-radius:12px;background:#261c20;color:#d9c8bf;font:800 9px Inter,sans-serif;cursor:pointer}
 @media (max-width:700px){.duel-btn{top:calc(var(--strip,20px) + 124px)}.duel-hud{top:calc(var(--strip,20px) + 26px);font-size:11px}}
+.duel-btn .duel-x{padding:3px 8px;border-color:#6a5550;background:#261c20;color:#d9c8bf;font-size:13px}
