@@ -50,7 +50,7 @@ import {setupCapPlate} from './cap-plate';
 import {setupSocial,friendMsg,groupMsg,groupPick,friendList} from './social-ui';
 import {DUEL_MAPS} from './duel';
 import {duelMsg,duelSelect,renderDuelHud,setDuelMe,duelList,duelPartner} from './duel-ui';
-import {treatyMsg,openTreaty,treatyEnvoy,TREATY_ENVOY} from './treaty-ui';
+import {treatyMsg,openTreaty,treatyEnvoy,treatyRowHtml,TREATY_ENVOY} from './treaty-ui';
 import {TREATY_ENVOY_R} from './treaty';
 import {TALENTS,OFFICERS,OFFICER_MAX_RANK,officerCost,officerSlots,talentPoints,loadCrew,saveCrew,spentPoints,computeBonus,type TalentId,type OfficerId} from './crew';
 import {FLEET_MASK} from './fleetMask';
@@ -2441,8 +2441,9 @@ function updateEvents(dt:number){
   if(boss)rows.push(`<button class="event-row boss" data-event-route="boss">${bossArt}<span><small>HARİTA BOSSU · ${fmt(Math.round(dist(boss,player)))}m</small><strong>${bd.name}</strong><i><em style="width:${boss.hp/boss.maxHp*100}%"></em></i></span></button>`);
   if(treasure.active||treasure.parts>0){const a=treasure.active;rows.push(`<button class="event-row treasure" data-event-route="treasure"><img src="${TREASURE_ICON}" alt=""/><span><small>${a?'HAZİNE HARİTASI · HEDEF':'HAZİNE HARİTASI PARÇALARI'}</small><strong>${a?`${a.map} · ${a.label}`:`${treasure.parts} / ${TREASURE_PARTS} parça`}</strong>${a?'':`<i><em style="width:${treasure.parts/TREASURE_PARTS*100}%"></em></i>`}</span></button>`);}
   }
+  {const tr=treatyRowHtml();if(tr)rows.push(tr);}
   const html=rows.join('');if(html===eventPanelHtml)return;eventPanelHtml=html;
-  panel.innerHTML=html;panel.classList.toggle('visible',rows.length>0);
+  panel.innerHTML=html;panel.classList.toggle('visible',rows.length>0);panel.querySelector<HTMLButtonElement>('.treaty-row')?.addEventListener('click',()=>openTreaty());
   combatTargetsTop=`${rows.length&&panel.offsetHeight?panel.offsetTop+panel.offsetHeight+4:panel.offsetTop}px`;
   panel.querySelectorAll<HTMLButtonElement>('[data-event-route]').forEach(b=>b.onclick=()=>{if(b.dataset.eventRoute==='treasure'){const a=treasure.active;if(!a){toast('Denizde sürüklenen sandıklardan parça topla');return;}if(a.map!==currentMap){toast(`Hazine ${a.map} ${MAPS[a.map].name} denizinde (${a.label})`);return;}}const f=mapDef().fleet,target=b.dataset.eventRoute==='treasure'?treasure.active!:b.dataset.eventRoute==='boss'?activeBoss():fleetEnterable()?{x:f.x+(player.x<f.x?-430:430),y:f.y-20}:{x:f.x,y:f.y+FLEET_ART.h/2+120};if(!target)return;routeTarget=navigablePoint({x:target.x,y:target.y});destination=routeVia(routeTarget);toast('Rota çizildi');});
 }

@@ -32,8 +32,14 @@ function renderPill(){const d=info;if(!d){pill.hidden=true;return;}const t=now()
   if(d.phase==='vote'&&t<d.voteEnd){html=`<b>OYLAMA</b> ${clock(d.voteEnd-t)}`;cls='vote';}
   else if(d.fx&&t<d.fx.until){html=`<b>${TREATY_FX[d.fx.id].name}</b> ${d.fxMine?clock(d.fx.until-t):'· sana işlemiyor'}`;cls=d.fxMine?'fx':'fx off';}
   else if(d.phase==='collect'){html=`<b>ANTLAŞMA</b> ${fmt(d.count)} / ${fmt(d.goal)}<i><em style="width:${Math.min(100,d.count/d.goal*100)}%"></em></i>`;}
-  if(!html){pill.hidden=true;return;}
-  pill.hidden=false;pill.className=`treaty-pill ${cls}`;pill.innerHTML=`<img src="${TREATY_ICON}" alt=""/><span>${html}</span>`;}
+  void html;void cls;pill.hidden=true;}
+// Etkinlik panelinde (hazine parçalarının olduğu yerde) satır: durum + ilerleme
+export function treatyRowHtml(){const d=info;if(!d)return'';const t=now();let small='',strong='',bar=-1,cls='';
+  if(d.phase==='vote'&&t<d.voteEnd){small='DENİZ ANTLAŞMASI · OYLAMA';strong=clock(d.voteEnd-t);cls='vote';}
+  else if(d.fx&&t<d.fx.until){small='DENİZ ANTLAŞMASI · ETKİ';strong=`${TREATY_FX[d.fx.id].name} · ${d.fxMine?clock(d.fx.until-t):'sana işlemiyor'}`;cls=d.fxMine?'fx':'off';}
+  else if(d.phase==='collect'){small='DENİZ ANTLAŞMASI · PIRILTI';strong=`${fmt(d.count)} / ${fmt(d.goal)}`;bar=Math.min(100,d.count/d.goal*100);}
+  else return'';
+  return`<button class="event-row treaty-row ${cls}"><img src="${TREATY_ICON}" alt=""/><span><small>${small}</small><strong>${strong}</strong>${bar>=0?`<i><em style="width:${bar}%"></em></i>`:''}</span></button>`;}
 
 function render(){const d=info,t=now();
   if(!d){body.innerHTML='<p class="treaty-status">Bekleniyor…</p>';return;}
