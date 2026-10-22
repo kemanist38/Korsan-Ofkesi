@@ -1,7 +1,11 @@
 /* Arkadaşlar ve grup */
 .social-btn svg{width:26px;height:26px;fill:none;stroke:#f0cc82;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .social-btn.grp-btn svg{fill:#f0cc8233}.social-btn.grp-btn.active{box-shadow:0 0 12px #ffb648,0 7px 20px #000b}
-.world-map-button.fr-btn{top:226px!important}.world-map-button.grp-btn{top:296px!important}
+/* Arkadaşlar ve Grup: Dünya düğmesinin üstünde yan yana küçük düğmeler; Dünya, Görevler ve Arena bir sıra aşağı iner */
+.map-cluster .world-map-button.social-btn{top:0!important;width:38px!important;height:38px!important;padding:4px!important}
+.map-cluster .world-map-button.fr-btn{left:206px!important}.map-cluster .world-map-button.grp-btn{left:250px!important}
+.map-cluster .world-map-button.social-btn svg{width:20px;height:20px}.map-cluster .world-map-button.social-btn span{top:38px!important;font-size:6px!important}
+.map-cluster .world-map-button:not(.social-btn):not(.arena-button){top:54px!important}.map-cluster .quest-bust{top:130px!important}.map-cluster .world-map-button.arena-button{top:206px!important}
 .social-n{position:absolute;top:-4px;right:-6px;min-width:18px;padding:1px 4px;border-radius:9px;background:#d8361f;color:#fff;font:800 10px Inter,sans-serif;font-style:normal;text-align:center;box-shadow:0 0 0 2px #190f13}
 .social-n[hidden],.social-win[hidden],.social-ask[hidden]{display:none}
 .social-win{position:fixed;left:250px;top:calc(var(--strip,40px) + 70px);z-index:60;width:min(340px,calc(100vw - 24px));max-height:calc(100dvh - var(--strip,40px) - 90px);overflow:auto;padding:12px;border:1px solid #725047;border-radius:10px;background:linear-gradient(135deg,#211a1ef2,#111216f2);box-shadow:inset 0 0 0 3px #111013,0 16px 40px #000c;color:#eee0d3}
