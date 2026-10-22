@@ -4,6 +4,7 @@
 import './cap-plate.css';
 const $=<T extends HTMLElement=HTMLElement>(s:string)=>document.querySelector<T>(s);
 export function setupCapPlate(o:{nick:()=>string}){
+  setupSideButtons();setupMenuSpy();
   const stats=$('.strip-stats');if(!stats)return;
   const plate=document.createElement('div');plate.className='cap-plate';
   plate.innerHTML='<div class="cp-socket"></div><div class="cp-info"><div class="cp-row"><b class="cp-nick"></b><span class="cp-sp"></span></div><div class="cp-hp"></div><div class="cp-tp"></div></div>';
@@ -19,3 +20,11 @@ export function setupCapPlate(o:{nick:()=>string}){
     const n=m.querySelector<HTMLElement>('.chat-n')!;setInterval(()=>{const c=$('#chatToggle .chat-n');n.hidden=!c||c.hidden;n.textContent=c?.textContent??'';},500);
     m.onclick=()=>{if(!$('.chat')?.classList.contains('open'))$<HTMLButtonElement>('#chatToggle')?.click();$<HTMLButtonElement>('[data-chat-tab="pm"]')?.click();};}
 }
+// Haritanın sağında: alt alta Dünya, Görevler, Etkinlikler; Dünya'nın sağında aynı sırada Grup, Arkadaşlar, Arena
+function setupSideButtons(){const cl=$('.map-cluster');if(!cl)return;
+  const ev=document.createElement('button');ev.type='button';ev.className='world-map-button cp-ev';ev.setAttribute('aria-label','Etkinlikler');
+  ev.innerHTML='<img src="/assets/icon-events-v1.webp" alt="" draggable="false"/><span>ETKİNLİKLER</span>';
+  ev.onclick=e=>{e.stopPropagation();$<HTMLButtonElement>('.map-cluster .day-badge')?.click();};cl.append(ev);cl.classList.add('cp-side');}
+// Casus: menü penceresinin başında
+function setupMenuSpy(){const spy=$('#spyGo'),grid=$('#menuOverlay .menu-grid');if(!spy||!grid)return;
+  const w=document.createElement('div');w.className='cp-spy';w.innerHTML='<img src="/assets/icon-spy-v1.webp" alt="" draggable="false"/><b>CASUS GÖNDER</b>';w.append(spy);grid.before(w);}
