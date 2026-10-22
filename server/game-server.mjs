@@ -836,7 +836,7 @@ export function treatyStart(now,rand=Math.random){const cut=now-24*3600_000;for(
 export function treatyPick(c,now){if(treaty.phase!=='collect'||!c.uid)return;const e=treaty.contrib[c.uid]??=[c.nick,0,now];e[0]=c.nick;e[1]++;e[2]=now;treaty.count++;treatyDirty=true;treatyCastDue=true;
   if(treaty.count>=treaty.goal){treaty.phase='vote';treaty.voteEnd=now+TREATY_VOTE_MS;treaty.envoy=treatyEnvoySpot();log('ANTLAŞMA oylama açıldı',treaty.goal);treatyCast();
     const msg=JSON.stringify({t:'chat',d:{nick:'Deniz Elçisi',tag:null,adm:true,text:`📜 Antlaşma hedefi doldu! Deniz Elçisi ${TREATY_MAP}'de demir attı, oylama 30 dakika açık.`,at:now}});for(const x of all)if(x.uid)send(x,msg);}}
-export function treatyVote(c,o,now){if(treaty.phase!=='vote'||now>=treaty.voteEnd)return{err:'Oylama açık değil'};if(!(o>=0&&o<treaty.options.length))return{err:'Geçersiz seçim'};
+export function treatyVote(c,o,now){if(treaty.phase!=='vote'||now>=treaty.voteEnd)return{err:'Oylama açık değil'};if(!(o>=0&&o<treaty.options.length))return{err:'Geçersiz seçim'};if((treaty.contrib[c.uid]?.[1]??0)<TREATY_MIN_PICKS)return{err:`Oy için bu turda en az ${TREATY_MIN_PICKS} pırıltı toplamış olmalısın`};
   treaty.votes[c.uid]=o;treatyDirty=true;return{ok:true};}
 // Ödül: çevrimiçi kaptanın kazancına, çevrimdışıysa bekleyen kazanç olarak veritabanına (economy_grant_once) yazılır
 function grantUid(uid,add){const c=[...all].find(x=>x.uid===uid);if(c){addCredit(c,add);return c;}const p={uid,grant:{id:crypto.randomUUID(),add},credit:null};pendingCredits.set(p.grant.id,p);return null;}

@@ -423,7 +423,7 @@ test('Deniz Antlaşması: sparkles fill the goal, vote opens, winner applies for
   for(let i=0;i<220;i++)S.treatyPick(a,now+i);for(let i=0;i<9;i++)S.treatyPick(b,now+i);const z={uid:'z',nick:'Z'};for(let i=0;i<39;i++)S.treatyPick(z,now+i);
   assert.equal(S.treaty.phase,'collect');assert.ok(S.treatyVote(a,0,now).err,'no vote before the goal');
   for(let i=0;i<31;i++)S.treatyPick(b,now+400+i);assert.equal(S.treaty.phase,'collect');S.treatyPick(b,now+500);assert.equal(S.treaty.phase,'vote');assert.ok(S.treaty.envoy?.map==='1/1');
-  assert.ok(S.treatyVote(a,1,now+500).ok);assert.ok(S.treatyVote(b,0,now+500).ok);assert.ok(S.treatyVote(b,5,now+500).err);
+  assert.ok(S.treatyVote(z,1,now+500).err,'39 picks cannot vote');assert.ok(S.treatyVote(a,1,now+500).ok);assert.ok(S.treatyVote(b,0,now+500).ok);assert.ok(S.treatyVote(b,5,now+500).err);
   S.treaty.double='a';S.treatyTick(S.treaty.voteEnd+1);
   assert.equal(S.treaty.phase,'done');assert.equal(S.treaty.fx.id,S.treaty.options[1],'double vote wins');
   assert.deepEqual(Object.keys(S.treaty.elig).sort(),['a','b'],'effect only for 40+ collectors');assert.equal(S.treatyInfo(z,S.treaty.voteEnd+2).fxMine,false);assert.equal(S.treatyInfo(a,S.treaty.voteEnd+2).fxMine,true);

@@ -1,6 +1,6 @@
 // Deniz Antlaşması (Perşembe etkinliği): bütün denizlerde toplanan pırıltılar ortak sayaca yazılır. Hedef (son 24 saatte
 // giren kaptan × 15, en az 300 en çok 5.000) dolunca 1/1'de Deniz Elçisi demir atar ve 30 dk oylama açılır. Seçilen etki
-// 24 saat o turda en az 40 pırıltı toplamış kaptanlara işler; onlar katılım ödülü, en çok toplayan ilk 3 sıra ödülü de alır.
+// 24 saat o turda en az 40 pırıltı toplamış kaptanlara işler (oy da yalnız onlarındır); onlar katılım ödülü, en çok toplayan ilk 3 sıra ödülü de alır.
 // Hiç toplamayan ya da 40'a ulaşmayan kaptana etki işlemez. Her şeyi sunucu yürütür.
 import type {TreatyFxId} from './events';
 export const TREATY_FX:Record<TreatyFxId,{name:string;desc:string}>={
