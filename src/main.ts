@@ -50,6 +50,7 @@ import {setupHudV3} from './hud-v3';
 import {setupSocial,friendMsg,groupMsg,groupPick,friendList} from './social-ui';
 import {DUEL_MAPS} from './duel';
 import {duelMsg,duelSelect,renderDuelHud,setDuelMe,duelList,duelPartner} from './duel-ui';
+import {treatyRow} from './treaty-ui';
 import {treatyMsg,openTreaty,treatyEnvoy,TREATY_ENVOY} from './treaty-ui';
 import {TREATY_ENVOY_R} from './treaty';
 import {TALENTS,OFFICERS,OFFICER_MAX_RANK,officerCost,officerSlots,talentPoints,loadCrew,saveCrew,spentPoints,computeBonus,type TalentId,type OfficerId} from './crew';
@@ -502,7 +503,7 @@ ui('recenterShip').onclick=recenterShip;{// Üst çerçeve: solda casus, ortada 
   const arena=document.createElement('button');arena.className='world-map-button arena-button';arena.setAttribute('aria-label','Arena');arena.innerHTML='<img src="/assets/arena-icon-v1.webp" alt="" draggable="false"/><span>ARENA</span>';
   arena.onclick=()=>openArenaModes();cluster.append(arena);
   setupSocial({uid:()=>session.account?.uid??'',openPm:(id,nick)=>chat.openPm(id,nick),toast});
-  setupHudV3({nick:()=>profile.nick,openDay:()=>{renderDayPop();dayPop.classList.toggle('open');},openSettings:()=>openSettings(),openShop:()=>ui('openShop').click()});}
+  setupHudV3({nick:()=>profile.nick,openDay:()=>{renderDayPop();dayPop.classList.toggle('open');},openShop:()=>ui('openShop').click(),logout:()=>{closeMenu();requestLogout();},canLogout:()=>!!session.logout});}
   // Altın ve inci: üst çerçeveden alınıp mağaza/tersane sekmelerinin sol başına (menü açıkken görünür)
   {const res=document.querySelector('.strip-res');if(res){res.classList.add('tabs-res');ui('shopTabs').prepend(res);}}{const rc=ui('recenterShip');rc.className='combat-action recenter-btn';rc.innerHTML='<b><svg viewBox="0 0 48 48" width="70%" height="70%" aria-hidden="true"><g fill="none" stroke="#ffe09b" stroke-width="3" stroke-linecap="round"><circle cx="24" cy="24" r="12"/><circle cx="24" cy="24" r="4" fill="#ffe09b"/><path d="M24 4v40M4 24h40M9.9 9.9l28.2 28.2M38.1 9.9 9.9 38.1"/></g><g fill="#ffe09b"><circle cx="24" cy="4" r="2.6"/><circle cx="24" cy="44" r="2.6"/><circle cx="4" cy="24" r="2.6"/><circle cx="44" cy="24" r="2.6"/><circle cx="9.9" cy="9.9" r="2.6"/><circle cx="38.1" cy="38.1" r="2.6"/><circle cx="38.1" cy="9.9" r="2.6"/><circle cx="9.9" cy="38.1" r="2.6"/></g></svg></b><span>GEMİ</span>';rc.title='Gemiyi ortala';ui('combatControls').appendChild(rc);}
 ui('openWorldMap').onclick=openWorldMap;ui('closeWorldMap').onclick=closeWorldMap;
@@ -2439,11 +2440,13 @@ function updateEvents(dt:number){
   if(siege)rows.push(...siegePanelRows());else{
   const boss=activeBoss(),bd=bossFor(currentMap),bossArt=`<i class="event-art" style="${portraitStyle(BOSS_ATLAS,bd.portrait,MAP_KEYS.length,BOSS_ATLAS_COLS)}"></i>`;
   if(boss)rows.push(`<button class="event-row boss" data-event-route="boss">${bossArt}<span><small>HARİTA BOSSU · ${fmt(Math.round(dist(boss,player)))}m</small><strong>${bd.name}</strong><i><em style="width:${boss.hp/boss.maxHp*100}%"></em></i></span></button>`);
+  {const tr=treatyRow();if(tr)rows.push(tr);}
   if(treasure.active||treasure.parts>0){const a=treasure.active;rows.push(`<button class="event-row treasure" data-event-route="treasure"><img src="${TREASURE_ICON}" alt=""/><span><small>${a?'HAZİNE HARİTASI · HEDEF':'HAZİNE HARİTASI PARÇALARI'}</small><strong>${a?`${a.map} · ${a.label}`:`${treasure.parts} / ${TREASURE_PARTS} parça`}</strong>${a?'':`<i><em style="width:${treasure.parts/TREASURE_PARTS*100}%"></em></i>`}</span></button>`);}
   }
   const html=rows.join('');if(html===eventPanelHtml)return;eventPanelHtml=html;
   panel.innerHTML=html;panel.classList.toggle('visible',rows.length>0);
   combatTargetsTop=`${rows.length&&panel.offsetHeight?panel.offsetTop+panel.offsetHeight+4:panel.offsetTop}px`;
+  panel.querySelector<HTMLButtonElement>('[data-treaty]')?.addEventListener('click',()=>openTreaty());
   panel.querySelectorAll<HTMLButtonElement>('[data-event-route]').forEach(b=>b.onclick=()=>{if(b.dataset.eventRoute==='treasure'){const a=treasure.active;if(!a){toast('Denizde sürüklenen sandıklardan parça topla');return;}if(a.map!==currentMap){toast(`Hazine ${a.map} ${MAPS[a.map].name} denizinde (${a.label})`);return;}}const f=mapDef().fleet,target=b.dataset.eventRoute==='treasure'?treasure.active!:b.dataset.eventRoute==='boss'?activeBoss():fleetEnterable()?{x:f.x+(player.x<f.x?-430:430),y:f.y-20}:{x:f.x,y:f.y+FLEET_ART.h/2+120};if(!target)return;routeTarget=navigablePoint({x:target.x,y:target.y});destination=routeVia(routeTarget);toast('Rota çizildi');});
 }
 // ---------------------------------------------------------------- Elit gemiler
