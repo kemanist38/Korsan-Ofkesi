@@ -45,6 +45,7 @@ import {LS_SHIP,LS_LOADOUT,LS_HP,LS_SPEED,LS_FOG_DPS,LS_ITEMS,LS_PICK_R,LS_SPEED
 import {openArena,openLsLobby,closeLsLobby,lsLobbyMsg,renderLsHud,showLsResult,type LsLobby,type LsRun,type LsOut} from './ls-ui';
 import {SIEGE_MS,HERO_DAMAGE,WALL_TOWERS,INNER_TOWERS,gateOf,gateLeft,siegeWindow,newSiege,loadSiege,saveSiege,siegePhase,siegeStats,siegeProgress,contribReward,earnsChest,victoryChest,ranking,loadTitle,grantTitle,HERO_TITLE,type SiegeSave} from './siege';
 import {dayEvent,spMult,xpMult,epMult,goldMult,bossKillsNeeded,setTreatyFx,treatyDmgMult} from './events';
+import {infoTip} from './info-tip';
 import {treatyMsg,openTreaty,treatyEnvoy,TREATY_ENVOY} from './treaty-ui';
 import {TREATY_ENVOY_R} from './treaty';
 import {TALENTS,OFFICERS,OFFICER_MAX_RANK,officerCost,officerSlots,talentPoints,loadCrew,saveCrew,spentPoints,computeBonus,type TalentId,type OfficerId} from './crew';
@@ -1374,7 +1375,7 @@ const short=(n:number)=>{const a=Math.abs(n),u:[number,string][]=[[1e9,'b'],[1e6
 let pendingBuy:{row:BuyRow;qty:number}|null=null;
 function renderBuyRows(listId:string,rows:BuyRow[]){
   const list=ui(listId);
-  list.innerHTML=rows.map(r=>`<article class="market-item buy-row" data-row="${r.id}">${r.art}<div><h4>${r.name}</h4><details class="buy-details"><summary>Özellikler</summary><p>${r.desc}</p>${r.note?`<small>${r.note}</small>`:''}</details><em class="${r.unit.currency}">${r.unit.per&&r.unit.per>1?`${fmt(r.unit.per)} adet = `:''}${fmt(r.unit.amount)} ${CURRENCY_NAME[r.unit.currency]}</em></div><div class="buy-box"><input type="number" inputmode="numeric" min="1" max="${BUY_MAX}" placeholder="Adet" aria-label="${r.name} adedi"/><span class="buy-total">Toplam: —</span><button disabled>SATIN AL</button></div></article>`).join('');
+  list.innerHTML=rows.map(r=>`<article class="market-item buy-row" data-row="${r.id}">${r.art}<div><h4>${r.name}${infoTip(`${r.desc}${r.note?`<br><small>${r.note}</small>`:''}`)}</h4><em class="${r.unit.currency}">${r.unit.per&&r.unit.per>1?`${fmt(r.unit.per)} adet = `:''}${fmt(r.unit.amount)} ${CURRENCY_NAME[r.unit.currency]}</em></div><div class="buy-box"><input type="number" inputmode="numeric" min="1" max="${BUY_MAX}" placeholder="Adet" aria-label="${r.name} adedi"/><span class="buy-total">Toplam: —</span><button disabled>SATIN AL</button></div></article>`).join('');
   list.querySelectorAll<HTMLElement>('.buy-row').forEach((el,i)=>{const r=rows[i],input=el.querySelector('input')!,total=el.querySelector<HTMLElement>('.buy-total')!,btn=el.querySelector('button')!;
     const qty=()=>{const n=Math.floor(Number(input.value));return Number.isFinite(n)&&n>0?Math.min(BUY_MAX,n):0;};
     const sync=()=>{const n=qty(),cost=priceOf(r.unit,n);total.textContent=n?`Toplam: ${fmt(cost)} ${CURRENCY_NAME[r.unit.currency]}`:'Toplam: —';total.classList.toggle('short',cost>wallet(r.unit.currency));btn.disabled=!n;};
@@ -1520,7 +1521,7 @@ function renderLoadout(){
   const ammoMode=loadoutTab==='ammo';ui('loadoutTitle').textContent=ammoMode?'GÜLLE YUVALARI':'SARF YUVALARI';
   ui('loadoutHint').textContent=ammoMode?'Gülleler üst sıraya yerleşir. Sürükleyip bırak ya da önce gülleye, sonra yuvaya dokun.':'Sarf malzemeleri alt sıraya yerleşir. Sürükleyip bırak ya da önce eşyaya, sonra yuvaya dokun. Kara Barut ve Kalkan yuvaya dokununca açılır/kapanır.';
   const items=(Object.keys(QUICK_ITEMS) as QuickItemId[]).filter(id=>QUICK_ITEMS[id].category===loadoutTab);
-  ui('loadoutItems').innerHTML=items.map(id=>`<button draggable="true" data-loadout-item="${id}" class="${pendingQuickItem===id?'selected':''}">${itemAsset(id)}<span>${QUICK_ITEMS[id].name}</span><small>${QUICK_ITEMS[id].description}</small><b>${quickCount(id)}</b></button>`).join('');
+  ui('loadoutItems').innerHTML=items.map(id=>`<button draggable="true" data-loadout-item="${id}" class="${pendingQuickItem===id?'selected':''}">${itemAsset(id)}<span>${QUICK_ITEMS[id].name}${infoTip(QUICK_ITEMS[id].description)}</span><b>${quickCount(id)}</b></button>`).join('');
   ui('loadoutSlots').innerHTML=quickSlots.map((item,index)=>(index<AMMO_ROW)!==ammoMode?'':`${index===0?'<h4>GÜLLE SIRASI</h4>':index===AMMO_ROW?'<h4>SARF SIRASI</h4>':''}<button data-editor-slot="${index}" class="${pendingQuickItem&&(index<AMMO_ROW)===(QUICK_ITEMS[pendingQuickItem].category==='ammo')?'ready':''} ${index<AMMO_ROW?'ammo-row':'item-row'}">${item?`${itemAsset(item)}<span>${index+1}</span>`:`<b>+</b><span>${index+1}</span>`}</button>`).join('');
   document.querySelectorAll<HTMLButtonElement>('[data-loadout-item]').forEach(button=>{const item=button.dataset.loadoutItem as QuickItemId;button.onclick=()=>{pendingQuickItem=item;renderLoadout();};button.ondragstart=e=>e.dataTransfer?.setData('text/quick-item',item);});
   document.querySelectorAll<HTMLButtonElement>('[data-editor-slot]').forEach(button=>{const index=Number(button.dataset.editorSlot);button.onclick=()=>{if(pendingQuickItem)assignQuickSlot(index,pendingQuickItem);};button.ondragover=e=>e.preventDefault();button.ondrop=e=>{e.preventDefault();const item=e.dataTransfer?.getData('text/quick-item') as QuickItemId;if(item&&QUICK_ITEMS[item])assignQuickSlot(index,item);};});
