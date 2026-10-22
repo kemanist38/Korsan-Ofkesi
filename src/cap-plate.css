@@ -53,3 +53,6 @@
 .cp-spy>img{width:44px;height:auto}.cp-spy>b{font:700 11px Inter,sans-serif;letter-spacing:.08em;color:#edc78c;white-space:nowrap}
 .cp-spy .spy-go{position:static!important;display:flex!important;flex:1;gap:6px;transform:none!important}
 .cp-spy .spy-go input{flex:1;min-width:0}
+/* Boydan boya üst çerçeve kaldırıldı; içindeki öğeler yerinde kalır */
+html .info-strip{background:none!important;border:0!important;box-shadow:none!important}
+html .info-strip::before,html .info-strip::after{content:none!important}
