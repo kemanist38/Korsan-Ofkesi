@@ -3,6 +3,7 @@
 import './dom.css';
 import {DOM_TEAMS,DOM_SIZE,DOM_WIN,DOM_MATCH_MS,DOM_PEARLS,DOM_EP_PER_BALL,type DomTeam} from './domination';
 import {sendDom,netOnline} from './net';
+import {infoTip} from './info-tip';
 
 export type DomLobby={open:boolean;q:string[];me:boolean;teams:{r:string[];b:string[]}|null;at:number;live:number};
 export type DomRun={id:string;team:DomTeam;end:number;teams:{r:string[];b:string[]};s:[number,number];cap:number;own:DomTeam|null;c:boolean;n:[number,number];done:boolean};
@@ -30,7 +31,7 @@ function renderLobby(){const l=lobby,t=DOM_TEAMS,count=l?.at?Math.max(0,Math.cei
   const status=off?'Sunucuya bağlanılıyor…':!l?'Bekleniyor…':l.teams?`Takımlar hazır · savaş <b>${count}</b> sn sonra başlıyor`:!l.open?'Kapalı · hafta içi 20:00–24:00, cumartesi ve pazar tüm gün açık':`${l.q.length}/${DOM_SIZE*2} kaptan hazır${l.live?` · ${l.live} maç sürüyor`:''}`;
   const btn=l?.me?`<button class="dom-go leave" ${l.teams?'disabled':''}>${l.teams?'HAZIRLAN…':'SIRADAN ÇIK'}</button>`:`<button class="dom-go" ${!l?.open||off||why?'disabled':''}>${why??'SAVAŞA GİR'}</button>`;
   body.innerHTML=`<div class="dom-vs">${side('r')}<b class="dom-x">VS</b>${side('b')}</div><p class="dom-status">${status}</p>${btn}
-    <ul class="dom-rules"><li>Gemindeki malzeme ve güllelerle girersin; maç ${DOM_MATCH_MS/60000} dakika sürer.</li><li>Ortadaki <b>Hakimiyet Bölgesi</b>'ni tutan takımın sayacı ilerler; ${DOM_WIN} puana ulaşan ya da süre bitince önde olan kazanır.</li><li>Takımlar elit puana göre eşit dağıtılır.</li><li>Şifa güllesi ve tamir yoktur. Batan gemi üssünde doğar; 5 sn korunur ve 5 sn hareket edemez.</li><li>Ödül: kazanan ${DOM_PEARLS.win}, berabere ${DOM_PEARLS.draw}, kaybeden ${DOM_PEARLS.lose} inci + harcanan güllelerin ${DOM_EP_PER_BALL} katı elit puan (maç sonunda).</li></ul>`;
+    <p class="dom-rules-i">${infoTip(`<ul><li>Gemindeki malzeme ve güllelerle girersin; maç ${DOM_MATCH_MS/60000} dakika sürer.</li><li>Ortadaki <b>Hakimiyet Bölgesi</b>'ni tutan takımın sayacı ilerler; ${DOM_WIN} puana ulaşan ya da süre bitince önde olan kazanır.</li><li>Takımlar elit puana göre eşit dağıtılır.</li><li>Şifa güllesi ve tamir yoktur. Batan gemi üssünde doğar; 5 sn korunur ve 5 sn hareket edemez.</li><li>Ödül: kazanan ${DOM_PEARLS.win}, berabere ${DOM_PEARLS.draw}, kaybeden ${DOM_PEARLS.lose} inci + harcanan güllelerin ${DOM_EP_PER_BALL} katı elit puan (maç sonunda).</li></ul>`,'KURALLAR')}</p>`;
   const b=body.querySelector<HTMLButtonElement>('.dom-go');if(b)b.onclick=()=>{sendDom('q',{on:!l?.me});};}
 export function domLobbyMsg(l:DomLobby){lobby=l;if(domLobbyOpen())renderLobby();}
 

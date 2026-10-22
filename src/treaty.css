@@ -15,7 +15,7 @@
 .treaty-opt{display:flex;flex-direction:column;gap:6px;padding:12px;border:1px solid #c69b4e55;border-radius:9px;background:linear-gradient(160deg,#28181f,#150d11);color:#e8dcc0;text-align:left;cursor:pointer}
 .treaty-opt:disabled{cursor:default}.treaty-opt:not(:disabled):hover{border-color:#ffd56a}
 .treaty-opt b{font:700 13px Cinzel,serif;color:#f3d496}.treaty-opt small{color:#b3a59f;font-size:11px;line-height:1.4;flex:1}
-.treaty-opt i{display:block;height:7px;border-radius:4px;background:#ffffff14;overflow:hidden}.treaty-opt em{display:block;height:100%;background:linear-gradient(90deg,#c9892a,#ffe08a)}
+.treaty-opt>i{display:block;height:7px;border-radius:4px;background:#ffffff14;overflow:hidden}.treaty-opt>i>em{display:block;height:100%;background:linear-gradient(90deg,#c9892a,#ffe08a)}
 .treaty-opt span{font:700 11px Inter,sans-serif;color:#e6c37a}
 .treaty-opt.mine{border-color:#ffb648;box-shadow:0 0 12px #ff9a3c55}.treaty-opt.win{border-color:#ffd56a;box-shadow:0 0 16px #ffd56a66}
 .treaty-cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
@@ -26,3 +26,4 @@
 .treaty-mine{margin:8px 0 0;font-size:12px;color:#b3a59f}.treaty-mine b{color:#ffd56a}
 .treaty-note{margin:14px 0 0;color:#99877f;font-size:11px}
 @media (max-width:560px){.treaty-opts,.treaty-cols{grid-template-columns:1fr}}
+.treaty-opt b{display:flex;align-items:center;justify-content:space-between}.treaty-status{font-size:15px}
