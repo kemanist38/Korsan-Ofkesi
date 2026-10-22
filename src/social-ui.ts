@@ -13,10 +13,10 @@ export const friendList=()=>friends;
 export const groupState=()=>group;
 export function setupSocial(o:{uid:()=>string;openPm:(id:string,nick:string)=>void;toast:(t:string)=>void}){onPm=o.openPm;toast=o.toast;uidFn=o.uid;
   const cluster=document.querySelector('.map-cluster');if(!cluster)return;
-  const mk=(cls:string,label:string,svg:string,click:()=>void)=>{const b=document.createElement('button');b.className=`world-map-button social-btn ${cls}`;b.setAttribute('aria-label',label);
-    b.innerHTML=`${svg}<span>${label.toLocaleUpperCase('tr')}</span><i class="social-n" hidden></i>`;b.onclick=click;cluster.append(b);return b;};
-  frBtn=mk('fr-btn','Arkadaşlar','<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.4"/><path d="M2.8 19c.6-3.4 3.1-5.4 6.2-5.4s5.6 2 6.2 5.4"/><circle cx="17" cy="9" r="2.6"/><path d="M15.6 13.8c2.6.1 4.6 1.8 5.1 4.6"/></svg>',()=>toggle(frWin));
-  gBtn=mk('grp-btn','Grup','<svg viewBox="0 0 24 24"><path d="M12 3l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 15.4l-4.8 2.5.9-5.4-3.9-3.8 5.4-.8z"/></svg>',()=>toggle(gWin));}
+  const mk=(cls:string,label:string,art:string,click:()=>void)=>{const b=document.createElement('button');b.className=`world-map-button social-btn ${cls}`;b.setAttribute('aria-label',label);
+    b.innerHTML=`${art}<span>${label.toLocaleUpperCase('tr')}</span><i class="social-n" hidden></i>`;b.onclick=click;cluster.append(b);return b;};
+  frBtn=mk('fr-btn','Arkadaşlar','<img src="/assets/icon-friends-v1.webp" alt="" draggable="false"/>',()=>toggle(frWin));
+  gBtn=mk('grp-btn','Grup','<img src="/assets/icon-group-v1.webp" alt="" draggable="false"/>',()=>toggle(gWin));}
 let frBtn:HTMLButtonElement|null=null,gBtn:HTMLButtonElement|null=null;
 const win=(cls:string,title:string)=>{const w=document.createElement('section');w.className=`social-win ${cls}`;w.hidden=true;w.innerHTML=`<header><h3>${title}</h3><button class="x" aria-label="Kapat">×</button></header><div class="body"></div>`;
   document.body.append(w);w.querySelector<HTMLButtonElement>('.x')!.onclick=()=>{w.hidden=true;};return w;};

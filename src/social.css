@@ -4,7 +4,7 @@
 /* Arkadaşlar ve Grup: Dünya düğmesinin üstünde yan yana küçük düğmeler; Dünya, Görevler ve Arena bir sıra aşağı iner */
 .map-cluster .world-map-button.social-btn{top:0!important;width:38px!important;height:38px!important;padding:4px!important}
 .map-cluster .world-map-button.fr-btn{left:206px!important}.map-cluster .world-map-button.grp-btn{left:250px!important}
-.map-cluster .world-map-button.social-btn svg{width:20px;height:20px}.map-cluster .world-map-button.social-btn span{top:38px!important;font-size:6px!important}
+.map-cluster .world-map-button.social-btn img{width:32px!important;height:32px!important}.map-cluster .world-map-button.social-btn span{top:38px!important;font-size:6px!important}
 .map-cluster .world-map-button:not(.social-btn):not(.arena-button){top:54px!important}.map-cluster .quest-bust{top:130px!important}.map-cluster .world-map-button.arena-button{top:206px!important}
 .social-n{position:absolute;top:-4px;right:-6px;min-width:18px;padding:1px 4px;border-radius:9px;background:#d8361f;color:#fff;font:800 10px Inter,sans-serif;font-style:normal;text-align:center;box-shadow:0 0 0 2px #190f13}
 .social-n[hidden],.social-win[hidden],.social-ask[hidden]{display:none}
