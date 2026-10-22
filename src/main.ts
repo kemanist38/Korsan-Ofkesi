@@ -46,6 +46,7 @@ import {openArena,openLsLobby,closeLsLobby,lsLobbyMsg,renderLsHud,showLsResult,t
 import {SIEGE_MS,HERO_DAMAGE,WALL_TOWERS,INNER_TOWERS,gateOf,gateLeft,siegeWindow,newSiege,loadSiege,saveSiege,siegePhase,siegeStats,siegeProgress,contribReward,earnsChest,victoryChest,ranking,loadTitle,grantTitle,HERO_TITLE,type SiegeSave} from './siege';
 import {dayEvent,spMult,xpMult,epMult,goldMult,bossKillsNeeded,setTreatyFx,treatyDmgMult} from './events';
 import {infoTip} from './info-tip';
+import {duelMsg,duelSelect,renderDuelHud,setDuelMe,duelList,duelPartner} from './duel-ui';
 import {treatyMsg,openTreaty,treatyEnvoy,TREATY_ENVOY} from './treaty-ui';
 import {TREATY_ENVOY_R} from './treaty';
 import {TALENTS,OFFICERS,OFFICER_MAX_RANK,officerCost,officerSlots,talentPoints,loadCrew,saveCrew,spentPoints,computeBonus,type TalentId,type OfficerId} from './crew';
@@ -634,6 +635,7 @@ const netHandlers:NetHandlers={
   muted:left=>{const t=left>=86_400_000?`${Math.ceil(left/86_400_000)} gün`:left>=3_600_000?`${Math.ceil(left/3_600_000)} saat`:`${Math.ceil(left/60_000)} dakika`;chat.system(`Sohbet cezan var · ${t} sonra yazabilirsin (Oyun Kuralları)`);toast(`Sohbet cezası: ${t}`);},
   reported:()=>{toast('Bildirimin yönetime iletildi, teşekkürler');},
   ls:d=>onLsNet(d),
+  duel:d=>duelMsg(d,toast,n=>{state.pearls=Math.max(0,state.pearls+n);session.pearlServerAdd?.(n);saveAccount();updateUI();}),
   treaty:d=>{setTreatyFx(d.fxMine?d.fx:null);treatyMsg(d);if(d.err)toast(d.err);if(d.reward)rewardNotice(`Deniz Antlaşması ödülü${d.reward.rank?` · ${d.reward.rank}. sıra`:''} · +${fmt(d.reward.pearls)} inci · +${fmt(d.reward.gold)} altın`,'gain');},
   ahp:d=>{adminEv={...d,at:performance.now()};},
   aboom:(id:string)=>{const e=remoteOf(id);if(e){burst(e.x,e.y,true);burst(e.x,e.y,true);playExplosion();splashAt(e.x,e.y,220);}},
@@ -1066,6 +1068,8 @@ function fireAtTarget(){
   if(state.ammo==='heal'&&dom){toast('Deniz Hakimiyeti\'nde şifa güllesi kullanılamaz');stopAttack();return;}
   if(state.ammo==='heal'&&!friendTarget){toast('Şifa Güllesi yalnız oyunculara ve dost kulelere sıkılır');stopAttack();return;}
   if(state.ammo!=='heal'&&isAlly(selected)){stopAttack();return;}
+  // Savaşa kapalı denizde yalnız düello rakibine ateş edilir; düellodayken başka kaptana ateş edilmez
+  {const r=(selected as Enemy).remote;if(r&&state.ammo!=='heal'&&(mapDef().safe||duelPartner())&&duelPartner()!==r.id){toast(duelPartner()?'Düellodayken yalnız rakibine ateş edebilirsin':'Savaşa kapalı denizde yalnız düello rakibine ateş edebilirsin');stopAttack();return;}}
   if(state.ammo==='chain'&&state.chainAmmo<=0){state.ammo='iron';toast('Zincir güllesi tükendi');}
   if(isSpecial(state.ammo)&&arsenal[state.ammo]<=0){toast(`${SPECIAL_AMMO[state.ammo].name} tükendi`);if(state.ammo==='heal'){stopAttack();renderQuickSlots();return;}state.ammo='iron';renderQuickSlots();}
   // Seafight mantığı: her top 1 gülle harcar. Stok top sayısından azsa kalan toplar demir gülle atar; demir de biterse o toplar ateş etmez.
@@ -1955,7 +1959,7 @@ function updateUI(){
 
 let visibleCombatTargets:Target[]=[];
 function renderCombatTargets(){
-  {const e=selected as Enemy|null;showPlayerCard(e&&e.kind==='ship'&&e.captain&&targetExists(e)?{name:e.name,level:e.remote?.level,sp:e.remote?.sp??TEST_RANKERS.find(r=>r.nick===e.name)?.sp??0,sinks:e.remote?.sinks,adm:!!e.remote?.adm}:null);}
+  {const e=selected as Enemy|null;setDuelMe(myNetId);duelSelect(e&&e.kind==='ship'&&e.remote&&!e.remote.adm&&targetExists(e)&&mapDef().safe&&!siege&&!dom&&!ls&&session.account?{id:e.remote.id,nick:e.name}:null);renderDuelHud();showPlayerCard(e&&e.kind==='ship'&&e.captain&&targetExists(e)?{name:e.name,level:e.remote?.level,sp:e.remote?.sp??TEST_RANKERS.find(r=>r.nick===e.name)?.sp??0,sinks:e.remote?.sinks,adm:!!e.remote?.adm}:null);}
   const targets:Target[]=[];
   const add=(target:Target|null)=>{if(target&&targetExists(target)&&!targets.includes(target))targets.push(target);};
   add(selected);enemies.forEach(enemy=>{if(enemy.aggro)add(enemy);});
@@ -2727,6 +2731,10 @@ function drawEliteDirectionalShip(s:Vec){
 }
 // 16 yönlü görsel yüklenene kadar (ilk saniye) gemi çizilmez; eski 4 yönlü yedek görseller kaldırıldı
 function drawPlayerShip(){drawEliteDirectionalShip(worldToScreen(player));}
+// Düello çemberi: içinde iki rakip savaşır; dışarı çıkan kaybeder
+function drawDuels(){for(const d of duelList()){const p=worldToScreen(d),e=worldToScreen({x:d.x+d.r,y:d.y}),f=worldToScreen({x:d.x,y:d.y+d.r}),rx=Math.abs(e.x-p.x),ry=Math.abs(f.y-p.y);
+  ctx.save();ctx.globalAlpha=.08;ctx.fillStyle='#e96c32';ctx.beginPath();ctx.ellipse(p.x,p.y,rx,ry,0,0,7);ctx.fill();ctx.globalAlpha=.85;ctx.strokeStyle='#ffb648';ctx.lineWidth=3;ctx.setLineDash([18,12]);ctx.lineDashOffset=-performance.now()/50;ctx.stroke();ctx.setLineDash([]);
+  ctx.globalAlpha=.7;ctx.fillStyle='#ffd56a';ctx.font='700 18px Cinzel';ctx.textAlign='center';ctx.fillText(`⚔ ${d.an} · ${d.bn}`,p.x,p.y-ry+26);ctx.restore();}}
 // Deniz Elçisi: oylama süresince 1/1'de demir atmış bekler; dokununca oylama penceresi açılır
 const envoyImg=new Image();envoyImg.src=TREATY_ENVOY;
 function drawTreatyEnvoy(){const v=treatyEnvoy();if(!v||v.map!==currentMap||!onScreen(v,TREATY_ENVOY_R*2)||!envoyImg.complete)return;const s=worldToScreen(v),t=performance.now()/1000,z=TREATY_ENVOY_R*1.45;
@@ -2934,7 +2942,7 @@ function draw(){
   // Deniz: referanstan çıkarılmış kesintisiz doku, dünyaya sabitli tek katman
   const pattern=seaTilePattern(ctx);if(pattern){const vw=w/camera.zoom,vh=h/camera.zoom;pattern.setTransform(new DOMMatrix().translateSelf(-camera.x+w/2,-camera.y+h/2).scaleSelf(1.5,1.5));ctx.fillStyle=pattern;ctx.fillRect(w/2-vw/2,h/2-vh/2,vw,vh);}
   ctx.globalAlpha=.12;ctx.fillStyle=th.label;ctx.font='700 42px Cinzel';ctx.textAlign='center';for(const label of map.labels){const p=worldToScreen(label);ctx.fillText(label.text,p.x,p.y);}ctx.globalAlpha=1;
-  drawMapEdges();if(dom)drawDomZone();if(ls)drawLsItems();islands.forEach(i=>{if(onScreen(i,i.r+260))drawIsland(i);});drawFleetIsland();drawTreatyEnvoy();lootChests.forEach(c=>{if(seenOnMap(c))drawLootChest(c);});drawTreasureMark();sparkles.forEach(g=>{if(seenOnMap(g))drawSparkle(g);});mines.forEach(m=>{if(!seenOnMap(m))return;const p=worldToScreen(m);drawMineSprite(ctx,p.x,p.y,performance.now(),m.arm>0,m.life<5);});
+  drawMapEdges();if(dom)drawDomZone();if(ls)drawLsItems();islands.forEach(i=>{if(onScreen(i,i.r+260))drawIsland(i);});drawFleetIsland();drawTreatyEnvoy();drawDuels();lootChests.forEach(c=>{if(seenOnMap(c))drawLootChest(c);});drawTreasureMark();sparkles.forEach(g=>{if(seenOnMap(g))drawSparkle(g);});mines.forEach(m=>{if(!seenOnMap(m))return;const p=worldToScreen(m);drawMineSprite(ctx,p.x,p.y,performance.now(),m.arm>0,m.life<5);});
   particles.forEach(p=>{if(UNDER.has(p.kind))drawParticle(p);});wrecks.forEach(w=>atShipScale(w,()=>drawWreck(w)));shots.forEach(drawShotShadow);
   if(selected&&targetExists(selected)&&seenOnMap(selected))drawTargetMarker(selected);
   // Görüş sisi: gemiden uzaktaki NPC, kaptan, sandık ve pırıltı çizilmez (mini haritadan kamera kaydırılsa da)

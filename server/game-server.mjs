@@ -29,6 +29,7 @@ import {contribReward,earnsChest,victoryChest} from '../src/siege.ts';
 import {DOM_SIZE,DOM_COUNTDOWN_MS,DOM_MATCH_MS,DOM_WIN,DOM_ZONE,DOM_BASE,domWindowAt,domBalance,domZoneStep,domWinner,domReward} from '../src/domination.ts';
 import {LS_DROP_FIRST_MS,LS_DROP_EVERY_MS,LS_DROP_FALL_MS,LS_DROP_PICK_R,LS_DROP_LOOT,LS_ITEMS,LS_ITEM_MAX,LS_ITEM_RESPAWN_MS,LS_PICK_R,LS_SPEED_MS,lsEmptyInv,lsPickKind,LS_SIZE,LS_COUNTDOWN_MS,LS_LOADOUT,LS_HP,LS_START_R,LS_RADII,LS_PHASE_MS,LS_FOG_DPS,LS_MATCH_MS,lsZoneAt,lsNext,lsReward,lsSpawn} from '../src/cursed.ts';
 import {filterChat} from '../src/chat-filter.ts';
+import {DUEL_BETS,DUEL_MS,DUEL_R,DUEL_ASK_MS,DUEL_NEAR,DUEL_LEVEL_GAP,duelPot,duelLeft,duelUse} from '../src/duel.ts';
 import {RAGE_MAX,RAGE_SALVOS,RAGE_SECONDS,RAGE_PER_RIVAL,RAGE_PER_BOSS} from '../src/rage.ts';
 import {levelQuestGoal,levelQuestTargets,levelQuestMap} from '../src/level-quest.ts';
 
@@ -362,7 +363,7 @@ async function applyUsage(c,salvo,item,now){
 }
 
 // ---------------------------------------------------------------- Sunucu
-const seas=new Map(); // ad → Set<Client>
+export const seas=new Map(); // ad → Set<Client>
 const all=new Set();
 const log=(...a)=>console.log(new Date().toISOString(),...a);
 // Şüpheli kayıtları: bellekte son 500, ayrıca dosyaya (yönetici paneli /flags ile okur)
@@ -378,7 +379,7 @@ const toSea=(c,o,self=false)=>{const room=seas.get(c.sea);if(!room)return;const 
 // Atış: yalnızca atan oyuncuya yakın olanlara ve hedefe (uzaktakiler görmez)
 const toNear=(c,o,target)=>{const room=seas.get(c.sea);if(!room)return;const s=JSON.stringify(o);for(const x of room){if(x===c)continue;if(x.netId===target||!c.last||!x.last||Math.abs(x.last.x-c.last.x)+Math.abs(x.last.y-c.last.y)<NEAR)send(x,s);}};
 const toAll=(c,o)=>{const s=JSON.stringify(o);for(const x of all)if(x!==c&&x.uid)send(x,s);};
-function leaveSea(c){c.seen=null;c.state=null;for(const x of seas.get(c.sea)||[])x.seen?.delete(c);if(!c.sea)return;const room=seas.get(c.sea);if(room){room.delete(c);if(!room.size)seas.delete(c.sea);}if(c.netId)toSea(c,{t:'leave',id:c.netId});c.sea='';c.last=null;}
+function leaveSea(c){if(c.duel)duelForfeit(c,'denizden ayrıldı');c.seen=null;c.state=null;for(const x of seas.get(c.sea)||[])x.seen?.delete(c);if(!c.sea)return;const room=seas.get(c.sea);if(room){room.delete(c);if(!room.size)seas.delete(c.sea);}if(c.netId)toSea(c,{t:'leave',id:c.netId});c.sea='';c.last=null;}
 
 // ---------------------------------------------------------------- Paylaşılan boss
 // Boss'un canı ve katkılar sunucuda tutulur: denizdeki herkes aynı boss'a vurur. Tetikleyici NPC batırmaları deniz için ortak
@@ -581,7 +582,11 @@ export function attackTarget(c,d){const k=String(d?.k||'n'),id=String(d?.id??'')
   if(k==='t'){const key=islandOfSea(c.sea),slot=Number(id);if(!key||!Number.isInteger(slot)||slot<0||slot>=TOWER_SLOTS||!MAPS[key])return null;const f=MAPS[key].fleet,[dx,dy]=FLEET.towers[slot]??[0,0];return{k,key,slot,x:f.x+dx,y:f.y+dy,kind:'tower'};}
   if(k==='p'&&lsMatchOfSea(c.sea)!==undefined){const t=[...(seas.get(c.sea)||[])].find(x=>x.netId===id&&x!==c);return t?.last&&t.lsOn&&c.lsOn?{k,t,x:t.last.x,y:t.last.y,kind:'player',ls:true}:null;}
   if(k==='p'&&domMatchOfSea(c.sea)!==undefined){const t=[...(seas.get(c.sea)||[])].find(x=>x.netId===id&&x!==c);return t?.last&&t.domTeam&&!domLocked(t,Date.now())?{k,t,x:t.last.x,y:t.last.y,kind:'player',dom:true}:null;}
-  if(k==='p'){const t=[...(seas.get(c.sea)||[])].find(x=>x.netId===id&&x!==c);if(!t?.last||(c.guildId&&c.guildId===t.guildId&&!t.admin))return null;if(t.admin&&!aevOpen(c.sea))return null;return{k,t,x:t.last.x,y:t.last.y,kind:'player'};}
+  if(k==='p'){const t=[...(seas.get(c.sea)||[])].find(x=>x.netId===id&&x!==c);if(!t?.last)return null;
+    // Savaşa kapalı denizlerde (1/1, 1/2) yalnız düellodaki iki kaptan birbirine ateş edebilir; düellodaki kaptana başkası ateş edemez
+    if(c.duel||t.duel)return c.duel&&c.duel!=='lock'&&c.duel===t.duel?{k,t,x:t.last.x,y:t.last.y,kind:'player',duel:true}:null;
+    if(MAPS[seaMap(c.sea)]?.safe&&!t.admin)return null;
+    if(c.guildId&&c.guildId===t.guildId&&!t.admin)return null;if(t.admin&&!aevOpen(c.sea))return null;return{k,t,x:t.last.x,y:t.last.y,kind:'player'};}
   return null;}
 async function onAttack(c,d,now){if(!c.last)return;const tg=attackTarget(c,d);if(!tg)return;if(tg.ls){lsAttack(c,tg.t,now,d);return;}if(!c.ldRaw)return;c.ld=buildLoadout(c.econ,c.ldRaw);if(!c.ld)return;
   const a=String(d?.a||'iron');if(tg.dom&&(a==='heal'||tg.t.domTeam===c.domTeam))return;// Deniz Hakimiyeti: şifa güllesi yok, gülle yalnız rakibe
@@ -603,7 +608,7 @@ async function onAttack(c,d,now){if(!c.last)return;const tg=attackTarget(c,d);if
     return;}
   const t=tg.t,f={from:c.netId,to:t.netId,x:Math.round(c.last.x),y:Math.round(c.last.y),tx:Math.round(t.last.x),ty:Math.round(t.last.y),ammo:a,damage:0};
   if(a==='heal'){f.damage=Math.round(Math.min(raw,(t.maxHp||163000)*(.08+Math.random()*.012)));pvpHeal(t,f.damage,now);}
-  else{f.damage=pvpGuard(t,dmg,now);pvpOf(t).from.set(c.netId,now);
+  else{f.damage=pvpGuard(t,dmg,now);pvpOf(t).from.set(c.netId,now);if(tg.duel)duelHit(c,f.damage);
     if(godCheck(t)){suspect(t,'ölümsüz');pvpReset(t);if(t.domTeam)domSink(t,now);send(t,{t:'forceSink',d:{by:c.netId,byNick:c.nick}});toSea(t,{t:'sunk',d:{victim:t.netId,victimNick:t.nick,by:c.netId,byNick:c.nick}});return;}}
   toNear(c,{t:'fire',d:f},t.netId);}
 
@@ -810,6 +815,58 @@ function onLs(c,d,now){const k=String(d?.k||'');
   if(k==='speed'){const inv=lsSpeed(c,now);if(inv)send(c,{t:'ls',d:{k:'inv',inv,speed:1}});return;}}
 setInterval(()=>lsTick(Date.now()),1000).unref();
 
+
+// ---------------------------------------------------------------- Açık deniz düellosu (src/duel.ts)
+// Savaşa kapalı denizlerde iki kaptan anlaşınca yalnız birbirleriyle savaşır. Bahis (500 inci) düello başında iki taraftan
+// veritabanında kilitlenir (032_duel.sql); kazanan toplamın %90'ını alır. Hak sayıları dosyada saklanır.
+const DUEL_FILE=process.env.DUEL_FILE||'/opt/game/duels.json';
+export const duels=new Map(),duelInvites=new Map(); // düello kimliği → düello; davet edilen netId → {from, bet, at}
+export let duelCounts={};let duelSeq=0,duelCountsDirty=false;
+try{if(process.env.NODE_ENV!=='test')duelCounts=JSON.parse(fs.readFileSync(DUEL_FILE,'utf8'));}catch{}
+setInterval(()=>{if(!duelCountsDirty||process.env.NODE_ENV==='test')return;duelCountsDirty=false;try{fs.writeFileSync(DUEL_FILE+'.tmp',JSON.stringify(duelCounts));fs.renameSync(DUEL_FILE+'.tmp',DUEL_FILE);}catch{}},30_000).unref();
+export const duelInfo=d=>({id:d.id,a:d.a.netId,b:d.b.netId,an:d.a.nick,bn:d.b.nick,x:Math.round(d.x),y:Math.round(d.y),r:DUEL_R,end:d.end,bet:d.bet});
+const duelErr=(c,msg)=>send(c,{t:'duel',d:{k:'err',msg}});
+// Teklif ve kabulde aynı denetimler: savaşa kapalı deniz, aynı deniz, yakın, ikisi de boşta; bahisliyse seviye farkı ve hak
+export function duelCheck(a,b,bet,now=Date.now()){if(!a.uid||!b?.uid||a===b)return'Rakip bulunamadı';
+  if(!MAPS[seaMap(a.sea)]?.safe||a.sea!==b.sea)return'Düello yalnız savaşa kapalı denizlerde (1/1, 1/2) yapılır';
+  if(a.duel||b.duel)return'Kaptanlardan biri zaten düelloda';if(a.domTeam||b.domTeam||a.lsOn||b.lsOn)return'Kaptan arenada';
+  if(!a.last||!b.last||Math.hypot(a.last.x-b.last.x,a.last.y-b.last.y)>DUEL_NEAR)return'Rakibe daha çok yaklaş';
+  if(!DUEL_BETS.includes(bet))return'Geçersiz bahis';
+  if(bet){if(Math.abs((Number(a.econ?.level)||1)-(Number(b.econ?.level)||1))>DUEL_LEVEL_GAP)return`Bahisli düelloda seviye farkı en çok ${DUEL_LEVEL_GAP} olabilir`;
+    const d=new Date(now);if(!duelLeft(duelCounts[a.uid],d))return'Bahisli düello hakkın bitti (günde 1, haftada 2)';if(!duelLeft(duelCounts[b.uid],d))return'Rakibin bahisli düello hakkı bitmiş';}
+  return null;}
+export async function onDuel(c,d,now){const k=String(d.k||'');
+  if(k==='ask'){const t=[...(seas.get(c.sea)||[])].find(x=>x.netId===String(d.to));const bet=Number(d.bet)||0,why=duelCheck(c,t,bet,now);if(why){duelErr(c,why);return;}
+    const old=duelInvites.get(t.netId);if(old&&now-old.at<DUEL_ASK_MS&&old.from!==c){duelErr(c,'Rakibin başka bir teklifi var');return;}
+    duelInvites.set(t.netId,{from:c,bet,at:now});send(t,{t:'duel',d:{k:'ask',from:c.netId,nick:c.nick,level:Number(c.econ?.level)||1,bet,until:now+DUEL_ASK_MS}});send(c,{t:'duel',d:{k:'sent',to:t.netId,nick:t.nick,bet}});return;}
+  if(k==='no'){const inv=duelInvites.get(c.netId);if(!inv)return;duelInvites.delete(c.netId);send(inv.from,{t:'duel',d:{k:'err',msg:`${c.nick} düelloyu reddetti`}});return;}
+  if(k==='yes'){const inv=duelInvites.get(c.netId);duelInvites.delete(c.netId);if(!inv||now-inv.at>DUEL_ASK_MS||inv.from.netId!==String(d.from)){duelErr(c,'Teklifin süresi doldu');return;}
+    const a=inv.from,why=duelCheck(a,c,inv.bet,now);if(why){duelErr(c,why);duelErr(a,why);return;}
+    const id=`d${++duelSeq}`,stakes=[];
+    if(inv.bet){a.duel=c.duel='lock';// kilit sürerken başka teklif kabul edilmez
+      for(const x of [a,c]){const ev=crypto.randomUUID();const ok=SERVER_SECRET?await dbRpcJson('duel_stake',{p_uid:x.uid,p_event:ev,p_amount:inv.bet}).catch(()=>false):process.env.NODE_ENV==='test';if(ok===true){stakes.push(x);continue;}
+        for(const y of stakes)grantUid(y.uid,{pearls:inv.bet});a.duel=c.duel=null;for(const y of [a,c])duelErr(y,y===x?'Bahis için yeterli incin yok':`${x.nick} bahsi karşılayamadı`);return;}
+      for(const x of [a,c]){duelCounts[x.uid]=duelUse(duelCounts[x.uid],new Date(now));send(x,{t:'duel',d:{k:'stake',n:-inv.bet}});}duelCountsDirty=true;}
+    const du={id,a,b:c,bet:inv.bet,sea:c.sea,x:(a.last.x+c.last.x)/2,y:(a.last.y+c.last.y)/2,end:now+DUEL_MS,dmg:new Map([[a,0],[c,0]])};duels.set(id,du);a.duel=c.duel=id;
+    toSea(c,{t:'duel',d:{k:'start',...duelInfo(du)}},true);log('DÜELLO',a.nick,'vs',c.nick,inv.bet);return;}
+  if(k==='quit'&&c.duel&&c.duel!=='lock')duelForfeit(c,'teslim oldu');}
+export function duelHit(c,dmg){const d=duels.get(c.duel);if(d&&d.dmg.has(c))d.dmg.set(c,d.dmg.get(c)+Math.max(0,dmg));}
+export function duelForfeit(c,why,now=Date.now()){const d=duels.get(c.duel);if(!d)return;duelFinish(d,d.a===c?d.b:d.a,why,now);}
+// Bitiş: kazanan bahis toplamının %90'ını alır; berabere biterse iki tarafa bahis geri verilir
+export function duelFinish(d,win,why,now=Date.now()){if(!duels.has(d.id))return;duels.delete(d.id);d.a.duel=d.b.duel=null;pvpReset(d.a);pvpReset(d.b);
+  const lose=win?(win===d.a?d.b:d.a):null;
+  if(d.bet){if(win)grantUid(win.uid,{pearls:duelPot(d.bet)});else for(const x of [d.a,d.b])grantUid(x.uid,{pearls:d.bet});}
+  const out={k:'end',id:d.id,win:win?.netId??null,wn:win?.nick??null,ln:lose?.nick??null,why,bet:d.bet,pot:win?duelPot(d.bet):0};
+  const room=seas.get(d.sea);if(room){const m=JSON.stringify({t:'duel',d:out});for(const x of room)send(x,m);}
+  for(const x of [d.a,d.b])if(x.sea!==d.sea)send(x,{t:'duel',d:out});
+  if(d.bet&&win){const msg=JSON.stringify({t:'chat',d:{nick:'Düello',tag:null,adm:true,text:`⚔ ${win.nick}, ${lose.nick} kaptanını düelloda yendi · ${duelPot(d.bet)} inci`,at:now}});for(const x of all)if(x.uid)send(x,msg);}
+  log('DÜELLO BİTTİ',win?.nick??'berabere',why);return out;}
+// Süre ve çember: süre bitince daha çok hasar veren kazanır; çemberin dışına çıkan kaybeder
+export function duelTick(now){for(const d of [...duels.values()]){
+  for(const x of [d.a,d.b])if(x.last&&Math.hypot(x.last.x-d.x,x.last.y-d.y)>DUEL_R+80){duelFinish(d,x===d.a?d.b:d.a,'çemberden çıktı',now);break;}
+  if(!duels.has(d.id)||now<d.end)continue;const da=d.dmg.get(d.a),db=d.dmg.get(d.b);duelFinish(d,da===db?null:da>db?d.a:d.b,'süre doldu',now);}}
+setInterval(()=>duelTick(Date.now()),1000).unref();
+
 // ---------------------------------------------------------------- Deniz Antlaşması (src/treaty.ts)
 // Perşembe günü pırıltılar ortak sayaca yazılır; hedef dolunca oylama, sonra 24 saatlik etki ve ödüller. Durum dosyada saklanır.
 const TREATY_FILE=process.env.TREATY_FILE||'/opt/game/treaty.json';
@@ -900,6 +957,7 @@ wss.on('connection',ws=>{
         if(seaMap(name)){const fresh=npcFill(name,now);const st=seaNpcs.get(name);send(c,{t:'nlist',d:[...(st?.list.values()??[])].map(npcInfo)});
           if(fresh.length){const m=JSON.stringify({t:'nlist',d:[...st.list.values()].map(npcInfo)});for(const x of room)if(x!==c)send(x,m);}}
         {const l=lootFor(c);if(l)send(c,{t:'loot',d:lootInfo(l)});}
+        send(c,{t:'duel',d:{k:'list',duels:[...duels.values()].filter(d=>d.sea===name).map(duelInfo)}});
         const b=bossSeas.get(name)?.boss;if(b)send(c,{t:'boss',d:bossInfo(name,b)});
         const isle=islands.get(islandOfSea(name));if(isle)send(c,{t:'isle',d:islandInfo(isle)});
         if(name===SIEGE_ROOM){const r=siegeJoin(c.uid,c.nick,now);if(r)send(c,{t:'sstate',d:siegeInfo(r,c.uid)});}return;}
@@ -920,6 +978,7 @@ wss.on('connection',ws=>{
       case'sunk':{if(!c.sea)return;const s=m.d||{};s.victim=c.netId;s.victimNick=c.nick;
         // Batıran yalnızca son 60 sn'de bu oyuncuya ateş etmiş biri olabilir (arkadaşa SP yazdırma engeli)
         if(s.by&&!(now-(c.pvp?.from.get(String(s.by))??-1e12)<60_000)){suspect(c,'sahte batırma',String(s.by));s.by=null;s.byNick=null;}
+        if(c.duel){const d=duels.get(c.duel);pvpReset(c);toSea(c,{t:'sunk',d:s});if(d)duelFinish(d,d.a===c?d.b:d.a,'batırdı',now);return;}
         if(s.by){const k=[...(seas.get(c.sea)||[])].find(x=>x.netId===String(s.by));if(k)rageGain(k,RAGE_PER_RIVAL);}
         if(s.by&&domMatchOfSea(c.sea)===undefined){const k=[...(seas.get(c.sea)||[])].find(x=>x.netId===String(s.by));const add=spCredit(k,c.uid,now);if(add){addCredit(k,add);void sinkAdd(k,1);}}
         if(c.domTeam)domSink(c,now);if(c.lsOn){lsOut(c,s.by?[...(seas.get(c.sea)||[])].find(x=>x.netId===String(s.by)):null,now);toSea(c,{t:'sunk',d:s});return;}pvpReset(c);toSea(c,{t:'sunk',d:s});return;}
@@ -935,6 +994,7 @@ wss.on('connection',ws=>{
         if(id==='mine'&&(c.econ!==before||!SERVER_SECRET||(process.env.BENCH_AUTH==='1'&&c.uid.startsWith('b')))){const mn=placeMine(c,Number(m.d?.x),Number(m.d?.y),now);if(mn)toSea(c,{t:'mine',d:{id:mn.id,x:mn.x,y:mn.y,by:c.netId}});}return;}
       case'qdone':{if(!c.uid||!c.rKill.hit(now))return;const id=String(m.d?.id||'');const r=questCredit(c,id,now);
         if(r.err){if(r.err==='bekleme')suspect(c,'görev bekleme',id);send(c,{t:'qres',d:{id,ok:false,err:r.err}});return;}addCredit(c,r.add);send(c,{t:'qres',d:{id,ok:true}});return;}
+      case'duel':{if(!c.uid||!c.rUse.hit(now))return;await onDuel(c,m.d||{},now);return;}
       case'treaty':{if(!c.uid||!c.rUse.hit(now))return;const r=treatyVote(c,Number(m.d?.o),now);if(r.err){send(c,{t:'treaty',d:{...treatyInfo(c),err:r.err}});return;}send(c,{t:'treaty',d:treatyInfo(c)});return;}
       case'spk':{if(!c.sea||!c.rUse.hit(now))return;{const t=lootTake(c,'sp',m.d?.id);if(t.err){if(t.err==='uzak')suspect(c,'uzak pırıltı');return;}send(c,{t:'loot',d:lootInfo(c.loot)});}const r=sparklePicked(c,now);if(r.err){if(r.err==='hız')suspect(c,'pırıltı hızı');return;}const sr=sparkleReward(c);addCredit(c,sr.add);send(c,{t:'spkr',d:sr.out});treatyPick(c,now);return;}
       case'chest':{if(!c.sea||!c.rKill.hit(now))return;{const t=lootTake(c,'ch',m.d?.id);if(t.err){if(t.err==='uzak')suspect(c,'uzak sandık');return;}send(c,{t:'loot',d:lootInfo(c.loot)});}const r=chestPicked(c,now);if(r.err){if(r.err==='hız')suspect(c,'sandık hızı');return;}{const cr=chestReward(c,m.d?.g);addCredit(c,cr.add);send(c,{t:'chestr',d:cr.out});}if(r.found)send(c,{t:'tstate',d:{parts:r.parts,spot:treOf(c.uid).spot,part:true}});return;}

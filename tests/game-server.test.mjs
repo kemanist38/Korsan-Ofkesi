@@ -431,3 +431,20 @@ test('Deniz Antlaşması: sparkles fill the goal, vote opens, winner applies for
   assert.deepEqual(grants.find(p=>p.uid==='a').grant.add,{pearls:325,gold:175000});assert.deepEqual(grants.find(p=>p.uid==='b').grant.add,{pearls:225,gold:125000});
   assert.equal(S.treaty.double,'a');for(const p of grants)S.pendingCredits.delete(p.grant.id);S.treatyReset();
 });
+test('düello: savaşa kapalı denizde yalnız iki rakip savaşır, bahis kazanana %90, bahisli hak günde 1',async()=>{
+  const box=[];const mk=(id,uid,x,lvl=3)=>({netId:id,uid,nick:uid.toUpperCase(),sea:'sea-1-1',last:{x,y:1000},econ:{level:lvl},ws:{readyState:1,send:m=>box.push([id,JSON.parse(m)])}});
+  const a=mk('1','ua',1000),b=mk('2','ub',1300),z=mk('3','uz',1100);S.seas.set('sea-1-1',new Set([a,b,z]));
+  assert.equal(S.attackTarget(a,{k:'p',id:'2'}),null,'safe sea: no PvP without duel');
+  const now=Date.UTC(2026,9,22,12);
+  await S.onDuel(a,{k:'ask',to:'2',bet:500},now);assert.ok(box.some(([to,m])=>to==='2'&&m.d.k==='ask'));
+  await S.onDuel(b,{k:'yes',from:'1'},now+1000);assert.ok(a.duel&&a.duel===b.duel);
+  assert.ok(S.attackTarget(a,{k:'p',id:'2'})?.duel);assert.equal(S.attackTarget(z,{k:'p',id:'1'}),null,'outsiders cannot hit duelists');assert.equal(S.attackTarget(a,{k:'p',id:'3'}),null);
+  S.duelHit(a,500);S.duelTick(now+1000+180_001);assert.equal(a.duel,null);
+  const end=box.find(([to,m])=>to==='3'&&m.d.k==='end')[1].d;assert.equal(end.win,'1');assert.equal(end.pot,900);
+  const g=[...S.pendingCredits.values()].find(p=>p.uid==='ua')??null;assert.ok(g===null||g.grant.add.pearls===900);
+  for(const p of [...S.pendingCredits.values()])if(p.uid==='ua'||p.uid==='ub')S.pendingCredits.delete(p.grant.id);
+  box.length=0;await S.onDuel(a,{k:'ask',to:'2',bet:500},now+5000);assert.match(box.find(([to])=>to==='1')[1].d.msg,/hakkın bitti/);
+  box.length=0;await S.onDuel(a,{k:'ask',to:'2',bet:0},now+6000);assert.equal(box.find(([to])=>to==='2')[1].d.k,'ask','unbet duels are unlimited');
+  const hi=mk('4','uh',1200,7);S.seas.get('sea-1-1').add(hi);box.length=0;await S.onDuel(hi,{k:'ask',to:'3',bet:500},now);assert.match(box[0][1].d.msg,/seviye farkı/);
+  S.seas.delete('sea-1-1');S.duelInvites.clear();
+});

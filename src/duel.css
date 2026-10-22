@@ -1,0 +1,16 @@
+/* Açık deniz düellosu */
+.duel-btn{position:fixed;left:50%;top:calc(var(--strip,20px) + 86px);transform:translateX(-50%);z-index:30;display:flex;align-items:center;gap:6px;padding:5px 8px;border:1px solid #725047;border-radius:9px;background:linear-gradient(135deg,#241b1fee,#141216ee);box-shadow:0 6px 18px #000a;color:#edc78c;font:800 11px Inter,sans-serif}
+.duel-btn[hidden],.duel-ask[hidden],.duel-hud[hidden]{display:none}
+.duel-btn b{display:flex;align-items:center;letter-spacing:.06em}
+.duel-btn button{padding:5px 10px;border:1px solid #ae6244;border-radius:6px;background:linear-gradient(#65302a,#31191c);color:#ffe1af;font:800 10px Inter,sans-serif;cursor:pointer}
+.duel-btn .duel-wait{color:#bdaea7;font-weight:700}
+.duel-ask{position:fixed;left:50%;top:30%;transform:translateX(-50%);z-index:70;width:min(360px,calc(100vw - 24px));padding:16px;border:1px solid #b78357;border-radius:10px;background:linear-gradient(135deg,#2a1d22,#121014);box-shadow:0 18px 50px #000d;color:#eee0d3;text-align:center}
+.duel-ask h3{margin:0 0 8px;display:flex;justify-content:center;align-items:center;font:700 16px Cinzel,serif;color:#edc78c;letter-spacing:.06em}
+.duel-ask p{margin:0 0 6px;font-size:13px;line-height:1.5}.duel-ask b{color:#ffd56a}.duel-ask small{color:#bdaea7}
+.duel-ask div{display:flex;gap:8px;justify-content:center;margin-top:12px}
+.duel-ask button{padding:9px 18px;border:1px solid #ae6244;border-radius:7px;background:linear-gradient(#65302a,#31191c);color:#ffe1af;font:800 12px Inter,sans-serif;cursor:pointer}
+.duel-ask button.no{border-color:#6a5550;background:#261c20;color:#d9c8bf}
+.duel-hud{position:fixed;left:50%;top:calc(var(--strip,20px) + 8px);transform:translateX(-50%);z-index:31;display:flex;align-items:center;gap:10px;padding:5px 8px 5px 12px;border:1px solid #e96c32;border-radius:18px;background:linear-gradient(135deg,#3a1a14ee,#160c0cee);box-shadow:0 0 16px #e96c3255;color:#f3e2bd;font:700 12px Inter,sans-serif}
+.duel-hud b{color:#ffb648;letter-spacing:.08em}.duel-hud strong{color:#fff;font-size:14px}.duel-hud em{font-style:normal;color:#ffd56a}
+.duel-hud button{padding:4px 9px;border:1px solid #6a5550;border-radius:12px;background:#261c20;color:#d9c8bf;font:800 9px Inter,sans-serif;cursor:pointer}
+@media (max-width:700px){.duel-btn{top:calc(var(--strip,20px) + 124px)}.duel-hud{top:calc(var(--strip,20px) + 26px);font-size:11px}}
