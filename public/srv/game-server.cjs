@@ -3722,6 +3722,15 @@ __export(game_server_exports, {
   domStep: () => domStep,
   dpsCap: () => dpsCap,
   dpsTake: () => dpsTake,
+  duelCheck: () => duelCheck,
+  duelCounts: () => duelCounts,
+  duelFinish: () => duelFinish,
+  duelForfeit: () => duelForfeit,
+  duelHit: () => duelHit,
+  duelInfo: () => duelInfo,
+  duelInvites: () => duelInvites,
+  duelTick: () => duelTick,
+  duels: () => duels,
   flushCredit: () => flushCredit,
   godCheck: () => godCheck,
   guildOf: () => guildOf,
@@ -3769,6 +3778,7 @@ __export(game_server_exports, {
   npcMove: () => npcMove,
   npcShore: () => npcShore,
   npcSpawn: () => npcSpawn,
+  onDuel: () => onDuel,
   onLand: () => onLand,
   osbMatch: () => osbMatch,
   parseDuration: () => parseDuration,
@@ -3795,6 +3805,7 @@ __export(game_server_exports, {
   seaMines: () => seaMines,
   seaNpcs: () => seaNpcs,
   seaTier: () => seaTier,
+  seas: () => seas,
   shipAllowed: () => shipAllowed,
   shotCheck: () => shotCheck,
   siegeCredit: () => siegeCredit,
@@ -4559,6 +4570,34 @@ function bad(w) {
 }
 function filterChat(text) {
   return text.replace(/\S+/g, (w) => bad(w) ? "*".repeat(Math.min(8, w.length)) : w);
+}
+
+// src/duel.ts
+var DUEL_BETS = [0, 500];
+var DUEL_CUT = 0.1;
+var DUEL_MS = 18e4;
+var DUEL_R = 600;
+var DUEL_ASK_MS = 2e4;
+var DUEL_NEAR = 1500;
+var DUEL_LEVEL_GAP = 2;
+var DUEL_DAY = 1;
+var DUEL_WEEK = 2;
+var duelPot = (bet) => Math.floor(bet * 2 * (1 - DUEL_CUT));
+var duelDayKey = (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+var duelWeekKey = (d) => {
+  const m = new Date(d);
+  m.setHours(0, 0, 0, 0);
+  m.setDate(m.getDate() - (m.getDay() + 6) % 7);
+  return duelDayKey(m);
+};
+function duelLeft(c, now) {
+  const d = duelDayKey(now), w = duelWeekKey(now);
+  const dn = c && c.d === d ? c.dn : 0, wn = c && c.w === w ? c.wn : 0;
+  return Math.max(0, Math.min(DUEL_DAY - dn, DUEL_WEEK - wn));
+}
+function duelUse(c, now) {
+  const d = duelDayKey(now), w = duelWeekKey(now);
+  return { d, dn: (c && c.d === d ? c.dn : 0) + 1, w, wn: (c && c.w === w ? c.wn : 0) + 1 };
 }
 
 // src/level-quest.ts
@@ -5456,6 +5495,7 @@ var toAll = (c, o) => {
   for (const x of all) if (x !== c && x.uid) send(x, s);
 };
 function leaveSea(c) {
+  if (c.duel) duelForfeit(c, "denizden ayr\u0131ld\u0131");
   c.seen = null;
   c.state = null;
   for (const x of seas.get(c.sea) || []) x.seen?.delete(c);
@@ -6099,7 +6139,10 @@ function attackTarget(c, d) {
   }
   if (k === "p") {
     const t = [...seas.get(c.sea) || []].find((x) => x.netId === id && x !== c);
-    if (!t?.last || c.guildId && c.guildId === t.guildId && !t.admin) return null;
+    if (!t?.last) return null;
+    if (c.duel || t.duel) return c.duel && c.duel !== "lock" && c.duel === t.duel ? { k, t, x: t.last.x, y: t.last.y, kind: "player", duel: true } : null;
+    if (MAPS[seaMap(c.sea)]?.safe && !t.admin) return null;
+    if (c.guildId && c.guildId === t.guildId && !t.admin) return null;
     if (t.admin && !aevOpen(c.sea)) return null;
     return { k, t, x: t.last.x, y: t.last.y, kind: "player" };
   }
@@ -6182,6 +6225,7 @@ async function onAttack(c, d, now) {
   } else {
     f.damage = pvpGuard(t, dmg, now);
     pvpOf(t).from.set(c.netId, now);
+    if (tg.duel) duelHit(c, f.damage);
     if (godCheck(t)) {
       suspect(t, "\xF6l\xFCms\xFCz");
       pvpReset(t);
@@ -6821,6 +6865,157 @@ function onLs(c, d, now) {
   }
 }
 setInterval(() => lsTick(Date.now()), 1e3).unref();
+var DUEL_FILE = process.env.DUEL_FILE || "/opt/game/duels.json";
+var duels = /* @__PURE__ */ new Map();
+var duelInvites = /* @__PURE__ */ new Map();
+var duelCounts = {};
+var duelSeq = 0;
+var duelCountsDirty = false;
+try {
+  if (process.env.NODE_ENV !== "test") duelCounts = JSON.parse(import_node_fs.default.readFileSync(DUEL_FILE, "utf8"));
+} catch {
+}
+setInterval(() => {
+  if (!duelCountsDirty || process.env.NODE_ENV === "test") return;
+  duelCountsDirty = false;
+  try {
+    import_node_fs.default.writeFileSync(DUEL_FILE + ".tmp", JSON.stringify(duelCounts));
+    import_node_fs.default.renameSync(DUEL_FILE + ".tmp", DUEL_FILE);
+  } catch {
+  }
+}, 3e4).unref();
+var duelInfo = (d) => ({ id: d.id, a: d.a.netId, b: d.b.netId, an: d.a.nick, bn: d.b.nick, x: Math.round(d.x), y: Math.round(d.y), r: DUEL_R, end: d.end, bet: d.bet });
+var duelErr = (c, msg) => send(c, { t: "duel", d: { k: "err", msg } });
+function duelCheck(a, b, bet, now = Date.now()) {
+  if (!a.uid || !b?.uid || a === b) return "Rakip bulunamad\u0131";
+  if (!MAPS[seaMap(a.sea)]?.safe || a.sea !== b.sea) return "D\xFCello yaln\u0131z sava\u015Fa kapal\u0131 denizlerde (1/1, 1/2) yap\u0131l\u0131r";
+  if (a.duel || b.duel) return "Kaptanlardan biri zaten d\xFCelloda";
+  if (a.domTeam || b.domTeam || a.lsOn || b.lsOn) return "Kaptan arenada";
+  if (!a.last || !b.last || Math.hypot(a.last.x - b.last.x, a.last.y - b.last.y) > DUEL_NEAR) return "Rakibe daha \xE7ok yakla\u015F";
+  if (!DUEL_BETS.includes(bet)) return "Ge\xE7ersiz bahis";
+  if (bet) {
+    if (Math.abs((Number(a.econ?.level) || 1) - (Number(b.econ?.level) || 1)) > DUEL_LEVEL_GAP) return `Bahisli d\xFCelloda seviye fark\u0131 en \xE7ok ${DUEL_LEVEL_GAP} olabilir`;
+    const d = new Date(now);
+    if (!duelLeft(duelCounts[a.uid], d)) return "Bahisli d\xFCello hakk\u0131n bitti (g\xFCnde 1, haftada 2)";
+    if (!duelLeft(duelCounts[b.uid], d)) return "Rakibin bahisli d\xFCello hakk\u0131 bitmi\u015F";
+  }
+  return null;
+}
+async function onDuel(c, d, now) {
+  const k = String(d.k || "");
+  if (k === "ask") {
+    const t = [...seas.get(c.sea) || []].find((x) => x.netId === String(d.to));
+    const bet = Number(d.bet) || 0, why = duelCheck(c, t, bet, now);
+    if (why) {
+      duelErr(c, why);
+      return;
+    }
+    const old = duelInvites.get(t.netId);
+    if (old && now - old.at < DUEL_ASK_MS && old.from !== c) {
+      duelErr(c, "Rakibin ba\u015Fka bir teklifi var");
+      return;
+    }
+    duelInvites.set(t.netId, { from: c, bet, at: now });
+    send(t, { t: "duel", d: { k: "ask", from: c.netId, nick: c.nick, level: Number(c.econ?.level) || 1, bet, until: now + DUEL_ASK_MS } });
+    send(c, { t: "duel", d: { k: "sent", to: t.netId, nick: t.nick, bet } });
+    return;
+  }
+  if (k === "no") {
+    const inv = duelInvites.get(c.netId);
+    if (!inv) return;
+    duelInvites.delete(c.netId);
+    send(inv.from, { t: "duel", d: { k: "err", msg: `${c.nick} d\xFCelloyu reddetti` } });
+    return;
+  }
+  if (k === "yes") {
+    const inv = duelInvites.get(c.netId);
+    duelInvites.delete(c.netId);
+    if (!inv || now - inv.at > DUEL_ASK_MS || inv.from.netId !== String(d.from)) {
+      duelErr(c, "Teklifin s\xFCresi doldu");
+      return;
+    }
+    const a = inv.from, why = duelCheck(a, c, inv.bet, now);
+    if (why) {
+      duelErr(c, why);
+      duelErr(a, why);
+      return;
+    }
+    const id = `d${++duelSeq}`, stakes = [];
+    if (inv.bet) {
+      a.duel = c.duel = "lock";
+      for (const x of [a, c]) {
+        const ev = import_node_crypto.default.randomUUID();
+        const ok = SERVER_SECRET ? await dbRpcJson("duel_stake", { p_uid: x.uid, p_event: ev, p_amount: inv.bet }).catch(() => false) : process.env.NODE_ENV === "test";
+        if (ok === true) {
+          stakes.push(x);
+          continue;
+        }
+        for (const y of stakes) grantUid(y.uid, { pearls: inv.bet });
+        a.duel = c.duel = null;
+        for (const y of [a, c]) duelErr(y, y === x ? "Bahis i\xE7in yeterli incin yok" : `${x.nick} bahsi kar\u015F\u0131layamad\u0131`);
+        return;
+      }
+      for (const x of [a, c]) {
+        duelCounts[x.uid] = duelUse(duelCounts[x.uid], new Date(now));
+        send(x, { t: "duel", d: { k: "stake", n: -inv.bet } });
+      }
+      duelCountsDirty = true;
+    }
+    const du = { id, a, b: c, bet: inv.bet, sea: c.sea, x: (a.last.x + c.last.x) / 2, y: (a.last.y + c.last.y) / 2, end: now + DUEL_MS, dmg: /* @__PURE__ */ new Map([[a, 0], [c, 0]]) };
+    duels.set(id, du);
+    a.duel = c.duel = id;
+    toSea(c, { t: "duel", d: { k: "start", ...duelInfo(du) } }, true);
+    log("D\xDCELLO", a.nick, "vs", c.nick, inv.bet);
+    return;
+  }
+  if (k === "quit" && c.duel && c.duel !== "lock") duelForfeit(c, "teslim oldu");
+}
+function duelHit(c, dmg) {
+  const d = duels.get(c.duel);
+  if (d && d.dmg.has(c)) d.dmg.set(c, d.dmg.get(c) + Math.max(0, dmg));
+}
+function duelForfeit(c, why, now = Date.now()) {
+  const d = duels.get(c.duel);
+  if (!d) return;
+  duelFinish(d, d.a === c ? d.b : d.a, why, now);
+}
+function duelFinish(d, win, why, now = Date.now()) {
+  if (!duels.has(d.id)) return;
+  duels.delete(d.id);
+  d.a.duel = d.b.duel = null;
+  pvpReset(d.a);
+  pvpReset(d.b);
+  const lose = win ? win === d.a ? d.b : d.a : null;
+  if (d.bet) {
+    if (win) grantUid(win.uid, { pearls: duelPot(d.bet) });
+    else for (const x of [d.a, d.b]) grantUid(x.uid, { pearls: d.bet });
+  }
+  const out = { k: "end", id: d.id, win: win?.netId ?? null, wn: win?.nick ?? null, ln: lose?.nick ?? null, why, bet: d.bet, pot: win ? duelPot(d.bet) : 0 };
+  const room = seas.get(d.sea);
+  if (room) {
+    const m = JSON.stringify({ t: "duel", d: out });
+    for (const x of room) send(x, m);
+  }
+  for (const x of [d.a, d.b]) if (x.sea !== d.sea) send(x, { t: "duel", d: out });
+  if (d.bet && win) {
+    const msg = JSON.stringify({ t: "chat", d: { nick: "D\xFCello", tag: null, adm: true, text: `\u2694 ${win.nick}, ${lose.nick} kaptan\u0131n\u0131 d\xFCelloda yendi \xB7 ${duelPot(d.bet)} inci`, at: now } });
+    for (const x of all) if (x.uid) send(x, msg);
+  }
+  log("D\xDCELLO B\u0130TT\u0130", win?.nick ?? "berabere", why);
+  return out;
+}
+function duelTick(now) {
+  for (const d of [...duels.values()]) {
+    for (const x of [d.a, d.b]) if (x.last && Math.hypot(x.last.x - d.x, x.last.y - d.y) > DUEL_R + 80) {
+      duelFinish(d, x === d.a ? d.b : d.a, "\xE7emberden \xE7\u0131kt\u0131", now);
+      break;
+    }
+    if (!duels.has(d.id) || now < d.end) continue;
+    const da = d.dmg.get(d.a), db = d.dmg.get(d.b);
+    duelFinish(d, da === db ? null : da > db ? d.a : d.b, "s\xFCre doldu", now);
+  }
+}
+setInterval(() => duelTick(Date.now()), 1e3).unref();
 var TREATY_FILE = process.env.TREATY_FILE || "/opt/game/treaty.json";
 var treaty = { day: "", phase: "idle", goal: 0, count: 0, contrib: {}, options: [], votes: {}, voteEnd: 0, fx: null, elig: {}, double: null, seen: {}, envoy: null };
 var treatyDirty = false;
@@ -7159,6 +7354,7 @@ wss.on("connection", (ws) => {
           const l = lootFor(c);
           if (l) send(c, { t: "loot", d: lootInfo(l) });
         }
+        send(c, { t: "duel", d: { k: "list", duels: [...duels.values()].filter((d) => d.sea === name).map(duelInfo) } });
         const b = bossSeas.get(name)?.boss;
         if (b) send(c, { t: "boss", d: bossInfo(name, b) });
         const isle = islands.get(islandOfSea(name));
@@ -7265,6 +7461,13 @@ wss.on("connection", (ws) => {
           s.by = null;
           s.byNick = null;
         }
+        if (c.duel) {
+          const d = duels.get(c.duel);
+          pvpReset(c);
+          toSea(c, { t: "sunk", d: s });
+          if (d) duelFinish(d, d.a === c ? d.b : d.a, "bat\u0131rd\u0131", now);
+          return;
+        }
         if (s.by) {
           const k = [...seas.get(c.sea) || []].find((x) => x.netId === String(s.by));
           if (k) rageGain(k, RAGE_PER_RIVAL);
@@ -7343,6 +7546,11 @@ wss.on("connection", (ws) => {
         }
         addCredit(c, r.add);
         send(c, { t: "qres", d: { id, ok: true } });
+        return;
+      }
+      case "duel": {
+        if (!c.uid || !c.rUse.hit(now)) return;
+        await onDuel(c, m.d || {}, now);
         return;
       }
       case "treaty": {
@@ -7631,6 +7839,15 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   domStep,
   dpsCap,
   dpsTake,
+  duelCheck,
+  duelCounts,
+  duelFinish,
+  duelForfeit,
+  duelHit,
+  duelInfo,
+  duelInvites,
+  duelTick,
+  duels,
   flushCredit,
   godCheck,
   guildOf,
@@ -7678,6 +7895,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   npcMove,
   npcShore,
   npcSpawn,
+  onDuel,
   onLand,
   osbMatch,
   parseDuration,
@@ -7704,6 +7922,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   seaMines,
   seaNpcs,
   seaTier,
+  seas,
   shipAllowed,
   shotCheck,
   siegeCredit,
