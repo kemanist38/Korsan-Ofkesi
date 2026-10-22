@@ -65,3 +65,6 @@ html .info-strip::before,html .info-strip::after{content:none!important}
 .map-cluster.cp-side.cp-side.cp-side .day-pop{position:fixed!important;left:118px!important;top:66px!important}
 @media (max-width:700px){.cp-top{left:14px;top:172px;gap:6px}.cp-top>button{width:32px!important;height:32px!important}.cp-top>button img,.cp-top>.cp-ev img{width:28px!important;height:28px!important}.cp-top>button span{display:none!important}.map-cluster.cp-side.cp-side.cp-side .day-pop{left:10px!important;top:212px!important}}
 @media (min-width:701px) and (max-width:1100px){.cp-top{left:196px;top:74px;gap:6px}.cp-top>button{width:34px!important;height:34px!important}.cp-top>button img,.cp-top>.cp-ev img{width:28px!important;height:28px!important}.cp-top>button span{top:34px!important;font-size:6px!important}.map-cluster.cp-side.cp-side.cp-side .day-pop{left:196px!important;top:124px!important}}
+#logoutCorner.cp-hide{display:none!important}
+#menuLogout svg{width:34px;height:34px;color:#f0c593}
+#menuLogout[hidden]{display:none!important}

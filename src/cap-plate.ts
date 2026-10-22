@@ -3,8 +3,8 @@
 // Sohbet düğmesi parşömen, sağ üstte özel mesajlar için mühürlü mektup.
 import './cap-plate.css';
 const $=<T extends HTMLElement=HTMLElement>(s:string)=>document.querySelector<T>(s);
-export function setupCapPlate(o:{nick:()=>string}){
-  setupSideButtons();setupMenuSpy();
+export function setupCapPlate(o:{nick:()=>string;logout:()=>void;canLogout:()=>boolean}){
+  setupSideButtons();setupMenuSpy();setupMenuLogout(o);
   const stats=$('.strip-stats');if(!stats)return;
   const plate=document.createElement('div');plate.className='cap-plate';
   plate.innerHTML='<div class="cp-socket"></div><div class="cp-info"><div class="cp-row"><b class="cp-nick"></b><span class="cp-sp"></span></div><div class="cp-hp"></div><div class="cp-tp"></div></div>';
@@ -31,3 +31,7 @@ function setupSideButtons(){const cl=$('.map-cluster');if(!cl)return;
 // Casus: menü penceresinin başında
 function setupMenuSpy(){const spy=$('#spyGo'),grid=$('#menuOverlay .menu-grid');if(!spy||!grid)return;
   const w=document.createElement('div');w.className='cp-spy';w.innerHTML='<img src="/assets/icon-spy-v1.webp" alt="" draggable="false"/><b>CASUS GÖNDER</b>';w.append(spy);grid.before(w);}
+// Çıkış: köşe düğmesi yerine menünün içinde (aynı bekleme süresiyle)
+function setupMenuLogout(o:{logout:()=>void;canLogout:()=>boolean}){const grid=$('#menuOverlay .menu-grid'),corner=$('#logoutCorner');if(!grid)return;
+  const b=document.createElement('button');b.id='menuLogout';b.innerHTML=`${corner?.innerHTML??''}<span>ÇIKIŞ YAP</span>`;b.onclick=()=>o.logout();grid.append(b);corner?.classList.add('cp-hide');
+  const sync=()=>{b.hidden=!o.canLogout();};sync();setInterval(sync,1000);}
