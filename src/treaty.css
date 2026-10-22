@@ -27,3 +27,6 @@
 .treaty-note{margin:14px 0 0;color:#99877f;font-size:11px}
 @media (max-width:560px){.treaty-opts,.treaty-cols{grid-template-columns:1fr}}
 .treaty-opt b{display:flex;align-items:center;justify-content:space-between}.treaty-status{font-size:15px}
+.treaty-pill{display:none!important}
+.event-row.treaty-row.vote{border-color:#ffd56a;animation:treatyPulse 1.6s ease-in-out infinite}.event-row.treaty-row.off{opacity:.75}
+.event-row.treaty-row img{object-fit:contain}
