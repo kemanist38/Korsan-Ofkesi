@@ -10,11 +10,11 @@
 .cc-card[hidden]{display:none}
 .cc-card .cc-who{display:flex;flex-direction:column;min-width:0}
 .cc-card strong{font:800 14px Inter,sans-serif;color:#ffe6a6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.cc-card strong.adm{color:#ff9a1f}
-.cc-card small{font:700 10.5px Inter,sans-serif;color:#b9c7c6;white-space:nowrap}
+.cc-card small{font:700 10.5px Inter,sans-serif;color:#c7bdb9;white-space:nowrap}
 @media (max-width:700px){.cc-card{top:calc(var(--strip,20px) + 76px);gap:6px;padding:4px 8px}.cc-level.mid,.cc-rank.mid{width:34px}.cc-insignia.card{width:70px}.cc-card strong{font-size:12px}}
 
 .cc-trio{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
-.cc-trio article{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border:1px solid #c69b4e55;border-radius:10px;background:radial-gradient(circle at 50% 20%,#3a2414,#0b1418 75%)}
+.cc-trio article{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border:1px solid #c69b4e55;border-radius:10px;background:radial-gradient(circle at 50% 20%,#3a2414,#160f12 75%)}
 .cc-trio strong{font:700 13px Cinzel,serif;color:#f3d496;text-align:center}
 .cc-bar{position:relative;display:block;width:100%;height:16px;border:1px solid #ad8154;border-radius:8px;background:#0a0705;overflow:hidden}
 .cc-bar em{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#b8862e,#ffd36a)}
