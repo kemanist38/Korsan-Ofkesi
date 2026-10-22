@@ -68,3 +68,20 @@ html .info-strip::before,html .info-strip::after{content:none!important}
 #logoutCorner.cp-hide{display:none!important}
 #menuLogout svg{width:34px;height:34px;color:#f0c593}
 #menuLogout[hidden]{display:none!important}
+/* Küçük plaka: yüklenen kaptan çerçevesi */
+.cap-plate{width:320px!important;height:71px!important;padding:0!important;border:0!important;border-radius:0!important;background:url(/assets/hud-captain-plate-v1.webp) 0 0/100% 100% no-repeat!important;box-shadow:none!important;filter:drop-shadow(0 4px 8px #000b)}
+.cap-plate::before,.cap-plate::after{content:none!important}
+.cap-plate .cp-socket{position:absolute;left:8px;top:10px;width:48px!important;height:48px!important;box-shadow:none!important;background:#120806}
+.cap-plate .cp-socket #level{width:48px!important;height:48px!important}
+.cap-plate .cp-info{position:absolute;left:80px;right:14px;top:15px;bottom:14px;gap:2px;justify-content:center}
+.cap-plate .cp-nick{font-size:11px}
+.cap-plate .cp-hp .status-line>i{height:11px!important}.cap-plate .cp-hp .status-line b{font-size:8px!important}
+.cap-plate .cp-sp .status-line{width:90px!important}.cap-plate .cp-sp .status-line>i{height:8px!important}
+/* Ekranda kısayolu olanlar menüden kalktı */
+#menuOverlay #openMenuQuests,#menuOverlay #openMenuWorld{display:none!important}
+.cap-plate{height:80px!important}
+.cap-plate .cp-socket{top:12px;width:52px!important;height:52px!important;left:7px}.cap-plate .cp-socket #level{width:52px!important;height:52px!important}
+.cap-plate .cp-info{left:82px;right:18px;top:23px;bottom:23px;gap:1px}
+.cap-plate .cp-nick{font-size:10px;line-height:11px}.cap-plate .cp-row{height:11px}
+.cap-plate .cp-hp .status-line>i{height:10px!important}.cap-plate .cp-tp .status-line>i{height:7px!important}.cap-plate .cp-sp .status-line>i{height:7px!important}
+.cap-plate .status-line span{font-size:7.5px!important}
