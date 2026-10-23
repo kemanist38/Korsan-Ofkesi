@@ -69,7 +69,7 @@ html .info-strip::before,html .info-strip::after{content:none!important}
 #menuLogout svg{width:34px;height:34px;color:#f0c593}
 #menuLogout[hidden]{display:none!important}
 /* Küçük plaka: yüklenen kaptan çerçevesi */
-.cap-plate{width:320px!important;height:71px!important;padding:0!important;border:0!important;border-radius:0!important;background:url(/assets/hud-captain-plate-v1.webp) 0 0/100% 100% no-repeat!important;box-shadow:none!important;filter:drop-shadow(0 4px 8px #000b)}
+.cap-plate{width:320px!important;height:71px!important;padding:0!important;border:0!important;border-radius:0!important;background:url(/assets/hud-topbar-v2.webp) 0 0/100% 100% no-repeat!important;box-shadow:none!important;filter:drop-shadow(0 4px 8px #000b)}
 .cap-plate::before,.cap-plate::after{content:none!important}
 .cap-plate .cp-socket{position:absolute;left:8px;top:10px;width:48px!important;height:48px!important;box-shadow:none!important;background:#120806}
 .cap-plate .cp-socket #level{width:48px!important;height:48px!important}
@@ -154,7 +154,7 @@ html #netPill{top:auto!important;bottom:auto}
 .cp-daytip{position:fixed;z-index:60;max-width:260px;padding:8px 11px;border:1px solid #c9973d;border-radius:8px;background:linear-gradient(#24140bf5,#120a07f5);box-shadow:0 8px 20px #000c;color:#e9dcc2;font:12px/1.45 Inter,sans-serif}
 .cp-daytip[hidden]{display:none}.cp-daytip b{color:#ffd27a;font-size:12px}.cp-daytip p{margin:3px 0 0}.cp-daytip small{display:block;margin-top:5px;color:#c9a46a}
 /* ===== Üst bar (kılıçlı çerçeve, 2000x240 görsel) ===== */
-html .cap-plate.tb{width:560px!important;height:67px!important;top:4px!important;padding:0!important;display:block!important;background:url(/assets/hud-topbar-v1.webp) 0 0/100% 100% no-repeat!important;filter:drop-shadow(0 4px 8px #000b)}
+html .cap-plate.tb{width:560px!important;height:67px!important;top:4px!important;padding:0!important;display:block!important;background:url(/assets/hud-topbar-v2.webp) 0 0/100% 100% no-repeat!important;filter:drop-shadow(0 4px 8px #000b)}
 .cap-plate.tb>div{position:absolute;display:flex;align-items:center}
 .cap-plate.tb .tb-tp{left:13.8%;width:28.4%;top:25%;height:46%}
 .cap-plate.tb .tb-hp{left:57.8%;width:28.4%;top:25%;height:46%}
