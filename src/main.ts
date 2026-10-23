@@ -2088,6 +2088,9 @@ function update(dt:number){updateHealFlights(dt);{const rc=document.getElementBy
     const s=shots[i];
     if(s.foe){if(enemies.includes(s.foe)){const a=Math.atan2(s.foe.y-s.y,s.foe.x-s.x),sp=Math.hypot(s.vx,s.vy);s.vx=Math.cos(a)*sp;s.vy=Math.sin(a)*sp;s.life=Math.max(s.life,.12);}}
     else if(s.owner==='enemy'&&!s.noHome&&state.invulnerable<=0){const a=Math.atan2(player.y-s.y,player.x-s.x),speed=Math.max(Math.hypot(s.vx,s.vy),Math.abs(player.speed)+220);s.vx=Math.cos(a)*speed;s.vy=Math.sin(a)*speed;s.life=Math.max(s.life,.12);}
+    // Hedef battıysa / kaybolduysa gülle yoluna devam etmez, olduğu yerde suya düşer
+    if(s.owner==='player'&&s.target&&!targetExists(s.target))s.life=0;
+    if(s.foe&&!enemies.includes(s.foe))s.life=0;
     if(s.owner==='player'&&s.target&&targetExists(s.target)){const a=Math.atan2(s.target.y-s.y,s.target.x-s.x),speed=Math.hypot(s.vx,s.vy);s.vx=Math.cos(a)*speed;s.vy=Math.sin(a)*speed;s.life=Math.max(s.life,.12);}
     if(s.flight===undefined){const aim=s.owner==='player'?s.target:s.foe??player,sp=Math.max(1,Math.hypot(s.vx,s.vy)),d=aim&&targetExistsOrPlayer(aim)?dist(s,aim):sp*s.life;s.flight=Math.max(.15,Math.min(s.life,d/sp));s.age=0;s.arc=Math.min(80,d*.13)*(s.splash?2.2:1);
       if(s.splash&&aim)particles.push({x:aim.x,y:aim.y,vx:0,vy:0,life:s.flight,maxLife:s.flight,kind:'target',size:120});}
