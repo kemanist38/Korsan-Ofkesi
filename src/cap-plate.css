@@ -222,3 +222,21 @@ html .cap-plate.tb{height:101px!important}
 .cap-plate.tb .tb-sp{top:79%;height:15%}
 html #toast{top:104px!important}
 .cap-plate.tb .tb-sp{left:40.5%;width:19%}
+/* ===== Pirinç çerçeveler (üst barla aynı malzeme) ===== */
+/* Küçük yuvarlak düğmeler */
+html .cp-top>button,html .corner-buttons>.round-button,html .map-cluster #openWorldMap{background:url(/assets/btn-ring-v1.webp) center/100% 100% no-repeat!important;border:0!important;box-shadow:0 4px 10px #000a!important;border-radius:50%!important}
+html .cp-top>button img,html .corner-buttons>.round-button img,html .map-cluster #openWorldMap img{width:64%!important;height:64%!important;border-radius:50%;object-fit:cover}
+/* Büyük düğmeler */
+html .combat-action>b{position:relative;border:0!important;box-shadow:0 4px 10px #000a!important}
+html .combat-action>b::after{content:'';position:absolute;inset:-7%;border-radius:50%;background:url(/assets/btn-ring-v1.webp) center/100% 100% no-repeat;pointer-events:none}
+html .combat-action.attack>b::after,html .combat-action.rage>b::after{background-image:url(/assets/btn-ring-big-v1.webp)}
+/* Mini harita: pirinç tonu */
+html .map-cluster{background-image:url(/assets/ui-minimap-v2.webp)!important}
+/* Pencereler: sohbet, menü, görev/mesaj/etkinlik pencereleri */
+html .chat-box,html .menu-window,html .quest-log,html .daily-window,html .day-pop,html .cp-daytip,html .social-win{border:14px solid transparent!important;border-image:url(/assets/win-frame-v1.webp) 64 / 14px stretch!important;background:#140d0b!important;background-clip:padding-box!important;border-radius:0!important;box-shadow:0 12px 30px #000c!important}
+/* Sohbet sekmeleri */
+html .chat-tabs button{border:0!important;border-radius:0!important;background:url(/assets/tab-off-v1.webp) center/100% 100% no-repeat!important;color:#d9c3a0!important;padding:5px 12px!important}
+html .chat-tabs button.active{background-image:url(/assets/tab-on-v1.webp)!important;color:#2a1606!important;text-shadow:0 1px 0 #f6dc9a}
+html .combat-action>b::after{inset:-18%}
+html .combat-action.attack>b::after,html .combat-action.rage>b::after{inset:-20%}
+html .cp-top>button img,html .corner-buttons>.round-button img,html .map-cluster #openWorldMap img{width:60%!important;height:60%!important}
