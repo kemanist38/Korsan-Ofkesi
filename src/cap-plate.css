@@ -188,3 +188,8 @@ html .cap-plate.tb{width:560px!important;height:67px!important;top:4px!important
 html #toast{position:fixed!important;left:50%!important;top:78px!important;z-index:70;width:min(520px,90vw);box-sizing:border-box;text-align:center;padding:7px 16px;border:0;border-top:1px solid #c69b4e55;border-bottom:1px solid #c69b4e55;border-radius:0;background:linear-gradient(90deg,#0a060800,#160d0ee8 18%,#160d0ee8 82%,#0a060800);color:#f6e6c4;font:600 13px Inter,sans-serif;pointer-events:none}
 @media (max-width:1100px){html #toast{top:56px!important;font-size:12px}}
 @media (max-width:700px){html #toast{top:60px!important}}
+.cap-plate.tb .tb-tp .status-line b,.cap-plate.tb .tb-hp .status-line b{overflow:hidden;white-space:nowrap}
+/* SP parşömeni: yalnız değer */
+.cap-plate.tb .tb-sp{left:46.3%;width:7.4%;justify-content:center}
+.cap-plate.tb .tb-sp .status-line{display:none!important}
+.cap-plate.tb .tb-spv{font:800 7.5px Inter,sans-serif;font-style:normal;color:#4a2a0c;white-space:nowrap;letter-spacing:.02em}

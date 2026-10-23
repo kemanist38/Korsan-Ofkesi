@@ -9,7 +9,14 @@ export function setupCapPlate(o:{nick:()=>string;logout:()=>void;canLogout:()=>b
   plate.innerHTML='<div class="tb-tp"></div><div class="tb-lv"></div><div class="tb-hp"></div><div class="tb-sp"></div>';
   stats.after(plate);stats.classList.add('cp-empty');void o.nick;
   const lv=$('#level'),hp=stats.querySelector('.hp-line'),xp=stats.querySelector('.xp-line'),sp=stats.querySelector('.battle-line');
-  if(lv)plate.querySelector('.tb-lv')!.append(lv);if(hp)plate.querySelector('.tb-hp')!.append(hp);if(xp)plate.querySelector('.tb-tp')!.append(xp);if(sp)plate.querySelector('.tb-sp')!.append(sp);
+  if(lv)plate.querySelector('.tb-lv')!.append(lv);
+  // Uzun değerler (ör. 125.000.000 / 250.000.000) kutuya sığana kadar küçülür; SP parşömeninde yalnız mevcut değer yazar
+  const spv=document.createElement('em');spv.className='tb-spv';plate.querySelector('.tb-sp')!.append(spv);
+  const cv=document.createElement('canvas').getContext('2d')!;
+  const fit=()=>{for(const b of plate.querySelectorAll<HTMLElement>('.tb-tp b,.tb-hp b')){const txt=b.textContent??'',w=b.clientWidth;if(b.dataset.t===`${txt}|${w}`)continue;b.dataset.t=`${txt}|${w}`;b.style.fontSize='';
+      const cs=getComputedStyle(b),f=parseFloat(cs.fontSize);cv.font=`${cs.fontWeight} ${f}px ${cs.fontFamily}`;const need=cv.measureText(txt).width+6;if(need>w&&w>0)b.style.fontSize=`${Math.max(6,f*w/need).toFixed(1)}px`;}
+    const t=`SP ${(sp?.querySelector('b')?.textContent??'').split('/')[0].trim()}`;if(spv.textContent!==t)spv.textContent=t;};
+  fit();setInterval(fit,250);if(hp)plate.querySelector('.tb-hp')!.append(hp);if(xp)plate.querySelector('.tb-tp')!.append(xp);if(sp)plate.querySelector('.tb-sp')!.append(sp);
   // Sohbet: parşömen ikonu
   const ct=$('#chatToggle');if(ct){ct.querySelector('svg')?.remove();const im=document.createElement('img');im.src='/assets/icon-chat-v1.webp';im.alt='';im.draggable=false;ct.prepend(im);ct.classList.add('cp-chat');}
 }
