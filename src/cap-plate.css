@@ -141,3 +141,5 @@ html .combat-controls .combat-action.rage>b img{border-radius:50%}
 .captain-overlay:not(.open) *,.quest-overlay:not(.open) *{pointer-events:none!important}
 /* Savaş rütbesi (SP) kaldırıldı: profildeki rütbe madalyaları gizli */
 .rank-medals{display:none!important}
+/* SP kaldırıldı: profildeki Savaş Puanı kutusu gizli */
+article:has(>#profileBattle){display:none!important}

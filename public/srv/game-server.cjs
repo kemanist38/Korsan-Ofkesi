@@ -3836,6 +3836,7 @@ __export(game_server_exports, {
   strikesMem: () => strikesMem,
   towerHit: () => towerHit,
   tpAllowed: () => tpAllowed,
+  tpRanks: () => tpRanks,
   treasureDig: () => treasureDig,
   treasures: () => treasures,
   treaty: () => treaty,
@@ -7550,6 +7551,18 @@ function fwTick(now) {
   }
   if (fwCastDue && now - fwCastAt > 3e3) fwCast();
 }
+var tpRanks = /* @__PURE__ */ new Map();
+async function tpRefresh() {
+  const r = await rpcTry("tp_top", {});
+  if (!Array.isArray(r.data)) return;
+  tpRanks.clear();
+  r.data.forEach((u, i) => tpRanks.set(u, i + 1));
+  for (const x of all) if (x.uid) send(x, { t: "tpr", d: { rank: tpRanks.get(x.uid) ?? 0 } });
+}
+if (process.env.NODE_ENV !== "test") {
+  setTimeout(() => void tpRefresh(), 5e3).unref();
+  setInterval(() => void tpRefresh(), 6e5).unref();
+}
 loadFw();
 setInterval(() => {
   fwTick(Date.now());
@@ -7704,6 +7717,7 @@ wss.on("connection", (ws) => {
       treatyDirty = true;
       send(c, { t: "treaty", d: treatyInfo(c) });
       send(c, { t: "fw", d: fwInfo(c) });
+      send(c, { t: "tpr", d: { rank: tpRanks.get(c.uid) ?? 0 } });
       if (!qkByUid.has(c.uid)) qkByUid.set(c.uid, {});
       c.qk = qkByUid.get(c.uid);
       {
@@ -7835,7 +7849,10 @@ wss.on("connection", (ws) => {
           s.tm = c.domTeam;
           delete s.adm;
         } else delete s.tm;
-        if ("nick" in s) s.sk = c.sinks ?? 0;
+        if ("nick" in s) {
+          s.sk = c.sinks ?? 0;
+          s.tr = tpRanks.get(c.uid) ?? 0;
+        }
         c.last = { x: s.x, y: s.y, at: now };
         s.id = c.netId;
         queueState(c, s);
@@ -8367,6 +8384,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   strikesMem,
   towerHit,
   tpAllowed,
+  tpRanks,
   treasureDig,
   treasures,
   treaty,

@@ -51,6 +51,7 @@ import {setupMail} from './mail-ui';
 import {setupSocial,friendMsg,groupMsg,groupPick,friendList} from './social-ui';
 import {DUEL_MAPS} from './duel';
 import {duelMsg,duelSelect,renderDuelHud,setDuelMe,duelList,duelPartner} from './duel-ui';
+import {tpMedal,tpMedalUrl,TP_MEDALS} from './tp-rank';
 import {FW_MIN_SINKS,type FleetWarInfo} from './fleetwar';
 import {treatyMsg,openTreaty,treatyEnvoy,treatyRowHtml,TREATY_ENVOY} from './treaty-ui';
 import {TREATY_ENVOY_R} from './treaty';
@@ -77,7 +78,7 @@ type SalvoRound = { powder?:boolean; delay:number; target:Target; side:number; s
 type EnemyRole='light'|'heavy';
 // Test kaptanı: elit gemili, oyuncu gibi savaşan yapay rakip (yalnız test modunda 1/1'de)
 type Captain={elite:EliteShipId;ammo:AmmoKind;ammoClock:number;foe:Enemy|null;orbit:Vec|null;orbitClock:number};
-type Enemy = Vec & { kind:'ship'; net?:{id:string;tx:number;ty:number}; dir16?:number; remoteShip?:string; remote?:{id:string;tx:number;ty:number;vx:number;vy:number;seen:number;sp:number;tag:string|null;adm?:boolean;tm?:string;level?:number;sinks?:number}; captain?:Captain; pvp?:PvpBudget; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; shared?:string; share?:number; shareN?:number; serverDown?:boolean; lastHp?:number; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number; lastHitBy?:'player'|'captain'; siege?:boolean; commander?:boolean;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
+type Enemy = Vec & { kind:'ship'; net?:{id:string;tx:number;ty:number}; dir16?:number; remoteShip?:string; remote?:{id:string;tx:number;ty:number;vx:number;vy:number;seen:number;sp:number;tag:string|null;adm?:boolean;tm?:string;tr?:number;level?:number;sinks?:number}; captain?:Captain; pvp?:PvpBudget; frozen?:number; iso?:IsoMove|null; isoT?:Vec; face?:IsoFace; def?:NpcDef; boss?:BossDef; shared?:string; share?:number; shareN?:number; serverDown?:boolean; lastHp?:number; summoned?:boolean; escortsCalled?:boolean; burnTimer?:number; burnDps?:number; tower?:boolean; towerIndex?:number; lastHitBy?:'player'|'captain'; siege?:boolean; commander?:boolean;  hitRadius?:number; fireRange?:number; rewardXp?:number; role:EnemyRole; angle:number; hp:number; maxHp:number; cooldown:number; speed:number; damage:number; reload:number; rewardGold:number; rewardFame:number; color:string; name:string; tier:number; aggro:boolean; wander:number; slowTimer:number; homeX:number; homeY:number; combatTimer:number };
 type ParticleKind='flare'|'ember'|'glint'|'wisp'|'foam'|'smoke'|'spark'|'damage'|'flash'|'splinter'|'bubble'|'plank'|'firePuff'|'target'|'poison'|'soul'|'shock';
 // z: su üstünden yükseklik (ekranda yukarı kayar); vz ile savrulan parçalar suya düşer
 type Particle = Vec & { vx:number; vy:number; life:number; maxLife:number; kind:ParticleKind; text?:string; color?:string; z?:number; vz?:number; rot?:number; vr?:number; size?:number; variant?:number };
@@ -328,6 +329,8 @@ function escapeHtml(t:string){return t.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'
 const towerRuins=loadRuins();
 // Filo Savaşı (Cumartesi): sunucudan gelen durum, etkinlik panelinde gösterilir
 let fleetWar:FleetWarInfo|null=null;
+// TP sıralaması (sunucudan): 0 = ilk 100'de değil
+let myTpRank=0;
 let eventPanelClock=0,towersDestroyedHere=0,uiClock=0,eventPanelHtml='',combatTargetsHtml='',combatTargetsTop='';
 let mapFade=0;
 
@@ -614,7 +617,7 @@ const netHandlers:NetHandlers={
       e={kind:'ship',role:'heavy',x:n.x,y:n.y,angle:0,hp:n.hp,maxHp:n.maxHp??n.hp,cooldown:99,speed:0,damage:0,reload:99,rewardGold:0,rewardFame:0,color:'#79372f',name:n.nick,tier:8,aggro:false,wander:0,slowTimer:0,homeX:n.x,homeY:n.y,combatTimer:0,hitRadius:44,
       captain:{elite:(NET_ELITES.has(n.ship)?n.ship:'phantom') as EliteShipId,ammo:'iron',ammoClock:99,foe:null,orbit:null,orbitClock:0},remote:{id:n.id,tx:n.x,ty:n.y,vx:0,vy:0,seen:0,sp:n.sp??0,tag:n.tag??null}} as Enemy;enemies.push(e);}
     const r=e.remote!;r.tx=n.x;r.ty=n.y;r.vx=n.vx??0;r.vy=n.vy??0;r.seen=performance.now();e.hp=n.hp;e.face={east:n.east,north:n.north};e.dir16=n.d16;
-    if(n.adm!==undefined)r.adm=!!n.adm;if(n.tm!==undefined)r.tm=n.tm;if(n.sp!==undefined)r.sp=n.sp;if(n.level!==undefined)r.level=n.level;if(n.sk!==undefined)r.sinks=n.sk;if(n.maxHp!==undefined)e.maxHp=n.maxHp;if(n.tag!==undefined)r.tag=n.tag;if(n.nick!==undefined)e.name=(r.tag?`[${r.tag}]`:'')+n.nick;
+    if(n.adm!==undefined)r.adm=!!n.adm;if(n.tm!==undefined)r.tm=n.tm;if(n.sp!==undefined)r.sp=n.sp;if(n.level!==undefined)r.level=n.level;if(n.sk!==undefined)r.sinks=n.sk;if(n.tr!==undefined)r.tr=n.tr;if(n.maxHp!==undefined)e.maxHp=n.maxHp;if(n.tag!==undefined)r.tag=n.tag;if(n.nick!==undefined)e.name=(r.tag?`[${r.tag}]`:'')+n.nick;
     if(n.ship!==undefined){e.remoteShip=n.ship;e.captain!.elite=(NET_ELITES.has(n.ship)?n.ship:'phantom') as EliteShipId;}},
   leave:id=>{const e=remoteOf(id);if(e){enemies.splice(enemies.indexOf(e),1);if(selected===e){selected=null;state.attacking=false;}}},
   fire:f=>{const e=remoteOf(f.from);if(!e)return;
@@ -650,6 +653,7 @@ const netHandlers:NetHandlers={
   pm:d=>{if(d.k==='err'){toast(String(d.msg));chat.pmSystem(String(d.msg));return;}if(d.k==='msg')chat.pmReceive({peer:String(d.mine?d.to:d.from),peerNick:String(d.mine?d.tn:d.nick),who:String(d.nick),text:String(d.text),at:Number(d.at)||Date.now(),mine:!!d.mine});},
   grp:d=>groupMsg(d),
   duel:d=>duelMsg(d,toast,n=>{state.pearls=Math.max(0,state.pearls+n);session.pearlServerAdd?.(n);saveAccount();updateUI();}),
+  tpr:r=>{myTpRank=r;nameCache.clear();},
   fw:d=>{fleetWar=d;eventPanelHtml='';if(d.reward)rewardNotice(`Filo Savaşı kazanıldı · +${fmt(d.reward.pearls)} inci · +${fmt(d.reward.gold)} altın`,'battle');},
   treaty:d=>{setTreatyFx(d.fxMine?d.fx:null);treatyMsg(d);if(d.err)toast(d.err);if(d.reward)rewardNotice(`Deniz Antlaşması ödülü${d.reward.rank?` · ${d.reward.rank}. sıra`:''} · +${fmt(d.reward.pearls)} inci · +${fmt(d.reward.gold)} altın`,'gain');},
   ahp:d=>{adminEv={...d,at:performance.now()};},
@@ -1562,7 +1566,7 @@ function renderWorldMap(){
 }
 function openQuestLog(){renderQuestLog();ui('questOverlay').classList.add('open');}
 function closeQuestLog(){pendingCancel=null;ui('questOverlay').classList.remove('open');}
-function openCaptainProfile(){ui('captainTrio').innerHTML=trioHtml({level:state.level,xp:state.fame,xpNeed:xpNeed(state.level),sp:state.battlePoints,sinks:rivalSinks});renderNick();updateUI();renderBonusSummary();renderAchievements();saveAchievements(ach);ui('captainOverlay').classList.add('open');}
+function openCaptainProfile(){ui('captainTrio').innerHTML=trioHtml({level:state.level,xp:state.fame,xpNeed:xpNeed(state.level),sp:state.battlePoints,sinks:rivalSinks,tr:myTpRank});renderNick();updateUI();renderBonusSummary();renderAchievements();saveAchievements(ach);ui('captainOverlay').classList.add('open');}
 function refreshBonus(){bonus=computeBonus(crew);saveCrew(crew);renderBonusSummary();}
 function renderBonusSummary(){
   const pct=(v:number)=>`${v>=1?'+':''}${Math.round((v-1)*100)}%`;
@@ -1586,9 +1590,9 @@ let heroTitle=loadTitle();setInterval(()=>{heroTitle=loadTitle();},60000);
 function heroDamage(){return heroTitle?HERO_DAMAGE:0;}
 // Kaptan adı: kalın, altın degradeli ve koyu kahve kontürlü yazı ([TAG] ad). Oyuncu ve diğer kaptanlar aynı stili kullanır.
 // rank: savaş rütbesi sırası (BATTLE_RANKS); rozeti adın sağında, yazıdan biraz büyük çizilir
-const rankSheet=new Image();rankSheet.src=RANK_SHEET;
-function drawRankBadge(c:CanvasRenderingContext2D,rank:number,x:number,y:number,size:number){if(!rankSheet.complete||!rankSheet.naturalWidth)return false;
-  const i=rankIcon(rank),cell=rankSheet.naturalWidth/RANK_COLS;c.drawImage(rankSheet,(i%RANK_COLS)*cell,Math.floor(i/RANK_COLS)*cell,cell,cell,x,y-size/2,size,size);return true;}
+// TP sıralama madalyası (src/tp-rank.ts): adın solunda
+const tpMedalImgs=TP_MEDALS.map((_,i)=>{const im=new Image();im.src=tpMedalUrl(i);return im;});
+function drawRankBadge(c:CanvasRenderingContext2D,medal:number,x:number,y:number,size:number){const im=tpMedalImgs[medal];if(!im?.complete||!im.naturalWidth)return false;c.drawImage(im,x,y-size/2,size,size);return true;}
 // Kaptan adı (gölgeli, degrade yazı + rütbe rozeti) her karede yeniden çizilince kalabalık haritada kareyi yiyordu:
 // etiket ekran ölçeğinde bir kez ayrı tuvale çizilir, sonra tek drawImage ile basılır.
 // Rütbe rozeti boyu (yazı boyunun katı); rozet ve seviye amblemi büyük harflerin tam ortasına hizalı
@@ -1598,22 +1602,22 @@ function renderCaptainName(tag:string,nick:string,size:number,rank:number,sc:num
   const m=document.createElement('canvas').getContext('2d')!,font=`900 ${size}px Inter, "Arial Black", sans-serif`;m.font=font;
   const text=tag?`${tag} ${nick}`:nick,w=m.measureText(text).width,bs=rank>=0?Math.round(size*NAME_BADGE):0,pad=8,tw=w+(bs?bs+3:0),h=Math.max(bs,size*1.6)+pad*2;
   const c=document.createElement('canvas');c.width=Math.ceil((tw+pad*2)*sc);c.height=Math.ceil(h*sc);const g=c.getContext('2d')!;g.scale(sc,sc);
-  const y=h/2;g.font=font;g.textBaseline='alphabetic';g.textAlign='left';g.lineJoin='round';const tx=pad;if(bs)drawRankBadge(g,rank,pad+w+3,y,bs);
+  const y=h/2;g.font=font;g.textBaseline='alphabetic';g.textAlign='left';g.lineJoin='round';const tx=pad+(bs?bs+4:0);if(bs)drawRankBadge(g,rank,pad,y,bs);
   // Yönetici adı altın-kırmızı, kırmızı parıltılı
   const gr=g.createLinearGradient(0,y-size*.55,0,y+size*.55);if(adm){gr.addColorStop(0,'#ffe98a');gr.addColorStop(.45,'#ff9a1f');gr.addColorStop(1,'#d3160c');}else{gr.addColorStop(0,'#fff6c2');gr.addColorStop(.45,'#ffd34d');gr.addColorStop(1,'#d98a16');}
   g.shadowColor=adm?'#ff2a10':'#000c';g.shadowBlur=(adm?9:5)*sc;g.shadowOffsetY=1.5*sc;g.lineWidth=Math.max(3,size*.26);g.strokeStyle=adm?'#3a0503':'#2b1606';g.strokeText(text,tx,y+size*.36);
   g.shadowColor='transparent';g.fillStyle=gr;g.fillText(text,tx,y+size*.36);return{c,w,pad,h,sc};}
 function drawCaptainName(x:number,y:number,tag:string,nick:string,size=17,rank=-1,adm=false){
-  const t=ctx.getTransform(),sc=Math.min(4,Math.max(.5,Math.round(Math.hypot(t.a,t.b)*4)/4)),ready=rank<0||(rankSheet.complete&&rankSheet.naturalWidth>0);
+  const t=ctx.getTransform(),sc=Math.min(4,Math.max(.5,Math.round(Math.hypot(t.a,t.b)*4)/4)),ready=rank<0||(tpMedalImgs[rank]?.complete&&tpMedalImgs[rank].naturalWidth>0);
   const key=`${size}|${rank}|${sc}|${tag}|${nick}|${adm?1:0}`;let l=ready?nameCache.get(key):undefined;
   if(!l){l=renderCaptainName(tag,nick,size,rank,sc,adm);if(ready){if(nameCache.size>300)nameCache.clear();nameCache.set(key,l);}}
-  // Ad gemiye ortalı; rütbe rozeti adın sağına taşar
-  ctx.drawImage(l.c,x-l.w/2-l.pad,y-l.h/2,l.c.width/l.sc,l.c.height/l.sc);return l.w;}
+  // Ad gemiye ortalı; madalya adın soluna taşar
+  const bs=rank>=0?Math.round(size*NAME_BADGE):0;ctx.drawImage(l.c,x-l.w/2-(bs?bs+4:0)-l.pad,y-l.h/2,l.c.width/l.sc,l.c.height/l.sc);return l.w;}
 // Güverte nişanı: batırılan rakip sayısına göre kademe; geminin altında değil, kaptan profilinde ve oyuncu kartında büyük gösterilir
 let rivalSinks=ELITE_TEST_MODE?Math.max(loadRivalSinks(),12_500):loadRivalSinks();
 function drawPlayerLabel(){
   const p=worldToScreen(player),y=p.y+60,tag=guild?`[${guild.tag}]`:'',nick=profile.nick;
-  drawCaptainName(p.x,y,tag,nick,17,-1,session.isAdmin);
+  drawCaptainName(p.x,y,tag,nick,17,tpMedal(myTpRank),session.isAdmin);
 }
 // ---------------------------------------------------------------- Filo: hazine, bağış ve kule dikme
 function openGuild(){renderGuild();ui('guildOverlay').classList.add('open');void refreshCloudGuild();}
@@ -1970,7 +1974,7 @@ function updateUI(){
 
 let visibleCombatTargets:Target[]=[];
 function renderCombatTargets(){
-  {const e=selected as Enemy|null;setDuelMe(myNetId);groupPick(e&&e.kind==='ship'&&e.remote&&!e.remote.adm&&targetExists(e)?{nick:e.name}:null);duelSelect(e&&e.kind==='ship'&&e.remote&&!e.remote.adm&&targetExists(e)&&DUEL_MAPS.includes(currentMap)&&!siege&&!dom&&!ls&&session.account?{id:e.remote.id,nick:e.name}:null);renderDuelHud();showPlayerCard(e&&e.kind==='ship'&&e.captain&&targetExists(e)?{name:e.name,level:e.remote?.level,sp:e.remote?.sp??TEST_RANKERS.find(r=>r.nick===e.name)?.sp??0,sinks:e.remote?.sinks,adm:!!e.remote?.adm}:null);}
+  {const e=selected as Enemy|null;setDuelMe(myNetId);groupPick(e&&e.kind==='ship'&&e.remote&&!e.remote.adm&&targetExists(e)?{nick:e.name}:null);duelSelect(e&&e.kind==='ship'&&e.remote&&!e.remote.adm&&targetExists(e)&&DUEL_MAPS.includes(currentMap)&&!siege&&!dom&&!ls&&session.account?{id:e.remote.id,nick:e.name}:null);renderDuelHud();showPlayerCard(e&&e.kind==='ship'&&e.captain&&targetExists(e)?{name:e.name,level:e.remote?.level,sp:e.remote?.sp??TEST_RANKERS.find(r=>r.nick===e.name)?.sp??0,sinks:e.remote?.sinks,adm:!!e.remote?.adm,tr:e.remote?.tr}:null);}
   const targets:Target[]=[];
   const add=(target:Target|null)=>{if(target&&targetExists(target)&&!targets.includes(target))targets.push(target);};
   add(selected);enemies.forEach(enemy=>{if(enemy.aggro)add(enemy);});
@@ -2855,7 +2859,7 @@ function captainFrame(e:Enemy):[HTMLImageElement,number,number,number,number]|nu
 let crowdedSea=false;
 function drawCaptain(e:Enemy,s:Vec){const fr=captainFrame(e);if(!fr)return;const [im,sx,h,D,ky]=fr;
   if(!crowdedSea)drawHullWater(e,100);ctx.save();ctx.translate(s.x,s.y);if((e.frozen??0)>0)ctx.filter='saturate(.4) brightness(1.3) hue-rotate(160deg)';ctx.drawImage(im,sx,0,h,h,-D/2,-D*ky,D,D);ctx.restore();
-  const top=-122;if(siege&&isAlly(e))drawHealthBar(s.x,s.y+44,80,e.hp/e.maxHp,'#4fd18a');else if(dom&&e.remote?.tm)drawHealthBar(s.x,s.y+44,80,e.hp/e.maxHp,DOM_TEAMS[e.remote.tm as DomTeam]?.color??'#ccc');{drawCaptainName(s.x,s.y+top-11,'',e.name,14,-1,!!e.remote?.adm);}}
+  const top=-122;if(siege&&isAlly(e))drawHealthBar(s.x,s.y+44,80,e.hp/e.maxHp,'#4fd18a');else if(dom&&e.remote?.tm)drawHealthBar(s.x,s.y+44,80,e.hp/e.maxHp,DOM_TEAMS[e.remote.tm as DomTeam]?.color??'#ccc');{drawCaptainName(s.x,s.y+top-11,'',e.name,14,settings.hideOthersInsignia?-1:tpMedal(e.remote?.tr??0),!!e.remote?.adm);}}
 // Capture once at death, then fade the same pose without new particles or assets.
 function spawnWreck(o:Enemy){
   if(!onScreen(o,320))return;

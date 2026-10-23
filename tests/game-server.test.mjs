@@ -478,3 +478,9 @@ test('filo savaşı: cumartesi batırmalar filoya yazılır, kazanan filonun en 
   const r=S.fwFinish(sat+999);assert.equal(r.win,'1');assert.deepEqual(r.uids,['fa'],'yalnız en az 5 batıran üye');
   assert.equal(S.fw.last.name,'[A] Alfa');for(const p of [...S.pendingCredits.values()])if(p.uid==='fa')S.pendingCredits.delete(p.grant.id);
 });
+test('TP sıralama madalyası: 1 kral, 2-3 kollar, 4-20 amiral, 21-50 kaptan, 51-100 lostromo',async()=>{
+  const ts=(await import('typescript')).default,fs=await import('node:fs');
+  const code=ts.transpile(fs.readFileSync(new URL('../src/tp-rank.ts',import.meta.url),'utf8'),{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022});
+  const T=await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+  assert.deepEqual([0,1,2,3,4,20,21,50,51,100,101].map(T.tpMedal),[-1,0,1,2,3,3,4,4,5,5,-1]);
+});
