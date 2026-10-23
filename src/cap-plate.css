@@ -153,3 +153,38 @@ html #netPill{top:auto!important;bottom:auto}
 @media (max-width:700px){html #netPill{left:88px;top:32px!important}}
 .cp-daytip{position:fixed;z-index:60;max-width:260px;padding:8px 11px;border:1px solid #c9973d;border-radius:8px;background:linear-gradient(#24140bf5,#120a07f5);box-shadow:0 8px 20px #000c;color:#e9dcc2;font:12px/1.45 Inter,sans-serif}
 .cp-daytip[hidden]{display:none}.cp-daytip b{color:#ffd27a;font-size:12px}.cp-daytip p{margin:3px 0 0}.cp-daytip small{display:block;margin-top:5px;color:#c9a46a}
+/* ===== Üst bar (kılıçlı çerçeve, 2000x240 görsel) ===== */
+html .cap-plate.tb{width:560px!important;height:67px!important;top:4px!important;padding:0!important;display:block!important;background:url(/assets/hud-topbar-v1.webp) 0 0/100% 100% no-repeat!important;filter:drop-shadow(0 4px 8px #000b)}
+.cap-plate.tb>div{position:absolute;display:flex;align-items:center}
+.cap-plate.tb .tb-tp{left:13.8%;width:28.4%;top:25%;height:46%}
+.cap-plate.tb .tb-hp{left:57.8%;width:28.4%;top:25%;height:46%}
+.cap-plate.tb .tb-lv{left:47.25%;width:5.1%;top:8.5%;height:42.5%;justify-content:center;border-radius:50%;overflow:visible}
+.cap-plate.tb .tb-sp{left:46.4%;width:7.2%;top:72%;height:17%}
+.cap-plate.tb .status-line{width:100%!important;height:100%!important;gap:5px!important;padding:0 6px!important}
+.cap-plate.tb .status-line span{width:auto!important;font:800 11px Cinzel,serif!important;color:#f3d496!important;letter-spacing:.04em}
+.cap-plate.tb .status-line>i{height:62%!important;border-radius:4px!important;border-color:#6b4a26!important}
+.cap-plate.tb .status-line b{inset:0 0 0 0!important;font:800 10px Inter,sans-serif!important;line-height:1!important}
+.cap-plate.tb .tb-hp .status-line{flex-direction:row-reverse}.cap-plate.tb .tb-hp .status-line>i>em{left:0}
+.cap-plate.tb .tb-tp .status-line>i>em{background:linear-gradient(90deg,#56229a,#b15aff)!important}
+.cap-plate.tb .tb-hp .status-line>i>em{background:linear-gradient(90deg,#8e1717,#e04a2e)!important}
+.cap-plate.tb .tb-sp .status-line{padding:0!important;gap:3px!important}
+.cap-plate.tb .tb-sp .status-line span{font-size:7px!important;color:#5a3412!important;text-shadow:none!important}
+.cap-plate.tb .tb-sp .status-line>i{height:55%!important;border-color:#7a5530!important}
+.cap-plate.tb .tb-sp .status-line>i>em{background:linear-gradient(90deg,#2a4fb8,#5f8bff)!important}
+.cap-plate.tb .tb-sp .status-line b{font-size:6.5px!important;inset:0!important}
+.cap-plate.tb .tb-lv #level{position:relative!important;inset:auto!important;left:auto!important;top:auto!important;transform:none!important;margin:0!important;display:grid!important;place-items:end center;width:118%!important;height:118%!important;flex:none;border:0!important;border-radius:0!important;background-color:transparent!important;background-image:url(/assets/level-badges-v2.webp)!important;background-size:800% 100%!important;background-repeat:no-repeat!important;color:#fff4d0!important;font:900 11px Cinzel,serif!important;text-shadow:0 1px 2px #000,0 0 3px #000;padding-bottom:5%;box-shadow:none!important;filter:drop-shadow(0 2px 3px #000a)}
+.cap-plate.tb .tb-lv #level::before,.cap-plate.tb .tb-lv #level::after{content:none!important}
+@media (max-width:1100px){html .cap-plate.tb{transform:translateX(-50%) scale(.7)!important;transform-origin:50% 0!important}}
+@media (max-width:700px){html .cap-plate.tb{left:50%!important;right:auto!important;top:auto!important;bottom:auto;transform:translateX(-50%) scale(.62)!important;top:calc(100dvh - 60px)!important}}
+.cap-plate.tb .tb-tp .status-line b{inset:0 6px 0 34px!important}.cap-plate.tb .tb-hp .status-line b{inset:0 34px 0 6px!important}
+.cap-plate.tb .tb-sp{left:46.6%;width:6.8%;top:73%;height:15%}
+.cap-plate.tb .tb-sp .status-line span{font-size:6.5px!important}
+.cap-plate.tb .tb-sp .status-line>i{height:70%!important}
+.cap-plate.tb .tb-sp .status-line b{inset:0 0 0 12px!important;font-size:6px!important}
+@media (max-width:700px){html .cap-plate.tb{transform:translateX(-50%) scale(.5)!important;top:calc(100dvh - 40px)!important}}
+.cap-plate.tb .tb-lv #level{width:128%!important;height:128%!important}
+@media (max-width:700px){html .cap-plate.tb{transform:translateX(-50%) scale(.46)!important}}
+/* Bildirimler üst barın hemen altında, ortada ince şerit */
+html #toast{position:fixed!important;left:50%!important;top:78px!important;z-index:70;width:min(520px,90vw);box-sizing:border-box;text-align:center;padding:7px 16px;border:0;border-top:1px solid #c69b4e55;border-bottom:1px solid #c69b4e55;border-radius:0;background:linear-gradient(90deg,#0a060800,#160d0ee8 18%,#160d0ee8 82%,#0a060800);color:#f6e6c4;font:600 13px Inter,sans-serif;pointer-events:none}
+@media (max-width:1100px){html #toast{top:56px!important;font-size:12px}}
+@media (max-width:700px){html #toast{top:60px!important}}

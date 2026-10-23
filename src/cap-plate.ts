@@ -1,17 +1,15 @@
-// Kaptan plakası: üst çerçevenin ortasından sarkan plaka; solda seviye amblemi (yuvarlak, altın halkalı), sağda kaptan adı,
-// SP, can (HP) ve TP çubukları. Çubuklar ve amblem oyunun kendi öğeleridir (kimlikleri aynı), yalnız yeni kutuya taşınır.
+// Üst bar: kılıçlı çerçeve; solda TP, ortada seviye rozeti, sağda HP, ortadaki parşömende SP. Çubuklar ve amblem oyunun kendi öğeleridir (kimlikleri aynı), yalnız yeni kutuya taşınır.
 // Sohbet düğmesi parşömen; özel mesajlar sohbetin Özel sekmesinde (mühürlü mektup ikonu).
 import './cap-plate.css';
 const $=<T extends HTMLElement=HTMLElement>(s:string)=>document.querySelector<T>(s);
 export function setupCapPlate(o:{nick:()=>string;logout:()=>void;canLogout:()=>boolean}){
   setupSideButtons();setupMenuSpy();setupMenuLogout(o);setupMapExpand();
   const stats=$('.strip-stats');if(!stats)return;
-  const plate=document.createElement('div');plate.className='cap-plate';
-  plate.innerHTML='<div class="cp-socket"></div><div class="cp-info"><div class="cp-row"><b class="cp-nick"></b><span class="cp-sp"></span></div><div class="cp-hp"></div><div class="cp-tp"></div></div>';
-  stats.after(plate);stats.classList.add('cp-empty');
+  const plate=document.createElement('div');plate.className='cap-plate tb';
+  plate.innerHTML='<div class="tb-tp"></div><div class="tb-lv"></div><div class="tb-hp"></div><div class="tb-sp"></div>';
+  stats.after(plate);stats.classList.add('cp-empty');void o.nick;
   const lv=$('#level'),hp=stats.querySelector('.hp-line'),xp=stats.querySelector('.xp-line'),sp=stats.querySelector('.battle-line');
-  if(lv)plate.querySelector('.cp-socket')!.append(lv);if(hp)plate.querySelector('.cp-hp')!.append(hp);if(xp)plate.querySelector('.cp-tp')!.append(xp);if(sp)plate.querySelector('.cp-sp')!.append(sp);
-  const nick=plate.querySelector<HTMLElement>('.cp-nick')!;const setNick=()=>{const n=o.nick();if(nick.textContent!==n)nick.textContent=n;};setNick();setInterval(setNick,2000);
+  if(lv)plate.querySelector('.tb-lv')!.append(lv);if(hp)plate.querySelector('.tb-hp')!.append(hp);if(xp)plate.querySelector('.tb-tp')!.append(xp);if(sp)plate.querySelector('.tb-sp')!.append(sp);
   // Sohbet: parşömen ikonu
   const ct=$('#chatToggle');if(ct){ct.querySelector('svg')?.remove();const im=document.createElement('img');im.src='/assets/icon-chat-v1.webp';im.alt='';im.draggable=false;ct.prepend(im);ct.classList.add('cp-chat');}
 }
