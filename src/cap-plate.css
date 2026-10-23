@@ -122,3 +122,14 @@ html .info-strip::before,html .info-strip::after{content:none!important}
 .map-cluster.cp-side.mm-big{scale:1.4}
 .map-cluster.cp-side.cp-side.cp-side:not(.mm-big) #openWorldMap{display:none!important}
 .map-cluster.cp-side #minimap{cursor:zoom-in}.map-cluster.cp-side.mm-big #minimap{cursor:crosshair}
+/* Mini harita sol üst köşede (soldan ve üstten eşit boşluk); koordinat kutusu altında, kısayollar sağında, bağlantı rozeti kısayolların altında */
+html .map-cluster.cp-side{left:10px!important;top:10px!important;margin:0!important}
+html .map-cluster.cp-side #coordGo{top:236px!important}
+html #netPill{position:fixed!important;z-index:46}
+@media (min-width:1101px){.cp-top{left:172px!important;top:10px!important}html #netPill{left:172px;top:72px}.map-cluster.cp-side.cp-side.cp-side .day-pop{left:172px!important;top:96px!important}}
+@media (min-width:701px) and (max-width:1100px){.cp-top{left:146px!important;top:10px!important}html #netPill{left:146px;top:44px}.map-cluster.cp-side.cp-side.cp-side .day-pop{left:146px!important;top:68px!important}}
+@media (max-width:700px){html .hud>.coord-go{left:10px!important;top:100px!important}.cp-top{left:10px!important;top:134px!important}html #netPill{left:96px;top:12px}.map-cluster.cp-side.cp-side.cp-side .day-pop{left:10px!important;top:172px!important}}
+/* .hud üst şerit kadar aşağıda ve telefonda küçültülmüş başlar; çerçevenin üst boşluğu sol boşluğuna eşit olsun */
+html .map-cluster.cp-side{top:-14px!important}
+@media (min-width:701px) and (max-width:1100px){html .map-cluster.cp-side{top:-20px!important}}
+@media (max-width:700px){html .map-cluster.cp-side{top:-38px!important}html .hud>.coord-go{top:132px!important}.cp-top{top:122px!important}.map-cluster.cp-side.cp-side.cp-side .day-pop{top:160px!important}}
