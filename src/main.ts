@@ -1608,7 +1608,7 @@ function drawCaptainName(x:number,y:number,tag:string,nick:string,size=17,rank=-
 // Güverte nişanı: batırılan rakip sayısına göre kademe; geminin altında değil, kaptan profilinde ve oyuncu kartında büyük gösterilir
 let rivalSinks=ELITE_TEST_MODE?Math.max(loadRivalSinks(),12_500):loadRivalSinks();
 // Adın sağındaki küçük seviye amblemi
-const levelSheet=new Image();levelSheet.src='/assets/level-badges-v1.webp';
+const levelSheet=new Image();levelSheet.src='/assets/level-badges-v2.webp';
 function drawLevelMark(x:number,y:number,level:number,size:number){if(!levelSheet.complete||!levelSheet.naturalWidth)return;const i=Math.max(1,Math.min(MAX_LEVEL,level))-1,fw=levelSheet.naturalWidth/8;
   ctx.save();ctx.imageSmoothingQuality='high';ctx.shadowColor='#000c';ctx.shadowBlur=4;ctx.drawImage(levelSheet,i*fw,0,fw,levelSheet.naturalHeight,x-size/2,y-size/2,size,size);ctx.restore();}
 function drawPlayerLabel(){
