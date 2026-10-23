@@ -25,7 +25,8 @@ function setupSideButtons(){const cl=$('.map-cluster');if(!cl)return;cl.classLis
   const badge=$<HTMLButtonElement>('.map-cluster .day-badge'),pop=$('.map-cluster .day-pop');
   // Kısayollar sağ üstte tek sıra
   const row=document.createElement('div');row.className='cp-top';document.body.append(row);
-  for(const q of ['#openQuestTop','.grp-btn','.fr-btn','.arena-button']){const b=$(q);if(b)row.append(b);}
+  for(const q of ['#openQuestTop','.grp-btn','.fr-btn','.arena-button','#openShop','#openMenu']){const b=$(q);if(b)row.append(b);}
+  for(const [q,t] of [['#openShop','MARKET'],['#openMenu','MENÜ']] as const){const b=$(q);if(b&&!b.querySelector('span')){const sp=document.createElement('span');sp.textContent=t;b.append(sp);}}
   // Etkinlik penceresi: mini haritanın sağındaki kısa etkinlik yazısının altında açılır
   if(pop&&badge){document.body.append(pop);pop.classList.add('cp-pop');
     new MutationObserver(()=>{if(!pop.classList.contains('open'))return;const r=badge.getBoundingClientRect();pop.style.left=`${Math.round(r.left)}px`;pop.style.top=`${Math.round(r.bottom+6)}px`;}).observe(pop,{attributes:true,attributeFilter:['class']});}

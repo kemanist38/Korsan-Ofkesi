@@ -4,8 +4,8 @@ export type ArsenalStock={fire:number;grape:number;mine:number;powder:number;shi
 
 export const ABILITIES:Record<AbilityId,{name:string;key:string;duration:number;cooldown:number;description:string;icon:string}>={
   // Hız İksiri: sayaçlı sarf malzemesi; her içişte 1 adet harcanır, etkisi sürerken yeniden içilemez
-  speed:{name:'Hız İksiri',key:'Z',duration:1.5,cooldown:30,description:'İçince 1,5 saniye boyunca azami hız %55 artar; tekrar içmek için 30 saniye beklenir. Her kullanımda 1 adet harcar.',icon:'/assets/speed-potion-v3.webp'},
-  mine:{name:'Deniz Mayını',key:'C',duration:40,cooldown:30,description:'Kıç tarafına mayın bırakır; yaklaşan düşmanlara alan hasarı verir. Yeni mayın için 30 saniye beklenir.',icon:'/assets/mine-v3.webp'}
+  speed:{name:'Hız İksiri',key:'Z',duration:1.5,cooldown:30,description:'İçince 1,5 saniye boyunca azami hız %55 artar; tekrar içmek için 30 saniye beklenir. Her kullanımda 1 adet harcar.',icon:'/assets/icon-speed-potion-v2.webp'},
+  mine:{name:'Deniz Mayını',key:'C',duration:40,cooldown:30,description:'Kıç tarafına mayın bırakır; yaklaşan düşmanlara alan hasarı verir. Yeni mayın için 30 saniye beklenir.',icon:'/assets/icon-mine-v2.webp'}
 };
 export const SPEED_BOOST=1.55;
 // Görüş: mini haritada gemi çevresinde herkes için aynı sabit mesafe (bonuslarla değişmez); dışı sislidir.
@@ -57,7 +57,7 @@ export const ELITE_MAX_LEVEL=15;
 export const questEp=(tier:number)=>300*tier,bossEp=(tier:number)=>7500*tier;
 export const eliteLevelEp=(level:number)=>ELITE_EP[Math.max(1,Math.min(ELITE_MAX_LEVEL,level))];
 export const eliteLevelFromEp=(ep:number)=>{let l=1;while(l<ELITE_MAX_LEVEL&&ep>=eliteLevelEp(l+1))l++;return l;};
-export const MINE={armSeconds:1,triggerRadius:46,blastRadius:95,baseDamage:4000,damagePerLevel:400,maxActive:5,icon:'/assets/mine-v3.webp'};
+export const MINE={armSeconds:1,triggerRadius:46,blastRadius:95,baseDamage:4000,damagePerLevel:400,maxActive:5,icon:'/assets/icon-mine-v2.webp'};
 
 // Dükkân birim fiyatları (altın). Oyuncu istediği adedi yazar; toplam = adet × birim fiyat.
 // Demir gülle altınla satılır ve ucuzdur (IRON_PRICE), artık sınırsız değildir; diğer bütün gülleler (zincir dahil) inciyle alınır ve EP verir; inci fiyatı sırasıyla artar.

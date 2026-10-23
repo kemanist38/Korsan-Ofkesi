@@ -37,7 +37,7 @@ export const LS_ITEMS:Record<LsItem,{name:string;qty:number;icon:string;weight:n
   explosive:{name:'Patlayıcı Gülle',qty:315*2,icon:'/assets/ammo-explosive-v2.webp',weight:2},
   powder:{name:'Kara Barut',qty:6,icon:'/assets/icon-powder-v4.webp',weight:2},
   shield:{name:'Kalkan',qty:8,icon:'/assets/icon-shield-v3.webp',weight:2},
-  speed:{name:'Hız İksiri',qty:1,icon:'/assets/speed-potion-v3.webp',weight:1},
+  speed:{name:'Hız İksiri',qty:1,icon:'/assets/icon-speed-potion-v2.webp',weight:1},
 };
 export const LS_ITEM_KEYS=Object.keys(LS_ITEMS) as LsItem[];
 export const LS_ITEM_MAX=26,LS_ITEM_RESPAWN_MS=2500,LS_PICK_R=46,LS_SPEED_MS=1500,LS_SPEED_BOOST=1.45;
