@@ -2,6 +2,7 @@
 // kaptanları) ile kurulur; sunucu bağlandığında aynı tablolar bütün oyuncuların kayıtlarıyla doldurulacak.
 import {LEVEL_XP} from './campaign';
 
+// sp: batırılan rakip kaptan sayısı (eski savaş puanı alanı)
 export type RankPlayer={nick:string;tag:string|null;fleet:string|null;level:number;xp:number;ep:number;sp:number;npc:number;monster:number;boss:number;treasure:number;me?:boolean};
 export type RankFleet={tag:string;name:string;members:RankPlayer[];me?:boolean};
 export type BoardId='xp'|'ep'|'sp'|'boss'|'monster'|'npc'|'treasure'|'fleetXp'|'fleetSp';
@@ -9,12 +10,12 @@ export type Board={id:BoardId;name:string;unit:string;fleet:boolean;desc:string}
 export const BOARDS:Board[]=[
   {id:'xp',name:'Oyuncu Tecrübe',unit:'TP',fleet:false,desc:'Toplam kazanılan tecrübe puanı'},
   {id:'ep',name:'Elit Puan',unit:'EP',fleet:false,desc:'Toplam elit puan'},
-  {id:'sp',name:'Oyuncu Savaş Puanı',unit:'SP',fleet:false,desc:'Rakip kaptan batırarak kazanılan savaş puanı'},
+  {id:'sp',name:'Oyuncu Avcıları',unit:'batırma',fleet:false,desc:'Batırılan rakip kaptan sayısı'},
   {id:'boss',name:'Boss Avcıları',unit:'boss',fleet:false,desc:'Batırılan harita bossu'},
   {id:'npc',name:'Deniz Kurtları',unit:'gemi',fleet:false,desc:'Batırılan NPC gemisi'},
   {id:'treasure',name:'Define Avcıları',unit:'define',fleet:false,desc:'Kazılan hazine'},
   {id:'fleetXp',name:'Filo Tecrübe',unit:'TP',fleet:true,desc:'Filo üyelerinin toplam tecrübe puanı'},
-  {id:'fleetSp',name:'Filo Savaş Puanı',unit:'SP',fleet:true,desc:'Filo üyelerinin toplam savaş puanı'},
+  {id:'fleetSp',name:'Filo Avcıları',unit:'batırma',fleet:true,desc:'Filo üyelerinin batırdığı toplam rakip kaptan'},
 ];
 // Seviye atlarken TP sıfırlandığı için sıralama toplam TP'yi kullanır: geçilen seviyelerin eşikleri + mevcut TP
 export const totalXp=(level:number,xp:number)=>LEVEL_XP.slice(1,Math.max(1,level)).reduce((t,v)=>t+v,0)+Math.max(0,xp);
