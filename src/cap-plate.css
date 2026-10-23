@@ -240,3 +240,7 @@ html .chat-tabs button.active{background-image:url(/assets/tab-on-v1.webp)!impor
 html .combat-action>b::after{inset:-18%}
 html .combat-action.attack>b::after,html .combat-action.rage>b::after{inset:-20%}
 html .cp-top>button img,html .corner-buttons>.round-button img,html .map-cluster #openWorldMap img{width:60%!important;height:60%!important}
+html .cp-top>button img,html .corner-buttons>.round-button img,html .map-cluster #openWorldMap img{width:74%!important;height:74%!important;object-fit:contain!important;border-radius:0!important;filter:drop-shadow(0 2px 2px #000a)}
+html .cp-top>button,html .corner-buttons>.round-button,html .map-cluster #openWorldMap{background-color:#120c0a!important;background-clip:padding-box}
+html .combat-action>b img{object-fit:contain!important;width:78%!important;height:78%!important;filter:drop-shadow(0 2px 2px #000a)}
+.daily-day li span{white-space:nowrap;font-size:11px}
