@@ -260,3 +260,7 @@ html .cp-top>button,html .corner-buttons>.round-button,html .map-cluster #openWo
 #chatToggle.cp-chat{background:url(/assets/btn-ring-v1.webp) center/100% 100% no-repeat,radial-gradient(circle at 45% 35%,#2a1a12,#120c0a 62%)!important;border-radius:50%!important;width:52px!important;height:52px!important;display:grid!important;place-items:center}
 #chatToggle.cp-chat img{width:52%!important;height:52%!important;filter:drop-shadow(0 1.5px 1px #000c)}
 #menuEvents img{width:40px!important;height:40px!important}
+/* Korsan Öfkesi: Saldır gibi kırmızı küre çerçeve; dolum halkası çerçevenin içinde */
+html .combat-controls .combat-action.rage{background:url(/assets/ui-orb-red-v1.webp) center/100% 100% no-repeat!important;width:70px!important;height:70px!important}
+html .combat-controls .combat-action.rage>b{inset:15%!important;padding:3px;box-sizing:border-box;background:conic-gradient(#ff5a14 calc(var(--rage,0)*360deg),#2a1410 0)!important}
+html .combat-controls .combat-action.rage>b img{border-radius:50%}
