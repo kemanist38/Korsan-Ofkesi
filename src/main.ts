@@ -1936,7 +1936,7 @@ let levelUpTimer=0;
 function showLevelUp(level:number){
   let el=document.getElementById('levelUpSplash');
   if(!el){el=document.createElement('div');el.id='levelUpSplash';el.className='levelup-splash';document.body.append(el);el.onclick=()=>el!.classList.remove('open');}
-  el.innerHTML=`<div class="lu-rays"></div><div class="lu-card"><i class="lu-badge" style="background-position:${(Math.min(MAX_LEVEL,level)-1)/7*100}% 0"></i><span>YENİ SEVİYE</span><h2>SEVİYE ${level}</h2><p>+${(playerBaseHp(level,0)-playerBaseHp(level-1,0)).toLocaleString('tr-TR')} gövde · +1 uzmanlık puanı · yeni denizler açıldı</p><p class="lu-gift"><img src="/assets/icon-pearl-v1.webp" alt=""/>+${fmt(levelGift(level).pearls)} İnci <img src="/assets/ammo-fire-v2.webp" alt=""/>+${fmt(levelGift(level).fire)} Ateş Güllesi</p></div>`;
+  el.innerHTML=`<div class="lu-rays"></div><div class="lu-card"><i class="lu-badge" style="background-position:${(Math.min(MAX_LEVEL,level)-1)/7*100}% 0"><b>${Math.min(MAX_LEVEL,level)}</b></i><span>YENİ SEVİYE</span><h2>SEVİYE ${level}</h2><p>+${(playerBaseHp(level,0)-playerBaseHp(level-1,0)).toLocaleString('tr-TR')} gövde · +1 uzmanlık puanı · yeni denizler açıldı</p><p class="lu-gift"><img src="/assets/icon-pearl-v1.webp" alt=""/>+${fmt(levelGift(level).pearls)} İnci <img src="/assets/ammo-fire-v2.webp" alt=""/>+${fmt(levelGift(level).fire)} Ateş Güllesi</p></div>`;
   el.classList.remove('open');void el.offsetWidth;el.classList.add('open');
   {const b=ui('level');b.classList.remove('lv-up');void b.offsetWidth;b.classList.add('lv-up');setTimeout(()=>b.classList.remove('lv-up'),2500);}
   clearTimeout(levelUpTimer);levelUpTimer=window.setTimeout(()=>el!.classList.remove('open'),3800);

@@ -1,5 +1,5 @@
 /* Kaptan kimliği: seviye amblemi, rütbe madalyası, güverte nişanı */
-.cc-level{display:inline-block;flex:none;aspect-ratio:1;background:url(/assets/level-badges-v1.webp) no-repeat;background-size:800% 100%;filter:drop-shadow(0 2px 4px #000c)}
+.cc-level{display:inline-block;flex:none;aspect-ratio:1;background:url(/assets/level-badges-v3.webp) no-repeat;background-size:800% 100%;filter:drop-shadow(0 2px 4px #000c)}
 .cc-rank{display:inline-block;flex:none;aspect-ratio:1;background-repeat:no-repeat;filter:drop-shadow(0 2px 4px #000c)}
 .cc-insignia{display:inline-block;flex:none;aspect-ratio:512/176;background-repeat:no-repeat;background-size:100% 500%;filter:drop-shadow(0 2px 4px #000c)}
 .cc-level.mid,.cc-rank.mid{width:44px}.cc-insignia.card{width:96px}

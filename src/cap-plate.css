@@ -43,7 +43,7 @@ html .cap-plate.tb{position:absolute;left:50%;top:0!important;z-index:3;display:
 .cap-plate.tb .status-line b{position:absolute!important;inset:0 4px!important;display:grid!important;place-items:center;font:800 10px Inter,sans-serif!important;line-height:1!important;text-shadow:var(--shadow-txt);white-space:nowrap;overflow:hidden;pointer-events:none}
 /* Seviye rozeti */
 .cap-plate.tb .tb-lv #level{position:relative!important;inset:auto!important;transform:none!important;margin:0!important;display:grid!important;place-items:end center;width:112%!important;height:112%!important;flex:none;padding-bottom:5%;
-  border:0!important;border-radius:0!important;box-shadow:none!important;background-color:transparent!important;background-image:url(/assets/level-badges-v2.webp)!important;background-size:800% 100%!important;background-repeat:no-repeat!important;
+  border:0!important;border-radius:0!important;box-shadow:none!important;background-color:transparent!important;background-image:url(/assets/level-badges-v3.webp)!important;background-size:800% 100%!important;background-repeat:no-repeat!important;
   color:#fff4d0!important;font:900 12px Cinzel,serif!important;text-shadow:var(--shadow-txt);filter:drop-shadow(0 2px 3px #000a)}
 .cap-plate.tb .tb-lv #level::before,.cap-plate.tb .tb-lv #level::after{content:none!important}
 /* Ekran boyutuna göre ölçek */
@@ -143,3 +143,8 @@ html .combat-controls .combat-action.rage>b img{border-radius:50%}
 .rank-medals{display:none!important}
 /* SP kaldırıldı: profildeki Savaş Puanı kutusu gizli */
 article:has(>#profileBattle){display:none!important}
+/* Yeni level mühürleri (level-badges-v3): rakam mührün alt kısmına yazılır */
+.cc-level,.lu-badge{position:relative;display:inline-grid;place-items:end center}
+.cc-level>b,.lu-badge>b{font:900 0.9em/1 Cinzel,serif;color:#fff4d0;text-shadow:0 1px 2px #000,0 0 4px #000;padding-bottom:6%}
+.cc-level>b{font-size:max(9px,22cqw)}.cc-level{container-type:inline-size}
+.lu-badge{container-type:inline-size}.lu-badge>b{font-size:22cqw}
