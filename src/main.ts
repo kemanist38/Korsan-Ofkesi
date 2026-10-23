@@ -29,7 +29,7 @@ import {supa} from './supabase';
 import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
 import {loadLevelQuest,saveLevelQuest,levelQuestDone,levelQuestKill,levelQuestGoal,needsLevelQuest,levelQuestMap} from './level-quest';
 import {SPY_COST,SPY_SHIELD_PRICE,loadSpy,sendSpy,type SpyRival} from './spy';
-import {sendPm,sendDied,sendReport,sendLs,sendDom,netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,sendSalvo,sendUse,sendQuestDone,sendChest,sendDig,sendSparkle,sendNpcHits,sendLoadout,sendAttack,type NetNpc,type NetLootSpots,type NetTreasure,type NetDig,type NetLoot,type NetSiegeEnd,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
+import {sendFriend,sendPm,sendDied,sendReport,sendLs,sendDom,netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,sendSalvo,sendUse,sendQuestDone,sendChest,sendDig,sendSparkle,sendNpcHits,sendLoadout,sendAttack,type NetNpc,type NetLootSpots,type NetTreasure,type NetDig,type NetLoot,type NetSiegeEnd,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
 import {AUCTION_MS,loadAuction,saveAuction,emptyAuction,auctionHour,auctionEnds,lotsFor,minNextBid,applyBid,wonLots,auctionId,type LotDef,type Bid} from './auction';
 import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,claimReward,GRADUATE_LEVEL,MAX_APPRENTICES,TOGETHER_XP_BONUS,APPRENTICE_MAX_LEVEL} from './mentorship';
 import {loadRivalSinks,saveRivalSinks} from './insignia';
@@ -47,6 +47,7 @@ import {SIEGE_MS,HERO_DAMAGE,WALL_TOWERS,INNER_TOWERS,gateOf,gateLeft,siegeWindo
 import {dayEvent,spMult,xpMult,epMult,goldMult,bossKillsNeeded,setTreatyFx,treatyDmgMult} from './events';
 import {infoTip} from './info-tip';
 import {setupCapPlate} from './cap-plate';
+import {setupMail} from './mail-ui';
 import {setupSocial,friendMsg,groupMsg,groupPick,friendList} from './social-ui';
 import {DUEL_MAPS} from './duel';
 import {duelMsg,duelSelect,renderDuelHud,setDuelMe,duelList,duelPartner} from './duel-ui';
@@ -319,7 +320,8 @@ let buildType:TowerType='cannon';
 let focusedFoundation:string|null=null;
 const profile=loadProfile();
 const chat=setupChat(()=>({nick:profile.nick,tag:guild?.tag??null,adm:session.isAdmin}),(tab,who,text)=>{const g=/^\/git\s+(\d\/\d)$/i.exec(text.trim());if(session.isAdmin&&g){adminTeleport(g[1]);return;}if(tab==='global')sendChat({nick:who,text,at:Date.now()});},(nick,why)=>{if(!session.account){toast('Bildirim için giriş yapmalısın');return;}sendReport(nick,why);},
-  {friends:()=>friendList().filter(f=>f.ok).map(f=>({id:f.id,nick:f.nick,on:f.on})),send:(id,text)=>sendPm(id,text)});
+  {friends:()=>friendList().filter(f=>f.ok).map(f=>({id:f.id,nick:f.nick,on:f.on})),send:(id,text)=>sendPm(id,text),openBox:()=>mail.open()});
+const mail=setupMail({friends:()=>friendList().filter(f=>f.ok).map(f=>({id:f.id,nick:f.nick})),toast:t=>toast(t),onUnread:n=>chat.setMailUnread(n),loadFriends:()=>sendFriend('list')});
 function escapeHtml(t:string){return t.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));}
 // HUD 10 Hz güncellenir; DOM yalnız içerik değişince yazılır (her karede yeniden kurmak donmaya yol açıyordu)
 const towerRuins=loadRuins();
@@ -420,9 +422,8 @@ dayEventEl.onclick=e=>{e.stopPropagation();renderDayPop();dayPop.classList.toggl
 addEventListener('pointerdown',e=>{if(!dayPop.contains(e.target as Node)&&e.target!==dayEventEl)dayPop.classList.remove('open');});
 let dayEventText='';
 function renderDayPop(){const today=dayEvent()?.id,w=siegeWindow(),join=w.open||ELITE_TEST_MODE;
-  dayPop.innerHTML=`<h4>HAFTALIK ETKİNLİKLER</h4><ul>${[1,2,3,4,5,6,0].map(d=>{const ev=dayEvent(new Date(2026,9,4+d));return ev?`<li class="${ev.id===today?'on':''}"><b>${ev.day}</b><span>${ev.name}</span><small>${ev.desc}</small></li>`:'';}).join('')}</ul>${join?`<button data-siege-join>${w.open?'KUŞATMAYA KATIL':'TEST · KUŞATMA'}</button>`:''}<button data-dom-join>⚔ ARENA</button>${today==='treaty'?'<button data-treaty>📜 DENİZ ANTLAŞMASI</button>':''}`;
+  dayPop.innerHTML=`<h4>HAFTALIK ETKİNLİKLER</h4><ul>${[1,2,3,4,5,6,0].map(d=>{const ev=dayEvent(new Date(2026,9,4+d));return ev?`<li class="${ev.id===today?'on':''}"><b>${ev.day}</b><span>${ev.name}</span><small>${ev.desc}</small></li>`:'';}).join('')}</ul>${join?`<button data-siege-join>${w.open?'KUŞATMAYA KATIL':'TEST · KUŞATMA'}</button>`:''}${today==='treaty'?'<button data-treaty>📜 DENİZ ANTLAŞMASI</button>':''}`;
   {const t=dayPop.querySelector('[data-treaty]') as HTMLButtonElement|null;if(t)t.onclick=()=>{dayPop.classList.remove('open');openTreaty();};}
-  {const d=dayPop.querySelector('[data-dom-join]') as HTMLButtonElement|null;if(d)d.onclick=()=>{dayPop.classList.remove('open');openArenaModes();};}
   const b=dayPop.querySelector('[data-siege-join]') as HTMLButtonElement|null;if(b)b.onclick=()=>{dayPop.classList.remove('open');enterSiege();};}
 function renderDayEvent(force=false){const ev=dayEvent(),w=siegeWindow();
   const t=ev?`${DAY_SHORT[ev.id]}${ev.id==='siege'&&w.open?' · AÇIK':''}`:'Etkinlik';
@@ -501,7 +502,7 @@ ui('recenterShip').onclick=recenterShip;{// Üst çerçeve: solda casus, ortada 
   placeCoord();addEventListener('resize',placeCoord);
   const arena=document.createElement('button');arena.className='world-map-button arena-button';arena.setAttribute('aria-label','Arena');arena.innerHTML='<img src="/assets/arena-icon-v1.webp" alt="" draggable="false"/><span>ARENA</span>';
   arena.onclick=()=>openArenaModes();cluster.append(arena);
-  setupSocial({uid:()=>session.account?.uid??'',openPm:(id,nick)=>chat.openPm(id,nick),toast});
+  setupSocial({uid:()=>session.account?.uid??'',openPm:id=>mail.compose(id),toast});
   setupCapPlate({nick:()=>profile.nick,logout:()=>{closeMenu();requestLogout();},canLogout:()=>!!session.logout});}
   // Altın ve inci: üst çerçeveden alınıp mağaza/tersane sekmelerinin sol başına (menü açıkken görünür)
   {const res=document.querySelector('.strip-res');if(res){res.classList.add('tabs-res');ui('shopTabs').prepend(res);}}{const rc=ui('recenterShip');rc.className='combat-action recenter-btn';rc.innerHTML='<b><svg viewBox="0 0 48 48" width="70%" height="70%" aria-hidden="true"><g fill="none" stroke="#ffe09b" stroke-width="3" stroke-linecap="round"><circle cx="24" cy="24" r="12"/><circle cx="24" cy="24" r="4" fill="#ffe09b"/><path d="M24 4v40M4 24h40M9.9 9.9l28.2 28.2M38.1 9.9 9.9 38.1"/></g><g fill="#ffe09b"><circle cx="24" cy="4" r="2.6"/><circle cx="24" cy="44" r="2.6"/><circle cx="4" cy="24" r="2.6"/><circle cx="44" cy="24" r="2.6"/><circle cx="9.9" cy="9.9" r="2.6"/><circle cx="38.1" cy="38.1" r="2.6"/><circle cx="38.1" cy="9.9" r="2.6"/><circle cx="9.9" cy="38.1" r="2.6"/></g></svg></b><span>GEMİ</span>';rc.title='Gemiyi ortala';ui('combatControls').appendChild(rc);}
@@ -641,7 +642,8 @@ const netHandlers:NetHandlers={
   muted:left=>{const t=left>=86_400_000?`${Math.ceil(left/86_400_000)} gün`:left>=3_600_000?`${Math.ceil(left/3_600_000)} saat`:`${Math.ceil(left/60_000)} dakika`;chat.system(`Sohbet cezan var · ${t} sonra yazabilirsin (Oyun Kuralları)`);toast(`Sohbet cezası: ${t}`);},
   reported:()=>{toast('Bildirimin yönetime iletildi, teşekkürler');},
   ls:d=>onLsNet(d),
-  fr:d=>{friendMsg(d);chat.refresh();},
+  fr:d=>{friendMsg(d);chat.refresh();mail.rerender();},
+  mail:d=>mail.onMsg(d),
   pm:d=>{if(d.k==='err'){toast(String(d.msg));chat.pmSystem(String(d.msg));return;}if(d.k==='msg')chat.pmReceive({peer:String(d.mine?d.to:d.from),peerNick:String(d.mine?d.tn:d.nick),who:String(d.nick),text:String(d.text),at:Number(d.at)||Date.now(),mine:!!d.mine});},
   grp:d=>groupMsg(d),
   duel:d=>duelMsg(d,toast,n=>{state.pearls=Math.max(0,state.pearls+n);session.pearlServerAdd?.(n);saveAccount();updateUI();}),
@@ -2564,6 +2566,8 @@ function giveBundle(r:BundleReward){if(r.gold)state.gold+=r.gold;if(r.pearls)sta
   if(r.design){designOwned=true;saveDesignOwned();}
   saveArsenal(arsenal);saveAccount();renderQuickSlots();updateUI();return eq;}
 const REWARD_ICONS:[string,string][]=[['Altın','icon-gold-v1'],['İnci','icon-pearl-v1'],['Casus Kalkanı','icon-spy-shield-v1'],['Zincir','ammo-chain-v2'],['Ateş','ammo-fire-v2'],['Alev','ammo-fire-v2'],['Patlayıcı','ammo-explosive-v2'],['Kule Kırıcı','ammo-breaker-v2'],['Barut','icon-powder-v4'],['Kalkan','icon-shield-v3'],['Hız','icon-speed-potion-v2'],['Can Emici','ammo-leech-v2'],['Şifa','ammo-heal-v1'],['Mayın','icon-mine-v2'],['Donanım','icon-anvil-v2']];
+// Günlük ödülde ikonu olan malzeme yalnız miktarla yazılır (adı üzerine gelince görünür)
+function dailyLi(t:string){const ic=REWARD_ICONS.find(([k])=>t.includes(k)),n=/^[\d.]+ /.exec(t);return ic&&n?`<li title="${t}"><img src="/assets/${ic[1]}.webp" alt="" draggable="false"/><span>${n[0].trim()}</span></li>`:rewardLi(t);}
 function rewardLi(t:string){const ic=REWARD_ICONS.find(([k])=>t.includes(k));return`<li>${ic?`<img src="/assets/${ic[1]}.webp" alt="" draggable="false"/>`:''}<span>${t}</span></li>`;}
 function openDaily(){renderDaily();ui('dailyOverlay').classList.add('open');}
 function closeDaily(){ui('dailyOverlay').classList.remove('open');}
@@ -2571,7 +2575,7 @@ function renderDaily(){
   renderFestival();
   const st=dailyStatus(daily);
   ui('dailyGrid').innerHTML=[1,2,3,4,5,6,7].map(d=>{const r=dailyReward(d,state.level),done=d<st.day||(d===st.day&&!st.canClaim),today=d===st.day&&st.canClaim;
-    return`<article class="daily-day ${done?'done':''} ${today?'today':''} ${d===7?'grand':''}"><b>${d}. GÜN</b><ul>${dailyText(r).map(rewardLi).join('')}</ul>${today?'<button id="claimDaily">TOPLA</button>':done?'<span class="tick">✓ ALINDI</span>':'<span class="lock">SIRADA</span>'}</article>`;}).join('');
+    return`<article class="daily-day ${done?'done':''} ${today?'today':''} ${d===7?'grand':''}"><b>${d}. GÜN</b><ul>${dailyText(r).map(dailyLi).join('')}</ul>${today?'<button id="claimDaily">TOPLA</button>':done?'<span class="tick">✓ ALINDI</span>':'<span class="lock">SIRADA</span>'}</article>`;}).join('');
   ui('dailyNote').textContent=st.canClaim?'Bugünün ödülü hazır. Yarın gelmezsen takvim 1. güne döner.':'Bugünün ödülünü aldın. Yarın yeni ödül seni bekliyor.';
   const b=document.getElementById('claimDaily');if(b)b.onclick=claimToday;
 }

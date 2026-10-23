@@ -845,6 +845,16 @@ async function onPm(c,d,now){const to=String(d.to||''),text=String(d.text||'').t
   if(chatHasBad(text)){await pmStrike(c,now);return;}
   const t=onlineByUid(to);if(!t){send(c,{t:'pm',d:{k:'err',msg:'Arkadaşın çevrim dışı'}});return;}
   const msg={k:'msg',from:c.uid,nick:c.nick,to,text,at:now};send(t,{t:'pm',d:msg});send(c,{t:'pm',d:{...msg,mine:true,tn:t.nick}});}
+// Mesaj kutusu (034_mail.sql): arkadaşa konu + metin; alıcı çevrim dışıyken de kutusunda kalır. Küfür kuralları özel mesajla aynı.
+async function onMail(c,d,now){const k=String(d.k||''),box=d.box==='out'?'out':'in',list=async(b,err,note)=>{const r=await rpcTry('mail_box',{p_uid:c.uid,p_box:b});send(c,{t:'mail',d:{k:'box',box:b,list:r.data?.list??[],unread:r.data?.unread??0,err:err||r.err,note}});};
+  if(k==='box'){await list(box);return;}
+  if(k==='read'){const id=Number(d.id);if(Number.isSafeInteger(id))await rpcTry('mail_read',{p_uid:c.uid,p_id:id});await list('in');return;}
+  if(k==='del'){const id=d.id==null?null:Number(d.id);if(id!==null&&!Number.isSafeInteger(id))return;await rpcTry('mail_delete',{p_uid:c.uid,p_box:box,p_id:id});await list(box);return;}
+  if(k==='send'){const to=String(d.to||''),subject=String(d.subject||'').trim().slice(0,60),body=String(d.body||'').trim().slice(0,500);if(!/^[0-9a-f-]{36}$/.test(to)||!body)return;
+    const mu=muteLeft(c.nick,now);if(mu>0){send(c,{t:'muted',d:{left:mu}});return;}
+    if(chatHasBad(subject+' '+body)){await pmStrike(c,now);return;}
+    const r=await rpcTry('mail_send',{p_uid:c.uid,p_to:to,p_subject:subject,p_body:body});if(r.err){send(c,{t:'mail',d:{k:'err',msg:r.err}});return;}
+    await list('out',null,'Mektup gönderildi');const t=onlineByUid(to);if(!t)return;const q=await rpcTry('mail_box',{p_uid:t.uid,p_box:'in'});send(t,{t:'mail',d:{k:'new',from:c.nick,unread:q.data?.unread??0}});}}
 export async function pmStrike(c,now){const r=await rpcTry('chat_strike',{p_uid:c.uid});const n=typeof r.data==='number'?r.data:(strikesMem.get(c.uid)||0)+1;strikesMem.set(c.uid,n);log('KÜFÜR CEZASI',c.nick,n);
   if(n<=1){mutes.set(muteKey(c.nick),now+24*3600_000);saveMutes();send(c,{t:'pm',d:{k:'err',msg:'Mesajında küfür var, gönderilmedi. 24 saat sohbet ve özel mesaj yazamazsın. Tekrarlanırsa hesabın kapatılır.'}});send(c,{t:'muted',d:{left:24*3600_000}});return n;}
   send(c,{t:'pm',d:{k:'err',msg:n===2?'Küfür nedeniyle hesabın 7 gün kapatıldı.':'Küfür nedeniyle hesabın kalıcı olarak kapatıldı.'}});setTimeout(()=>c.ws?.close?.(4002,'hesap kapalı'),300);return n;}
@@ -1002,7 +1012,7 @@ wss.on('connection',ws=>{
       for(const x of all)if(x.uid===who.uid&&x!==c)x.ws.close(4004,'başka yerden bağlanıldı');
       Object.assign(c,who);c.admin=await isAdminToken(String(m.token||'')).catch(()=>false);c.netId=String(m.netId||'').slice(0,16)||Math.random().toString(36).slice(2,10);clearTimeout(authTimer);
       await loadEcon(c);if(!c.econ){ws.close(4003,'hesap verisi yüklenemedi');return;}
-      void sinkAdd(c,0);send(c,{t:'hello',id:c.netId,nick:c.nick,playerNo:c.playerNo});log('GİRİŞ',`#${c.playerNo}`,c.nick);void loadFriends(c).then(()=>{send(c,{t:'fr',d:{k:'list',list:friendView(c)}});friendPing(c);});treaty.seen[c.uid]=Date.now();treatyDirty=true;send(c,{t:'treaty',d:treatyInfo(c)});if(!qkByUid.has(c.uid))qkByUid.set(c.uid,{});c.qk=qkByUid.get(c.uid);{const t=treasures.get(c.uid);if(t)send(c,{t:'tstate',d:{parts:t.parts,spot:t.spot}});}return;}
+      void sinkAdd(c,0);send(c,{t:'hello',id:c.netId,nick:c.nick,playerNo:c.playerNo});log('GİRİŞ',`#${c.playerNo}`,c.nick);void loadFriends(c).then(()=>{send(c,{t:'fr',d:{k:'list',list:friendView(c)}});friendPing(c);});void rpcTry('mail_box',{p_uid:c.uid,p_box:'in'}).then(r=>{if(r.data)send(c,{t:'mail',d:{k:'box',box:'in',list:r.data.list,unread:r.data.unread}});});treaty.seen[c.uid]=Date.now();treatyDirty=true;send(c,{t:'treaty',d:treatyInfo(c)});if(!qkByUid.has(c.uid))qkByUid.set(c.uid,{});c.qk=qkByUid.get(c.uid);{const t=treasures.get(c.uid);if(t)send(c,{t:'tstate',d:{parts:t.parts,spot:t.spot}});}return;}
     if(!c.uid||!c.econ)return;
     switch(m.t){
       case'join':{const name=String(m.sea||'').slice(0,40);if(name===c.sea)return;if(!canJoin(c,name,now)){send(c,{t:'denied',reason:'harita kilitli'});return;}leaveSea(c);c.last=null;if(!name)return;
@@ -1047,6 +1057,7 @@ wss.on('connection',ws=>{
         if(id==='mine'&&(c.econ!==before||!SERVER_SECRET||(process.env.BENCH_AUTH==='1'&&c.uid.startsWith('b')))){const mn=placeMine(c,Number(m.d?.x),Number(m.d?.y),now);if(mn)toSea(c,{t:'mine',d:{id:mn.id,x:mn.x,y:mn.y,by:c.netId}});}return;}
       case'qdone':{if(!c.uid||!c.rKill.hit(now))return;const id=String(m.d?.id||'');const r=questCredit(c,id,now);
         if(r.err){if(r.err==='bekleme')suspect(c,'görev bekleme',id);send(c,{t:'qres',d:{id,ok:false,err:r.err}});return;}addCredit(c,r.add);send(c,{t:'qres',d:{id,ok:true}});return;}
+      case'mail':{if(!c.uid||!c.rUse.hit(now))return;await onMail(c,m.d||{},now);return;}
       case'fr':{if(!c.uid||!c.rUse.hit(now))return;await onFriend(c,m.d||{},now);return;}
       case'pm':{if(!c.uid||!c.rChat.hit(now))return;await onPm(c,m.d||{},now);return;}
       case'grp':{if(!c.uid||!c.rUse.hit(now))return;onGroup(c,m.d||{},now);return;}

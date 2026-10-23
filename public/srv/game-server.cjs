@@ -6987,6 +6987,52 @@ async function onPm(c, d, now) {
   send(t, { t: "pm", d: msg });
   send(c, { t: "pm", d: { ...msg, mine: true, tn: t.nick } });
 }
+async function onMail(c, d, now) {
+  const k = String(d.k || ""), box = d.box === "out" ? "out" : "in", list = async (b, err, note) => {
+    const r = await rpcTry("mail_box", { p_uid: c.uid, p_box: b });
+    send(c, { t: "mail", d: { k: "box", box: b, list: r.data?.list ?? [], unread: r.data?.unread ?? 0, err: err || r.err, note } });
+  };
+  if (k === "box") {
+    await list(box);
+    return;
+  }
+  if (k === "read") {
+    const id = Number(d.id);
+    if (Number.isSafeInteger(id)) await rpcTry("mail_read", { p_uid: c.uid, p_id: id });
+    await list("in");
+    return;
+  }
+  if (k === "del") {
+    const id = d.id == null ? null : Number(d.id);
+    if (id !== null && !Number.isSafeInteger(id)) return;
+    await rpcTry("mail_delete", { p_uid: c.uid, p_box: box, p_id: id });
+    await list(box);
+    return;
+  }
+  if (k === "send") {
+    const to = String(d.to || ""), subject = String(d.subject || "").trim().slice(0, 60), body = String(d.body || "").trim().slice(0, 500);
+    if (!/^[0-9a-f-]{36}$/.test(to) || !body) return;
+    const mu = muteLeft(c.nick, now);
+    if (mu > 0) {
+      send(c, { t: "muted", d: { left: mu } });
+      return;
+    }
+    if (chatHasBad(subject + " " + body)) {
+      await pmStrike(c, now);
+      return;
+    }
+    const r = await rpcTry("mail_send", { p_uid: c.uid, p_to: to, p_subject: subject, p_body: body });
+    if (r.err) {
+      send(c, { t: "mail", d: { k: "err", msg: r.err } });
+      return;
+    }
+    await list("out", null, "Mektup g\xF6nderildi");
+    const t = onlineByUid(to);
+    if (!t) return;
+    const q = await rpcTry("mail_box", { p_uid: t.uid, p_box: "in" });
+    send(t, { t: "mail", d: { k: "new", from: c.nick, unread: q.data?.unread ?? 0 } });
+  }
+}
 async function pmStrike(c, now) {
   const r = await rpcTry("chat_strike", { p_uid: c.uid });
   const n = typeof r.data === "number" ? r.data : (strikesMem.get(c.uid) || 0) + 1;
@@ -7540,6 +7586,9 @@ wss.on("connection", (ws) => {
         send(c, { t: "fr", d: { k: "list", list: friendView(c) } });
         friendPing(c);
       });
+      void rpcTry("mail_box", { p_uid: c.uid, p_box: "in" }).then((r) => {
+        if (r.data) send(c, { t: "mail", d: { k: "box", box: "in", list: r.data.list, unread: r.data.unread } });
+      });
       treaty.seen[c.uid] = Date.now();
       treatyDirty = true;
       send(c, { t: "treaty", d: treatyInfo(c) });
@@ -7778,6 +7827,11 @@ wss.on("connection", (ws) => {
         }
         addCredit(c, r.add);
         send(c, { t: "qres", d: { id, ok: true } });
+        return;
+      }
+      case "mail": {
+        if (!c.uid || !c.rUse.hit(now)) return;
+        await onMail(c, m.d || {}, now);
         return;
       }
       case "fr": {
