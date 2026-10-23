@@ -37,14 +37,14 @@ import {trioHtml,showPlayerCard,showRankUp} from './captain-card';
 import {loadLog,saveLog,addLog,daySummary,LOG_KINDS,type LogKind,type LogEntry} from './logbook';
 import {IRON_START,IRON_PRICE,BALL_DAMAGE,CHAIN_SLOW,FIRE_NPC_FACTOR,EXPLOSIVE_PLAYER_FACTOR,leechHeal,repairAmount,ELITE_POINTS_PER_BALL,IRON_EP_PER_BALL,ELITE_MAX_LEVEL,questEp,bossEp,eliteLevelEp,eliteLevelFromEp,ABILITIES,SPECIAL_AMMO,MINE,SPEED_BOOST,VISION_RADIUS,COMPASS,CONSUMABLES,AMMO_PRICES,SUPPLY_PRICES,loadArsenal,saveArsenal,type AbilityId,type SpecialAmmo,type ConsumableId,type SupplyId,type Price,priceOf} from './arsenal';
 import {loadFleetOwners,saveFleetOwners,loadRuins,markRuin,ruinLeft,ruinLabel,clearRuins} from './conquest';
-import {RIVAL_SP,battleRank,loadRivalLog,claimRivalSp,dayKey,RANK_SHEET,RANK_COLS,RANK_ICONS,rankIcon,BATTLE_RANKS} from './battle';
+import {battleRank,dayKey,RANK_SHEET,RANK_COLS,RANK_ICONS,rankIcon,BATTLE_RANKS} from './battle';
 import {setupChat,blockedList,setBlocked} from './chat';
 import {DOM_TEAMS,DOM_ZONE,DOM_BASE,type DomTeam} from './domination';
 import {openDomLobby,closeDomLobby,domLobbyMsg,renderDomHud,showDomResult,type DomLobby,type DomRun,type DomEnd} from './dom-ui';
 import {LS_SHIP,LS_LOADOUT,LS_HP,LS_SPEED,LS_FOG_DPS,LS_ITEMS,LS_PICK_R,LS_SPEED_MS,LS_SPEED_BOOST,LS_DROP_PICK_R,LS_DROP_FALL_MS,lsEmptyInv,lsZoneAt,type LsFog,type LsInv,type LsItem,type LsDrop} from './cursed';
 import {openArena,openLsLobby,closeLsLobby,lsLobbyMsg,renderLsHud,showLsResult,type LsLobby,type LsRun,type LsOut} from './ls-ui';
 import {SIEGE_MS,HERO_DAMAGE,WALL_TOWERS,INNER_TOWERS,gateOf,gateLeft,siegeWindow,newSiege,loadSiege,saveSiege,siegePhase,siegeStats,siegeProgress,contribReward,earnsChest,victoryChest,ranking,loadTitle,grantTitle,HERO_TITLE,type SiegeSave} from './siege';
-import {dayEvent,spMult,xpMult,epMult,goldMult,bossKillsNeeded,setTreatyFx,treatyDmgMult} from './events';
+import {dayEvent,xpMult,epMult,goldMult,bossKillsNeeded,setTreatyFx,treatyDmgMult} from './events';
 import {infoTip} from './info-tip';
 import {setupCapPlate} from './cap-plate';
 import {setupMail} from './mail-ui';
@@ -621,7 +621,7 @@ const netHandlers:NetHandlers={
   sunk:k=>{const e=remoteOf(k.victim);if(e){burst(e.x,e.y,true);playExplosion();splashAt(e.x,e.y,190);enemies.splice(enemies.indexOf(e),1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}}
     if(k.by===myNetId&&ls){ls.kills++;rewardNotice(`${k.victimNick} kaptanını lanetli sulara gömdün`,'battle');}
     else if(k.by===myNetId&&dom){gainRage(rage,RAGE_PER_RIVAL);rewardNotice(`${k.victimNick} kaptanını batırdın`,'battle');}
-    else if(k.by===myNetId){gainRage(rage,RAGE_PER_RIVAL);const sp=claimRivalSp(rivalLog,k.victimNick)?gainSp(RIVAL_SP*spMult()):0;sinkNotice(k.victimNick,sp);if(!session.account)rivalSinks++;saveRivalSinks(rivalSinks);saveAccount();}
+    else if(k.by===myNetId){gainRage(rage,RAGE_PER_RIVAL);sinkNotice(k.victimNick);if(!session.account)rivalSinks++;saveRivalSinks(rivalSinks);saveAccount();}
     else if(k.victim!==myNetId)rewardNotice(`${k.byNick}, ${k.victimNick} kaptanını batırdı`,'battle');},
   spy:r=>onSpyReport(r),
   npcList:l=>onNpcList(l),npcSpawn:n=>{if(!netNpcs()||npcById(n.id))return;const e=npcFromNet(n);if(e)enemies.push(e);},npcPos:d=>onNpcPos(d),loot:d=>onLootSpots(d),mine:d=>{if(d.by!==myNetId)mines.push({x:d.x,y:d.y,life:ABILITIES.mine.duration,arm:MINE.armSeconds});},mboom:d=>onMineBoom(d.x,d.y),mhit:d=>{if(state.invulnerable>0)return;shots.push({x:player.x,y:player.y,vx:0,vy:0,life:.1,owner:'enemy',damage:d.dmg,hit:false,ammo:'iron',noHome:true});},npcShare:d=>{const e=npcById(d.id);if(e)e.share=d.share;},npcDie:id=>onNpcDie(id),
@@ -1190,8 +1190,8 @@ function rewardNotice(msg:string,kind:LogKind|'none'='gain',data:Partial<LogEntr
   line.textContent=text;feed.appendChild(line);while(feed.children.length>3)feed.firstElementChild!.remove();setTimeout(()=>line.remove(),4000);
   if(kind!=='none'){addLog(logbook,{t:Date.now(),kind,text,...data});saveLog(logbook);if(ui('logOverlay').classList.contains('open'))renderLogbook();}
 }
-function sinkNotice(name:string,sp:number){
-  rewardNotice(`${name} batırıldı`,'battle',{sp,sink:true});
+function sinkNotice(name:string){
+  rewardNotice(`${name} batırıldı`,'battle',{sink:true});
 }
 function saveQuestState(){localStorage.setItem(QUEST_STORAGE,JSON.stringify({rulesVersion:2,active:state.activeQuest,progress:questProgress,cooldowns:questCooldownUntil}));}
 function saveAccount(){localStorage.setItem(ACCOUNT_STORAGE,JSON.stringify({pearls:state.pearls,gold:state.gold,fame:state.fame,level:state.level,maxHp:state.maxHp,hp:state.hp,chainAmmo:state.chainAmmo,ironAmmo:state.ironAmmo,elitePoints:state.elitePoints,eliteEconomyVersion:ELITE_ECONOMY_VERSION,battlePoints:state.battlePoints,cannonType:state.cannonType,cannonInventory,mountedCannons,equipOwned,equipped,quickSlots,quickKnown,upgrades,eliteShip:activeEliteShip,activeShip,elitePurchased,currentMap}));try{localStorage.setItem(WORLD_STORAGE,currentMap);}catch{}}
@@ -2375,7 +2375,7 @@ function sinkEnemy(e:Enemy){
   // Paylaşılan boss ve ada kulesi: batışı sunucu bildirir; o zamana kadar 1 canla ayakta kalır
   if(((e.boss&&e.shared)||(e.net&&!e.serverDown)||(e.tower&&!e.siege&&!!session.account)||(e.siege&&siegeOnline&&(e.tower||e.commander)))&&!e.serverDown){if(e.net&&!e.serverDown){e.hp=Math.max(1,e.hp);return;}e.hp=1;e.lastHp=1;return;}
   if(!e.tower)spawnWreck(e);
-  if(e.captain){enemies.splice(j,1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}burst(e.x,e.y,true);playExplosion();playSink(earGain(e));splashAt(e.x,e.y,190);if(e.lastHitBy!=='captain'){gainRage(rage,RAGE_PER_RIVAL);const sp=claimRivalSp(rivalLog,e.name)?gainSp(RIVAL_SP*spMult()):0;sinkNotice(e.name,sp);if(!session.account)rivalSinks++;saveRivalSinks(rivalSinks);saveAccount();}e.lastHitBy=undefined;
+  if(e.captain){enemies.splice(j,1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}burst(e.x,e.y,true);playExplosion();playSink(earGain(e));splashAt(e.x,e.y,190);if(e.lastHitBy!=='captain'){gainRage(rage,RAGE_PER_RIVAL);sinkNotice(e.name);if(!session.account)rivalSinks++;saveRivalSinks(rivalSinks);saveAccount();}e.lastHitBy=undefined;
     const map=currentMap,inst=siege;later(5,()=>{if(currentMap!==map||siege!==inst)return;const a=Math.random()*Math.PI*2,p={x:clamp(e.homeX+Math.cos(a)*450,80,WORLD_WIDTH-80),y:clamp(e.homeY+Math.sin(a)*260,80,WORLD_HEIGHT-80)};Object.assign(e,{x:p.x,y:p.y,hp:e.maxHp,frozen:0,burnTimer:0,slowTimer:0});e.captain!.foe=null;enemies.push(e);spawnText(e,`${e.name} YENİDEN DENİZDE`,'#f1d08a');});return;}
   enemies.splice(j,1);if(selected===e){selected=null;state.attacking=false;ui('attack').classList.remove('active');}
   burst(e.x,e.y,true);playExplosion();playSink(earGain(e));splashAt(e.x,e.y,190);
@@ -2390,9 +2390,6 @@ function sinkEnemy(e:Enemy){
 }
 // Savaş puanı kazancı; rütbe atlanırsa duyurulur
 const spText=()=>{const r=battleRank(state.battlePoints);return r.next?`${fmt(state.battlePoints)} / ${fmt(r.next.sp)}`:fmt(state.battlePoints);};
-const rivalLog=loadRivalLog();
-// Savaş puanı (SP) yalnız iç kayıt olarak tutulur; rütbe sistemi kaldırıldı, sıralamada batırılan oyuncu sayısı kullanılır
-function gainSp(n:number){state.battlePoints+=n;return n;}
 // Kule menzili hiçbir zaman oyuncunun top menzilinin altında kalmaz: kuleye ateş edebilen gemiyi kule de vurur
 // (uzun top + geliştirme + donanım kuleyi menzil dışından vuramaz). Saldırı altındaki kule yetenek menzilini (+150) de kapsar.
 const TOWER_REACH_MARGIN=60,TOWER_ALERT_REACH=200;

@@ -9,7 +9,7 @@ import {WebSocketServer} from 'ws';
 import {BOSS_HP,SIEGE_HP_PER_CAPTAIN} from '../src/pve-balance.ts';
 import {fleetTowerStats,playerBaseHp} from '../src/fleetBalance.ts';
 import {pvpClamp,newPvpBudget} from '../src/pvp.ts';
-import {RIVAL_SP,RIVAL_DAILY_LIMIT} from '../src/battle.ts';
+import {RIVAL_DAILY_LIMIT} from '../src/battle.ts';
 import {NPCS,MAPS,QUESTS,QUEST_COOLDOWN_MS,bossFor,BOSS_KILLS,FLEET,WORLD_WIDTH,WORLD_HEIGHT,coordLabel} from '../src/campaign.ts';
 import {TREASURE_PARTS,PART_CHANCE,DIG_RADIUS,treasureReward} from '../src/treasure.ts';
 import {questEp,bossEp,ELITE_POINTS_PER_BALL,IRON_EP_PER_BALL,eliteLevelFromEp} from '../src/arsenal.ts';
@@ -19,7 +19,7 @@ import {cumulativeEliteBonus,ELITE_CANNON_CAPACITY} from '../src/elite-progressi
 import {ACHIEVEMENTS,MAIN_COLLECTION} from '../src/achievements.ts';
 import {officerSlots,OFFICER_MAX_RANK,talentPoints,TALENTS} from '../src/crew.ts';
 import {MINE,CONSUMABLES} from '../src/arsenal.ts';
-import {goldMult,xpMult,epMult,spMult,dayEvent,TREATY_KILL_AMMO} from '../src/events.ts';
+import {goldMult,xpMult,epMult,dayEvent,TREATY_KILL_AMMO} from '../src/events.ts';
 import {TREATY_FX,TREATY_FX_IDS,TREATY_MIN_PICKS,TREATY_MAP,TREATY_VOTE_MS,TREATY_FX_MS,TREATY_ENVOY_R,treatyGoal,treatyTally,treatyWinner,treatyRewards} from '../src/treaty.ts';
 import {HERO_DAMAGE,HERO_DAYS} from '../src/siege.ts';
 import {createChest} from '../src/loot.ts';
@@ -266,9 +266,10 @@ function loadServerState(){if(process.env.NODE_ENV==='test')return;try{const d=J
 loadServerState();setInterval(saveServerState,60_000).unref();process.on('SIGTERM',()=>{saveServerState();process.exit(0);});process.on('SIGINT',()=>{saveServerState();process.exit(0);});
 // Savaş puanı: sunucunun doğruladığı oyuncu batırmasından (aynı rakipten günde en çok 3 kez; etkinlik günü ×2 payı)
 export const spByUid=new Map(); // batıran → Map(rakip → {gün, sayı})
-export function spCredit(killer,victimUid,now){if(!killer?.uid||!victimUid||killer.uid===victimUid)return null;const day=new Date(now+3*3600_000).toISOString().slice(0,10);
+// Rakip batırma sayacı: aynı rakip günde en çok RIVAL_DAILY_LIMIT kez sayılır (savaş puanı kaldırıldı)
+export function sinkCredit(killer,victimUid,now){if(!killer?.uid||!victimUid||killer.uid===victimUid)return null;const day=new Date(now+3*3600_000).toISOString().slice(0,10);
   const m=spByUid.get(killer.uid)??new Map();spByUid.set(killer.uid,m);const r=m.get(victimUid);const n=r&&r.day===day?r.n:0;if(n>=RIVAL_DAILY_LIMIT)return null;
-  m.set(victimUid,{day,n:n+1});return{sp:RIVAL_SP*spMult()};}
+  m.set(victimUid,{day,n:n+1});return true;}
 // ---------------------------------------------------------------- Sunucu atışı
 // Oyuncu donanımını bildirir (ld); sunucu her kalemi sahip olduklarıyla sınırlar ve atışı (atk) kendisi hesaplar:
 // dolum süresi, menzil, stok ve hasar oyunun formülüyle (src/combat.ts) sunucuda. Oyuncu hasar bildirmez.
@@ -1043,7 +1044,7 @@ wss.on('connection',ws=>{
         if(s.by&&!(now-(c.pvp?.from.get(String(s.by))??-1e12)<60_000)){suspect(c,'sahte batırma',String(s.by));s.by=null;s.byNick=null;}
         if(c.duel){const d=duels.get(c.duel);pvpReset(c);toSea(c,{t:'sunk',d:s});if(d)duelFinish(d,d.a===c?d.b:d.a,'batırdı',now);return;}
         if(s.by){const k=[...(seas.get(c.sea)||[])].find(x=>x.netId===String(s.by));if(k)rageGain(k,RAGE_PER_RIVAL);}
-        if(s.by&&domMatchOfSea(c.sea)===undefined){const k=[...(seas.get(c.sea)||[])].find(x=>x.netId===String(s.by));const add=spCredit(k,c.uid,now);if(add){addCredit(k,add);void sinkAdd(k,1);}}
+        if(s.by&&domMatchOfSea(c.sea)===undefined){const k=[...(seas.get(c.sea)||[])].find(x=>x.netId===String(s.by));if(sinkCredit(k,c.uid,now))void sinkAdd(k,1);}
         if(c.domTeam)domSink(c,now);if(c.lsOn){lsOut(c,s.by?[...(seas.get(c.sea)||[])].find(x=>x.netId===String(s.by)):null,now);toSea(c,{t:'sunk',d:s});return;}pvpReset(c);toSea(c,{t:'sunk',d:s});return;}
       case'bkill':return; // Only accepted nkill events advance the boss counter.
       case'bhit':return; // oyuncunun bildirdiği hasar kabul edilmez (sunucu atışı ve mayın)

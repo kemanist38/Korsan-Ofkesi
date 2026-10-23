@@ -3823,8 +3823,8 @@ __export(game_server_exports, {
   siegeJoin: () => siegeJoin,
   siegeRun: () => siegeRun,
   siegeWindowAt: () => siegeWindowAt,
+  sinkCredit: () => sinkCredit,
   spByUid: () => spByUid,
-  spCredit: () => spCredit,
   sparklePicked: () => sparklePicked,
   sparkleReward: () => sparkleReward,
   strikesMem: () => strikesMem,
@@ -3916,7 +3916,6 @@ function pvpClamp(b, maxHp, hit, now) {
 }
 
 // src/battle.ts
-var RIVAL_SP = 25;
 var RIVAL_DAILY_LIMIT = 3;
 
 // src/campaign.ts
@@ -4337,7 +4336,6 @@ var dayEvent = (d = /* @__PURE__ */ new Date()) => BY_WEEKDAY[d.getDay()] ?? nul
 var is = (id, d) => dayEvent(d)?.id === id;
 var treatyFx = null;
 var treatyFxOn = (id, now = Date.now()) => !!treatyFx && treatyFx.id === id && now < treatyFx.until;
-var spMult = (d) => is("sp", d) ? 2 : 1;
 var xpMult = (d, tr = treatyFxOn("xp", d?.getTime())) => (is("tp", d) ? 1.5 : 1) + (tr ? 0.1 : 0);
 var epMult = (d) => is("ep", d) ? 1.5 : 1;
 var goldMult = (d, tr = treatyFxOn("gold", d?.getTime())) => (is("gold", d) ? 1.5 : 1) + (tr ? 0.1 : 0);
@@ -5143,7 +5141,7 @@ process.on("SIGINT", () => {
   process.exit(0);
 });
 var spByUid = /* @__PURE__ */ new Map();
-function spCredit(killer, victimUid, now) {
+function sinkCredit(killer, victimUid, now) {
   if (!killer?.uid || !victimUid || killer.uid === victimUid) return null;
   const day = new Date(now + 3 * 36e5).toISOString().slice(0, 10);
   const m = spByUid.get(killer.uid) ?? /* @__PURE__ */ new Map();
@@ -5152,7 +5150,7 @@ function spCredit(killer, victimUid, now) {
   const n = r && r.day === day ? r.n : 0;
   if (n >= RIVAL_DAILY_LIMIT) return null;
   m.set(victimUid, { day, n: n + 1 });
-  return { sp: RIVAL_SP * spMult() };
+  return true;
 }
 function buildLoadout(st, d) {
   if (!st) return null;
@@ -7756,11 +7754,7 @@ wss.on("connection", (ws) => {
         }
         if (s.by && domMatchOfSea(c.sea) === void 0) {
           const k = [...seas.get(c.sea) || []].find((x) => x.netId === String(s.by));
-          const add = spCredit(k, c.uid, now);
-          if (add) {
-            addCredit(k, add);
-            void sinkAdd(k, 1);
-          }
+          if (sinkCredit(k, c.uid, now)) void sinkAdd(k, 1);
         }
         if (c.domTeam) domSink(c, now);
         if (c.lsOn) {
@@ -8244,8 +8238,8 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   siegeJoin,
   siegeRun,
   siegeWindowAt,
+  sinkCredit,
   spByUid,
-  spCredit,
   sparklePicked,
   sparkleReward,
   strikesMem,
