@@ -208,3 +208,9 @@ html #toast{top:120px!important}
 @media (max-width:1100px){html #toast{top:88px!important}}
 @media (max-width:700px){html .cap-plate.tb{top:calc(100dvh - 66px)!important}html #toast{top:60px!important}}
 .cap-plate.tb .tb-tp .status-line b{inset:0 4px 0 30px!important}.cap-plate.tb .tb-hp .status-line b{inset:0 30px 0 4px!important}
+/* TP / HP yazıları uçlardaki yuvarlak kapaklarda; çubuk bütün kutuyu kaplar */
+.cap-plate.tb .tb-tp .status-line>span,.cap-plate.tb .tb-hp .status-line>span{display:none!important}
+.cap-plate.tb .tb-tp .status-line b,.cap-plate.tb .tb-hp .status-line b{inset:0 4px!important}
+.cap-plate.tb .status-line{padding:0 4px!important}
+.cap-plate.tb .tb-lab{position:absolute;top:27%;height:16%;width:4.6%;display:grid;place-items:center;font:800 11px Cinzel,serif;font-style:normal;color:#f3d496;text-shadow:0 1px 2px #000,0 0 3px #000}
+.cap-plate.tb .tb-lab.l{left:2.1%}.cap-plate.tb .tb-lab.r{right:2.1%}

@@ -6,7 +6,7 @@ export function setupCapPlate(o:{nick:()=>string;logout:()=>void;canLogout:()=>b
   setupSideButtons();setupMenuSpy();setupMenuLogout(o);setupMapExpand();
   const stats=$('.strip-stats');if(!stats)return;
   const plate=document.createElement('div');plate.className='cap-plate tb';
-  plate.innerHTML='<div class="tb-tp"></div><div class="tb-lv"></div><div class="tb-hp"></div><div class="tb-sp"></div>';
+  plate.innerHTML='<div class="tb-tp"></div><div class="tb-lv"></div><div class="tb-hp"></div><div class="tb-sp"></div><i class="tb-lab l">TP</i><i class="tb-lab r">HP</i>';
   stats.after(plate);stats.classList.add('cp-empty');void o.nick;
   const lv=$('#level'),hp=stats.querySelector('.hp-line'),xp=stats.querySelector('.xp-line'),sp=stats.querySelector('.battle-line');
   if(lv)plate.querySelector('.tb-lv')!.append(lv);
