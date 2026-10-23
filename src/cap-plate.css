@@ -139,3 +139,15 @@ html .cp-top>.day-pop{position:absolute!important;left:auto!important;right:0!im
 @media (min-width:1101px){html #netPill{left:172px;top:12px}}
 @media (min-width:701px) and (max-width:1100px){html .cp-top{right:102px;top:12px!important}html #netPill{left:146px;top:12px}}
 @media (max-width:700px){html .cp-top{right:6px;top:68px!important}html .hud>.coord-go{top:132px!important}html .cp-top>.day-pop{top:calc(100% + 6px)!important}}
+/* Mini harita büyüyünce Dünya düğmesi haritanın ortasında */
+.map-cluster.cp-side.cp-side.cp-side #openWorldMap{left:85px!important;top:58px!important;z-index:3;box-shadow:0 0 0 3px #000a,0 6px 16px #000c!important}
+/* O günün etkinliği: mini haritanın sağında kısa yazı (dokununca haftalık etkinlikler) */
+html .map-cluster.cp-side.cp-side.cp-side .day-badge{display:block!important;position:absolute!important;left:222px!important;top:6px!important;transform:none!important;font-size:13px;padding:4px 10px}
+html .map-cluster.cp-side.cp-side.cp-side .day-badge.hidden{display:none!important}
+.day-pop.cp-pop{position:fixed!important;right:auto!important;transform:none!important;z-index:60}
+html #netPill{top:auto!important;bottom:auto}
+@media (min-width:1101px){html #netPill{left:172px;top:46px!important}}
+@media (min-width:701px) and (max-width:1100px){html #netPill{left:146px;top:38px!important}}
+@media (max-width:700px){html .map-cluster.cp-side.cp-side.cp-side .day-badge{font-size:16px;padding:5px 12px}html #netPill{top:12px!important}}
+#menuEvents img{width:44px;height:44px;object-fit:contain}
+@media (max-width:700px){html #netPill{left:88px;top:32px!important}}
