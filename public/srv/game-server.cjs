@@ -7088,6 +7088,7 @@ function onGroup(c, d, now) {
     const t = [...all].find((x) => x.uid && x.nick?.toLocaleLowerCase("tr") === nick);
     if (!t) return err("Kaptan \xE7evrim i\xE7i de\u011Fil");
     if (t === c) return err("Kendini davet edemezsin");
+    if (!friendSets.get(c.uid)?.has(t.uid)) return err("Gruba yaln\u0131z arkada\u015Flar\u0131n\u0131 davet edebilirsin");
     if (t.grp) return err(`${t.nick} zaten bir grupta`);
     let g2 = c.grp ? groups.get(c.grp) : null;
     if (g2 && g2.lead !== c) return err("Davet yaln\u0131z grup lideri yapabilir");

@@ -4,7 +4,7 @@
 import './cap-plate.css';
 const $=<T extends HTMLElement=HTMLElement>(s:string)=>document.querySelector<T>(s);
 export function setupCapPlate(o:{nick:()=>string;logout:()=>void;canLogout:()=>boolean}){
-  setupSideButtons();setupMenuSpy();setupMenuLogout(o);
+  setupSideButtons();setupMenuSpy();setupMenuLogout(o);setupMapExpand();
   const stats=$('.strip-stats');if(!stats)return;
   const plate=document.createElement('div');plate.className='cap-plate';
   plate.innerHTML='<div class="cp-socket"></div><div class="cp-info"><div class="cp-row"><b class="cp-nick"></b><span class="cp-sp"></span></div><div class="cp-hp"></div><div class="cp-tp"></div></div>';
@@ -30,3 +30,10 @@ function setupMenuSpy(){const spy=$('#spyGo'),grid=$('#menuOverlay .menu-grid');
 function setupMenuLogout(o:{logout:()=>void;canLogout:()=>boolean}){const grid=$('#menuOverlay .menu-grid'),corner=$('#logoutCorner');if(!grid)return;
   const b=document.createElement('button');b.id='menuLogout';b.innerHTML=`${corner?.innerHTML??''}<span>ÇIKIŞ YAP</span>`;b.onclick=()=>o.logout();grid.append(b);corner?.classList.add('cp-hide');
   const sync=()=>{b.hidden=!o.canLogout();};sync();setInterval(sync,1000);}
+// Mini harita: ilk dokunuşta büyür ve yanında Dünya düğmesi çıkar; büyükken dokunmak haritada gezdirir.
+// Dışarıya dokununca ya da 10 sn dokunulmayınca küçülür.
+function setupMapExpand(){const cl=$('.map-cluster'),mm=$('#minimap');if(!cl||!mm)return;let t=0;
+  const shut=()=>{cl.classList.remove('mm-big');clearTimeout(t);},arm=()=>{clearTimeout(t);t=setTimeout(shut,10_000) as unknown as number;};
+  mm.addEventListener('pointerdown',e=>{if(!cl.classList.contains('mm-big')){e.stopImmediatePropagation();e.preventDefault();cl.classList.add('mm-big');}arm();},{capture:true});
+  document.addEventListener('pointerdown',e=>{if(cl.classList.contains('mm-big')&&!cl.contains(e.target as Node))shut();},{capture:true});
+  $('#openWorldMap')?.addEventListener('click',shut);}

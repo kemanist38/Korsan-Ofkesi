@@ -451,6 +451,8 @@ test('düello: savaşa kapalı denizde yalnız iki rakip savaşır, bahis kazana
 test('grup: aynı denizdeki üye sayısına göre ek TP, görev sayacı yalnız son vuruşta, en çok 4 kişi',()=>{
   const box=[];const mk=(id,nick,sea='sea-3-1')=>({netId:id,uid:'u'+id,nick,sea,last:{x:0,y:0},econ:{level:3},ws:{readyState:1,send:m=>box.push([id,JSON.parse(m)])}});
   const a=mk('1','A'),b=mk('2','B'),c=mk('3','C'),d=mk('4','D'),e=mk('5','E');for(const x of [a,b,c,d,e])S.all.add(x);
+  box.length=0;S.onGroup(a,{k:'inv',nick:'b'},0);assert.match(box[0][1].d.msg,/arkadaş/,'strangers cannot be invited');
+  S.friendSets.set('u1',new Set(['u2','u3','u4','u5']));
   S.onGroup(a,{k:'inv',nick:'b'},0);S.onGroup(b,{k:'yes'},10);assert.equal(S.groupBonus(a),1.15);
   S.onGroup(a,{k:'inv',nick:'C'},20);S.onGroup(c,{k:'yes'},30);assert.equal(S.groupBonus(a),1.10);
   S.onGroup(a,{k:'inv',nick:'D'},40);S.onGroup(d,{k:'yes'},50);assert.equal(S.groupBonus(b),1.05);
