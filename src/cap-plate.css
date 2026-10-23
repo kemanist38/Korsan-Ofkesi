@@ -193,3 +193,24 @@ html #toast{position:fixed!important;left:50%!important;top:78px!important;z-ind
 .cap-plate.tb .tb-sp{left:46.3%;width:7.4%;justify-content:center}
 .cap-plate.tb .tb-sp .status-line{display:none!important}
 .cap-plate.tb .tb-spv{font:800 7.5px Inter,sans-serif;font-style:normal;color:#4a2a0c;white-space:nowrap;letter-spacing:.02em}
+/* ===== Üst bar v2: sade pirinç çerçeve (994x274, alt yarısı SP parşömeni) ===== */
+html .cap-plate.tb{width:480px!important;height:132px!important;background-image:url(/assets/hud-topbar-v2.webp)!important;top:0!important}
+.cap-plate.tb .tb-tp{left:7.2%;width:32.4%;top:26.8%;height:16.5%}
+.cap-plate.tb .tb-hp{left:60.4%;width:32.4%;top:26.8%;height:16.5%}
+.cap-plate.tb .tb-lv{left:44.6%;width:10.9%;top:11.2%;height:39.6%}
+.cap-plate.tb .tb-lv #level{width:112%!important;height:112%!important;font-size:12px!important}
+.cap-plate.tb .tb-sp{left:41.5%;width:17%;top:58%;height:16%}
+.cap-plate.tb .tb-spv{font-size:10px;color:#3a2008}
+.cap-plate.tb .status-line span{font-size:10px!important}
+.cap-plate.tb .status-line>i{height:78%!important}
+.cap-plate.tb .tb-tp .status-line b{inset:0 4px 0 28px!important}.cap-plate.tb .tb-hp .status-line b{inset:0 28px 0 4px!important}
+html #toast{top:120px!important}
+@media (max-width:1100px){html #toast{top:88px!important}}
+@media (max-width:700px){html .cap-plate.tb{top:calc(100dvh - 66px)!important}html #toast{top:60px!important}}
+.cap-plate.tb .tb-tp .status-line b{inset:0 4px 0 30px!important}.cap-plate.tb .tb-hp .status-line b{inset:0 30px 0 4px!important}
+/* TP / HP yazıları uçlardaki yuvarlak kapaklarda; çubuk bütün kutuyu kaplar */
+.cap-plate.tb .tb-tp .status-line>span,.cap-plate.tb .tb-hp .status-line>span{display:none!important}
+.cap-plate.tb .tb-tp .status-line b,.cap-plate.tb .tb-hp .status-line b{inset:0 4px!important}
+.cap-plate.tb .status-line{padding:0 4px!important}
+.cap-plate.tb .tb-lab{position:absolute;top:27%;height:16%;width:4.6%;display:grid;place-items:center;font:800 11px Cinzel,serif;font-style:normal;color:#f3d496;text-shadow:0 1px 2px #000,0 0 3px #000}
+.cap-plate.tb .tb-lab.l{left:2.1%}.cap-plate.tb .tb-lab.r{right:2.1%}
