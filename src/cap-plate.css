@@ -114,3 +114,5 @@ html .info-strip::before,html .info-strip::after{content:none!important}
   .treaty-pill{top:48px!important;transform:translateX(-50%) scale(.75)!important;transform-origin:50% 0}
 }
 [data-chat-tab="pm"] .chat-pm-ic{width:16px;height:16px;object-fit:contain;vertical-align:-3px;margin-right:4px}
+/* Kapalı pencerenin hiçbir parçası tıklanamaz (menüye taşınan casus formu kendi pointer-events'ini açtığı için görünmezken de tıklanıyordu) */
+.captain-overlay:not(.open) *,.quest-overlay:not(.open) *{pointer-events:none!important}
