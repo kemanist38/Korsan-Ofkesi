@@ -15,14 +15,18 @@ export function setupCapPlate(o:{nick:()=>string;logout:()=>void;canLogout:()=>b
   // Sohbet: parşömen ikonu
   const ct=$('#chatToggle');if(ct){ct.querySelector('svg')?.remove();const im=document.createElement('img');im.src='/assets/icon-chat-v1.webp';im.alt='';im.draggable=false;ct.prepend(im);ct.classList.add('cp-chat');}
 }
-// Haritanın sağında Dünya; Görevler, Grup, Arkadaşlar, Arena ve Etkinlikler sağ üstte, market ve menünün solunda tek sırada
-function setupSideButtons(){const cl=$('.map-cluster');if(!cl)return;
-  const ev=document.createElement('button');ev.type='button';ev.className='world-map-button cp-ev';ev.setAttribute('aria-label','Etkinlikler');
-  ev.innerHTML='<img src="/assets/icon-events-v1.webp" alt="" draggable="false"/><span>ETKİNLİKLER</span>';
-  ev.onclick=e=>{e.stopPropagation();$<HTMLButtonElement>('.map-cluster .day-badge')?.click();};cl.classList.add('cp-side');
-  // Dünya dışındakiler sol üstte tek sıra
+// Dünya mini harita büyüyünce ortasında; Görevler, Grup, Arkadaşlar, Arena sağ üstte; Etkinlikler menüde, o günün etkinliği mini haritanın sağında kısa yazıyla
+function setupSideButtons(){const cl=$('.map-cluster');if(!cl)return;cl.classList.add('cp-side');
+  const badge=$<HTMLButtonElement>('.map-cluster .day-badge'),pop=$('.map-cluster .day-pop');
+  // Kısayollar sağ üstte tek sıra
   const row=document.createElement('div');row.className='cp-top';document.body.append(row);
-  for(const q of ['#openQuestTop','.grp-btn','.fr-btn','.arena-button']){const b=$(q);if(b)row.append(b);}row.append(ev);const pop=$('.map-cluster .day-pop');if(pop)row.append(pop);}
+  for(const q of ['#openQuestTop','.grp-btn','.fr-btn','.arena-button']){const b=$(q);if(b)row.append(b);}
+  // Etkinlik penceresi: mini haritanın sağındaki kısa etkinlik yazısının altında açılır
+  if(pop&&badge){document.body.append(pop);pop.classList.add('cp-pop');
+    new MutationObserver(()=>{if(!pop.classList.contains('open'))return;const r=badge.getBoundingClientRect();pop.style.left=`${Math.round(r.left)}px`;pop.style.top=`${Math.round(r.bottom+6)}px`;}).observe(pop,{attributes:true,attributeFilter:['class']});}
+  // Menüde Etkinlikler
+  const grid=$('#menuOverlay .menu-grid');if(grid&&badge){const m=document.createElement('button');m.id='menuEvents';m.innerHTML='<img src="/assets/icon-events-v1.webp" alt="" draggable="false"/><span>ETKİNLİKLER</span>';
+    m.onclick=e=>{e.stopPropagation();$('#menuOverlay')?.classList.remove('open');badge.click();};grid.prepend(m);}}
 // Casus: menü penceresinin başında
 function setupMenuSpy(){const spy=$('#spyGo'),grid=$('#menuOverlay .menu-grid');if(!spy||!grid)return;
   const w=document.createElement('div');w.className='cp-spy';w.innerHTML='<img src="/assets/icon-spy-v1.webp" alt="" draggable="false"/><b>CASUS GÖNDER</b>';w.append(spy);grid.before(w);}

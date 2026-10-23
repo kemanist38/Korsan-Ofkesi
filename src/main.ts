@@ -415,7 +415,7 @@ const MOBILE_HUD=true;
 function fitHud(){const [vw,vh]=MOBILE_HUD?[880,480]:[1180,640];uiScale=Math.max(.5,Math.min(1,innerWidth/vw,innerHeight/vh));document.documentElement.style.setProperty('--ui',String(uiScale));document.documentElement.classList.toggle('touch',MOBILE_HUD);}
 fitHud();
 // Günün etkinliği: mini haritada dünya ikonunun yanında kısa rozet (ör. "İnci ×2"); tıklayınca haftalık takvim açılır
-const DAY_SHORT:Record<string,string>={sp:'SP ×2',tp:'TP +%50',ep:'EP +%50',boss:'Boss ×2',gold:'Altın +%50',treaty:'Antlaşma',siege:'Kuşatma'};
+const DAY_SHORT:Record<string,string>={sp:'x2 SP',tp:'%50 TP',ep:'%50 EP',boss:'Boss Avı',gold:'%50 Altın',treaty:'Deniz Antlaşması',siege:'Büyük Kuşatma'};
 const dayEventEl=document.createElement('button');dayEventEl.className='day-badge';dayEventEl.type='button';document.querySelector('.map-cluster')!.append(dayEventEl);
 const dayPop=document.createElement('div');dayPop.className='day-pop';document.querySelector('.map-cluster')!.append(dayPop);
 dayEventEl.onclick=e=>{e.stopPropagation();renderDayPop();dayPop.classList.toggle('open');};
