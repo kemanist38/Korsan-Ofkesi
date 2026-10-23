@@ -1,9 +1,10 @@
 // Günlük etkinlikler: haftanın gününe göre bir bonus (yerel saat, gece yarısı değişir).
-// Cumartesi SP, Pazar TP, Pazartesi EP, Salı boss, Çarşamba altın, Perşembe Deniz Antlaşması (src/treaty.ts), Cuma Büyük Kuşatma (src/siege.ts).
+// Cumartesi Filo Savaşı (src/fleetwar.ts), Pazar TP, Pazartesi EP, Salı boss, Çarşamba altın, Perşembe Deniz Antlaşması (src/treaty.ts), Cuma Büyük Kuşatma (src/siege.ts).
+// 'sp' kimliği eski adından kalır; Cumartesi artık Filo Savaşı
 export type DayEventId='sp'|'tp'|'ep'|'boss'|'gold'|'treaty'|'siege';
 export type DayEvent={id:DayEventId;day:string;name:string;desc:string};
 const BY_WEEKDAY:Partial<Record<number,DayEvent>>={
-  6:{id:'sp',day:'Cumartesi',name:'Savaş Günü',desc:'Rakip oyuncu batırınca 2 kat savaş puanı (50 SP)'},
+  6:{id:'sp',day:'Cumartesi',name:'Filo Savaşı',desc:'Filoların gün boyu batırdığı rakip kaptanlar toplanır; en çok batıran filonun en az 5 rakip batırmış üyeleri 150 inci + 100.000 altın kazanır'},
   0:{id:'tp',day:'Pazar',name:'Tecrübe Şöleni',desc:'Tüm tecrübe puanları %50 fazla'},
   1:{id:'ep',day:'Pazartesi',name:'Elit Günü',desc:'Elit puanları %50 fazla'},
   2:{id:'boss',day:'Salı',name:'Boss Avı',desc:'Boss, gereken batırmanın yarısında çıkar'},
@@ -20,7 +21,6 @@ let treatyFx:{id:TreatyFxId;until:number}|null=null;
 export const setTreatyFx=(fx:{id:TreatyFxId;until:number}|null)=>{treatyFx=fx;};
 export const treatyFxOn=(id:TreatyFxId,now=Date.now())=>!!treatyFx&&treatyFx.id===id&&now<treatyFx.until;
 // Aynı türden günlük etkinlikle çarpılmaz, eklenir (Altın Günü %50 + antlaşma %10 = %60)
-export const spMult=(d?:Date)=>is('sp',d)?2:1;
 export const xpMult=(d?:Date,tr=treatyFxOn('xp',d?.getTime()))=>(is('tp',d)?1.5:1)+(tr?.1:0);
 export const epMult=(d?:Date)=>is('ep',d)?1.5:1;
 export const goldMult=(d?:Date,tr=treatyFxOn('gold',d?.getTime()))=>(is('gold',d)?1.5:1)+(tr?.1:0);

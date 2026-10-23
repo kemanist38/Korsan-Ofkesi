@@ -20,6 +20,7 @@ import {ACHIEVEMENTS,MAIN_COLLECTION} from '../src/achievements.ts';
 import {officerSlots,OFFICER_MAX_RANK,talentPoints,TALENTS} from '../src/crew.ts';
 import {MINE,CONSUMABLES} from '../src/arsenal.ts';
 import {goldMult,xpMult,epMult,dayEvent,TREATY_KILL_AMMO} from '../src/events.ts';
+import {FW_MIN_SINKS,FW_PRIZE,fwWinner,fwEligible} from '../src/fleetwar.ts';
 import {TREATY_FX,TREATY_FX_IDS,TREATY_MIN_PICKS,TREATY_MAP,TREATY_VOTE_MS,TREATY_FX_MS,TREATY_ENVOY_R,treatyGoal,treatyTally,treatyWinner,treatyRewards} from '../src/treaty.ts';
 import {HERO_DAMAGE,HERO_DAYS} from '../src/siege.ts';
 import {createChest} from '../src/loot.ts';
@@ -972,6 +973,30 @@ export function treatyTick(now){const d=new Date(now),today=dayEvent(d)?.id==='t
   if(treaty.phase==='collect'&&!today){treaty.phase='fail';treatyDirty=true;treatyCast();return;}
   if(treaty.phase==='collect'&&treatyCastDue&&now-treatyCastAt>3000)treatyCast();}
 loadTreaty();setInterval(()=>{treatyTick(Date.now());saveTreaty();},2000).unref();
+// Filo Savaşı (Cumartesi, src/fleetwar.ts): kredilenen her rakip batırma filoya ve üyeye yazılır; gün bitince kazanan filonun
+// en az FW_MIN_SINKS batırmış üyelerine ödül verilir. Durum /opt/game/fleetwar.json'da saklanır (sunucu yeniden başlarsa kaybolmaz).
+const FW_FILE=process.env.FW_FILE||'/opt/game/fleetwar.json';
+export let fw={day:'',guilds:{},members:{},last:null};let fwDirty=false,fwCastAt=0,fwCastDue=false;const guildNames=new Map();
+function loadFw(){if(process.env.NODE_ENV==='test')return;try{fw={...fw,...JSON.parse(fs.readFileSync(FW_FILE,'utf8'))};}catch{}}
+function saveFw(){if(process.env.NODE_ENV==='test'||!fwDirty)return;fwDirty=false;try{fs.writeFileSync(FW_FILE+'.tmp',JSON.stringify(fw));fs.renameSync(FW_FILE+'.tmp',FW_FILE);}catch(e){log('FİLO SAVAŞI kayıt hatası',e?.code);}}
+export const fwReset=()=>{fw={day:'',guilds:{},members:{},last:null};};
+async function guildName(gid){if(guildNames.has(gid))return guildNames.get(gid);let n=`Filo ${gid}`;
+  try{const r=await fetch(`${SUPABASE_URL}/rest/v1/guilds?id=eq.${gid}&select=tag,name`,{headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`}});const j=await r.json();if(j?.[0])n=`[${j[0].tag}] ${j[0].name}`;}catch{}
+  guildNames.set(gid,n);return n;}
+export function fwSink(k,now,name){if(dayEvent(new Date(now))?.id!=='sp'||!k?.uid||!k.guildId)return;const day=dayKey(new Date(now));if(fw.day!==day){fw={day,guilds:{},members:{},last:fw.last};}
+  const g=String(k.guildId),G=fw.guilds[g]??={name:name??guildNames.get(k.guildId)??`Filo ${g}`,n:0,at:now};G.n++;G.at=now;
+  const m=fw.members[k.uid]??={g,n:0,nick:k.nick};m.n++;m.g=g;fwDirty=true;fwCastDue=true;
+  if(!name&&!guildNames.has(k.guildId))void guildName(k.guildId).then(n=>{if(fw.guilds[g])fw.guilds[g].name=n;});}
+export function fwInfo(c,now=Date.now()){const top=Object.values(fw.guilds).sort((a,b)=>b.n-a.n||a.at-b.at).slice(0,3).map(v=>[v.name,v.n]);
+  const g=c?.guildId?String(c.guildId):null;return{on:dayEvent(new Date(now))?.id==='sp',top,fleet:g?fw.guilds[g]?.n??0:0,mine:fw.members[c?.uid]?.n??0,fleetName:g?fw.guilds[g]?.name??null:null,last:fw.last};}
+function fwCast(){fwCastAt=Date.now();fwCastDue=false;for(const x of all)if(x.uid)send(x,{t:'fw',d:fwInfo(x,fwCastAt)});}
+export function fwFinish(now){const win=fwWinner(fw.guilds),uids=fwEligible(fw.members,win);
+  for(const u of uids){const c=grantUid(u,{pearls:FW_PRIZE.pearls,gold:FW_PRIZE.gold});if(c)send(c,{t:'fw',d:{...fwInfo(c,now),reward:FW_PRIZE}});}
+  fw.last=win?{name:fw.guilds[win].name,n:fw.guilds[win].n}:null;log('FİLO SAVAŞI',fw.last?.name??'kazanan yok','ödül',uids.length);
+  if(win){const msg=JSON.stringify({t:'chat',d:{nick:'Filo Savaşı',tag:null,adm:true,text:`⚔ Filo Savaşı bitti! Kazanan: ${fw.guilds[win].name} (${fw.guilds[win].n} batırma). En az ${FW_MIN_SINKS} rakip batıran ${uids.length} üye ödülünü aldı.`,at:now}});for(const x of all)if(x.uid)send(x,msg);}
+  fw={day:'',guilds:{},members:{},last:fw.last};fwDirty=true;fwCast();return{win,uids};}
+export function fwTick(now){const d=new Date(now);if(fw.day&&fw.day!==dayKey(d)){fwFinish(now);return;}if(fwCastDue&&now-fwCastAt>3000)fwCast();}
+loadFw();setInterval(()=>{fwTick(Date.now());saveFw();},2000).unref();
 
 // Doğrulanan kazançlar 20 saniyede bir veritabanına yazılır; dönen değerlerle oyuncunun seviyesi tazelenir
 export async function flushCredit(c){
@@ -1013,7 +1038,7 @@ wss.on('connection',ws=>{
       for(const x of all)if(x.uid===who.uid&&x!==c)x.ws.close(4004,'başka yerden bağlanıldı');
       Object.assign(c,who);c.admin=await isAdminToken(String(m.token||'')).catch(()=>false);c.netId=String(m.netId||'').slice(0,16)||Math.random().toString(36).slice(2,10);clearTimeout(authTimer);
       await loadEcon(c);if(!c.econ){ws.close(4003,'hesap verisi yüklenemedi');return;}
-      void sinkAdd(c,0);send(c,{t:'hello',id:c.netId,nick:c.nick,playerNo:c.playerNo});log('GİRİŞ',`#${c.playerNo}`,c.nick);void loadFriends(c).then(()=>{send(c,{t:'fr',d:{k:'list',list:friendView(c)}});friendPing(c);});void rpcTry('mail_box',{p_uid:c.uid,p_box:'in'}).then(r=>{if(r.data)send(c,{t:'mail',d:{k:'box',box:'in',list:r.data.list,unread:r.data.unread}});});treaty.seen[c.uid]=Date.now();treatyDirty=true;send(c,{t:'treaty',d:treatyInfo(c)});if(!qkByUid.has(c.uid))qkByUid.set(c.uid,{});c.qk=qkByUid.get(c.uid);{const t=treasures.get(c.uid);if(t)send(c,{t:'tstate',d:{parts:t.parts,spot:t.spot}});}return;}
+      void sinkAdd(c,0);send(c,{t:'hello',id:c.netId,nick:c.nick,playerNo:c.playerNo});log('GİRİŞ',`#${c.playerNo}`,c.nick);void loadFriends(c).then(()=>{send(c,{t:'fr',d:{k:'list',list:friendView(c)}});friendPing(c);});void rpcTry('mail_box',{p_uid:c.uid,p_box:'in'}).then(r=>{if(r.data)send(c,{t:'mail',d:{k:'box',box:'in',list:r.data.list,unread:r.data.unread}});});treaty.seen[c.uid]=Date.now();treatyDirty=true;send(c,{t:'treaty',d:treatyInfo(c)});send(c,{t:'fw',d:fwInfo(c)});if(!qkByUid.has(c.uid))qkByUid.set(c.uid,{});c.qk=qkByUid.get(c.uid);{const t=treasures.get(c.uid);if(t)send(c,{t:'tstate',d:{parts:t.parts,spot:t.spot}});}return;}
     if(!c.uid||!c.econ)return;
     switch(m.t){
       case'join':{const name=String(m.sea||'').slice(0,40);if(name===c.sea)return;if(!canJoin(c,name,now)){send(c,{t:'denied',reason:'harita kilitli'});return;}leaveSea(c);c.last=null;if(!name)return;
@@ -1044,7 +1069,7 @@ wss.on('connection',ws=>{
         if(s.by&&!(now-(c.pvp?.from.get(String(s.by))??-1e12)<60_000)){suspect(c,'sahte batırma',String(s.by));s.by=null;s.byNick=null;}
         if(c.duel){const d=duels.get(c.duel);pvpReset(c);toSea(c,{t:'sunk',d:s});if(d)duelFinish(d,d.a===c?d.b:d.a,'batırdı',now);return;}
         if(s.by){const k=[...(seas.get(c.sea)||[])].find(x=>x.netId===String(s.by));if(k)rageGain(k,RAGE_PER_RIVAL);}
-        if(s.by&&domMatchOfSea(c.sea)===undefined){const k=[...(seas.get(c.sea)||[])].find(x=>x.netId===String(s.by));if(sinkCredit(k,c.uid,now))void sinkAdd(k,1);}
+        if(s.by&&domMatchOfSea(c.sea)===undefined){const k=[...(seas.get(c.sea)||[])].find(x=>x.netId===String(s.by));if(sinkCredit(k,c.uid,now)){void sinkAdd(k,1);fwSink(k,now);}}
         if(c.domTeam)domSink(c,now);if(c.lsOn){lsOut(c,s.by?[...(seas.get(c.sea)||[])].find(x=>x.netId===String(s.by)):null,now);toSea(c,{t:'sunk',d:s});return;}pvpReset(c);toSea(c,{t:'sunk',d:s});return;}
       case'bkill':return; // Only accepted nkill events advance the boss counter.
       case'bhit':return; // oyuncunun bildirdiği hasar kabul edilmez (sunucu atışı ve mayın)

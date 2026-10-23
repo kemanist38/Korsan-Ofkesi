@@ -7,8 +7,8 @@ const E=await import(`data:text/javascript;base64,${Buffer.from(code).toString('
 // 2026-10-03 Cumartesi, 04 Pazar, 05 Pazartesi, 06 Salı, 07 Çarşamba
 const day=n=>new Date(2026,9,n,12,0,0);
 test('each weekday gives its own bonus',()=>{
-  assert.equal(E.spMult(day(3)),2);assert.equal(E.xpMult(day(3)),1);
-  assert.equal(E.xpMult(day(4)),1.5);assert.equal(E.spMult(day(4)),1);
+  assert.equal(E.dayEvent(day(3)).name,'Filo Savaşı');assert.equal(E.xpMult(day(3)),1);
+  assert.equal(E.xpMult(day(4)),1.5);
   assert.equal(E.epMult(day(5)),1.5);
   assert.equal(E.bossKillsNeeded(200,day(6)),100);assert.equal(E.bossKillsNeeded(200,day(5)),200);
   assert.equal(E.goldMult(day(7)),1.5);assert.equal(E.goldMult(day(8)),1);

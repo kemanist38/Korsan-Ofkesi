@@ -469,3 +469,12 @@ test('özel mesaj küfrü: 1. kez 24 saat susturma, 2. kez hesap kapanır',async
   assert.equal(await S.pmStrike(c,0),1);assert.ok(S.muteLeft('Zeki',1000)>23*3600_000);
   assert.equal(await S.pmStrike(c,0),2);await new Promise(r=>setTimeout(r,350));assert.equal(closed,1);S.mutes.delete('zeki');
 });
+test('filo savaşı: cumartesi batırmalar filoya yazılır, kazanan filonun en az 5 batıran üyesi ödül alır',()=>{
+  S.fwReset();const sat=new Date(2026,9,3,12).getTime();
+  const a={uid:'fa',nick:'A',guildId:1},b={uid:'fb',nick:'B',guildId:1},c={uid:'fc',nick:'C',guildId:2};
+  for(let i=0;i<5;i++)S.fwSink(a,sat+i,'[A] Alfa');for(let i=0;i<3;i++)S.fwSink(b,sat+10+i,'[A] Alfa');for(let i=0;i<6;i++)S.fwSink(c,sat+20+i,'[B] Beta');
+  S.fwSink({uid:'fx',nick:'X',guildId:3},new Date(2026,9,4,12).getTime(),'[C] Pazar');// pazar sayılmaz
+  assert.equal(S.fw.guilds['1'].n,8);assert.equal(S.fw.guilds['2'].n,6);assert.equal(S.fw.guilds['3'],undefined);
+  const r=S.fwFinish(sat+999);assert.equal(r.win,'1');assert.deepEqual(r.uids,['fa'],'yalnız en az 5 batıran üye');
+  assert.equal(S.fw.last.name,'[A] Alfa');for(const p of [...S.pendingCredits.values()])if(p.uid==='fa')S.pendingCredits.delete(p.grant.id);
+});

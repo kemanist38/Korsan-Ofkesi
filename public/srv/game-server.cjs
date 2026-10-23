@@ -3735,6 +3735,12 @@ __export(game_server_exports, {
   flushCredit: () => flushCredit,
   friendSets: () => friendSets,
   friendView: () => friendView,
+  fw: () => fw,
+  fwFinish: () => fwFinish,
+  fwInfo: () => fwInfo,
+  fwReset: () => fwReset,
+  fwSink: () => fwSink,
+  fwTick: () => fwTick,
   godCheck: () => godCheck,
   groupBonus: () => groupBonus,
   groupInvites: () => groupInvites,
@@ -4324,7 +4330,7 @@ var talentPoints = (level) => Math.max(0, level - 1);
 
 // src/events.ts
 var BY_WEEKDAY = {
-  6: { id: "sp", day: "Cumartesi", name: "Sava\u015F G\xFCn\xFC", desc: "Rakip oyuncu bat\u0131r\u0131nca 2 kat sava\u015F puan\u0131 (50 SP)" },
+  6: { id: "sp", day: "Cumartesi", name: "Filo Sava\u015F\u0131", desc: "Filolar\u0131n g\xFCn boyu bat\u0131rd\u0131\u011F\u0131 rakip kaptanlar toplan\u0131r; en \xE7ok bat\u0131ran filonun en az 5 rakip bat\u0131rm\u0131\u015F \xFCyeleri 150 inci + 100.000 alt\u0131n kazan\u0131r" },
   0: { id: "tp", day: "Pazar", name: "Tecr\xFCbe \u015E\xF6leni", desc: "T\xFCm tecr\xFCbe puanlar\u0131 %50 fazla" },
   1: { id: "ep", day: "Pazartesi", name: "Elit G\xFCn\xFC", desc: "Elit puanlar\u0131 %50 fazla" },
   2: { id: "boss", day: "Sal\u0131", name: "Boss Av\u0131", desc: "Boss, gereken bat\u0131rman\u0131n yar\u0131s\u0131nda \xE7\u0131kar" },
@@ -4340,6 +4346,16 @@ var xpMult = (d, tr = treatyFxOn("xp", d?.getTime())) => (is("tp", d) ? 1.5 : 1)
 var epMult = (d) => is("ep", d) ? 1.5 : 1;
 var goldMult = (d, tr = treatyFxOn("gold", d?.getTime())) => (is("gold", d) ? 1.5 : 1) + (tr ? 0.1 : 0);
 var TREATY_KILL_AMMO = 10;
+
+// src/fleetwar.ts
+var FW_MIN_SINKS = 5;
+var FW_PRIZE = { pearls: 150, gold: 1e5 };
+function fwWinner(guilds) {
+  let best = null;
+  for (const [g2, v] of Object.entries(guilds)) if (v.n > 0 && (!best || v.n > guilds[best].n || v.n === guilds[best].n && v.at < guilds[best].at)) best = g2;
+  return best;
+}
+var fwEligible = (members, winner) => winner ? Object.entries(members).filter(([, m]) => m.g === winner && m.n >= FW_MIN_SINKS).map(([u]) => u) : [];
 
 // src/treaty.ts
 var TREATY_FX = {
@@ -7443,6 +7459,102 @@ setInterval(() => {
   treatyTick(Date.now());
   saveTreaty();
 }, 2e3).unref();
+var FW_FILE = process.env.FW_FILE || "/opt/game/fleetwar.json";
+var fw = { day: "", guilds: {}, members: {}, last: null };
+var fwDirty = false;
+var fwCastAt = 0;
+var fwCastDue = false;
+var guildNames = /* @__PURE__ */ new Map();
+function loadFw() {
+  if (process.env.NODE_ENV === "test") return;
+  try {
+    fw = { ...fw, ...JSON.parse(import_node_fs.default.readFileSync(FW_FILE, "utf8")) };
+  } catch {
+  }
+}
+function saveFw() {
+  if (process.env.NODE_ENV === "test" || !fwDirty) return;
+  fwDirty = false;
+  try {
+    import_node_fs.default.writeFileSync(FW_FILE + ".tmp", JSON.stringify(fw));
+    import_node_fs.default.renameSync(FW_FILE + ".tmp", FW_FILE);
+  } catch (e) {
+    log("F\u0130LO SAVA\u015EI kay\u0131t hatas\u0131", e?.code);
+  }
+}
+var fwReset = () => {
+  fw = { day: "", guilds: {}, members: {}, last: null };
+};
+async function guildName(gid) {
+  if (guildNames.has(gid)) return guildNames.get(gid);
+  let n = `Filo ${gid}`;
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/guilds?id=eq.${gid}&select=tag,name`, { headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${SUPABASE_ANON}` } });
+    const j = await r.json();
+    if (j?.[0]) n = `[${j[0].tag}] ${j[0].name}`;
+  } catch {
+  }
+  guildNames.set(gid, n);
+  return n;
+}
+function fwSink(k, now, name) {
+  if (dayEvent(new Date(now))?.id !== "sp" || !k?.uid || !k.guildId) return;
+  const day = dayKey(new Date(now));
+  if (fw.day !== day) {
+    fw = { day, guilds: {}, members: {}, last: fw.last };
+  }
+  const g2 = String(k.guildId), G2 = fw.guilds[g2] ??= { name: name ?? guildNames.get(k.guildId) ?? `Filo ${g2}`, n: 0, at: now };
+  G2.n++;
+  G2.at = now;
+  const m = fw.members[k.uid] ??= { g: g2, n: 0, nick: k.nick };
+  m.n++;
+  m.g = g2;
+  fwDirty = true;
+  fwCastDue = true;
+  if (!name && !guildNames.has(k.guildId)) void guildName(k.guildId).then((n) => {
+    if (fw.guilds[g2]) fw.guilds[g2].name = n;
+  });
+}
+function fwInfo(c, now = Date.now()) {
+  const top = Object.values(fw.guilds).sort((a, b) => b.n - a.n || a.at - b.at).slice(0, 3).map((v) => [v.name, v.n]);
+  const g2 = c?.guildId ? String(c.guildId) : null;
+  return { on: dayEvent(new Date(now))?.id === "sp", top, fleet: g2 ? fw.guilds[g2]?.n ?? 0 : 0, mine: fw.members[c?.uid]?.n ?? 0, fleetName: g2 ? fw.guilds[g2]?.name ?? null : null, last: fw.last };
+}
+function fwCast() {
+  fwCastAt = Date.now();
+  fwCastDue = false;
+  for (const x of all) if (x.uid) send(x, { t: "fw", d: fwInfo(x, fwCastAt) });
+}
+function fwFinish(now) {
+  const win = fwWinner(fw.guilds), uids = fwEligible(fw.members, win);
+  for (const u of uids) {
+    const c = grantUid(u, { pearls: FW_PRIZE.pearls, gold: FW_PRIZE.gold });
+    if (c) send(c, { t: "fw", d: { ...fwInfo(c, now), reward: FW_PRIZE } });
+  }
+  fw.last = win ? { name: fw.guilds[win].name, n: fw.guilds[win].n } : null;
+  log("F\u0130LO SAVA\u015EI", fw.last?.name ?? "kazanan yok", "\xF6d\xFCl", uids.length);
+  if (win) {
+    const msg = JSON.stringify({ t: "chat", d: { nick: "Filo Sava\u015F\u0131", tag: null, adm: true, text: `\u2694 Filo Sava\u015F\u0131 bitti! Kazanan: ${fw.guilds[win].name} (${fw.guilds[win].n} bat\u0131rma). En az ${FW_MIN_SINKS} rakip bat\u0131ran ${uids.length} \xFCye \xF6d\xFCl\xFCn\xFC ald\u0131.`, at: now } });
+    for (const x of all) if (x.uid) send(x, msg);
+  }
+  fw = { day: "", guilds: {}, members: {}, last: fw.last };
+  fwDirty = true;
+  fwCast();
+  return { win, uids };
+}
+function fwTick(now) {
+  const d = new Date(now);
+  if (fw.day && fw.day !== dayKey(d)) {
+    fwFinish(now);
+    return;
+  }
+  if (fwCastDue && now - fwCastAt > 3e3) fwCast();
+}
+loadFw();
+setInterval(() => {
+  fwTick(Date.now());
+  saveFw();
+}, 2e3).unref();
 async function flushCredit(c) {
   if (c.flushing || !c.uid) return;
   c.flushing = true;
@@ -7591,6 +7703,7 @@ wss.on("connection", (ws) => {
       treaty.seen[c.uid] = Date.now();
       treatyDirty = true;
       send(c, { t: "treaty", d: treatyInfo(c) });
+      send(c, { t: "fw", d: fwInfo(c) });
       if (!qkByUid.has(c.uid)) qkByUid.set(c.uid, {});
       c.qk = qkByUid.get(c.uid);
       {
@@ -7754,7 +7867,10 @@ wss.on("connection", (ws) => {
         }
         if (s.by && domMatchOfSea(c.sea) === void 0) {
           const k = [...seas.get(c.sea) || []].find((x) => x.netId === String(s.by));
-          if (sinkCredit(k, c.uid, now)) void sinkAdd(k, 1);
+          if (sinkCredit(k, c.uid, now)) {
+            void sinkAdd(k, 1);
+            fwSink(k, now);
+          }
         }
         if (c.domTeam) domSink(c, now);
         if (c.lsOn) {
@@ -8150,6 +8266,12 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   flushCredit,
   friendSets,
   friendView,
+  fw,
+  fwFinish,
+  fwInfo,
+  fwReset,
+  fwSink,
+  fwTick,
   godCheck,
   groupBonus,
   groupInvites,

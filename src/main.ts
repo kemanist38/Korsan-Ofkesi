@@ -51,6 +51,7 @@ import {setupMail} from './mail-ui';
 import {setupSocial,friendMsg,groupMsg,groupPick,friendList} from './social-ui';
 import {DUEL_MAPS} from './duel';
 import {duelMsg,duelSelect,renderDuelHud,setDuelMe,duelList,duelPartner} from './duel-ui';
+import {FW_MIN_SINKS,type FleetWarInfo} from './fleetwar';
 import {treatyMsg,openTreaty,treatyEnvoy,treatyRowHtml,TREATY_ENVOY} from './treaty-ui';
 import {TREATY_ENVOY_R} from './treaty';
 import {TALENTS,OFFICERS,OFFICER_MAX_RANK,officerCost,officerSlots,talentPoints,loadCrew,saveCrew,spentPoints,computeBonus,type TalentId,type OfficerId} from './crew';
@@ -325,6 +326,8 @@ const mail=setupMail({friends:()=>friendList().filter(f=>f.ok).map(f=>({id:f.id,
 function escapeHtml(t:string){return t.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));}
 // HUD 10 Hz güncellenir; DOM yalnız içerik değişince yazılır (her karede yeniden kurmak donmaya yol açıyordu)
 const towerRuins=loadRuins();
+// Filo Savaşı (Cumartesi): sunucudan gelen durum, etkinlik panelinde gösterilir
+let fleetWar:FleetWarInfo|null=null;
 let eventPanelClock=0,towersDestroyedHere=0,uiClock=0,eventPanelHtml='',combatTargetsHtml='',combatTargetsTop='';
 let mapFade=0;
 
@@ -415,7 +418,7 @@ const MOBILE_HUD=true;
 function fitHud(){const [vw,vh]=MOBILE_HUD?[880,480]:[1180,640];uiScale=Math.max(.5,Math.min(1,innerWidth/vw,innerHeight/vh));document.documentElement.style.setProperty('--ui',String(uiScale));document.documentElement.classList.toggle('touch',MOBILE_HUD);}
 fitHud();
 // Günün etkinliği: mini haritada dünya ikonunun yanında kısa rozet (ör. "İnci ×2"); tıklayınca haftalık takvim açılır
-const DAY_SHORT:Record<string,string>={sp:'x2 SP',tp:'%50 TP',ep:'%50 EP',boss:'Boss Avı',gold:'%50 Altın',treaty:'Deniz Antlaşması',siege:'Büyük Kuşatma'};
+const DAY_SHORT:Record<string,string>={sp:'Filo Savaşı',tp:'%50 TP',ep:'%50 EP',boss:'Boss Avı',gold:'%50 Altın',treaty:'Deniz Antlaşması',siege:'Büyük Kuşatma'};
 const dayEventEl=document.createElement('button');dayEventEl.className='day-badge';dayEventEl.type='button';document.querySelector('.map-cluster')!.append(dayEventEl);
 const dayPop=document.createElement('div');dayPop.className='day-pop';document.querySelector('.map-cluster')!.append(dayPop);
 dayEventEl.onclick=e=>{e.stopPropagation();renderDayPop();dayPop.classList.toggle('open');};
@@ -647,6 +650,7 @@ const netHandlers:NetHandlers={
   pm:d=>{if(d.k==='err'){toast(String(d.msg));chat.pmSystem(String(d.msg));return;}if(d.k==='msg')chat.pmReceive({peer:String(d.mine?d.to:d.from),peerNick:String(d.mine?d.tn:d.nick),who:String(d.nick),text:String(d.text),at:Number(d.at)||Date.now(),mine:!!d.mine});},
   grp:d=>groupMsg(d),
   duel:d=>duelMsg(d,toast,n=>{state.pearls=Math.max(0,state.pearls+n);session.pearlServerAdd?.(n);saveAccount();updateUI();}),
+  fw:d=>{fleetWar=d;eventPanelHtml='';if(d.reward)rewardNotice(`Filo Savaşı kazanıldı · +${fmt(d.reward.pearls)} inci · +${fmt(d.reward.gold)} altın`,'battle');},
   treaty:d=>{setTreatyFx(d.fxMine?d.fx:null);treatyMsg(d);if(d.err)toast(d.err);if(d.reward)rewardNotice(`Deniz Antlaşması ödülü${d.reward.rank?` · ${d.reward.rank}. sıra`:''} · +${fmt(d.reward.pearls)} inci · +${fmt(d.reward.gold)} altın`,'gain');},
   ahp:d=>{adminEv={...d,at:performance.now()};},
   aboom:(id:string)=>{const e=remoteOf(id);if(e){burst(e.x,e.y,true);burst(e.x,e.y,true);playExplosion();splashAt(e.x,e.y,220);}},
@@ -2440,6 +2444,7 @@ function updateEvents(dt:number){
   if(treasure.active||treasure.parts>0){const a=treasure.active;rows.push(`<button class="event-row treasure" data-event-route="treasure"><img src="${TREASURE_ICON}" alt=""/><span><small>${a?'HAZİNE HARİTASI · HEDEF':'HAZİNE HARİTASI PARÇALARI'}</small><strong>${a?`${a.map} · ${a.label}`:`${treasure.parts} / ${TREASURE_PARTS} parça`}</strong>${a?'':`<i><em style="width:${treasure.parts/TREASURE_PARTS*100}%"></em></i>`}</span></button>`);}
   }
   {const tr=treatyRowHtml();if(tr)rows.push(tr);}
+  if(fleetWar?.on){const f=fleetWar,top=f.top[0];rows.push(`<button class="event-row fw-row"><img src="/assets/glyph-arena.svg" alt=""/><span><small>FİLO SAVAŞI · ${f.fleetName?`FİLON ${fmt(f.fleet)} BATIRMA`:'FİLOYA KATIL'}</small><strong>${top?`1. ${escapeHtml(top[0])} · ${fmt(top[1])}`:'Henüz batırma yok'}</strong><i><em style="width:${Math.min(100,f.mine/FW_MIN_SINKS*100)}%"></em></i><small>Sen: ${fmt(Math.min(f.mine,99))} / ${FW_MIN_SINKS} batırma</small></span></button>`);}
   const html=rows.join('');if(html===eventPanelHtml)return;eventPanelHtml=html;
   panel.innerHTML=html;panel.classList.toggle('visible',rows.length>0);panel.querySelector<HTMLButtonElement>('.treaty-row')?.addEventListener('click',()=>openTreaty());
   combatTargetsTop=`${rows.length&&panel.offsetHeight?panel.offsetTop+panel.offsetHeight+4:panel.offsetTop}px`;
