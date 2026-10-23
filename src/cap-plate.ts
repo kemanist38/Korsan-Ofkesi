@@ -18,7 +18,7 @@ export function setupCapPlate(o:{nick:()=>string;logout:()=>void;canLogout:()=>b
     const t=`SP ${(sp?.querySelector('b')?.textContent??'').trim()}`;if(spv.textContent!==t){spv.textContent=t;spv.style.removeProperty('font-size');const cs=getComputedStyle(spv),f=parseFloat(cs.fontSize),w=spv.parentElement!.clientWidth-4;cv.font=`${cs.fontWeight} ${f}px ${cs.fontFamily}`;const need=cv.measureText(t).width*1.08;if(need>w&&w>0)spv.style.setProperty('font-size',`${Math.max(5.5,f*w/need).toFixed(1)}px`,'important');spv.title=`Savaş puanı: ${t.slice(3)} (sonraki rütbe)`;}};
   fit();setInterval(fit,250);if(hp)plate.querySelector('.tb-hp')!.append(hp);if(xp)plate.querySelector('.tb-tp')!.append(xp);if(sp)plate.querySelector('.tb-sp')!.append(sp);
   // Sohbet: parşömen ikonu
-  const ct=$('#chatToggle');if(ct){ct.querySelector('svg')?.remove();const im=document.createElement('img');im.src='/assets/icon-chat-v1.webp';im.alt='';im.draggable=false;ct.prepend(im);ct.classList.add('cp-chat');}
+  const ct=$('#chatToggle');if(ct){ct.querySelector('svg')?.remove();const im=document.createElement('img');im.src='/assets/glyph-chat.svg';im.alt='';im.draggable=false;ct.prepend(im);ct.classList.add('cp-chat');}
 }
 // Dünya mini harita büyüyünce ortasında; Görevler, Grup, Arkadaşlar, Arena sağ üstte; Etkinlikler menüde, o günün etkinliği mini haritanın sağında kısa yazıyla
 function setupSideButtons(){const cl=$('.map-cluster');if(!cl)return;cl.classList.add('cp-side');
@@ -38,7 +38,7 @@ function setupSideButtons(){const cl=$('.map-cluster');if(!cl)return;cl.classLis
     const r=badge.getBoundingClientRect();tip.style.left=`${Math.round(r.left)}px`;tip.style.top=`${Math.round(r.bottom+6)}px`;tip.hidden=false;},{capture:true});
   document.addEventListener('pointerdown',e=>{if(!tip.hidden&&e.target!==badge&&!tip.contains(e.target as Node))tip.hidden=true;},{capture:true});
   // Menüde Etkinlikler
-  const grid=$('#menuOverlay .menu-grid');if(grid&&badge){const m=document.createElement('button');m.id='menuEvents';m.innerHTML='<img src="/assets/icon-events-v1.webp" alt="" draggable="false"/><span>ETKİNLİKLER</span>';
+  const grid=$('#menuOverlay .menu-grid');if(grid&&badge){const m=document.createElement('button');m.id='menuEvents';m.innerHTML='<img src="/assets/glyph-events.svg" alt="" draggable="false"/><span>ETKİNLİKLER</span>';
     m.onclick=e=>{e.stopPropagation();$('#menuOverlay')?.classList.remove('open');full=true;badge.click();};grid.prepend(m);}}
 // Casus: menü penceresinin başında
 function setupMenuSpy(){const spy=$('#spyGo'),grid=$('#menuOverlay .menu-grid');if(!spy||!grid)return;
