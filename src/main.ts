@@ -1191,7 +1191,7 @@ function rewardNotice(msg:string,kind:LogKind|'none'='gain',data:Partial<LogEntr
   if(kind!=='none'){addLog(logbook,{t:Date.now(),kind,text,...data});saveLog(logbook);if(ui('logOverlay').classList.contains('open'))renderLogbook();}
 }
 function sinkNotice(name:string,sp:number){
-  rewardNotice(sp>0?`${name} batırıldı · +${fmt(sp)} SP kazanıldı`:`${name} batırıldı · günlük SP sınırına ulaşıldı`,'battle',{sp,sink:true});
+  rewardNotice(`${name} batırıldı`,'battle',{sp,sink:true});
 }
 function saveQuestState(){localStorage.setItem(QUEST_STORAGE,JSON.stringify({rulesVersion:2,active:state.activeQuest,progress:questProgress,cooldowns:questCooldownUntil}));}
 function saveAccount(){localStorage.setItem(ACCOUNT_STORAGE,JSON.stringify({pearls:state.pearls,gold:state.gold,fame:state.fame,level:state.level,maxHp:state.maxHp,hp:state.hp,chainAmmo:state.chainAmmo,ironAmmo:state.ironAmmo,elitePoints:state.elitePoints,eliteEconomyVersion:ELITE_ECONOMY_VERSION,battlePoints:state.battlePoints,cannonType:state.cannonType,cannonInventory,mountedCannons,equipOwned,equipped,quickSlots,quickKnown,upgrades,eliteShip:activeEliteShip,activeShip,elitePurchased,currentMap}));try{localStorage.setItem(WORLD_STORAGE,currentMap);}catch{}}
@@ -1609,7 +1609,7 @@ function drawCaptainName(x:number,y:number,tag:string,nick:string,size=17,rank=-
 let rivalSinks=ELITE_TEST_MODE?Math.max(loadRivalSinks(),12_500):loadRivalSinks();
 function drawPlayerLabel(){
   const p=worldToScreen(player),y=p.y+60,tag=guild?`[${guild.tag}]`:'',nick=profile.nick;
-  drawCaptainName(p.x,y,tag,nick,17,battleRank(state.battlePoints).index,session.isAdmin);
+  drawCaptainName(p.x,y,tag,nick,17,-1,session.isAdmin);
 }
 // ---------------------------------------------------------------- Filo: hazine, bağış ve kule dikme
 function openGuild(){renderGuild();ui('guildOverlay').classList.add('open');void refreshCloudGuild();}
@@ -1722,7 +1722,7 @@ const TEST_RANKERS:RankPlayer[]=[
   {nick:'ADM_YASİN',tag:'TC★',fleet:'Türk Korsanları',level:7,xp:2_900_000,ep:1_450_000,sp:23_500,npc:5_100,monster:260,boss:7,treasure:18},
   {nick:'ADM_DOGAN',tag:'KRK',fleet:'Kara Kartallar',level:6,xp:900_000,ep:640_000,sp:9_800,npc:3_300,monster:120,boss:3,treasure:9},
 ];
-function rankData(){const me:RankPlayer={nick:profile.nick,tag:guild?.tag??null,fleet:guild?.name??null,level:state.level,xp:state.fame,ep:state.elitePoints,sp:state.battlePoints,npc:ach.stats.npc,monster:ach.stats.monster,boss:ach.stats.boss,treasure:ach.stats.treasure,me:true};
+function rankData(){const me:RankPlayer={nick:profile.nick,tag:guild?.tag??null,fleet:guild?.name??null,level:state.level,xp:state.fame,ep:state.elitePoints,sp:rivalSinks,npc:ach.stats.npc,monster:ach.stats.monster,boss:ach.stats.boss,treasure:ach.stats.treasure,me:true};
   // Sunucu sıralaması 6 saatte bir donar: kendi satırın da o anki değerlerle durur (puanlar herkes için aynı anda hesaplanır)
   const players=serverRanks?serverRanks:[me,...(ELITE_TEST_MODE?TEST_RANKERS:[])],fleets:RankFleet[]=[];
   for(const p of players){if(!p.tag||!p.fleet)continue;let f=fleets.find(x=>x.tag===p.tag);if(!f){f={tag:p.tag,name:p.fleet,members:[]};fleets.push(f);}f.members.push(p);if(p.me)f.me=true;}
@@ -1731,7 +1731,7 @@ function rankData(){const me:RankPlayer={nick:profile.nick,tag:guild?.tag??null,
 function renderRanks(){const {players,fleets}=rankData(),board=BOARDS.find(b=>b.id===rankBoard)!,all=rankRows(rankBoard,players,fleets),pg=rankPage(all,rankPageNo);rankPageNo=pg.page;
   const tabs=(fleet:boolean)=>BOARDS.filter(b=>b.fleet===fleet).map(b=>`<button data-board="${b.id}" class="${b.id===rankBoard?'active':''}">${b.name}</button>`).join('');
   const mine=all.findIndex(r=>r.me),from=pg.page*RANK_PAGE_SIZE;
-  const row=(r:RankRow)=>`<div class="rank-row ${r.me?'me':''} ${r.rank<=3?'top'+r.rank:''}"><b>${r.rank}</b><span><span>${r.tag?`<em class="guild-tag">[${escapeHtml(r.tag)}]</em>`:''}${escapeHtml(r.name)}${r.sp!==undefined?rankBadgeHtml(battleRank(r.sp).index):''}${r.me?' <i>(sen)</i>':''}</span><small>${escapeHtml(r.sub)}</small></span><strong>${fmt(r.score)} <small>${board.unit}</small></strong></div>`;
+  const row=(r:RankRow)=>`<div class="rank-row ${r.me?'me':''} ${r.rank<=3?'top'+r.rank:''}"><b>${r.rank}</b><span><span>${r.tag?`<em class="guild-tag">[${escapeHtml(r.tag)}]</em>`:''}${escapeHtml(r.name)}${r.me?' <i>(sen)</i>':''}</span><small>${escapeHtml(r.sub)}</small></span><strong>${fmt(r.score)} <small>${board.unit}</small></strong></div>`;
   ui('rankPanel').innerHTML=`<div class="rank-tabs"><span>OYUNCU</span>${tabs(false)}</div><div class="rank-tabs"><span>FİLO</span>${tabs(true)}</div>
     <p class="quest-intro">${board.desc}. ${ELITE_TEST_MODE?'Test modu: örnek kaptanlar listede. ':''}${rankAt?`Sıralama 6 saatte bir yenilenir · son güncelleme ${rankAt.toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} · sonraki ${new Date(rankAt.getTime()+6*3600e3).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'})}`:'Sıralama 6 saatte bir yenilenir.'}</p>
     <div class="rank-table" id="rankTable">${pg.rows.length?pg.rows.map(row).join(''):`<p class="rank-empty">${board.fleet?'Henüz sıralamada filo yok. Bir filo kur ya da bir filoya katıl.':'Henüz sıralamada kimse yok.'}</p>`}</div>
@@ -2391,8 +2391,8 @@ function sinkEnemy(e:Enemy){
 // Savaş puanı kazancı; rütbe atlanırsa duyurulur
 const spText=()=>{const r=battleRank(state.battlePoints);return r.next?`${fmt(state.battlePoints)} / ${fmt(r.next.sp)}`:fmt(state.battlePoints);};
 const rivalLog=loadRivalLog();
-function gainSp(n:number){const before=battleRank(state.battlePoints).index;state.battlePoints+=n;
-  const r=battleRank(state.battlePoints);if(r.index>before){playLevelUp();showRankUp(r.index);rewardNotice(`Rütbe atladın: ${r.name} · ${r.index+1}. rütbe madalyası kazanıldı`,'battle');if(ui('captainOverlay').classList.contains('open'))renderRankMedals();}return n;}
+// Savaş puanı (SP) yalnız iç kayıt olarak tutulur; rütbe sistemi kaldırıldı, sıralamada batırılan oyuncu sayısı kullanılır
+function gainSp(n:number){state.battlePoints+=n;return n;}
 // Kule menzili hiçbir zaman oyuncunun top menzilinin altında kalmaz: kuleye ateş edebilen gemiyi kule de vurur
 // (uzun top + geliştirme + donanım kuleyi menzil dışından vuramaz). Saldırı altındaki kule yetenek menzilini (+150) de kapsar.
 const TOWER_REACH_MARGIN=60,TOWER_ALERT_REACH=200;
@@ -2853,7 +2853,7 @@ function captainFrame(e:Enemy):[HTMLImageElement,number,number,number,number]|nu
 let crowdedSea=false;
 function drawCaptain(e:Enemy,s:Vec){const fr=captainFrame(e);if(!fr)return;const [im,sx,h,D,ky]=fr;
   if(!crowdedSea)drawHullWater(e,100);ctx.save();ctx.translate(s.x,s.y);if((e.frozen??0)>0)ctx.filter='saturate(.4) brightness(1.3) hue-rotate(160deg)';ctx.drawImage(im,sx,0,h,h,-D/2,-D*ky,D,D);ctx.restore();
-  const top=-122;if(siege&&isAlly(e))drawHealthBar(s.x,s.y+44,80,e.hp/e.maxHp,'#4fd18a');else if(dom&&e.remote?.tm)drawHealthBar(s.x,s.y+44,80,e.hp/e.maxHp,DOM_TEAMS[e.remote.tm as DomTeam]?.color??'#ccc');{const sp=e.remote?.sp??TEST_RANKERS.find(r=>r.nick===e.name)?.sp??0,show=!settings.hideOthersInsignia;drawCaptainName(s.x,s.y+top-11,'',e.name,14,show?battleRank(sp).index:-1,!!e.remote?.adm);}}
+  const top=-122;if(siege&&isAlly(e))drawHealthBar(s.x,s.y+44,80,e.hp/e.maxHp,'#4fd18a');else if(dom&&e.remote?.tm)drawHealthBar(s.x,s.y+44,80,e.hp/e.maxHp,DOM_TEAMS[e.remote.tm as DomTeam]?.color??'#ccc');{drawCaptainName(s.x,s.y+top-11,'',e.name,14,-1,!!e.remote?.adm);}}
 // Capture once at death, then fade the same pose without new particles or assets.
 function spawnWreck(o:Enemy){
   if(!onScreen(o,320))return;

@@ -1,7 +1,7 @@
 // Kaptan kimliği: seviye amblemi, SP rütbe madalyası ve güverte nişanı. Geminin altında yalnızca rütbe rozeti + ad + küçük seviye
 // amblemi çizilir; büyük hâlleri ve ilerlemeler burada: seçilen rakibin oyuncu kartı, kaptan profilindeki üçlü ve rütbe atlama ekranı.
 import './captain-card.css';
-import {BATTLE_RANKS,battleRank,RANK_SHEET,RANK_COLS} from './battle';
+import {BATTLE_RANKS,RANK_SHEET,RANK_COLS} from './battle';
 import {INSIGNIA_SHEET,INSIGNIA_TIERS,insigniaTier} from './insignia';
 
 export const INSIGNIA_NAMES=['Acemi Nişanı','Bronz Nişan','Gümüş Nişan','Altın Nişan','Efsane Nişanı'];
@@ -14,13 +14,12 @@ export const rankBadge=(index:number,cls='')=>{const i=Math.max(0,Math.min(BATTL
 export const insigniaBadge=(tier:number,cls='')=>`<i class="cc-insignia ${cls}" style="background-image:url(${INSIGNIA_SHEET});background-position:0 ${Math.max(0,Math.min(TIERS-1,tier))/(TIERS-1)*100}%"></i>`;
 const bar=(pct:number,text:string)=>`<span class="cc-bar"><em style="width:${Math.max(0,Math.min(100,pct))}%"></em><b>${text}</b></span>`;
 
-// Kaptan profili: seviye, rütbe ve nişan yan yana; her birinin altında sonraki kademeye ilerleme
+// Kaptan profili: seviye ve nişan yan yana; her birinin altında sonraki kademeye ilerleme
 export function trioHtml(o:{level:number;xp:number;xpNeed:number;sp:number;sinks:number}){
-  const r=battleRank(o.sp),t=insigniaTier(o.sinks),nextT=INSIGNIA_TIERS[t+1];
+  const t=insigniaTier(o.sinks),nextT=INSIGNIA_TIERS[t+1];
   const lvPct=Number.isFinite(o.xpNeed)?o.xp/o.xpNeed*100:100,inPct=nextT?(o.sinks-INSIGNIA_TIERS[t])/(nextT-INSIGNIA_TIERS[t])*100:100;
   return`<section class="cc-trio">
     <article>${levelBadge(o.level,'big')}<strong>SEVİYE ${o.level}</strong>${bar(lvPct,Number.isFinite(o.xpNeed)?`${fmt(o.xp)} / ${fmt(o.xpNeed)} TP`:'En yüksek seviye')}</article>
-    <article>${rankBadge(r.index,'big')}<strong>${esc(r.name)}</strong>${bar(r.pct,r.next?`${fmt(o.sp)} / ${fmt(r.next.sp)} SP`:`${fmt(o.sp)} SP · en yüksek rütbe`)}</article>
     <article>${insigniaBadge(t,'big')}<strong>${INSIGNIA_NAMES[t]}</strong>${bar(inPct,nextT?`${fmt(o.sinks)} / ${fmt(nextT)} batırma`:`${fmt(o.sinks)} batırma · en yüksek nişan`)}</article>
   </section>`;}
 
@@ -28,8 +27,8 @@ export function trioHtml(o:{level:number;xp:number;xpNeed:number;sp:number;sinks
 const card=document.createElement('div');card.className='cc-card';card.hidden=true;document.body.append(card);let cardKey='';
 export function showPlayerCard(o:{name:string;level?:number;sp:number;sinks?:number;tag?:string|null;adm?:boolean}|null){
   if(!o){if(!card.hidden){card.hidden=true;cardKey='';}return;}
-  const r=battleRank(o.sp),t=insigniaTier(o.sinks??0),key=`${o.name}|${o.level}|${o.sp}|${o.sinks}`;if(key===cardKey&&!card.hidden)return;cardKey=key;
-  card.innerHTML=`${o.level?levelBadge(o.level,'mid'):''}<div class="cc-who"><strong class="${o.adm?'adm':''}">${esc(o.name)}</strong><small>${o.adm?'Oyun yöneticisi':`${esc(r.name)} · ${fmt(o.sp)} SP${o.level?` · Seviye ${o.level}`:''}${o.sinks!==undefined?` · ${fmt(o.sinks)} batırma`:''}`}</small></div>${o.adm?'':rankBadge(r.index,'mid')+insigniaBadge(t,'card')}`;
+  const t=insigniaTier(o.sinks??0),key=`${o.name}|${o.level}|${o.sp}|${o.sinks}`;if(key===cardKey&&!card.hidden)return;cardKey=key;
+  card.innerHTML=`${o.level?levelBadge(o.level,'mid'):''}<div class="cc-who"><strong class="${o.adm?'adm':''}">${esc(o.name)}</strong><small>${o.adm?'Oyun yöneticisi':`${o.level?`Seviye ${o.level}`:''}${o.sinks!==undefined?`${o.level?' · ':''}${fmt(o.sinks)} batırma`:''}`}</small></div>${o.adm?'':insigniaBadge(t,'card')}`;
   card.hidden=false;}
 
 // Rütbe atlama ekranı (seviye atlamadakine benzer kutlama)
