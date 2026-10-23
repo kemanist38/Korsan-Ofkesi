@@ -148,3 +148,11 @@ article:has(>#profileBattle){display:none!important}
 .cc-level>b,.lu-badge>b{font:900 0.9em/1 Cinzel,serif;color:#fff4d0;text-shadow:0 1px 2px #000,0 0 4px #000;padding-bottom:6%}
 .cc-level>b{font-size:max(9px,22cqw)}.cc-level{container-type:inline-size}
 .lu-badge{container-type:inline-size}.lu-badge>b{font-size:22cqw}
+/* Kalan farklı renkler: tüm büyük pencereler pirinç çerçevede; kırmızı düğme ve sekmeler pirinç */
+html .captain-profile,html .shop-overlay .shop-window{border:14px solid transparent!important;border-image:url(/assets/win-frame-v1.webp) 64 / 14px stretch!important;background:var(--panel)!important;background-clip:padding-box!important;border-radius:0!important;box-shadow:0 12px 30px #000c!important}
+html .rank-tabs button{border:1px solid var(--brass-edge)!important;background:var(--btn-alt)!important;color:var(--cream)!important}
+html .rank-tabs button.active{border-color:var(--brass)!important;background:var(--btn-main)!important;color:var(--ink)!important;text-shadow:0 1px 0 #f6dc9a88}
+html #couponRedeem,html [data-quest],html [data-confirm-cancel]{border:1px solid var(--brass)!important;background:var(--btn-main)!important;color:var(--ink)!important;text-shadow:0 1px 0 #f6dc9a88!important}
+html [data-quest]:disabled{border-color:#5a4632!important;background:var(--btn-off)!important;color:#8a7a62!important}
+html .rank-row.me{border-color:var(--brass)!important;background:linear-gradient(90deg,#3a2614,#1a110d)!important}
+html .development-menu,html .market-menu,html .ship-menu,html .loadout-menu{border:14px solid transparent!important;border-image:url(/assets/win-frame-v1.webp) 64 / 14px stretch!important;background:var(--panel)!important;background-clip:padding-box!important;border-radius:0!important;box-shadow:0 12px 30px #000c!important}
