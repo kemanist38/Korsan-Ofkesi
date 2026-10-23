@@ -214,3 +214,10 @@ html #toast{top:120px!important}
 .cap-plate.tb .status-line{padding:0 4px!important}
 .cap-plate.tb .tb-lab{position:absolute;top:27%;height:16%;width:4.6%;display:grid;place-items:center;font:800 11px Cinzel,serif;font-style:normal;color:#f3d496;text-shadow:0 1px 2px #000,0 0 3px #000}
 .cap-plate.tb .tb-lab.l{left:2.1%}.cap-plate.tb .tb-lab.r{right:2.1%}
+/* Kısaltılmış parşömen (994x210) */
+html .cap-plate.tb{height:101px!important}
+.cap-plate.tb .tb-tp,.cap-plate.tb .tb-hp{top:35%;height:21.5%}
+.cap-plate.tb .tb-lab{top:35%;height:21.5%}
+.cap-plate.tb .tb-lv{top:14.6%;height:51.7%}
+.cap-plate.tb .tb-sp{top:79%;height:15%}
+html #toast{top:104px!important}
