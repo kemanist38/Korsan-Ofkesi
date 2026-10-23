@@ -868,7 +868,7 @@ export function groupLeave(c){const g=c.grp?groups.get(c.grp):null;c.grp=null;if
   if(g.lead===c)g.lead=[...g.members][0];groupCast(g);}
 export function onGroup(c,d,now){const k=String(d.k||''),err=msg=>send(c,{t:'grp',d:{k:'err',msg}});
   if(k==='inv'){const nick=String(d.nick||'').trim().toLocaleLowerCase('tr');const t=[...all].find(x=>x.uid&&x.nick?.toLocaleLowerCase('tr')===nick);
-    if(!t)return err('Kaptan çevrim içi değil');if(t===c)return err('Kendini davet edemezsin');if(t.grp)return err(`${t.nick} zaten bir grupta`);
+    if(!t)return err('Kaptan çevrim içi değil');if(t===c)return err('Kendini davet edemezsin');if(!friendSets.get(c.uid)?.has(t.uid))return err('Gruba yalnız arkadaşlarını davet edebilirsin');if(t.grp)return err(`${t.nick} zaten bir grupta`);
     let g=c.grp?groups.get(c.grp):null;if(g&&g.lead!==c)return err('Davet yalnız grup lideri yapabilir');if(g&&g.members.size>=GROUP_MAX)return err(`Grup dolu (${GROUP_MAX} kişi)`);
     if(!g){g={id:`g${++groupSeq}`,lead:c,members:new Set([c])};groups.set(g.id,g);c.grp=g.id;}
     groupInvites.set(t.uid,{gid:g.id,at:now});send(t,{t:'grp',d:{k:'inv',from:c.nick,gid:g.id}});groupCast(g);send(c,{t:'grp',d:{k:'note',msg:`${t.nick} gruba davet edildi`}});return;}

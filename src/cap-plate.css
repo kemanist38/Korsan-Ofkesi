@@ -116,3 +116,9 @@ html .info-strip::before,html .info-strip::after{content:none!important}
 [data-chat-tab="pm"] .chat-pm-ic{width:16px;height:16px;object-fit:contain;vertical-align:-3px;margin-right:4px}
 /* Kapalı pencerenin hiçbir parçası tıklanamaz (menüye taşınan casus formu kendi pointer-events'ini açtığı için görünmezken de tıklanıyordu) */
 .captain-overlay:not(.open) *,.quest-overlay:not(.open) *{pointer-events:none!important}
+.cp-top>button[hidden]{display:none!important}
+/* Mini harita: dokununca büyür, Dünya düğmesi yalnız büyükken */
+.map-cluster.cp-side{transition:scale .18s ease-out}
+.map-cluster.cp-side.mm-big{scale:1.4}
+.map-cluster.cp-side.cp-side.cp-side:not(.mm-big) #openWorldMap{display:none!important}
+.map-cluster.cp-side #minimap{cursor:zoom-in}.map-cluster.cp-side.mm-big #minimap{cursor:crosshair}
