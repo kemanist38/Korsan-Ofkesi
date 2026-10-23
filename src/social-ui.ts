@@ -15,8 +15,8 @@ export function setupSocial(o:{uid:()=>string;openPm:(id:string,nick:string)=>vo
   const cluster=document.querySelector('.map-cluster');if(!cluster)return;
   const mk=(cls:string,label:string,art:string,click:()=>void)=>{const b=document.createElement('button');b.className=`world-map-button social-btn ${cls}`;b.setAttribute('aria-label',label);
     b.innerHTML=`${art}<span>${label.toLocaleUpperCase('tr')}</span><i class="social-n" hidden></i>`;b.onclick=click;cluster.append(b);return b;};
-  frBtn=mk('fr-btn','Arkadaşlar','<img src="/assets/friends-v3.webp" alt="" draggable="false"/>',()=>toggle(frWin));
-  gBtn=mk('grp-btn','Grup','<img src="/assets/group-v3.webp" alt="" draggable="false"/>',()=>toggle(gWin));gBtn.hidden=true;}
+  frBtn=mk('fr-btn','Arkadaşlar','<img src="/assets/icon-friends-v1.webp" alt="" draggable="false"/>',()=>toggle(frWin));
+  gBtn=mk('grp-btn','Grup','<img src="/assets/icon-group-v1.webp" alt="" draggable="false"/>',()=>toggle(gWin));gBtn.hidden=true;}
 let frBtn:HTMLButtonElement|null=null,gBtn:HTMLButtonElement|null=null;
 const win=(cls:string,title:string)=>{const w=document.createElement('section');w.className=`social-win ${cls}`;w.hidden=true;w.innerHTML=`<header><h3>${title}</h3><button class="x" aria-label="Kapat">×</button></header><div class="body"></div>`;
   document.body.append(w);w.querySelector<HTMLButtonElement>('.x')!.onclick=()=>{w.hidden=true;};return w;};
