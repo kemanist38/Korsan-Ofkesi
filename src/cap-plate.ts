@@ -10,12 +10,12 @@ export function setupCapPlate(o:{nick:()=>string;logout:()=>void;canLogout:()=>b
   stats.after(plate);stats.classList.add('cp-empty');void o.nick;
   const lv=$('#level'),hp=stats.querySelector('.hp-line'),xp=stats.querySelector('.xp-line'),sp=stats.querySelector('.battle-line');
   if(lv)plate.querySelector('.tb-lv')!.append(lv);
-  // Uzun değerler (ör. 125.000.000 / 250.000.000) kutuya sığana kadar küçülür; SP parşömeninde yalnız mevcut değer yazar
+  // Uzun değerler (ör. 125.000.000 / 250.000.000) kutuya sığana kadar küçülür; SP parşömeninde mevcut / sonraki rütbe yazar, sığmazsa küçülür
   const spv=document.createElement('em');spv.className='tb-spv';plate.querySelector('.tb-sp')!.append(spv);
   const cv=document.createElement('canvas').getContext('2d')!;
   const fit=()=>{for(const b of plate.querySelectorAll<HTMLElement>('.tb-tp b,.tb-hp b')){const txt=b.textContent??'',w=(b.parentElement?.querySelector('i')?.clientWidth??b.clientWidth)-8;if(b.dataset.t===`${txt}|${w}`)continue;b.dataset.t=`${txt}|${w}`;b.style.removeProperty('font-size');
       const cs=getComputedStyle(b),f=parseFloat(cs.fontSize);cv.font=`${cs.fontWeight} ${f}px ${cs.fontFamily}`;const need=cv.measureText(txt).width*1.08+6;if(need>w&&w>0)b.style.setProperty('font-size',`${Math.max(6,f*w/need).toFixed(1)}px`,'important');}
-    const t=`SP ${(sp?.querySelector('b')?.textContent??'').split('/')[0].trim()}`;if(spv.textContent!==t)spv.textContent=t;};
+    const t=`SP ${(sp?.querySelector('b')?.textContent??'').trim()}`;if(spv.textContent!==t){spv.textContent=t;spv.style.removeProperty('font-size');const cs=getComputedStyle(spv),f=parseFloat(cs.fontSize),w=spv.parentElement!.clientWidth-4;cv.font=`${cs.fontWeight} ${f}px ${cs.fontFamily}`;const need=cv.measureText(t).width*1.08;if(need>w&&w>0)spv.style.setProperty('font-size',`${Math.max(5.5,f*w/need).toFixed(1)}px`,'important');spv.title=`Savaş puanı: ${t.slice(3)} (sonraki rütbe)`;}};
   fit();setInterval(fit,250);if(hp)plate.querySelector('.tb-hp')!.append(hp);if(xp)plate.querySelector('.tb-tp')!.append(xp);if(sp)plate.querySelector('.tb-sp')!.append(sp);
   // Sohbet: parşömen ikonu
   const ct=$('#chatToggle');if(ct){ct.querySelector('svg')?.remove();const im=document.createElement('img');im.src='/assets/icon-chat-v1.webp';im.alt='';im.draggable=false;ct.prepend(im);ct.classList.add('cp-chat');}
