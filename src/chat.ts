@@ -16,9 +16,9 @@ const esc=(s:string)=>s.replace(/[&<>"']/g,c=>`&#${c.charCodeAt(0)};`);
 // Eski sürümün tarayıcıda biriktirdiği sohbet kaydı silinir
 try{localStorage.removeItem(OLD_STORAGE);}catch{}
 
-export function setupChat(me:()=>{nick:string;tag:string|null;adm?:boolean},onSend?:(tab:ChatTab,who:string,text:string)=>void,onReport?:(nick:string,why:string)=>void,pm?:{friends:()=>PmPeer[];send:(id:string,text:string)=>void}){
+export function setupChat(me:()=>{nick:string;tag:string|null;adm?:boolean},onSend?:(tab:ChatTab,who:string,text:string)=>void,onReport?:(nick:string,why:string)=>void,pm?:{friends:()=>PmPeer[];send:(id:string,text:string)=>void;openBox?:()=>void}){
   const root=document.createElement('div');root.className='chat';
-  root.innerHTML=`<section class="chat-box" id="chatBox" aria-label="Sohbet"><header class="chat-tabs"><button data-chat-tab="global">Global</button><button data-chat-tab="fleet">Filo</button><button data-chat-tab="pm"><img class="chat-pm-ic" src="/assets/icon-mail-v1.webp" alt="" draggable="false"/>Özel<i class="chat-n" hidden></i></button><span class="chat-close" title="Kapat">×</span></header>
+  root.innerHTML=`<section class="chat-box" id="chatBox" aria-label="Sohbet"><header class="chat-tabs"><button data-chat-tab="global">Global</button><button data-chat-tab="fleet">Filo</button><button data-chat-tab="pm"><img class="chat-pm-ic" src="/assets/icon-mail-v1.webp" alt="" draggable="false"/>Mesaj<i class="chat-n" hidden></i></button><span class="chat-close" title="Kapat">×</span></header>
     <div class="chat-peer" hidden></div><div class="chat-log" id="chatLog"></div><form class="chat-form" id="chatForm"><input id="chatInput" maxlength="120" autocomplete="off" placeholder="Mesaj yaz…"/><button type="submit">Gönder</button></form></section>
     <button class="chat-toggle" id="chatToggle" aria-label="Sohbet" title="Sohbet"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v10H9l-5 4z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><i class="chat-dot"></i><i class="chat-n" hidden></i></button>`;
   document.body.append(root);
@@ -26,7 +26,7 @@ export function setupChat(me:()=>{nick:string;tag:string|null;adm?:boolean},onSe
   const lines:Record<ChatTab,Line[]>={global:[],fleet:[],pm:[]};let tab:ChatTab='global',open=false;
   // Özel mesajlar: arkadaş başına konuşma ve okunmamış sayısı (yalnız bu oturumda)
   const convo=new Map<string,Line[]>(),unread=new Map<string,number>(),peerEl=root.querySelector<HTMLElement>('.chat-peer')!;let peer:{id:string;nick:string}|null=null;
-  const badge=()=>{const n=[...unread.values()].reduce((a,b)=>a+b,0);root.querySelectorAll<HTMLElement>('.chat-n').forEach(b=>{b.hidden=!n;b.textContent=n>9?'9+':`+${n}`;});};
+  let mailN=0;const badge=()=>{const n=[...unread.values()].reduce((a,b)=>a+b,0)+mailN;root.querySelectorAll<HTMLElement>('.chat-n').forEach(b=>{b.hidden=!n;b.textContent=n>9?'9+':`+${n}`;});};
     const time=(t:number)=>new Date(t).toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
   function render(){root.querySelectorAll<HTMLButtonElement>('[data-chat-tab]').forEach(b=>b.classList.toggle('active',b.dataset.chatTab===tab));
     const noFleet=tab==='fleet'&&!me().tag,noPeer=tab==='pm'&&!peer;input.disabled=noFleet||noPeer;input.placeholder=noFleet?'Filo sohbeti için bir filoya katıl':tab==='global'?'Herkese yaz…':tab==='pm'?(peer?`${peer.nick} kaptanına yaz…`:'Önce bir arkadaş seç'):'Filona yaz…';
@@ -38,7 +38,7 @@ export function setupChat(me:()=>{nick:string;tag:string|null;adm?:boolean},onSe
     log.innerHTML=[intro,...list].map(l=>l.system?`<p class="sys">${esc(l.text)}</p>`:`<p${l.adm?' class="adm"':''}><time>${time(l.at)}</time><b${!l.adm&&plainNick(l.who)!==me().nick?` data-who="${esc(plainNick(l.who))}"`:''}>${esc(l.who)}:</b> ${esc(l.adm?l.text:filterChat(l.text))}</p>`).join('');log.scrollTop=log.scrollHeight;}
   function setOpen(v:boolean){open=v;root.classList.toggle('open',v);if(v){dot.hidden=true;render();}else input.blur();}
   root.querySelector<HTMLElement>('#chatToggle')!.onclick=()=>{if(dragged){dragged=false;return;}setOpen(!open);};
-  root.querySelectorAll<HTMLButtonElement>('[data-chat-tab]').forEach(b=>b.onclick=e=>{e.stopPropagation();if(dragged){dragged=false;return;}tab=b.dataset.chatTab as ChatTab;render();});
+  root.querySelectorAll<HTMLButtonElement>('[data-chat-tab]').forEach(b=>b.onclick=e=>{e.stopPropagation();if(dragged){dragged=false;return;}if(b.dataset.chatTab==='pm'&&pm?.openBox){pm.openBox();return;}tab=b.dataset.chatTab as ChatTab;render();});
   // Pencerenin kendisine (mesajlar ve başlık boşluğu) tıklayınca kapanır
   box.addEventListener('click',e=>{if(dragged){dragged=false;return;}const t=e.target as HTMLElement;if(t.closest('.chat-form')||t.closest('[data-chat-tab]')||t.closest('.chat-menu')||t.closest('.chat-peer'))return;
     const who=t.closest<HTMLElement>('[data-who]');if(who){e.stopPropagation();showMenu(who);return;}setOpen(false);});
@@ -72,5 +72,5 @@ export function setupChat(me:()=>{nick:string;tag:string|null;adm?:boolean},onSe
     if(!d.mine&&!(open&&tab==='pm'&&peer?.id===d.peer)){unread.set(d.peer,(unread.get(d.peer)??0)+1);if(!peer)peer={id:d.peer,nick:d.peerNick};}badge();if(open&&tab==='pm')render();};
   const openPm=(id:string,nick:string)=>{peer={id,nick};tab='pm';setOpen(true);render();input.focus();};
   const pmSystem=(text:string)=>{if(peer){const l=convo.get(peer.id)??[];l.push({who:'',text,at:Date.now(),system:true});convo.set(peer.id,l.slice(-KEEP));}if(open)render();};
-  return{system,receive,pmReceive,openPm,pmSystem,refresh:()=>{if(open&&tab==='pm')render();},open:()=>setOpen(true),close:()=>setOpen(false),isOpen:()=>open};
+  return{setMailUnread:(n:number)=>{mailN=n;badge();},system,receive,pmReceive,openPm,pmSystem,refresh:()=>{if(open&&tab==='pm')render();},open:()=>setOpen(true),close:()=>setOpen(false),isOpen:()=>open};
 }
