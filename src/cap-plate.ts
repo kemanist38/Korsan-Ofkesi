@@ -38,7 +38,7 @@ function setupSideButtons(){const cl=$('.map-cluster');if(!cl)return;cl.classLis
     const r=badge.getBoundingClientRect();tip.style.left=`${Math.round(r.left)}px`;tip.style.top=`${Math.round(r.bottom+6)}px`;tip.hidden=false;},{capture:true});
   document.addEventListener('pointerdown',e=>{if(!tip.hidden&&e.target!==badge&&!tip.contains(e.target as Node))tip.hidden=true;},{capture:true});
   // Menüde Etkinlikler
-  const grid=$('#menuOverlay .menu-grid');if(grid&&badge){const m=document.createElement('button');m.id='menuEvents';m.innerHTML='<img src="/assets/events-v3.webp" alt="" draggable="false"/><span>ETKİNLİKLER</span>';
+  const grid=$('#menuOverlay .menu-grid');if(grid&&badge){const m=document.createElement('button');m.id='menuEvents';m.innerHTML='<img src="/assets/icon-events-v1.webp" alt="" draggable="false"/><span>ETKİNLİKLER</span>';
     m.onclick=e=>{e.stopPropagation();$('#menuOverlay')?.classList.remove('open');full=true;badge.click();};grid.prepend(m);}}
 // Casus: menü penceresinin başında
 function setupMenuSpy(){const spy=$('#spyGo'),grid=$('#menuOverlay .menu-grid');if(!spy||!grid)return;

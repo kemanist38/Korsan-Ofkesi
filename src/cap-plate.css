@@ -235,7 +235,7 @@ html .chat-box,html .menu-window,html .quest-log,html .daily-window,html .day-po
 html .chat-tabs button{border:0!important;border-radius:0!important;background:url(/assets/tab-off-v1.webp) center/100% 100% no-repeat!important;color:#d9c3a0!important;padding:5px 12px!important}
 html .chat-tabs button.active{background-image:url(/assets/tab-on-v1.webp)!important;color:#2a1606!important;text-shadow:0 1px 0 #f6dc9a}
 html .cp-top>button img,html .corner-buttons>.round-button img,html .map-cluster #openWorldMap img{width:60%!important;height:60%!important}
-html .cp-top>button img,html .corner-buttons>.round-button img,html .map-cluster #openWorldMap img{width:74%!important;height:74%!important;object-fit:contain!important;border-radius:0!important;filter:drop-shadow(0 2px 2px #000a)}
+html .cp-top>button img,html .corner-buttons>.round-button img,html .map-cluster #openWorldMap img{width:66%!important;height:66%!important;object-fit:cover!important;border-radius:50%!important}
 html .cp-top>button,html .corner-buttons>.round-button,html .map-cluster #openWorldMap{background-color:#120c0a!important;background-clip:padding-box}
 .daily-day li span{white-space:nowrap;font-size:11px}
 /* Mini harita yakınlaştırma: pirinç tonu */
