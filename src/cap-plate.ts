@@ -24,9 +24,16 @@ function setupSideButtons(){const cl=$('.map-cluster');if(!cl)return;cl.classLis
   // Etkinlik penceresi: mini haritanın sağındaki kısa etkinlik yazısının altında açılır
   if(pop&&badge){document.body.append(pop);pop.classList.add('cp-pop');
     new MutationObserver(()=>{if(!pop.classList.contains('open'))return;const r=badge.getBoundingClientRect();pop.style.left=`${Math.round(r.left)}px`;pop.style.top=`${Math.round(r.bottom+6)}px`;}).observe(pop,{attributes:true,attributeFilter:['class']});}
+  // Kısa yazıya dokununca yalnız o günün etkinliğinin bilgisi; bütün liste menüdeki Etkinlikler'de
+  let full=false;const tip=document.createElement('div');tip.className='cp-daytip';tip.hidden=true;document.body.append(tip);
+  badge?.addEventListener('click',e=>{if(full){full=false;return;}e.stopImmediatePropagation();e.stopPropagation();
+    if(!tip.hidden){tip.hidden=true;return;}const t=badge.title,i=t.indexOf(': ');if(i<0)return;
+    tip.innerHTML=`<b>${t.slice(0,i)}</b><p>${t.slice(i+2)}</p>${badge.classList.contains('live')?'<small>Katılmak için Menü → Etkinlikler</small>':''}`;
+    const r=badge.getBoundingClientRect();tip.style.left=`${Math.round(r.left)}px`;tip.style.top=`${Math.round(r.bottom+6)}px`;tip.hidden=false;},{capture:true});
+  document.addEventListener('pointerdown',e=>{if(!tip.hidden&&e.target!==badge&&!tip.contains(e.target as Node))tip.hidden=true;},{capture:true});
   // Menüde Etkinlikler
   const grid=$('#menuOverlay .menu-grid');if(grid&&badge){const m=document.createElement('button');m.id='menuEvents';m.innerHTML='<img src="/assets/icon-events-v1.webp" alt="" draggable="false"/><span>ETKİNLİKLER</span>';
-    m.onclick=e=>{e.stopPropagation();$('#menuOverlay')?.classList.remove('open');badge.click();};grid.prepend(m);}}
+    m.onclick=e=>{e.stopPropagation();$('#menuOverlay')?.classList.remove('open');full=true;badge.click();};grid.prepend(m);}}
 // Casus: menü penceresinin başında
 function setupMenuSpy(){const spy=$('#spyGo'),grid=$('#menuOverlay .menu-grid');if(!spy||!grid)return;
   const w=document.createElement('div');w.className='cp-spy';w.innerHTML='<img src="/assets/icon-spy-v1.webp" alt="" draggable="false"/><b>CASUS GÖNDER</b>';w.append(spy);grid.before(w);}
