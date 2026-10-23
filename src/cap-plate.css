@@ -274,3 +274,6 @@ html .market-item button:disabled,html .buy-row button:disabled,html .buy-confir
 html .market-item input,html .buy-row input,html .chat-form input,html .mail-form input,html .mail-form select,html .mail-form textarea,html .social-win input,html .cp-spy input{border:1px solid #8a6a3a!important;background:#0e0908!important;color:#f3e2bd!important;border-radius:5px!important}
 html .cp-spy button{border:1px solid #e0b86a!important;background:linear-gradient(#e2bb6a,#b8873a 55%,#8a6226)!important;color:#2a1606!important}
 html .market-item,html .buy-row{border-color:#6b4f30!important;background:linear-gradient(#1f1510,#140d0b)!important}
+/* Yatay telefon: bar ile sağ üst sıra çakışmasın */
+@media (min-width:701px) and (max-width:1000px){html .cap-plate.tb{transform:translateX(-50%) scale(.6)!important;left:calc(50% - 40px)!important}html .cp-top{gap:4px!important}html .cp-top>button{width:32px!important;height:32px!important}}
+@media (min-width:701px) and (max-width:820px){html .cap-plate.tb{transform:translateX(-50%) scale(.54)!important;left:calc(50% - 50px)!important}}
