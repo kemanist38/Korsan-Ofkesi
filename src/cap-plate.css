@@ -1,279 +1,144 @@
-/* Kaptan plakası: üst çerçevenin ortasından sarkar */
+/* Oyun arayüzü teması (cap-plate.ts ile birlikte).
+   Renkleri ve ortak görselleri değiştirmek için yalnız :root içindeki değişkenleri düzenlemek yeterli.
+   Bölümler: 1 Tema · 2 Üst bar · 3 Bildirim · 4 Mini harita · 5 Sağ üst kısayollar · 6 Sohbet · 7 Pencereler ve menü
+             8 Düğmeler ve giriş kutuları · 9 Savaş düğmeleri · 10 Yardımcılar */
+
+/* ===== 1. Tema ===== */
+:root{
+  --brass-hi:#f6dfa6;--brass:#e0b86a;--brass-mid:#b8873a;--brass-lo:#8a6226;--brass-edge:#8a6a3a;--brass-dim:#6b4a26;
+  --ink:#2a1606;--cream:#e9cf96;--cream-hi:#f3d496;--label:#f0cc82;
+  --panel:#140d0b;--panel-2:#1a110d;--well:#0e0908;--track:#0b0605;
+  --tp-fill:linear-gradient(90deg,#56229a,#b15aff);--hp-fill:linear-gradient(90deg,#8e1717,#e04a2e);
+  --ring:url(/assets/btn-ring-v1.webp) center/100% 100% no-repeat;
+  --ring-bg:radial-gradient(circle at 45% 35%,#2a1a12,#120c0a 62%);
+  --btn-main:linear-gradient(#e2bb6a,#b8873a 55%,#8a6226);--btn-main-hover:linear-gradient(#f0cc80,#c99843 55%,#96702c);
+  --btn-alt:linear-gradient(#2e221c,#17100d);--btn-off:linear-gradient(#3a2e22,#241a12);
+  --shadow-txt:0 1px 2px #000,0 0 3px #000;
+}
+
+/* ===== 2. Üst bar: solda TP, ortada seviye rozeti, sağda HP, parşömende SP (görsel 994x210) ===== */
 .strip-stats.cp-empty{display:none!important}
-.cap-plate{position:absolute;left:50%;top:2px;transform:translateX(-50%);z-index:3;display:flex;align-items:center;gap:8px;width:400px;height:60px;padding:0 14px 0 6px;pointer-events:auto;
-  border:2px solid #b8904e;border-radius:10px 10px 30px 30px;background:linear-gradient(#3a1d16,#1c0e0b 70%);
-  box-shadow:inset 0 0 0 2px #1a0c08,inset 0 1px 0 3px #e0b86a33,0 6px 14px #000b}
-.cap-plate::before,.cap-plate::after{content:'';position:absolute;top:50%;width:10px;height:10px;margin-top:-5px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ffe2a0,#8a6326);box-shadow:0 1px 2px #000}
-.cap-plate::before{left:-6px}.cap-plate::after{right:-6px}
-.cp-socket{position:relative;flex:none;width:52px;height:52px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#120806;box-shadow:inset 0 0 0 2px #e0b86a,0 0 0 2px #2a140c,0 3px 6px #000c}
-.cp-socket #level{position:relative!important;inset:auto!important;left:auto!important;top:auto!important;transform:none!important;margin:0!important;display:block!important;flex:none;width:72px!important;height:72px!important;border:0!important;border-radius:50%!important;background-color:transparent!important;background-image:url(/assets/level-badges-v1.webp)!important;background-size:800% 100%!important;background-repeat:no-repeat!important;color:transparent!important;font-size:0!important;box-shadow:none!important;filter:none!important;animation:none}
-.cp-socket #level::before,.cp-socket #level::after{content:none!important}
-.cp-socket #level.lv-up{animation:cpLvUp 1.6s ease-out 1}
-@keyframes cpLvUp{0%,100%{filter:brightness(1)}30%{filter:brightness(2.2)}}
-.cp-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
-.cp-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
-.cp-nick{font:800 13px Cinzel,serif;letter-spacing:.04em;color:#ffe6a6;text-shadow:0 1px 2px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cap-plate .status-line{position:relative!important;inset:auto!important;top:auto!important;left:auto!important;display:flex!important;align-items:center;gap:4px;width:100%!important;height:auto!important;margin:0!important;transform:none!important}
-.cap-plate .status-line span{position:static!important;transform:none!important;display:block!important;flex:none;width:16px;font:800 8.5px Inter,sans-serif!important;color:#e9c27a!important;text-shadow:0 1px 2px #000}
-.cap-plate .status-line>i{position:relative!important;inset:auto!important;flex:1;display:block!important;overflow:hidden;border:1px solid #7a5530!important;border-radius:5px!important;background:#0b0605!important;box-shadow:inset 0 1px 3px #000c!important}
-.cap-plate .status-line>i>em{position:absolute;left:0;top:0;bottom:0;display:block;border-radius:4px}
-.cap-plate .status-line b{position:absolute!important;inset:0 0 0 20px!important;display:grid!important;place-items:center;font:800 9px Inter,sans-serif!important;color:#fff!important;text-shadow:0 1px 2px #000,0 0 3px #000;white-space:nowrap;pointer-events:none}
-.cp-hp .status-line>i{height:13px!important}.cp-hp .status-line>i>em{background:linear-gradient(90deg,#8e1717,#e04a2e)!important}
-.cp-tp .status-line>i{height:8px!important}.cp-tp .status-line>i>em{background:linear-gradient(90deg,#56229a,#b15aff)!important}.cp-tp .status-line b{font-size:7px!important}
-.cp-sp .status-line{width:110px!important}.cp-sp .status-line>i{height:10px!important}.cp-sp .status-line>i>em{background:linear-gradient(90deg,#2a4fb8,#5f8bff)!important}.cp-sp .status-line b{font-size:7.5px!important}
-@media (max-width:700px){.cap-plate{position:fixed;top:calc(var(--strip,24px) + 2px);transform:translateX(-50%) scale(.78);transform-origin:50% 0;z-index:44}}
-@media (max-height:520px){.cap-plate{transform:translateX(-50%) scale(.85);transform-origin:50% 0}}
-/* Sohbet ve mektup */
-#chatToggle.cp-chat{background:none!important;border:0!important;box-shadow:none!important;width:56px!important;height:56px!important;padding:0!important}
-#chatToggle.cp-chat img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 6px #000c)}
-.corner-buttons .cp-mail{position:relative;background:none!important;border:0!important;box-shadow:none!important}
-.corner-buttons .cp-mail img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 3px 6px #000c)}
-.corner-buttons .cp-mail .chat-n{position:absolute;top:-3px;right:-5px}
-@media (max-width:500px){.cap-plate{left:auto;right:4px;transform:scale(.6);transform-origin:100% 0}}
-.treaty-pill{top:70px}
-@media (max-width:700px){.treaty-pill{top:calc(var(--strip,24px) + 52px)}}
-/* Seviye amblemi yuvanın tam ortasında */
-.cap-plate .cp-socket{width:58px;height:58px}
-.cap-plate .cp-socket #level{position:absolute!important;left:50%!important;top:50%!important;transform:translate(-50%,-50%)!important;width:58px!important;height:58px!important}
-/* Harita yanı düğme dizilimi */
-.map-cluster.cp-side.cp-side.cp-side .world-map-button,.map-cluster.cp-side.cp-side.cp-side .quest-bust{width:52px!important;height:52px!important;padding:0!important}
-.map-cluster.cp-side.cp-side.cp-side #openWorldMap{left:218px!important;top:0!important}
-.map-cluster.cp-side.cp-side.cp-side .quest-bust{left:218px!important;top:70px!important}
-.map-cluster.cp-side.cp-side.cp-side .cp-ev{left:218px!important;top:140px!important;background:none!important;border:0!important;box-shadow:none!important}
-.map-cluster.cp-side.cp-side.cp-side .world-map-button.grp-btn{left:278px!important;top:0!important}
-.map-cluster.cp-side.cp-side.cp-side .world-map-button.fr-btn{left:338px!important;top:0!important}
-.map-cluster.cp-side.cp-side.cp-side .world-map-button.arena-button{left:398px!important;top:0!important}
-.map-cluster.cp-side.cp-side.cp-side .world-map-button img,.map-cluster.cp-side.cp-side.cp-side .quest-bust img{width:40px!important;height:40px!important}
-.map-cluster.cp-side.cp-side.cp-side .cp-ev img{width:52px!important;height:52px!important}
-.map-cluster.cp-side.cp-side.cp-side .world-map-button span,.map-cluster.cp-side.cp-side.cp-side .quest-bust span{top:54px!important;font-size:7px!important}
-.map-cluster.cp-side.cp-side.cp-side .day-badge{display:none!important}
-.map-cluster.cp-side.cp-side.cp-side .day-pop{left:218px!important;top:214px!important}
-/* Casus (menüde) */
+html .info-strip{background:none!important;border:0!important;box-shadow:none!important}
+html .info-strip::before,html .info-strip::after{content:none!important}
+html .cap-plate.tb{position:absolute;left:50%;top:0!important;z-index:3;display:block!important;width:480px!important;height:101px!important;padding:0!important;border:0!important;border-radius:0!important;
+  background:url(/assets/hud-topbar-v2.webp) 0 0/100% 100% no-repeat!important;box-shadow:none!important;filter:drop-shadow(0 4px 8px #000b);pointer-events:auto;
+  transform:translateX(-50%);transform-origin:50% 0}
+.cap-plate.tb>div{position:absolute;display:flex;align-items:center}
+.cap-plate.tb .tb-tp{left:7.2%;width:32.4%;top:35%;height:21.5%}
+.cap-plate.tb .tb-hp{left:60.4%;width:32.4%;top:35%;height:21.5%}
+.cap-plate.tb .tb-lv{left:44.6%;width:10.9%;top:14.6%;height:51.7%;justify-content:center;border-radius:50%;overflow:visible}
+.cap-plate.tb .tb-sp{left:40.5%;width:19%;top:79%;height:15%;justify-content:center}
+.cap-plate.tb .tb-lab{position:absolute;top:35%;height:21.5%;width:4.6%;display:grid;place-items:center;font:800 11px Cinzel,serif;font-style:normal;color:var(--cream-hi);text-shadow:var(--shadow-txt)}
+.cap-plate.tb .tb-lab.l{left:2.1%}.cap-plate.tb .tb-lab.r{right:2.1%}
+/* TP / HP çubukları */
+.cap-plate.tb .status-line{position:relative!important;inset:auto!important;display:flex!important;align-items:center;gap:5px!important;width:100%!important;height:100%!important;margin:0!important;padding:0 4px!important;transform:none!important}
+.cap-plate.tb .tb-hp .status-line{flex-direction:row-reverse}
+.cap-plate.tb .status-line>span{display:none!important}
+.cap-plate.tb .status-line>i{position:relative!important;inset:auto!important;flex:1;display:block!important;height:78%!important;overflow:hidden;border:1px solid var(--brass-dim)!important;border-radius:4px!important;background:var(--track)!important;box-shadow:inset 0 1px 3px #000c!important}
+.cap-plate.tb .status-line>i>em{position:absolute;left:0;top:0;bottom:0;display:block;border-radius:4px}
+.cap-plate.tb .tb-tp .status-line>i>em{background:var(--tp-fill)!important}
+.cap-plate.tb .tb-hp .status-line>i>em{background:var(--hp-fill)!important}
+/* Rengi düşük öncelikli: seviye görevi hazırken (lq-ready) TP yazısı altın olur */
+.cap-plate .status-line b{color:#fff!important}
+.cap-plate.tb .status-line b{position:absolute!important;inset:0 4px!important;display:grid!important;place-items:center;font:800 10px Inter,sans-serif!important;line-height:1!important;text-shadow:var(--shadow-txt);white-space:nowrap;overflow:hidden;pointer-events:none}
+/* SP parşömeni: "SP 12 / 25" (yazı cap-plate.ts'te sığdırılır) */
+.cap-plate.tb .tb-sp .status-line{display:none!important}
+.cap-plate.tb .tb-spv{font:800 10px Inter,sans-serif;font-style:normal;color:#3a2008;white-space:nowrap;letter-spacing:.02em}
+/* Seviye rozeti */
+.cap-plate.tb .tb-lv #level{position:relative!important;inset:auto!important;transform:none!important;margin:0!important;display:grid!important;place-items:end center;width:112%!important;height:112%!important;flex:none;padding-bottom:5%;
+  border:0!important;border-radius:0!important;box-shadow:none!important;background-color:transparent!important;background-image:url(/assets/level-badges-v2.webp)!important;background-size:800% 100%!important;background-repeat:no-repeat!important;
+  color:#fff4d0!important;font:900 12px Cinzel,serif!important;text-shadow:var(--shadow-txt);filter:drop-shadow(0 2px 3px #000a)}
+.cap-plate.tb .tb-lv #level::before,.cap-plate.tb .tb-lv #level::after{content:none!important}
+/* Ekran boyutuna göre ölçek */
+@media (max-height:520px) and (min-width:701px){html .cap-plate.tb{transform:translateX(-50%) scale(.72)!important}}
+@media (max-width:1100px){html .cap-plate.tb{transform:translateX(-50%) scale(.7)!important}}
+@media (min-width:701px) and (max-width:1000px){html .cap-plate.tb{left:calc(50% - 40px)!important;transform:translateX(-50%) scale(.6)!important}}
+@media (min-width:701px) and (max-width:820px){html .cap-plate.tb{left:calc(50% - 50px)!important;transform:translateX(-50%) scale(.54)!important}}
+@media (max-width:700px){html .cap-plate.tb{position:fixed;z-index:44;left:50%!important;right:auto!important;top:calc(100dvh - 66px)!important;transform:translateX(-50%) scale(.46)!important}}
+
+/* ===== 3. Bildirim şeridi (üst barın altında) ===== */
+html #toast{position:fixed!important;left:50%!important;top:104px!important;z-index:70;width:min(520px,90vw);box-sizing:border-box;text-align:center;padding:7px 16px;border:0;border-top:1px solid #c69b4e55;border-bottom:1px solid #c69b4e55;border-radius:0;
+  background:linear-gradient(90deg,#0a060800,#160d0ee8 18%,#160d0ee8 82%,#0a060800);color:#f6e6c4;font:600 13px Inter,sans-serif;pointer-events:none}
+@media (max-width:1100px){html #toast{font-size:12px}}
+
+/* ===== 4. Mini harita: sol üst köşe, dokununca büyür (Dünya düğmesi ortada), sağında günün etkinliği ===== */
+html .map-cluster{background-image:url(/assets/ui-minimap-v2.webp)!important}
+html .map-cluster .zoom-controls{background-image:url(/assets/ui-zoom-v2.webp)!important}
+html .map-cluster.cp-side{left:10px!important;top:-14px!important;margin:0!important;transition:scale .18s ease-out}
+@media (min-width:701px) and (max-width:1100px){html .map-cluster.cp-side{top:-20px!important}}
+@media (max-width:700px){html .map-cluster.cp-side{top:-38px!important}}
+.map-cluster.cp-side.mm-big{scale:1.4}
+.map-cluster.cp-side #minimap{cursor:zoom-in}.map-cluster.cp-side.mm-big #minimap{cursor:crosshair}
+html .map-cluster.cp-side #coordGo{top:236px!important}
+@media (max-width:700px){html .hud>.coord-go{left:10px!important;top:132px!important}}
+.map-cluster.cp-side.cp-side.cp-side #openWorldMap{left:85px!important;top:58px!important;z-index:3;width:52px!important;height:52px!important;padding:0!important;box-shadow:0 0 0 3px #000a,0 6px 16px #000c!important}
+.map-cluster.cp-side.cp-side.cp-side:not(.mm-big) #openWorldMap{display:none!important}
+.map-cluster.cp-side.cp-side.cp-side #openWorldMap span{top:54px!important;font-size:7px!important}
+html .map-cluster.cp-side.cp-side.cp-side .day-badge{display:block!important;position:absolute!important;left:222px!important;top:6px!important;transform:none!important;font-size:13px;padding:4px 10px}
+html .map-cluster.cp-side.cp-side.cp-side .day-badge.hidden{display:none!important}
+@media (max-width:700px){html .map-cluster.cp-side.cp-side.cp-side .day-badge{font-size:16px;padding:5px 12px}}
+.day-pop.cp-pop{position:fixed!important;right:auto!important;transform:none!important;z-index:60}
+.cp-daytip{position:fixed;z-index:60;max-width:260px;padding:8px 11px;color:#e9dcc2;font:12px/1.45 Inter,sans-serif}
+.cp-daytip[hidden]{display:none}.cp-daytip b{color:#ffd27a;font-size:12px}.cp-daytip p{margin:3px 0 0}.cp-daytip small{display:block;margin-top:5px;color:#c9a46a}
+/* Bağlantı rozeti: haritanın sağında, günün etkinliğinin altında */
+html #netPill{position:fixed!important;z-index:46;bottom:auto}
+@media (min-width:1101px){html #netPill{left:172px;top:46px!important}}
+@media (min-width:701px) and (max-width:1100px){html #netPill{left:146px;top:38px!important}}
+@media (max-width:700px){html #netPill{left:88px;top:32px!important}}
+
+/* ===== 5. Sağ üst kısayollar: Görevler, (Grup), Arkadaşlar, Arena, Market, Menü ===== */
+html .cp-top{position:fixed;left:auto!important;right:8px!important;top:4px!important;z-index:46;display:flex;gap:8px!important;align-items:flex-start;pointer-events:none}
+html .cp-top>button{pointer-events:auto;position:relative!important;inset:auto!important;flex:none;width:48px!important;height:48px!important;margin:0!important;padding:0!important;display:grid!important;place-items:center;overflow:visible!important;transform:none!important}
+html .cp-top>button[hidden]{display:none!important}
+html .cp-top>button span{position:absolute!important;top:47px!important;left:50%!important;transform:translateX(-50%)!important;font:700 8px Cinzel,serif!important;letter-spacing:.04em;color:var(--label)!important;text-shadow:0 1px 2px #000;white-space:nowrap}
+html .cp-top .chat-n,html .cp-top .has-dot::after{z-index:2}
+@media (max-width:1100px){html .cp-top{gap:5px!important;top:12px!important}html .cp-top>button{width:36px!important;height:36px!important}html .cp-top>button span{display:none!important}}
+@media (min-width:701px) and (max-width:1000px){html .cp-top{gap:4px!important}html .cp-top>button{width:32px!important;height:32px!important}}
+@media (max-width:700px){html .cp-top{top:68px!important}}
+/* Yuvarlak düğmeler: pirinç halka + koyu zemin + SVG sembol */
+html .cp-top>button,html .corner-buttons>.round-button,html .map-cluster #openWorldMap{background:var(--ring),var(--ring-bg)!important;border:0!important;border-radius:50%!important;box-shadow:0 4px 10px #000a!important}
+html .cp-top>button img,html .corner-buttons>.round-button img,html .map-cluster #openWorldMap img{width:56%!important;height:56%!important;object-fit:contain!important;border-radius:0!important;filter:drop-shadow(0 1.5px 1px #000c)}
+
+/* ===== 6. Sohbet ===== */
+#chatToggle.cp-chat{width:52px!important;height:52px!important;padding:0!important;display:grid!important;place-items:center;border:0!important;border-radius:50%!important;background:var(--ring),var(--ring-bg)!important;box-shadow:none!important}
+#chatToggle.cp-chat img{width:52%!important;height:52%!important;object-fit:contain;filter:drop-shadow(0 1.5px 1px #000c)}
+html .chat-tabs button{border:0!important;border-radius:0!important;background:url(/assets/tab-off-v1.webp) center/100% 100% no-repeat!important;color:#d9c3a0!important;padding:5px 12px!important}
+html .chat-tabs button.active{background-image:url(/assets/tab-on-v1.webp)!important;color:var(--ink)!important;text-shadow:0 1px 0 #f6dc9a}
+[data-chat-tab="pm"] .chat-pm-ic{width:16px;height:16px;object-fit:contain;vertical-align:-3px;margin-right:4px}
+
+/* ===== 7. Pencereler ve menü ===== */
+html .chat-box,html .menu-window,html .quest-log,html .daily-window,html .day-pop,html .cp-daytip,html .social-win{border:14px solid transparent!important;border-image:url(/assets/win-frame-v1.webp) 64 / 14px stretch!important;background:var(--panel)!important;background-clip:padding-box!important;border-radius:0!important;box-shadow:0 12px 30px #000c!important}
+html .menu-window .menu-grid button{border:1px solid var(--brass-edge)!important;border-radius:8px!important;background:linear-gradient(#241812,#120c0a)!important;box-shadow:inset 0 1px 0 #c69b4e33,inset 0 0 0 1px #00000088,0 3px 8px #0008!important;color:var(--cream)!important}
+html .menu-window .menu-grid button:hover{border-color:var(--brass)!important;background:linear-gradient(#33221a,#160e0b)!important}
+html .menu-window>header{border-bottom-color:#8a6a3a66!important}
+html .menu-window>header>button,html .quest-log>header>button,html .daily-window>header>button{border-color:var(--brass-edge)!important;background:var(--panel-2)!important;color:var(--cream)!important}
+#menuOverlay #openMenuQuests,#menuOverlay #openMenuWorld{display:none!important}
+#menuEvents img{width:40px!important;height:40px!important;object-fit:contain}
+#menuLogout svg{width:34px;height:34px;color:#f0c593}
+#menuLogout[hidden],#logoutCorner.cp-hide{display:none!important}
+/* Casus (menünün başında) */
 .cp-spy{display:flex;align-items:center;gap:10px;margin:0 0 10px;padding:8px 10px;border:1px solid #725047;border-radius:8px;background:#1d1719}
+html .menu-window .cp-spy{border-color:var(--brass-edge)!important;background:var(--panel-2)!important}
 .cp-spy>img{width:44px;height:auto}.cp-spy>b{font:700 11px Inter,sans-serif;letter-spacing:.08em;color:#edc78c;white-space:nowrap}
 .cp-spy .spy-go{position:static!important;display:flex!important;flex:1;gap:6px;transform:none!important}
 .cp-spy .spy-go input{flex:1;min-width:0}
-/* Boydan boya üst çerçeve kaldırıldı; içindeki öğeler yerinde kalır */
-html .info-strip{background:none!important;border:0!important;box-shadow:none!important}
-html .info-strip::before,html .info-strip::after{content:none!important}
-/* Sol üst düğme sırası (Dünya dışındakiler) */
-.cp-top{position:fixed;left:118px;top:4px;z-index:46;display:flex;gap:10px;pointer-events:none}
-.cp-top>button{pointer-events:auto;position:relative!important;left:auto!important;top:auto!important;width:44px!important;height:44px!important;margin:0!important;padding:0!important;display:grid!important;place-items:center;overflow:visible!important;transform:none!important}
-.cp-top>button img{width:36px!important;height:36px!important}
-.cp-top>.cp-ev{background:none!important;border:0!important;box-shadow:none!important}.cp-top>.cp-ev img{width:44px!important;height:44px!important}
-.cp-top>button span{position:absolute!important;top:44px!important;left:50%!important;transform:translateX(-50%)!important;font:700 7px Cinzel,serif!important;color:#f0cc82!important;text-shadow:0 1px 2px #000;white-space:nowrap}
-.map-cluster.cp-side.cp-side.cp-side .day-pop{position:fixed!important;left:118px!important;top:66px!important}
-@media (max-width:700px){.cp-top{left:14px;top:172px;gap:6px}.cp-top>button{width:32px!important;height:32px!important}.cp-top>button img,.cp-top>.cp-ev img{width:28px!important;height:28px!important}.cp-top>button span{display:none!important}.map-cluster.cp-side.cp-side.cp-side .day-pop{left:10px!important;top:212px!important}}
-@media (min-width:701px) and (max-width:1100px){.cp-top{left:196px;top:74px;gap:6px}.cp-top>button{width:34px!important;height:34px!important}.cp-top>button img,.cp-top>.cp-ev img{width:28px!important;height:28px!important}.cp-top>button span{top:34px!important;font-size:6px!important}.map-cluster.cp-side.cp-side.cp-side .day-pop{left:196px!important;top:124px!important}}
-#logoutCorner.cp-hide{display:none!important}
-#menuLogout svg{width:34px;height:34px;color:#f0c593}
-#menuLogout[hidden]{display:none!important}
-/* Küçük plaka: yüklenen kaptan çerçevesi */
-.cap-plate{width:320px!important;height:71px!important;padding:0!important;border:0!important;border-radius:0!important;background:url(/assets/hud-topbar-v2.webp) 0 0/100% 100% no-repeat!important;box-shadow:none!important;filter:drop-shadow(0 4px 8px #000b)}
-.cap-plate::before,.cap-plate::after{content:none!important}
-.cap-plate .cp-socket{position:absolute;left:8px;top:10px;width:48px!important;height:48px!important;box-shadow:none!important;background:#120806}
-.cap-plate .cp-socket #level{width:48px!important;height:48px!important}
-.cap-plate .cp-info{position:absolute;left:80px;right:14px;top:15px;bottom:14px;gap:2px;justify-content:center}
-.cap-plate .cp-nick{font-size:11px}
-.cap-plate .cp-hp .status-line>i{height:11px!important}.cap-plate .cp-hp .status-line b{font-size:8px!important}
-.cap-plate .cp-sp .status-line{width:90px!important}.cap-plate .cp-sp .status-line>i{height:8px!important}
-/* Ekranda kısayolu olanlar menüden kalktı */
-#menuOverlay #openMenuQuests,#menuOverlay #openMenuWorld{display:none!important}
-.cap-plate{height:80px!important}
-.cap-plate .cp-socket{top:12px;width:52px!important;height:52px!important;left:7px}.cap-plate .cp-socket #level{width:52px!important;height:52px!important}
-.cap-plate .cp-info{left:82px;right:18px;top:23px;bottom:23px;gap:1px}
-.cap-plate .cp-nick{font-size:10px;line-height:11px}.cap-plate .cp-row{height:11px}
-.cap-plate .cp-hp .status-line>i{height:10px!important}.cap-plate .cp-tp .status-line>i{height:7px!important}.cap-plate .cp-sp .status-line>i{height:7px!important}
-.cap-plate .status-line span{font-size:7.5px!important}
-/* Yazılar çubuk kalınlığıyla orantılı */
-.cap-plate .cp-hp .status-line>i{height:12px!important}.cap-plate .cp-tp .status-line>i,.cap-plate .cp-sp .status-line>i{height:9px!important}
-.cap-plate .status-line b{line-height:1!important;font-weight:700!important}
-.cap-plate .cp-hp .status-line b,.cap-plate .cp-hp .status-line span{font-size:9px!important;line-height:12px!important}
-.cap-plate .cp-tp .status-line b,.cap-plate .cp-sp .status-line b,.cap-plate .cp-tp .status-line span,.cap-plate .cp-sp .status-line span{font-size:7px!important;line-height:9px!important}
-.cap-plate .cp-nick{font-size:9px!important;line-height:11px}
-/* İnce plaka: seviye amblemi yok, yalnız çerçevenin dikdörtgen kısmı */
-.cap-plate{width:280px!important;height:52px!important;background-size:124% 100%!important;background-position:100% 0!important}
-.cap-plate .cp-socket{display:none!important}
-.cap-plate .cp-info{left:16px;right:16px;top:9px;bottom:9px}
-/* Bilgisayarda düğmeler mini haritanın hemen üstünde, sol üstte */
-@media (min-width:1101px){.cp-top{left:12px;top:28px;gap:6px}.map-cluster{margin-top:84px!important}.map-cluster.cp-side.cp-side.cp-side .day-pop{left:12px!important;top:84px!important}}
-.cap-plate{height:60px!important;background-size:127% 100%!important}
-.cap-plate .cp-info{left:24px;right:22px;top:13px;bottom:13px}
-@media (min-width:1101px){.map-cluster{margin-top:74px!important}}
-/* Yatay telefon: düğmeler sol üstte bağlantı rozetinin yanında, yazısız; antlaşma rozeti plakanın altında */
-@media (max-height:520px) and (min-width:701px){
-  .cp-top{left:auto;right:auto;left:clamp(118px,15vw,140px);top:4px;gap:4px}
-  .cp-top>button{width:32px!important;height:32px!important}.cp-top>button img,.cp-top>.cp-ev img{width:26px!important;height:26px!important}
-  .cp-top>button span{display:none!important}
-  .map-cluster.cp-side.cp-side.cp-side .day-pop{left:118px!important;top:44px!important}
-  .treaty-pill{top:58px!important;padding:2px 10px 2px 3px;font-size:10px}.treaty-pill img{width:22px;height:22px}.treaty-pill i{width:50px}
-}
-@media (max-height:520px) and (min-width:701px){
-  .cap-plate{transform:translateX(-50%) scale(.72)!important;transform-origin:50% 0!important}
-  .cp-top{left:112px;gap:3px}.cp-top>button{width:28px!important;height:28px!important}.cp-top>button img,.cp-top>.cp-ev img{width:24px!important;height:24px!important}
-  .treaty-pill{top:48px!important;transform:translateX(-50%) scale(.75)!important;transform-origin:50% 0}
-}
-[data-chat-tab="pm"] .chat-pm-ic{width:16px;height:16px;object-fit:contain;vertical-align:-3px;margin-right:4px}
-/* Kapalı pencerenin hiçbir parçası tıklanamaz (menüye taşınan casus formu kendi pointer-events'ini açtığı için görünmezken de tıklanıyordu) */
-.captain-overlay:not(.open) *,.quest-overlay:not(.open) *{pointer-events:none!important}
-.cp-top>button[hidden]{display:none!important}
-/* Mini harita: dokununca büyür, Dünya düğmesi yalnız büyükken */
-.map-cluster.cp-side{transition:scale .18s ease-out}
-.map-cluster.cp-side.mm-big{scale:1.4}
-.map-cluster.cp-side.cp-side.cp-side:not(.mm-big) #openWorldMap{display:none!important}
-.map-cluster.cp-side #minimap{cursor:zoom-in}.map-cluster.cp-side.mm-big #minimap{cursor:crosshair}
-/* Mini harita sol üst köşede (soldan ve üstten eşit boşluk); koordinat kutusu altında, kısayollar sağında, bağlantı rozeti kısayolların altında */
-html .map-cluster.cp-side{left:10px!important;top:10px!important;margin:0!important}
-html .map-cluster.cp-side #coordGo{top:236px!important}
-html #netPill{position:fixed!important;z-index:46}
-@media (min-width:1101px){.cp-top{left:172px!important;top:10px!important}html #netPill{left:172px;top:72px}.map-cluster.cp-side.cp-side.cp-side .day-pop{left:172px!important;top:96px!important}}
-@media (min-width:701px) and (max-width:1100px){.cp-top{left:146px!important;top:10px!important}html #netPill{left:146px;top:44px}.map-cluster.cp-side.cp-side.cp-side .day-pop{left:146px!important;top:68px!important}}
-@media (max-width:700px){html .hud>.coord-go{left:10px!important;top:100px!important}.cp-top{left:10px!important;top:134px!important}html #netPill{left:96px;top:12px}.map-cluster.cp-side.cp-side.cp-side .day-pop{left:10px!important;top:172px!important}}
-/* .hud üst şerit kadar aşağıda ve telefonda küçültülmüş başlar; çerçevenin üst boşluğu sol boşluğuna eşit olsun */
-html .map-cluster.cp-side{top:-14px!important}
-@media (min-width:701px) and (max-width:1100px){html .map-cluster.cp-side{top:-20px!important}}
-@media (max-width:700px){html .map-cluster.cp-side{top:-38px!important}html .hud>.coord-go{top:132px!important}.cp-top{top:122px!important}.map-cluster.cp-side.cp-side.cp-side .day-pop{top:160px!important}}
-/* Kısayollar sağ üstte, market ve menü düğmelerinin solunda; etkinlik penceresi sıranın altında sağa yaslı */
-html .cp-top{left:auto!important;right:122px;top:4px!important}
-html .cp-top>.day-pop{position:absolute!important;left:auto!important;right:0!important;top:calc(100% + 18px)!important;transform:none!important;pointer-events:auto}
-@media (min-width:1101px){html #netPill{left:172px;top:12px}}
-@media (min-width:701px) and (max-width:1100px){html .cp-top{right:102px;top:12px!important}html #netPill{left:146px;top:12px}}
-@media (max-width:700px){html .cp-top{right:6px;top:68px!important}html .hud>.coord-go{top:132px!important}html .cp-top>.day-pop{top:calc(100% + 6px)!important}}
-/* Mini harita büyüyünce Dünya düğmesi haritanın ortasında */
-.map-cluster.cp-side.cp-side.cp-side #openWorldMap{left:85px!important;top:58px!important;z-index:3;box-shadow:0 0 0 3px #000a,0 6px 16px #000c!important}
-/* O günün etkinliği: mini haritanın sağında kısa yazı (dokununca haftalık etkinlikler) */
-html .map-cluster.cp-side.cp-side.cp-side .day-badge{display:block!important;position:absolute!important;left:222px!important;top:6px!important;transform:none!important;font-size:13px;padding:4px 10px}
-html .map-cluster.cp-side.cp-side.cp-side .day-badge.hidden{display:none!important}
-.day-pop.cp-pop{position:fixed!important;right:auto!important;transform:none!important;z-index:60}
-html #netPill{top:auto!important;bottom:auto}
-@media (min-width:1101px){html #netPill{left:172px;top:46px!important}}
-@media (min-width:701px) and (max-width:1100px){html #netPill{left:146px;top:38px!important}}
-@media (max-width:700px){html .map-cluster.cp-side.cp-side.cp-side .day-badge{font-size:16px;padding:5px 12px}html #netPill{top:12px!important}}
-#menuEvents img{width:44px;height:44px;object-fit:contain}
-@media (max-width:700px){html #netPill{left:88px;top:32px!important}}
-.cp-daytip{position:fixed;z-index:60;max-width:260px;padding:8px 11px;border:1px solid #c9973d;border-radius:8px;background:linear-gradient(#24140bf5,#120a07f5);box-shadow:0 8px 20px #000c;color:#e9dcc2;font:12px/1.45 Inter,sans-serif}
-.cp-daytip[hidden]{display:none}.cp-daytip b{color:#ffd27a;font-size:12px}.cp-daytip p{margin:3px 0 0}.cp-daytip small{display:block;margin-top:5px;color:#c9a46a}
-/* ===== Üst bar (kılıçlı çerçeve, 2000x240 görsel) ===== */
-html .cap-plate.tb{width:560px!important;height:67px!important;top:4px!important;padding:0!important;display:block!important;background:url(/assets/hud-topbar-v2.webp) 0 0/100% 100% no-repeat!important;filter:drop-shadow(0 4px 8px #000b)}
-.cap-plate.tb>div{position:absolute;display:flex;align-items:center}
-.cap-plate.tb .tb-tp{left:13.8%;width:28.4%;top:25%;height:46%}
-.cap-plate.tb .tb-hp{left:57.8%;width:28.4%;top:25%;height:46%}
-.cap-plate.tb .tb-lv{left:47.25%;width:5.1%;top:8.5%;height:42.5%;justify-content:center;border-radius:50%;overflow:visible}
-.cap-plate.tb .tb-sp{left:46.4%;width:7.2%;top:72%;height:17%}
-.cap-plate.tb .status-line{width:100%!important;height:100%!important;gap:5px!important;padding:0 6px!important}
-.cap-plate.tb .status-line span{width:auto!important;font:800 11px Cinzel,serif!important;color:#f3d496!important;letter-spacing:.04em}
-.cap-plate.tb .status-line>i{height:62%!important;border-radius:4px!important;border-color:#6b4a26!important}
-.cap-plate.tb .status-line b{inset:0 0 0 0!important;font:800 10px Inter,sans-serif!important;line-height:1!important}
-.cap-plate.tb .tb-hp .status-line{flex-direction:row-reverse}.cap-plate.tb .tb-hp .status-line>i>em{left:0}
-.cap-plate.tb .tb-tp .status-line>i>em{background:linear-gradient(90deg,#56229a,#b15aff)!important}
-.cap-plate.tb .tb-hp .status-line>i>em{background:linear-gradient(90deg,#8e1717,#e04a2e)!important}
-.cap-plate.tb .tb-sp .status-line{padding:0!important;gap:3px!important}
-.cap-plate.tb .tb-sp .status-line span{font-size:7px!important;color:#5a3412!important;text-shadow:none!important}
-.cap-plate.tb .tb-sp .status-line>i{height:55%!important;border-color:#7a5530!important}
-.cap-plate.tb .tb-sp .status-line>i>em{background:linear-gradient(90deg,#2a4fb8,#5f8bff)!important}
-.cap-plate.tb .tb-sp .status-line b{font-size:6.5px!important;inset:0!important}
-.cap-plate.tb .tb-lv #level{position:relative!important;inset:auto!important;left:auto!important;top:auto!important;transform:none!important;margin:0!important;display:grid!important;place-items:end center;width:118%!important;height:118%!important;flex:none;border:0!important;border-radius:0!important;background-color:transparent!important;background-image:url(/assets/level-badges-v2.webp)!important;background-size:800% 100%!important;background-repeat:no-repeat!important;color:#fff4d0!important;font:900 11px Cinzel,serif!important;text-shadow:0 1px 2px #000,0 0 3px #000;padding-bottom:5%;box-shadow:none!important;filter:drop-shadow(0 2px 3px #000a)}
-.cap-plate.tb .tb-lv #level::before,.cap-plate.tb .tb-lv #level::after{content:none!important}
-@media (max-width:1100px){html .cap-plate.tb{transform:translateX(-50%) scale(.7)!important;transform-origin:50% 0!important}}
-@media (max-width:700px){html .cap-plate.tb{left:50%!important;right:auto!important;top:auto!important;bottom:auto;transform:translateX(-50%) scale(.62)!important;top:calc(100dvh - 60px)!important}}
-.cap-plate.tb .tb-tp .status-line b{inset:0 6px 0 34px!important}.cap-plate.tb .tb-hp .status-line b{inset:0 34px 0 6px!important}
-.cap-plate.tb .tb-sp{left:46.6%;width:6.8%;top:73%;height:15%}
-.cap-plate.tb .tb-sp .status-line span{font-size:6.5px!important}
-.cap-plate.tb .tb-sp .status-line>i{height:70%!important}
-.cap-plate.tb .tb-sp .status-line b{inset:0 0 0 12px!important;font-size:6px!important}
-@media (max-width:700px){html .cap-plate.tb{transform:translateX(-50%) scale(.5)!important;top:calc(100dvh - 40px)!important}}
-.cap-plate.tb .tb-lv #level{width:128%!important;height:128%!important}
-@media (max-width:700px){html .cap-plate.tb{transform:translateX(-50%) scale(.46)!important}}
-/* Bildirimler üst barın hemen altında, ortada ince şerit */
-html #toast{position:fixed!important;left:50%!important;top:78px!important;z-index:70;width:min(520px,90vw);box-sizing:border-box;text-align:center;padding:7px 16px;border:0;border-top:1px solid #c69b4e55;border-bottom:1px solid #c69b4e55;border-radius:0;background:linear-gradient(90deg,#0a060800,#160d0ee8 18%,#160d0ee8 82%,#0a060800);color:#f6e6c4;font:600 13px Inter,sans-serif;pointer-events:none}
-@media (max-width:1100px){html #toast{top:56px!important;font-size:12px}}
-@media (max-width:700px){html #toast{top:60px!important}}
-.cap-plate.tb .tb-tp .status-line b,.cap-plate.tb .tb-hp .status-line b{overflow:hidden;white-space:nowrap}
-/* SP parşömeni: yalnız değer */
-.cap-plate.tb .tb-sp{left:46.3%;width:7.4%;justify-content:center}
-.cap-plate.tb .tb-sp .status-line{display:none!important}
-.cap-plate.tb .tb-spv{font:800 7.5px Inter,sans-serif;font-style:normal;color:#4a2a0c;white-space:nowrap;letter-spacing:.02em}
-/* ===== Üst bar v2: sade pirinç çerçeve (994x274, alt yarısı SP parşömeni) ===== */
-html .cap-plate.tb{width:480px!important;height:132px!important;background-image:url(/assets/hud-topbar-v2.webp)!important;top:0!important}
-.cap-plate.tb .tb-tp{left:7.2%;width:32.4%;top:26.8%;height:16.5%}
-.cap-plate.tb .tb-hp{left:60.4%;width:32.4%;top:26.8%;height:16.5%}
-.cap-plate.tb .tb-lv{left:44.6%;width:10.9%;top:11.2%;height:39.6%}
-.cap-plate.tb .tb-lv #level{width:112%!important;height:112%!important;font-size:12px!important}
-.cap-plate.tb .tb-sp{left:41.5%;width:17%;top:58%;height:16%}
-.cap-plate.tb .tb-spv{font-size:10px;color:#3a2008}
-.cap-plate.tb .status-line span{font-size:10px!important}
-.cap-plate.tb .status-line>i{height:78%!important}
-.cap-plate.tb .tb-tp .status-line b{inset:0 4px 0 28px!important}.cap-plate.tb .tb-hp .status-line b{inset:0 28px 0 4px!important}
-html #toast{top:120px!important}
-@media (max-width:1100px){html #toast{top:88px!important}}
-@media (max-width:700px){html .cap-plate.tb{top:calc(100dvh - 66px)!important}html #toast{top:60px!important}}
-.cap-plate.tb .tb-tp .status-line b{inset:0 4px 0 30px!important}.cap-plate.tb .tb-hp .status-line b{inset:0 30px 0 4px!important}
-/* TP / HP yazıları uçlardaki yuvarlak kapaklarda; çubuk bütün kutuyu kaplar */
-.cap-plate.tb .tb-tp .status-line>span,.cap-plate.tb .tb-hp .status-line>span{display:none!important}
-.cap-plate.tb .tb-tp .status-line b,.cap-plate.tb .tb-hp .status-line b{inset:0 4px!important}
-.cap-plate.tb .status-line{padding:0 4px!important}
-.cap-plate.tb .tb-lab{position:absolute;top:27%;height:16%;width:4.6%;display:grid;place-items:center;font:800 11px Cinzel,serif;font-style:normal;color:#f3d496;text-shadow:0 1px 2px #000,0 0 3px #000}
-.cap-plate.tb .tb-lab.l{left:2.1%}.cap-plate.tb .tb-lab.r{right:2.1%}
-/* Kısaltılmış parşömen (994x210) */
-html .cap-plate.tb{height:101px!important}
-.cap-plate.tb .tb-tp,.cap-plate.tb .tb-hp{top:35%;height:21.5%}
-.cap-plate.tb .tb-lab{top:35%;height:21.5%}
-.cap-plate.tb .tb-lv{top:14.6%;height:51.7%}
-.cap-plate.tb .tb-sp{top:79%;height:15%}
-html #toast{top:104px!important}
-.cap-plate.tb .tb-sp{left:40.5%;width:19%}
-/* ===== Pirinç çerçeveler (üst barla aynı malzeme) ===== */
-/* Küçük yuvarlak düğmeler */
-html .cp-top>button,html .corner-buttons>.round-button,html .map-cluster #openWorldMap{background:url(/assets/btn-ring-v1.webp) center/100% 100% no-repeat!important;border:0!important;box-shadow:0 4px 10px #000a!important;border-radius:50%!important}
-html .cp-top>button img,html .corner-buttons>.round-button img,html .map-cluster #openWorldMap img{width:64%!important;height:64%!important;border-radius:50%;object-fit:cover}
-/* Büyük düğmeler */
-/* Mini harita: pirinç tonu */
-html .map-cluster{background-image:url(/assets/ui-minimap-v2.webp)!important}
-/* Pencereler: sohbet, menü, görev/mesaj/etkinlik pencereleri */
-html .chat-box,html .menu-window,html .quest-log,html .daily-window,html .day-pop,html .cp-daytip,html .social-win{border:14px solid transparent!important;border-image:url(/assets/win-frame-v1.webp) 64 / 14px stretch!important;background:#140d0b!important;background-clip:padding-box!important;border-radius:0!important;box-shadow:0 12px 30px #000c!important}
-/* Sohbet sekmeleri */
-html .chat-tabs button{border:0!important;border-radius:0!important;background:url(/assets/tab-off-v1.webp) center/100% 100% no-repeat!important;color:#d9c3a0!important;padding:5px 12px!important}
-html .chat-tabs button.active{background-image:url(/assets/tab-on-v1.webp)!important;color:#2a1606!important;text-shadow:0 1px 0 #f6dc9a}
-html .cp-top>button img,html .corner-buttons>.round-button img,html .map-cluster #openWorldMap img{width:60%!important;height:60%!important}
-html .cp-top>button img,html .corner-buttons>.round-button img,html .map-cluster #openWorldMap img{width:66%!important;height:66%!important;object-fit:cover!important;border-radius:50%!important}
-html .cp-top>button,html .corner-buttons>.round-button,html .map-cluster #openWorldMap{background-color:#120c0a!important;background-clip:padding-box}
 .daily-day li span{white-space:nowrap;font-size:11px}
-/* Mini harita yakınlaştırma: pirinç tonu */
-html .map-cluster .zoom-controls{background-image:url(/assets/ui-zoom-v2.webp)!important}
-/* Eski saldırı/hız/öfke/mayın düğmeleri: kendi çerçeveleri */
-/* Sağ üst sıra: Görevler, (Grup), Arkadaşlar, Arena, Market, Menü — eşit boy ve aralık */
-html .cp-top{right:8px!important;gap:8px!important;align-items:flex-start}
-html .cp-top>button{width:48px!important;height:48px!important;flex:none}
-html .cp-top>button span{top:47px!important;font:700 8px Cinzel,serif!important;letter-spacing:.04em}
-html .cp-top>#openShop,html .cp-top>#openMenu{position:relative!important;inset:auto!important;margin:0!important}
-html .cp-top .chat-n,html .cp-top .has-dot::after{z-index:2}
-@media (max-width:1100px){html .cp-top{gap:5px!important}html .cp-top>button{width:36px!important;height:36px!important}html .cp-top>button span{display:none!important}}
-/* Menü içi: pirinç uyumlu kutular */
-html .menu-window .menu-grid button{border:1px solid #8a6a3a!important;border-radius:8px!important;background:linear-gradient(#241812,#120c0a)!important;box-shadow:inset 0 1px 0 #c69b4e33,inset 0 0 0 1px #00000088,0 3px 8px #0008!important;color:#e9cf96!important}
-html .menu-window .menu-grid button:hover{border-color:#e0b86a!important;background:linear-gradient(#33221a,#160e0b)!important}
-html .menu-window>header{border-bottom-color:#8a6a3a66!important}
-html .menu-window .cp-spy{border-color:#8a6a3a!important;background:#1a110d!important}
-html .menu-window>header>button,html .quest-log>header>button,html .daily-window>header>button{border-color:#8a6a3a!important;background:#1a110d!important;color:#e9cf96!important}
-/* SVG semboller: koyu zemin, pirinç halka, her boyutta keskin */
-html .cp-top>button img,html .corner-buttons>.round-button img,html .map-cluster #openWorldMap img{width:56%!important;height:56%!important;object-fit:contain!important;border-radius:0!important;filter:drop-shadow(0 1.5px 1px #000c)}
-html .cp-top>button,html .corner-buttons>.round-button,html .map-cluster #openWorldMap{background:url(/assets/btn-ring-v1.webp) center/100% 100% no-repeat,radial-gradient(circle at 45% 35%,#2a1a12,#120c0a 62%)!important}
-#chatToggle.cp-chat{background:url(/assets/btn-ring-v1.webp) center/100% 100% no-repeat,radial-gradient(circle at 45% 35%,#2a1a12,#120c0a 62%)!important;border-radius:50%!important;width:52px!important;height:52px!important;display:grid!important;place-items:center}
-#chatToggle.cp-chat img{width:52%!important;height:52%!important;filter:drop-shadow(0 1.5px 1px #000c)}
-#menuEvents img{width:40px!important;height:40px!important}
-/* Korsan Öfkesi: Saldır gibi kırmızı küre çerçeve; dolum halkası çerçevenin içinde */
+
+/* ===== 8. Düğmeler ve giriş kutuları: ana eylem pirinç, ikincil koyu demir, devre dışı soluk ===== */
+html .market-item button,html .buy-row button,html .buy-confirm button,html #buyOk,html #confirmUpgrade,html .daily-day button,html #claimDaily,html .spy-dialog button,html .chat-form button,html .mail-win button.primary,html .mail-bar button,html .mail-foot button,html .mail-form footer button,html .social-win button,html .social-ask button,html .treaty-opt,html .day-pop button,html .lq-log button,html .quest-log footer button,html .shop-window .primary,html .coord-go button,html #menuLogout,html .cp-spy button{
+  border:1px solid var(--brass)!important;border-radius:6px!important;background:var(--btn-main)!important;color:var(--ink)!important;text-shadow:0 1px 0 #f6dc9a88!important;box-shadow:inset 0 1px 0 #fff3c466,inset 0 -2px 0 #0003,0 2px 5px #0008!important;font-weight:800!important;cursor:pointer}
+html .market-item button:hover:not(:disabled),html .buy-confirm button:hover:not(:disabled),html .daily-day button:hover,html .spy-dialog button:hover,html .chat-form button:hover,html .social-win button:hover,html .coord-go button:hover,html .mail-win button.primary:hover{background:var(--btn-main-hover)!important}
+html #buyCancel,html #cancelUpgrade,html .spy-dialog button[data-x],html [data-keep-quest],html .social-win button.ghost,html .social-ask .no,html .mail-bar button[data-a="delall"],html .mail-foot button[data-a="back"],html .mail-form footer button[data-a="back"],html .mail-foot button[data-a="del"]{
+  border-color:var(--brass-edge)!important;background:var(--btn-alt)!important;color:var(--cream)!important;text-shadow:none!important;box-shadow:inset 0 1px 0 #c69b4e33,0 2px 5px #0008!important}
+html .market-item button:disabled,html .buy-row button:disabled,html .buy-confirm button:disabled,html #buyOk:disabled,html .treaty-opt:disabled{border-color:#5a4632!important;background:var(--btn-off)!important;color:#8a7a62!important;text-shadow:none!important;box-shadow:none!important;cursor:default}
+html .market-item input,html .buy-row input,html .chat-form input,html .mail-form input,html .mail-form select,html .mail-form textarea,html .social-win input,html .cp-spy input{border:1px solid var(--brass-edge)!important;background:var(--well)!important;color:#f3e2bd!important;border-radius:5px!important}
+html .market-item,html .buy-row{border-color:#6b4f30!important;background:linear-gradient(#1f1510,var(--panel))!important}
+
+/* ===== 9. Savaş düğmeleri: Korsan Öfkesi, Saldır ile aynı kırmızı kürede; öfke dolumu içte ===== */
 html .combat-controls .combat-action.rage{background:url(/assets/ui-orb-red-v1.webp) center/100% 100% no-repeat!important;width:70px!important;height:70px!important}
 html .combat-controls .combat-action.rage>b{inset:15%!important;padding:3px;box-sizing:border-box;background:conic-gradient(#ff5a14 calc(var(--rage,0)*360deg),#2a1410 0)!important}
 html .combat-controls .combat-action.rage>b img{border-radius:50%}
-/* ===== Ortak düğme renkleri: ana eylem pirinç, vazgeç koyu demir, devre dışı soluk ===== */
-html .market-item button,html .buy-row button,html .buy-confirm button,html #buyOk,html #confirmUpgrade,html .daily-day button,html #claimDaily,html .spy-dialog button,html .chat-form button,html .mail-win button.primary,html .mail-bar button,html .mail-foot button,html .mail-form footer button,html .social-win button,html .social-ask button,html .treaty-opt,html .day-pop button,html .lq-log button,html .quest-log footer button,html .shop-window .primary,html .coord-go button,html #menuLogout{
-  border:1px solid #e0b86a!important;border-radius:6px!important;background:linear-gradient(#e2bb6a,#b8873a 55%,#8a6226)!important;color:#2a1606!important;text-shadow:0 1px 0 #f6dc9a88!important;box-shadow:inset 0 1px 0 #fff3c466,inset 0 -2px 0 #0003,0 2px 5px #0008!important;font-weight:800!important;cursor:pointer}
-html .market-item button:hover:not(:disabled),html .buy-confirm button:hover:not(:disabled),html .daily-day button:hover,html .spy-dialog button:hover,html .chat-form button:hover,html .social-win button:hover,html .coord-go button:hover,html .mail-win button.primary:hover{background:linear-gradient(#f0cc80,#c99843 55%,#96702c)!important}
-html #buyCancel,html #cancelUpgrade,html .spy-dialog button[data-x],html [data-keep-quest],html .social-win button.ghost,html .social-ask .no,html .mail-bar button[data-a="delall"],html .mail-foot button[data-a="back"],html .mail-form footer button[data-a="back"],html .mail-foot button[data-a="del"]{
-  border-color:#8a6a3a!important;background:linear-gradient(#2e221c,#17100d)!important;color:#e9cf96!important;text-shadow:none!important;box-shadow:inset 0 1px 0 #c69b4e33,0 2px 5px #0008!important}
-html .market-item button:disabled,html .buy-row button:disabled,html .buy-confirm button:disabled,html #buyOk:disabled,html .treaty-opt:disabled{border-color:#5a4632!important;background:linear-gradient(#3a2e22,#241a12)!important;color:#8a7a62!important;text-shadow:none!important;box-shadow:none!important;cursor:default}
-html .market-item input,html .buy-row input,html .chat-form input,html .mail-form input,html .mail-form select,html .mail-form textarea,html .social-win input,html .cp-spy input{border:1px solid #8a6a3a!important;background:#0e0908!important;color:#f3e2bd!important;border-radius:5px!important}
-html .cp-spy button{border:1px solid #e0b86a!important;background:linear-gradient(#e2bb6a,#b8873a 55%,#8a6226)!important;color:#2a1606!important}
-html .market-item,html .buy-row{border-color:#6b4f30!important;background:linear-gradient(#1f1510,#140d0b)!important}
-/* Yatay telefon: bar ile sağ üst sıra çakışmasın */
-@media (min-width:701px) and (max-width:1000px){html .cap-plate.tb{transform:translateX(-50%) scale(.6)!important;left:calc(50% - 40px)!important}html .cp-top{gap:4px!important}html .cp-top>button{width:32px!important;height:32px!important}}
-@media (min-width:701px) and (max-width:820px){html .cap-plate.tb{transform:translateX(-50%) scale(.54)!important;left:calc(50% - 50px)!important}}
+
+/* ===== 10. Yardımcılar ===== */
+/* Kapalı pencerenin hiçbir parçası tıklanamaz (menüdeki casus formu görünmezken de tıklanıyordu) */
+.captain-overlay:not(.open) *,.quest-overlay:not(.open) *{pointer-events:none!important}
