@@ -399,7 +399,7 @@ test('chat moderation: duration parsing, admin mute and unmute',()=>{
   assert.match(S.adminChatCommand('/sustur',now),/Kullanım/);assert.equal(S.adminChatCommand('/merhaba',now),null);
 });
 test('rival sinks count only with a credited (verified, daily-limited) sink',()=>{
-  const k={uid:'killer1'},now=7e6;let n=0;for(let i=0;i<5;i++)if(S.spCredit(k,'victim1',now))n++;assert.equal(n,3);assert.equal(S.spCredit(k,'killer1',now),null);
+  const k={uid:'killer1'},now=7e6;let n=0;for(let i=0;i<5;i++)if(S.sinkCredit(k,'victim1',now))n++;assert.equal(n,3);assert.equal(S.sinkCredit(k,'killer1',now),null);
 });
 test('teleport only to the server-chosen respawn point; rage only when the server meter is full',()=>{
   const c={sea:'sea-3-1',ws:{readyState:0},strikes:0,playerNo:1,nick:'t'};const now=8e6;
