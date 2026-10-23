@@ -133,3 +133,9 @@ html #netPill{position:fixed!important;z-index:46}
 html .map-cluster.cp-side{top:-14px!important}
 @media (min-width:701px) and (max-width:1100px){html .map-cluster.cp-side{top:-20px!important}}
 @media (max-width:700px){html .map-cluster.cp-side{top:-38px!important}html .hud>.coord-go{top:132px!important}.cp-top{top:122px!important}.map-cluster.cp-side.cp-side.cp-side .day-pop{top:160px!important}}
+/* Kısayollar sağ üstte, market ve menü düğmelerinin solunda; etkinlik penceresi sıranın altında sağa yaslı */
+html .cp-top{left:auto!important;right:122px;top:4px!important}
+html .cp-top>.day-pop{position:absolute!important;left:auto!important;right:0!important;top:calc(100% + 18px)!important;transform:none!important;pointer-events:auto}
+@media (min-width:1101px){html #netPill{left:172px;top:12px}}
+@media (min-width:701px) and (max-width:1100px){html .cp-top{right:102px;top:12px!important}html #netPill{left:146px;top:12px}}
+@media (max-width:700px){html .cp-top{right:6px;top:68px!important}html .hud>.coord-go{top:132px!important}html .cp-top>.day-pop{top:calc(100% + 6px)!important}}
