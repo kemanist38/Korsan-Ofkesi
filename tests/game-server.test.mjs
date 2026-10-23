@@ -223,11 +223,11 @@ test('NPC ateşi sunucuda: menzil, bekleme, güvenli deniz, yeniden doğma korum
 });
 test('savaş puanı sunucudan: aynı rakipten günde 3, kendini batırmak yok',()=>{
   const k={uid:'k1'},now=Date.UTC(2026,9,20,12);
-  assert.equal(S.spCredit(k,'k1',now),null);
-  for(let i=0;i<3;i++)assert.ok(S.spCredit(k,'v1',now+i).sp>0);
-  assert.equal(S.spCredit(k,'v1',now+5),null);// 4. kez yok
-  assert.ok(S.spCredit(k,'v2',now+6).sp>0);// başka rakip
-  assert.ok(S.spCredit(k,'v1',now+86_400_000).sp>0);// ertesi gün
+  assert.equal(S.sinkCredit(k,'k1',now),null);
+  for(let i=0;i<3;i++)assert.equal(S.sinkCredit(k,'v1',now+i),true);
+  assert.equal(S.sinkCredit(k,'v1',now+5),null);// 4. kez yok
+  assert.equal(S.sinkCredit(k,'v2',now+6),true);// başka rakip
+  assert.equal(S.sinkCredit(k,'v1',now+86_400_000),true);// ertesi gün
 });
 test('karaya çıkma: ada içindeki konum reddedilir, kıyıdaki ve açık deniz kabul',async()=>{
   const {loadTs}=await import('./load.mjs');const {MAPS}=await loadTs('campaign.ts');
@@ -399,7 +399,7 @@ test('chat moderation: duration parsing, admin mute and unmute',()=>{
   assert.match(S.adminChatCommand('/sustur',now),/Kullanım/);assert.equal(S.adminChatCommand('/merhaba',now),null);
 });
 test('rival sinks count only with a credited (verified, daily-limited) sink',()=>{
-  const k={uid:'killer1'},now=7e6;let n=0;for(let i=0;i<5;i++)if(S.spCredit(k,'victim1',now))n++;assert.equal(n,3);assert.equal(S.spCredit(k,'killer1',now),null);
+  const k={uid:'killer1'},now=7e6;let n=0;for(let i=0;i<5;i++)if(S.sinkCredit(k,'victim1',now))n++;assert.equal(n,3);assert.equal(S.sinkCredit(k,'killer1',now),null);
 });
 test('teleport only to the server-chosen respawn point; rage only when the server meter is full',()=>{
   const c={sea:'sea-3-1',ws:{readyState:0},strikes:0,playerNo:1,nick:'t'};const now=8e6;
