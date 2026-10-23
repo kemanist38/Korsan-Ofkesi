@@ -1,6 +1,7 @@
 // Kaptan kimliği: seviye amblemi, SP rütbe madalyası ve güverte nişanı. Geminin altında yalnızca rütbe rozeti + ad + küçük seviye
 // amblemi çizilir; büyük hâlleri ve ilerlemeler burada: seçilen rakibin oyuncu kartı, kaptan profilindeki üçlü ve rütbe atlama ekranı.
 import './captain-card.css';
+import {tpMedal,tpMedalUrl,TP_MEDALS} from './tp-rank';
 import {BATTLE_RANKS,RANK_SHEET,RANK_COLS} from './battle';
 import {INSIGNIA_SHEET,INSIGNIA_TIERS,insigniaTier} from './insignia';
 
@@ -15,20 +16,21 @@ export const insigniaBadge=(tier:number,cls='')=>`<i class="cc-insignia ${cls}" 
 const bar=(pct:number,text:string)=>`<span class="cc-bar"><em style="width:${Math.max(0,Math.min(100,pct))}%"></em><b>${text}</b></span>`;
 
 // Kaptan profili: seviye ve nişan yan yana; her birinin altında sonraki kademeye ilerleme
-export function trioHtml(o:{level:number;xp:number;xpNeed:number;sp:number;sinks:number}){
+export function trioHtml(o:{level:number;xp:number;xpNeed:number;sp:number;sinks:number;tr?:number}){
   const t=insigniaTier(o.sinks),nextT=INSIGNIA_TIERS[t+1];
   const lvPct=Number.isFinite(o.xpNeed)?o.xp/o.xpNeed*100:100,inPct=nextT?(o.sinks-INSIGNIA_TIERS[t])/(nextT-INSIGNIA_TIERS[t])*100:100;
   return`<section class="cc-trio">
     <article>${levelBadge(o.level,'big')}<strong>SEVİYE ${o.level}</strong>${bar(lvPct,Number.isFinite(o.xpNeed)?`${fmt(o.xp)} / ${fmt(o.xpNeed)} TP`:'En yüksek seviye')}</article>
+    ${o.tr&&tpMedal(o.tr)>=0?`<article><img class="cc-tp big" src="${tpMedalUrl(tpMedal(o.tr))}" alt=""/><strong>${TP_MEDALS[tpMedal(o.tr)].name.toLocaleUpperCase('tr')}</strong>${bar(100,`TP sıralaması: ${o.tr}.`)}</article>`:''}
     <article>${insigniaBadge(t,'big')}<strong>${INSIGNIA_NAMES[t]}</strong>${bar(inPct,nextT?`${fmt(o.sinks)} / ${fmt(nextT)} batırma`:`${fmt(o.sinks)} batırma · en yüksek nişan`)}</article>
   </section>`;}
 
 // Seçilen rakip kaptanın kartı (ekranın üst ortasında, hedef seçiliyken)
 const card=document.createElement('div');card.className='cc-card';card.hidden=true;document.body.append(card);let cardKey='';
-export function showPlayerCard(o:{name:string;level?:number;sp:number;sinks?:number;tag?:string|null;adm?:boolean}|null){
+export function showPlayerCard(o:{name:string;level?:number;sp:number;sinks?:number;tag?:string|null;adm?:boolean;tr?:number}|null){
   if(!o){if(!card.hidden){card.hidden=true;cardKey='';}return;}
-  const t=insigniaTier(o.sinks??0),key=`${o.name}|${o.level}|${o.sp}|${o.sinks}`;if(key===cardKey&&!card.hidden)return;cardKey=key;
-  card.innerHTML=`${o.level?levelBadge(o.level,'mid'):''}<div class="cc-who"><strong class="${o.adm?'adm':''}">${esc(o.name)}</strong><small>${o.adm?'Oyun yöneticisi':`${o.level?`Seviye ${o.level}`:''}${o.sinks!==undefined?`${o.level?' · ':''}${fmt(o.sinks)} batırma`:''}`}</small></div>${o.adm?'':insigniaBadge(t,'card')}`;
+  const t=insigniaTier(o.sinks??0),key=`${o.name}|${o.level}|${o.tr}|${o.sinks}`;if(key===cardKey&&!card.hidden)return;cardKey=key;
+  card.innerHTML=`${o.level?levelBadge(o.level,'mid'):''}<div class="cc-who"><strong class="${o.adm?'adm':''}">${esc(o.name)}</strong><small>${o.adm?'Oyun yöneticisi':`${o.level?`Seviye ${o.level}`:''}${o.sinks!==undefined?`${o.level?' · ':''}${fmt(o.sinks)} batırma`:''}${o.tr?` · TP sırası ${o.tr}.`:''}`}</small></div>${o.adm?'':(o.tr&&tpMedal(o.tr)>=0?`<img class="cc-tp" src="${tpMedalUrl(tpMedal(o.tr))}" alt="" title="${TP_MEDALS[tpMedal(o.tr)].name}"/>`:'')+insigniaBadge(t,'card')}`;
   card.hidden=false;}
 
 // Rütbe atlama ekranı (seviye atlamadakine benzer kutlama)

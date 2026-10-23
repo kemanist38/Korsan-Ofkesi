@@ -996,6 +996,10 @@ export function fwFinish(now){const win=fwWinner(fw.guilds),uids=fwEligible(fw.m
   if(win){const msg=JSON.stringify({t:'chat',d:{nick:'Filo Savaşı',tag:null,adm:true,text:`⚔ Filo Savaşı bitti! Kazanan: ${fw.guilds[win].name} (${fw.guilds[win].n} batırma). En az ${FW_MIN_SINKS} rakip batıran ${uids.length} üye ödülünü aldı.`,at:now}});for(const x of all)if(x.uid)send(x,msg);}
   fw={day:'',guilds:{},members:{},last:fw.last};fwDirty=true;fwCast();return{win,uids};}
 export function fwTick(now){const d=new Date(now);if(fw.day&&fw.day!==dayKey(d)){fwFinish(now);return;}if(fwCastDue&&now-fwCastAt>3000)fwCast();}
+// TP sıralaması (036_tp_top.sql): ilk 100 kaptanın sırası 10 dakikada bir yenilenir; her kaptana kendi sırası gönderilir
+export const tpRanks=new Map();
+async function tpRefresh(){const r=await rpcTry('tp_top',{});if(!Array.isArray(r.data))return;tpRanks.clear();r.data.forEach((u,i)=>tpRanks.set(u,i+1));for(const x of all)if(x.uid)send(x,{t:'tpr',d:{rank:tpRanks.get(x.uid)??0}});}
+if(process.env.NODE_ENV!=='test'){setTimeout(()=>void tpRefresh(),5000).unref();setInterval(()=>void tpRefresh(),600_000).unref();}
 loadFw();setInterval(()=>{fwTick(Date.now());saveFw();},2000).unref();
 
 // Doğrulanan kazançlar 20 saniyede bir veritabanına yazılır; dönen değerlerle oyuncunun seviyesi tazelenir
@@ -1038,7 +1042,7 @@ wss.on('connection',ws=>{
       for(const x of all)if(x.uid===who.uid&&x!==c)x.ws.close(4004,'başka yerden bağlanıldı');
       Object.assign(c,who);c.admin=await isAdminToken(String(m.token||'')).catch(()=>false);c.netId=String(m.netId||'').slice(0,16)||Math.random().toString(36).slice(2,10);clearTimeout(authTimer);
       await loadEcon(c);if(!c.econ){ws.close(4003,'hesap verisi yüklenemedi');return;}
-      void sinkAdd(c,0);send(c,{t:'hello',id:c.netId,nick:c.nick,playerNo:c.playerNo});log('GİRİŞ',`#${c.playerNo}`,c.nick);void loadFriends(c).then(()=>{send(c,{t:'fr',d:{k:'list',list:friendView(c)}});friendPing(c);});void rpcTry('mail_box',{p_uid:c.uid,p_box:'in'}).then(r=>{if(r.data)send(c,{t:'mail',d:{k:'box',box:'in',list:r.data.list,unread:r.data.unread}});});treaty.seen[c.uid]=Date.now();treatyDirty=true;send(c,{t:'treaty',d:treatyInfo(c)});send(c,{t:'fw',d:fwInfo(c)});if(!qkByUid.has(c.uid))qkByUid.set(c.uid,{});c.qk=qkByUid.get(c.uid);{const t=treasures.get(c.uid);if(t)send(c,{t:'tstate',d:{parts:t.parts,spot:t.spot}});}return;}
+      void sinkAdd(c,0);send(c,{t:'hello',id:c.netId,nick:c.nick,playerNo:c.playerNo});log('GİRİŞ',`#${c.playerNo}`,c.nick);void loadFriends(c).then(()=>{send(c,{t:'fr',d:{k:'list',list:friendView(c)}});friendPing(c);});void rpcTry('mail_box',{p_uid:c.uid,p_box:'in'}).then(r=>{if(r.data)send(c,{t:'mail',d:{k:'box',box:'in',list:r.data.list,unread:r.data.unread}});});treaty.seen[c.uid]=Date.now();treatyDirty=true;send(c,{t:'treaty',d:treatyInfo(c)});send(c,{t:'fw',d:fwInfo(c)});send(c,{t:'tpr',d:{rank:tpRanks.get(c.uid)??0}});if(!qkByUid.has(c.uid))qkByUid.set(c.uid,{});c.qk=qkByUid.get(c.uid);{const t=treasures.get(c.uid);if(t)send(c,{t:'tstate',d:{parts:t.parts,spot:t.spot}});}return;}
     if(!c.uid||!c.econ)return;
     switch(m.t){
       case'join':{const name=String(m.sea||'').slice(0,40);if(name===c.sea)return;if(!canJoin(c,name,now)){send(c,{t:'denied',reason:'harita kilitli'});return;}leaveSea(c);c.last=null;if(!name)return;
@@ -1061,7 +1065,7 @@ wss.on('connection',ws=>{
         if(c.admin){s.adm=1;s.ship=ADMIN_SHIP;if(aevOpen(c.sea)){const ev=aevState(c);s.hp=Math.round(ev.hp);s.maxHp=ev.max;if(now-(c.ahpAt||0)>1000){c.ahpAt=now;send(c,{t:'ahp',d:{hp:s.hp,max:ev.max}});}}}
         if(c.lsOn){const ph=c.pvp?.hp;if(num(s.hp)&&ph!=null)s.hp=Math.max(0,Math.min(s.hp,Math.round(ph)));s.ship='ls';delete s.adm;delete s.tag;}
         if(c.domTeam&&domMatchOfSea(c.sea)!==undefined){const ph=c.pvp?.hp;if(num(s.hp)&&ph!=null)s.hp=Math.max(0,Math.min(s.hp,Math.round(ph)));s.ship='dom-'+c.domTeam;s.tm=c.domTeam;delete s.adm;}else delete s.tm;
-        if('nick' in s)s.sk=c.sinks??0;
+        if('nick' in s){s.sk=c.sinks??0;s.tr=tpRanks.get(c.uid)??0;}
         c.last={x:s.x,y:s.y,at:now};s.id=c.netId;queueState(c,s);return;}
       case'fire':return; // oyuncular arası atış yalnız sunucu atışıyla (atk); oyuncunun bildirdiği hasar kabul edilmez
       case'sunk':{if(!c.sea)return;const s=m.d||{};s.victim=c.netId;s.victimNick=c.nick;
