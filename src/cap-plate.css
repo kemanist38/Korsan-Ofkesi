@@ -254,3 +254,9 @@ html .menu-window .menu-grid button:hover{border-color:#e0b86a!important;backgro
 html .menu-window>header{border-bottom-color:#8a6a3a66!important}
 html .menu-window .cp-spy{border-color:#8a6a3a!important;background:#1a110d!important}
 html .menu-window>header>button,html .quest-log>header>button,html .daily-window>header>button{border-color:#8a6a3a!important;background:#1a110d!important;color:#e9cf96!important}
+/* SVG semboller: koyu zemin, pirinç halka, her boyutta keskin */
+html .cp-top>button img,html .corner-buttons>.round-button img,html .map-cluster #openWorldMap img{width:56%!important;height:56%!important;object-fit:contain!important;border-radius:0!important;filter:drop-shadow(0 1.5px 1px #000c)}
+html .cp-top>button,html .corner-buttons>.round-button,html .map-cluster #openWorldMap{background:url(/assets/btn-ring-v1.webp) center/100% 100% no-repeat,radial-gradient(circle at 45% 35%,#2a1a12,#120c0a 62%)!important}
+#chatToggle.cp-chat{background:url(/assets/btn-ring-v1.webp) center/100% 100% no-repeat,radial-gradient(circle at 45% 35%,#2a1a12,#120c0a 62%)!important;border-radius:50%!important;width:52px!important;height:52px!important;display:grid!important;place-items:center}
+#chatToggle.cp-chat img{width:52%!important;height:52%!important;filter:drop-shadow(0 1.5px 1px #000c)}
+#menuEvents img{width:40px!important;height:40px!important}
