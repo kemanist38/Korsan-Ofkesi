@@ -227,9 +227,6 @@ html #toast{top:104px!important}
 html .cp-top>button,html .corner-buttons>.round-button,html .map-cluster #openWorldMap{background:url(/assets/btn-ring-v1.webp) center/100% 100% no-repeat!important;border:0!important;box-shadow:0 4px 10px #000a!important;border-radius:50%!important}
 html .cp-top>button img,html .corner-buttons>.round-button img,html .map-cluster #openWorldMap img{width:64%!important;height:64%!important;border-radius:50%;object-fit:cover}
 /* Büyük düğmeler */
-html .combat-action>b{position:relative;border:0!important;box-shadow:0 4px 10px #000a!important}
-html .combat-action>b::after{content:'';position:absolute;inset:-7%;border-radius:50%;background:url(/assets/btn-ring-v1.webp) center/100% 100% no-repeat;pointer-events:none}
-html .combat-action.attack>b::after,html .combat-action.rage>b::after{background-image:url(/assets/btn-ring-big-v1.webp)}
 /* Mini harita: pirinç tonu */
 html .map-cluster{background-image:url(/assets/ui-minimap-v2.webp)!important}
 /* Pencereler: sohbet, menü, görev/mesaj/etkinlik pencereleri */
@@ -237,10 +234,23 @@ html .chat-box,html .menu-window,html .quest-log,html .daily-window,html .day-po
 /* Sohbet sekmeleri */
 html .chat-tabs button{border:0!important;border-radius:0!important;background:url(/assets/tab-off-v1.webp) center/100% 100% no-repeat!important;color:#d9c3a0!important;padding:5px 12px!important}
 html .chat-tabs button.active{background-image:url(/assets/tab-on-v1.webp)!important;color:#2a1606!important;text-shadow:0 1px 0 #f6dc9a}
-html .combat-action>b::after{inset:-18%}
-html .combat-action.attack>b::after,html .combat-action.rage>b::after{inset:-20%}
 html .cp-top>button img,html .corner-buttons>.round-button img,html .map-cluster #openWorldMap img{width:60%!important;height:60%!important}
 html .cp-top>button img,html .corner-buttons>.round-button img,html .map-cluster #openWorldMap img{width:74%!important;height:74%!important;object-fit:contain!important;border-radius:0!important;filter:drop-shadow(0 2px 2px #000a)}
 html .cp-top>button,html .corner-buttons>.round-button,html .map-cluster #openWorldMap{background-color:#120c0a!important;background-clip:padding-box}
-html .combat-action>b img{object-fit:contain!important;width:78%!important;height:78%!important;filter:drop-shadow(0 2px 2px #000a)}
 .daily-day li span{white-space:nowrap;font-size:11px}
+/* Mini harita yakınlaştırma: pirinç tonu */
+html .map-cluster .zoom-controls{background-image:url(/assets/ui-zoom-v2.webp)!important}
+/* Eski saldırı/hız/öfke/mayın düğmeleri: kendi çerçeveleri */
+/* Sağ üst sıra: Görevler, (Grup), Arkadaşlar, Arena, Market, Menü — eşit boy ve aralık */
+html .cp-top{right:8px!important;gap:8px!important;align-items:flex-start}
+html .cp-top>button{width:48px!important;height:48px!important;flex:none}
+html .cp-top>button span{top:47px!important;font:700 8px Cinzel,serif!important;letter-spacing:.04em}
+html .cp-top>#openShop,html .cp-top>#openMenu{position:relative!important;inset:auto!important;margin:0!important}
+html .cp-top .chat-n,html .cp-top .has-dot::after{z-index:2}
+@media (max-width:1100px){html .cp-top{gap:5px!important}html .cp-top>button{width:36px!important;height:36px!important}html .cp-top>button span{display:none!important}}
+/* Menü içi: pirinç uyumlu kutular */
+html .menu-window .menu-grid button{border:1px solid #8a6a3a!important;border-radius:8px!important;background:linear-gradient(#241812,#120c0a)!important;box-shadow:inset 0 1px 0 #c69b4e33,inset 0 0 0 1px #00000088,0 3px 8px #0008!important;color:#e9cf96!important}
+html .menu-window .menu-grid button:hover{border-color:#e0b86a!important;background:linear-gradient(#33221a,#160e0b)!important}
+html .menu-window>header{border-bottom-color:#8a6a3a66!important}
+html .menu-window .cp-spy{border-color:#8a6a3a!important;background:#1a110d!important}
+html .menu-window>header>button,html .quest-log>header>button,html .daily-window>header>button{border-color:#8a6a3a!important;background:#1a110d!important;color:#e9cf96!important}
