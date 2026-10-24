@@ -491,3 +491,11 @@ test('kimlik alanlarını sunucu belirler: seviye, etiket, yönetici işareti ta
   for(const k of Object.keys(s))S.serverIdent(c,s,k);
   assert.deepEqual(s,{nick:'Ali',tag:'ABC',level:3,sk:7,tr:0});
 });
+
+test('test (sandbox) ödemesi yalnız yöneticiye ve izinli test hesabına inci verir',()=>{
+  const u='11111111-1111-1111-1111-111111111111',v='22222222-2222-2222-2222-222222222222';
+  assert.equal(S.sandboxAllowed(u,'',new Set([{uid:u,admin:false}])),false,'sıradan oyuncu');
+  assert.equal(S.sandboxAllowed(u,'',new Set([{uid:u,admin:true}])),true,'yönetici');
+  assert.equal(S.sandboxAllowed(v,`${u}, ${v}`,new Set()),true,'izin listesi');
+  assert.equal(S.sandboxAllowed(null,'',new Set()),false);
+});

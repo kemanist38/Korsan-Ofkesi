@@ -3814,6 +3814,7 @@ __export(game_server_exports, {
   rcAuthOk: () => rcAuthOk,
   resetSiege: () => resetSiege,
   respawnPoint: () => respawnPoint,
+  sandboxAllowed: () => sandboxAllowed,
   saveServerState: () => saveServerState,
   sbTake: () => sbTake,
   seaMap: () => seaMap,
@@ -4731,6 +4732,12 @@ function parseRcEvent(body) {
   if (!tx) return null;
   return { type: String(e.type || ""), uid: /^[0-9a-f-]{36}$/i.test(uid) ? uid : null, product: String(e.product_id || ""), tx, store: String(e.store || "").toLowerCase() || "store", sandbox: e.environment === "SANDBOX" };
 }
+function sandboxAllowed(uid, testUids = process.env.IAP_TEST_UIDS || "", online = all) {
+  if (!uid) return false;
+  if (testUids.split(",").map((x) => x.trim()).includes(uid)) return true;
+  for (const c of online) if (c.uid === uid && c.admin) return true;
+  return false;
+}
 async function handleRevenueCat(body) {
   const e = parseRcEvent(body);
   if (!e) {
@@ -4738,6 +4745,10 @@ async function handleRevenueCat(body) {
     return true;
   }
   const rpc = (fn, args) => fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, { method: "POST", headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${SUPABASE_ANON}`, "content-type": "application/json" }, body: JSON.stringify({ p_secret: SERVER_SECRET, ...args }) });
+  if (IAP_GRANT.has(e.type) && e.sandbox && !sandboxAllowed(e.uid)) {
+    log("IAP test \xF6demesi reddedildi", e.store, e.product, e.tx);
+    return true;
+  }
   if (IAP_GRANT.has(e.type)) {
     const r = await rpc("iap_credit", { p_tx: e.tx, p_store: e.store, p_product: e.product, p_uid: e.uid });
     const st = r.ok ? await r.json() : null;
@@ -8375,6 +8386,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   rcAuthOk,
   resetSiege,
   respawnPoint,
+  sandboxAllowed,
   saveServerState,
   sbTake,
   seaMap,
