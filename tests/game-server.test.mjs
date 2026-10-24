@@ -499,3 +499,22 @@ test('test (sandbox) ödemesi yalnız yöneticiye ve izinli test hesabına inci 
   assert.equal(S.sandboxAllowed(v,`${u}, ${v}`,new Set()),true,'izin listesi');
   assert.equal(S.sandboxAllowed(null,'',new Set()),false);
 });
+
+test('bakım: süresi geçmiş kayıtlar temizlenir, bugünküler kalır',()=>{
+  const now=Date.parse('2026-10-24T12:00:00Z'),today=new Date(now+3*3600_000).toISOString().slice(0,10);
+  S.spByUid.set('k',new Map([['a',{day:'2026-10-20',n:3}],['b',{day:today,n:1}]]));S.spByUid.set('eski',new Map([['a',{day:'2026-10-01',n:1}]]));
+  S.heroUntil.set('h1',now-1);S.heroUntil.set('h2',now+1000);
+  S.pruneMemory(now);
+  assert.deepEqual([...S.spByUid.get('k').keys()],['b']);assert.equal(S.spByUid.has('eski'),false);
+  assert.equal(S.heroUntil.has('h1'),false);assert.equal(S.heroUntil.has('h2'),true);
+  S.spByUid.clear();S.heroUntil.clear();
+});
+test('günlük yedek: json dosyaları gün klasörüne kopyalanır, 14 günden eskisi silinir',async()=>{
+  const fs=await import('node:fs'),os=await import('node:os');const dir=fs.mkdtempSync(os.tmpdir()+'/yedek-');
+  fs.writeFileSync(dir+'/treaty.json','{}');fs.writeFileSync(dir+'/notlar.txt','x');
+  for(let i=1;i<=15;i++)fs.mkdirSync(`${dir}/backup/2026-01-${String(i).padStart(2,'0')}`,{recursive:true});
+  assert.equal(S.backupData(Date.parse('2026-10-24T12:00:00Z'),dir),true);
+  assert.ok(fs.existsSync(dir+'/backup/2026-10-24/treaty.json'));assert.equal(fs.existsSync(dir+'/backup/2026-10-24/notlar.txt'),false);
+  assert.equal(fs.readdirSync(dir+'/backup').length,14);assert.equal(S.backupData(Date.parse('2026-10-24T13:00:00Z'),dir),false,'aynı gün ikinci kez alınmaz');
+  fs.rmSync(dir,{recursive:true,force:true});
+});

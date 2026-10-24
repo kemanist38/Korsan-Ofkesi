@@ -122,6 +122,11 @@ async function connectWs(){if(ws&&ws.readyState<=WebSocket.OPEN)return;const sb=
     retryTimer=window.setTimeout(()=>{void connectWs();},Math.min(15000,1000*2**Math.min(4,wsTries)));};
 }
 export function startNet(h:NetHandlers){handlers=h;void connectWs();}
+// Oyuncunun cihazında çıkan beklenmedik hata sunucu günlüğüne yazılır (pm2 logs game → İSTEMCİ HATASI); aynı hata bir kez gönderilir
+const sentErrors=new Set<string>();
+export function reportClientError(msg:string,at:string){const k=msg+at;if(sentErrors.has(k)||sentErrors.size>20)return;sentErrors.add(k);wsSend('cerr',{msg:msg.slice(0,200),at:at.slice(0,120)});}
+addEventListener('error',e=>reportClientError(String(e.message||e.error||'hata'),`${e.filename||''}:${e.lineno||0}`));
+addEventListener('unhandledrejection',e=>reportClientError(String((e.reason as Error)?.message??e.reason??'reddedildi'),'promise'));
 // Uygulama öne gelince: bağlantı kopmuşsa bekleme süresini atlayıp hemen yeniden bağlan
 export function netWake(){if(!handlers||ws)return;clearTimeout(retryTimer);wsTries=0;void connectWs();}
 // Haritaya katıl (harita değişince eski kanaldan çıkılır). Siege gibi özel alanlarda null verilir.

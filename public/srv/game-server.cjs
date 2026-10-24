@@ -3693,6 +3693,7 @@ __export(game_server_exports, {
   aevTier: () => aevTier,
   all: () => all,
   attackTarget: () => attackTarget,
+  backupData: () => backupData,
   bossCredit: () => bossCredit,
   bossHit: () => bossHit,
   bossInfo: () => bossInfo,
@@ -3804,6 +3805,7 @@ __export(game_server_exports, {
   pickSpot: () => pickSpot,
   placeMine: () => placeMine,
   pmStrike: () => pmStrike,
+  pruneMemory: () => pruneMemory,
   pvpGuard: () => pvpGuard,
   pvpHeal: () => pvpHeal,
   pvpReset: () => pvpReset,
@@ -8137,6 +8139,12 @@ wss.on("connection", (ws) => {
         return;
       }
       // Oyuncu bildirimi: bildirilen oyuncunun son mesajlarıyla yönetim paneline (Şüpheli kayıtlar) düşer
+      case "cerr": {
+        if (now - (c.cerrAt || 0) < 1e4) return;
+        c.cerrAt = now;
+        log("\u0130STEMC\u0130 HATASI", c.nick, String(m.d?.msg || "").slice(0, 200), String(m.d?.at || "").slice(0, 120));
+        return;
+      }
       case "report": {
         if (!c.rKill.hit(now) || now - (c.reportAt || 0) < 2e4) return;
         c.reportAt = now;
@@ -8215,6 +8223,63 @@ wss.on("connection", (ws) => {
 });
 if (process.env.NODE_ENV !== "test") void loadIslands();
 if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => log(`Oyun sunucusu ${PORT} portunda`));
+function pruneMemory(now = Date.now()) {
+  const day = new Date(now + 3 * 36e5).toISOString().slice(0, 10);
+  let n = 0;
+  for (const [u, m] of spByUid) {
+    for (const [v, r] of m) if (r.day !== day) {
+      m.delete(v);
+      n++;
+    }
+    if (!m.size) spByUid.delete(u);
+  }
+  for (const [u, m] of questCooldowns) {
+    for (const [q, t] of m) if (now - t >= QUEST_COOLDOWN_MS) {
+      m.delete(q);
+      n++;
+    }
+    if (!m.size) questCooldowns.delete(u);
+  }
+  for (const [u, t] of heroUntil) if (t <= now) {
+    heroUntil.delete(u);
+    n++;
+  }
+  const online = new Set([...all].map((c) => c.uid).filter(Boolean));
+  for (const u of friendSets.keys()) if (!online.has(u)) {
+    friendSets.delete(u);
+    n++;
+  }
+  return n;
+}
+var DATA_DIR = process.env.DATA_DIR || "/opt/game";
+var BACKUP_KEEP = 14;
+function backupData(now = Date.now(), dir = DATA_DIR) {
+  const day = new Date(now + 3 * 36e5).toISOString().slice(0, 10), root = `${dir}/backup`, to = `${root}/${day}`;
+  if (import_node_fs.default.existsSync(to)) return false;
+  import_node_fs.default.mkdirSync(to, { recursive: true });
+  for (const f of import_node_fs.default.readdirSync(dir)) if (/\.(json|jsonl)$/.test(f)) import_node_fs.default.copyFileSync(`${dir}/${f}`, `${to}/${f}`);
+  const old = import_node_fs.default.readdirSync(root).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort().slice(0, -BACKUP_KEEP);
+  for (const d of old) import_node_fs.default.rmSync(`${root}/${d}`, { recursive: true, force: true });
+  return true;
+}
+if (process.env.NODE_ENV !== "test") {
+  setInterval(() => {
+    const n = pruneMemory();
+    if (n) log("BAKIM", `${n} eski kay\u0131t temizlendi`);
+    try {
+      if (backupData()) log("YEDEK", "g\xFCnl\xFCk yedek al\u0131nd\u0131");
+    } catch (e) {
+      log("YEDEK hata", e?.message);
+    }
+  }, 36e5).unref();
+  setTimeout(() => {
+    try {
+      if (backupData()) log("YEDEK", "g\xFCnl\xFCk yedek al\u0131nd\u0131");
+    } catch (e) {
+      log("YEDEK hata", e?.message);
+    }
+  }, 3e4).unref();
+}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   ADMIN_SHIP,
@@ -8265,6 +8330,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   aevTier,
   all,
   attackTarget,
+  backupData,
   bossCredit,
   bossHit,
   bossInfo,
@@ -8376,6 +8442,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   pickSpot,
   placeMine,
   pmStrike,
+  pruneMemory,
   pvpGuard,
   pvpHeal,
   pvpReset,
