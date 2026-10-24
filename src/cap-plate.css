@@ -164,3 +164,5 @@ html .rank-row>b.rank-medal-cell{display:grid!important;place-items:center;width
 /* Pirinç düğmelerde yazı okunaklı: daha büyük, kalın, koyu */
 html .market-item button,html .buy-row button,html .buy-confirm button,html .daily-day button,html .spy-dialog button,html .chat-form button,html .mail-win button,html .social-win button,html .social-ask button,html .coord-go button,html #menuLogout,html .cp-spy button,html #couponRedeem,html [data-quest],html [data-confirm-cancel],html [data-keep-quest],html .rank-tabs button,html .rank-pager button{font-family:Inter,sans-serif!important;font-size:12px!important;font-weight:800!important;letter-spacing:.04em!important}
 html .market-item button,html .buy-row button,html #couponRedeem,html [data-quest],html .daily-day button,html .rank-tabs button.active{color:#1e0f04!important;text-shadow:0 1px 0 #ffe9b088!important}
+/* TP madalyası sıralamada ismin solunda */
+.rank-name-medal{width:26px;height:26px;object-fit:contain;vertical-align:middle;margin-right:6px;filter:drop-shadow(0 1px 2px #000c)}
