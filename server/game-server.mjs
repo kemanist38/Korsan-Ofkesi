@@ -1119,6 +1119,7 @@ wss.on('connection',ws=>{
         const text=c.admin?raw:filterChat(raw);toAll(c,{t:'chat',d:{nick:c.nick,tag:m.d?.tag??null,text,at:now,...(c.admin?{adm:true}:{})}});
         c.chatLog=[...(c.chatLog||[]),`${new Date(now).toISOString().slice(11,16)} ${raw}`].slice(-5);return;}
       // Oyuncu bildirimi: bildirilen oyuncunun son mesajlarıyla yönetim paneline (Şüpheli kayıtlar) düşer
+      case'cerr':{if(now-(c.cerrAt||0)<10_000)return;c.cerrAt=now;log('İSTEMCİ HATASI',c.nick,String(m.d?.msg||'').slice(0,200),String(m.d?.at||'').slice(0,120));return;}
       case'report':{if(!c.rKill.hit(now)||now-(c.reportAt||0)<20_000)return;c.reportAt=now;const nick=String(m.d?.nick||'').slice(0,40),why=String(m.d?.why||'').slice(0,120);
         const t=[...all].find(x=>x.nick&&x.nick.toLocaleLowerCase('tr')===nick.toLocaleLowerCase('tr'));
         addFlag({playerNo:t?.playerNo??0,nick:t?.nick??nick},'oyuncu bildirimi',`bildiren #${c.playerNo} ${c.nick}: ${why}${t?.chatLog?.length?` · son mesajlar: ${t.chatLog.join(' | ')}`:''}`);
@@ -1143,3 +1144,21 @@ setInterval(()=>{for(const c of all){if(c.ws.isAlive===false){c.ws.terminate();c
 wss.on('connection',ws=>{ws.isAlive=true;ws.on('pong',()=>{ws.isAlive=true;});});
 if(process.env.NODE_ENV!=='test')void loadIslands();
 if(process.env.NODE_ENV!=='test')httpServer.listen(PORT,'127.0.0.1',()=>log(`Oyun sunucusu ${PORT} portunda`));
+
+// ---- Bakım: bellek temizliği (her saat) ve günlük yedek. Oyuncu ilerlemesi (hazine parçaları, görev sayaçları) silinmez;
+// yalnız süresi geçmiş kayıtlar ve çevrim dışı kaptanların arkadaş önbelleği atılır. Böylece sunucu günlerce açık kalabilir.
+export function pruneMemory(now=Date.now()){const day=new Date(now+3*3600_000).toISOString().slice(0,10);let n=0;
+  for(const [u,m] of spByUid){for(const [v,r] of m)if(r.day!==day){m.delete(v);n++;}if(!m.size)spByUid.delete(u);}
+  for(const [u,m] of questCooldowns){for(const [q,t] of m)if(now-t>=QUEST_COOLDOWN_MS){m.delete(q);n++;}if(!m.size)questCooldowns.delete(u);}
+  for(const [u,t] of heroUntil)if(t<=now){heroUntil.delete(u);n++;}
+  const online=new Set([...all].map(c=>c.uid).filter(Boolean));for(const u of friendSets.keys())if(!online.has(u)){friendSets.delete(u);n++;}
+  return n;}
+// Günlük yedek: /opt/game altındaki kayıt dosyaları backup/GÜN klasörüne kopyalanır, 14 günden eskiler silinir
+const DATA_DIR=process.env.DATA_DIR||'/opt/game',BACKUP_KEEP=14;
+export function backupData(now=Date.now(),dir=DATA_DIR){const day=new Date(now+3*3600_000).toISOString().slice(0,10),root=`${dir}/backup`,to=`${root}/${day}`;
+  if(fs.existsSync(to))return false;fs.mkdirSync(to,{recursive:true});
+  for(const f of fs.readdirSync(dir))if(/\.(json|jsonl)$/.test(f))fs.copyFileSync(`${dir}/${f}`,`${to}/${f}`);
+  const old=fs.readdirSync(root).filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d)).sort().slice(0,-BACKUP_KEEP);for(const d of old)fs.rmSync(`${root}/${d}`,{recursive:true,force:true});
+  return true;}
+if(process.env.NODE_ENV!=='test'){setInterval(()=>{const n=pruneMemory();if(n)log('BAKIM',`${n} eski kayıt temizlendi`);try{if(backupData())log('YEDEK','günlük yedek alındı');}catch(e){log('YEDEK hata',e?.message);}},3600_000).unref();
+  setTimeout(()=>{try{if(backupData())log('YEDEK','günlük yedek alındı');}catch(e){log('YEDEK hata',e?.message);}},30_000).unref();}
