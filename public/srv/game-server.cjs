@@ -3923,9 +3923,6 @@ function pvpClamp(b, maxHp, hit, now) {
   return dealt;
 }
 
-// src/battle.ts
-var RIVAL_DAILY_LIMIT = 3;
-
 // src/campaign.ts
 var WORLD_WIDTH = 6e3;
 var WORLD_HEIGHT = 4e3;
@@ -4638,6 +4635,7 @@ var levelQuestTargets = (level) => ({ ships: [`n${level}-1-heavy`, `n${level}-2-
 var levelQuestMap = (level) => `${level}/1`;
 
 // server/game-server.mjs
+var RIVAL_DAILY_LIMIT = 3;
 var PORT = Number(process.env.PORT || 3e3);
 var SUPABASE_URL = process.env.SUPABASE_URL || "https://vidjvineafeiyoclioau.supabase.co";
 var SUPABASE_ANON = process.env.SUPABASE_ANON || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpZGp2aW5lYWZlaXlvY2xpb2F1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE3Mjk2NjMsImV4cCI6MjEwNzMwNTY2M30.sKlmmfQRr-ZASkaSbax22ca80cyDCc8DNz4Idq19g5s";

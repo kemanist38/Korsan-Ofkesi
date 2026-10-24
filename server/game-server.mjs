@@ -9,7 +9,7 @@ import {WebSocketServer} from 'ws';
 import {BOSS_HP,SIEGE_HP_PER_CAPTAIN} from '../src/pve-balance.ts';
 import {fleetTowerStats,playerBaseHp} from '../src/fleetBalance.ts';
 import {pvpClamp,newPvpBudget} from '../src/pvp.ts';
-import {RIVAL_DAILY_LIMIT} from '../src/battle.ts';
+const RIVAL_DAILY_LIMIT=3;// aynı rakip günde en çok 3 kez sayılır
 import {NPCS,MAPS,QUESTS,QUEST_COOLDOWN_MS,bossFor,BOSS_KILLS,FLEET,WORLD_WIDTH,WORLD_HEIGHT,coordLabel} from '../src/campaign.ts';
 import {TREASURE_PARTS,PART_CHANCE,DIG_RADIUS,treasureReward} from '../src/treasure.ts';
 import {questEp,bossEp,ELITE_POINTS_PER_BALL,IRON_EP_PER_BALL,eliteLevelFromEp} from '../src/arsenal.ts';
@@ -267,7 +267,7 @@ function loadServerState(){if(process.env.NODE_ENV==='test')return;try{const d=J
 loadServerState();setInterval(saveServerState,60_000).unref();process.on('SIGTERM',()=>{saveServerState();process.exit(0);});process.on('SIGINT',()=>{saveServerState();process.exit(0);});
 // Savaş puanı: sunucunun doğruladığı oyuncu batırmasından (aynı rakipten günde en çok 3 kez; etkinlik günü ×2 payı)
 export const spByUid=new Map(); // batıran → Map(rakip → {gün, sayı})
-// Rakip batırma sayacı: aynı rakip günde en çok RIVAL_DAILY_LIMIT kez sayılır (savaş puanı kaldırıldı)
+// Rakip batırma sayacı: aynı rakip günde en çok RIVAL_DAILY_LIMIT kez sayılır 
 export function sinkCredit(killer,victimUid,now){if(!killer?.uid||!victimUid||killer.uid===victimUid)return null;const day=new Date(now+3*3600_000).toISOString().slice(0,10);
   const m=spByUid.get(killer.uid)??new Map();spByUid.set(killer.uid,m);const r=m.get(victimUid);const n=r&&r.day===day?r.n:0;if(n>=RIVAL_DAILY_LIMIT)return null;
   m.set(victimUid,{day,n:n+1});return true;}
