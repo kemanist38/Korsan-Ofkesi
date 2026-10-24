@@ -116,6 +116,7 @@ async function connectWs(){if(ws&&ws.readyState<=WebSocket.OPEN)return;const sb=
     }};
   sock.onclose=ev=>{clearTimeout(timer);const was=wsReady;wsReady=false;if(ws!==sock)return;ws=null;
     if(ev.code===4002){netStatus='error';netError='Hesap kapalı';return;}
+    if(ev.code===4005){netStatus='error';netError='Yönetici tarafından oyundan çıkarıldın. Sayfayı yenileyerek tekrar girebilirsin.';return;}
     if(ev.code===4004){netStatus='error';netError='Hesabına başka bir yerden bağlanıldı';return;}
     // Bağlantı kurulamadı ya da koptu: artan aralıklarla (en çok 15 sn) sürekli yeniden dene
     if(!was){wsTries++;vpsError=netError=`Sunucuya bağlanılamıyor (${ev.code}${ev.reason?' '+ev.reason:''})`;netStatus='error';}else netStatus='connecting';

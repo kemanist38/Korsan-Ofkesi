@@ -1025,7 +1025,8 @@ export async function flushCredit(c){
   finally{c.flushing=false;}
 }
 setInterval(()=>{for(const c of new Set([...all,...pendingCredits.values()]))if(c.credit||c.grant)void flushCredit(c);},20_000).unref();
-const httpServer=http.createServer(async(q,r)=>{const cors={'access-control-allow-origin':'*','access-control-allow-headers':'authorization','content-type':'application/json'};
+const httpServer=http.createServer(async(q,r)=>{const cors={'access-control-allow-origin':'*','access-control-allow-headers':'authorization,content-type','access-control-allow-methods':'GET,POST,OPTIONS','content-type':'application/json'};
+  if(q.method==='OPTIONS'){r.writeHead(204,cors);r.end();return;}
   if(q.method==='OPTIONS'){r.writeHead(204,cors);r.end();return;}
   if(q.method==='POST'&&q.url?.startsWith('/iap/revenuecat')){if(!rcAuthOk(q.headers.authorization,RC_WEBHOOK_AUTH)){r.writeHead(401,{'content-type':'text/plain'});r.end('yetki yok');return;}
     let body='';q.on('data',d=>{body+=d;if(body.length>200000)q.destroy();});
@@ -1038,7 +1039,12 @@ const httpServer=http.createServer(async(q,r)=>{const cors={'access-control-allo
   // Oyuncu sayıları herkese açık değil: yalnızca yönetici oturumuyla /stats
   if(q.url?.startsWith('/stats')){const token=String(q.headers.authorization||'').replace(/^Bearer /,'');
     if(!token||!(await isAdminToken(token).catch(()=>false))){r.writeHead(403,cors);r.end('{"error":"yetki yok"}');return;}
-    r.writeHead(200,cors);r.end(JSON.stringify({online:[...all].filter(c=>c.uid).length,seas:Object.fromEntries([...seas].map(([k,v])=>[k,v.size])),uptime:Math.round((Date.now()-started)/1000),mem:Math.round(process.memoryUsage().rss/1048576),heap:Math.round(process.memoryUsage().heapUsed/1048576),lastBackup,ops:[...ops].reverse()}));return;}
+    r.writeHead(200,cors);r.end(JSON.stringify({online:[...all].filter(c=>c.uid).length,seas:Object.fromEntries([...seas].map(([k,v])=>[k,v.size])),uptime:Math.round((Date.now()-started)/1000),mem:Math.round(process.memoryUsage().rss/1048576),heap:Math.round(process.memoryUsage().heapUsed/1048576),lastBackup,ops:[...ops].reverse(),players:[...all].filter(c=>c.uid).map(c=>({no:c.playerNo,nick:c.nick,sea:c.sea||'',level:Number(c.econ?.level)||1,admin:!!c.admin}))}));return;}
+  // Yönetici işlemleri (yalnız yönetici oturumuyla): /announce herkese duyuru, /kick oyuncuyu oyundan atar (ban sonrası hemen düşmesi için)
+  if(q.method==='POST'&&(q.url?.startsWith('/announce')||q.url?.startsWith('/kick'))){const token=String(q.headers.authorization||'').replace(/^Bearer /,'');
+    if(!token||!(await isAdminToken(token).catch(()=>false))){r.writeHead(403,cors);r.end('{"error":"yetki yok"}');return;}
+    let body='';q.on('data',d=>{body+=d;if(body.length>4000)q.destroy();});
+    q.on('end',()=>{let d={};try{d=JSON.parse(body);}catch{}const out=adminAction(q.url.startsWith('/kick')?'kick':'announce',d);r.writeHead(out.error?400:200,cors);r.end(JSON.stringify(out));});return;}
   r.writeHead(200,cors);r.end(JSON.stringify({ok:true,name:'Pirate Rage oyun sunucusu'}));});
 // Sıkıştırma: 256 bayttan büyük paketler (durum paketleri) deflate ile ~4–5 kat küçülür
 const wss=new WebSocketServer({server:httpServer,path:'/ws',maxPayload:16*1024,perMessageDeflate:{threshold:256,zlibDeflateOptions:{level:3},serverNoContextTakeover:false,clientNoContextTakeover:true}});
@@ -1165,3 +1171,12 @@ export function backupData(now=Date.now(),dir=DATA_DIR){const day=new Date(now+3
   return true;}
 if(process.env.NODE_ENV!=='test'){setInterval(()=>{const n=pruneMemory();if(n){log('BAKIM',`${n} eski kayıt temizlendi`);opLog('bakım',`${n} eski kayıt temizlendi`);}try{if(backupData()){lastBackup=Date.now();log('YEDEK','günlük yedek alındı');opLog('yedek','günlük yedek alındı');}}catch(e){log('YEDEK hata',e?.message);opLog('yedek hatası',e?.message);}},3600_000).unref();
   setTimeout(()=>{try{if(backupData()){lastBackup=Date.now();log('YEDEK','günlük yedek alındı');opLog('yedek','günlük yedek alındı');}}catch(e){log('YEDEK hata',e?.message);opLog('yedek hatası',e?.message);}},30_000).unref();}
+
+// Yönetim paneli işlemleri: duyuru tüm çevrim içi kaptanlara sohbette görünür; atılan oyuncunun bağlantısı kapanır
+export function adminAction(kind,d,now=Date.now()){
+  if(kind==='announce'){const text=String(d?.text||'').trim().slice(0,300);if(!text)return{error:'Duyuru boş'};
+    const msg=JSON.stringify({t:'chat',d:{nick:'Duyuru',tag:null,adm:true,text:`📢 ${text}`,at:now}});let n=0;for(const x of all)if(x.uid){send(x,msg);n++;}
+    log('DUYURU',text);opLog('duyuru',text);return{ok:true,sent:n};}
+  if(kind==='kick'){const no=Number(d?.no);const t=[...all].find(x=>x.uid&&x.playerNo===no);if(!t)return{error:'Oyuncu çevrim içi değil'};
+    t.ws.close(d?.ban?4002:4005,'yönetici');opLog('oyundan atıldı',`#${no} ${t.nick}`);return{ok:true};}
+  return{error:'bilinmeyen işlem'};}

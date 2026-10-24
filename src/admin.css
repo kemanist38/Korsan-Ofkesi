@@ -19,3 +19,28 @@
 .admin select{padding:8px 10px;border:1px solid #c9973d55;border-radius:8px;background:#0b0705;color:#fff3dc;font-size:14px;min-width:220px}
 .admin label{display:flex;align-items:center;gap:6px;color:#cdbb98;font-size:13px}
 .admin table.ops{font-size:12px}.admin table.ops td{padding:4px 6px;vertical-align:top}
+/* Sekmeli panel */
+.admin .muted{color:#a8946f;font-size:13px;margin:4px 0}
+.admin h3{font-size:15px;margin:0 0 4px}
+.admin .card+.card{margin-top:14px}
+.ad-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.ad-live{font:700 12px Inter,sans-serif;padding:6px 12px;border-radius:999px;border:1px solid #c9973d55;color:#cdb58a;background:#120a07}
+.ad-live.ok{color:#9be37c;border-color:#7fd88a66}.ad-live.bad{color:#ff8a6a;border-color:#ff6a4a88}
+.ad-tabs{position:sticky;top:0;z-index:4;display:flex;gap:4px;overflow-x:auto;margin:18px 0 16px;padding:6px;border:1px solid #c9973d44;border-radius:12px;background:#0d0806ee;backdrop-filter:blur(6px)}
+.admin .ad-tabs button{position:relative;flex:none;border-color:transparent;background:none;color:#cdb58a}
+.admin .ad-tabs button.on{background:linear-gradient(180deg,#5a3a14,#3a2410);border-color:#e0b04f;color:#ffe2a8}
+.ad-tabs i{display:inline-block;min-width:18px;margin-left:6px;padding:0 5px;border-radius:9px;background:#b8321c;color:#fff;font:800 11px/18px Inter,sans-serif;font-style:normal;text-align:center}
+.ad-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px}
+.ad-card{display:flex;flex-direction:column;gap:2px;padding:14px 16px;border:1px solid #c9973d44;border-radius:12px;background:linear-gradient(180deg,#2a170c,#140b07)}
+.ad-card span{color:#a8946f;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.ad-card b{color:#ffe2a8;font:700 24px Cinzel,Georgia,serif}
+.ad-card small{color:#8f7b5a;font-size:12px}
+.ad-card.warn{border-color:#ff9a4a88}.ad-card.warn b{color:#ffb070}
+.ad-chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0}
+.admin .ad-chips button{padding:4px 10px;font-size:12px;border-radius:999px}
+.admin em.tag{display:inline-block;padding:1px 7px;border-radius:6px;background:#3a2410;color:#ffd27a;font:700 10px Inter,sans-serif;font-style:normal;letter-spacing:.04em}
+.admin em.tag.on{background:#173d1c;color:#9be37c}
+.admin tr.bad td{color:#ffb4a0}.admin tr.warn td{color:#ffd59a}.admin tr.info td{color:#bfe0ff}
+.admin tbody tr:hover td{background:#ffffff06}
+@media (max-width:600px){.admin{padding:16px 10px 50px}.ad-card b{font-size:20px}.admin th,.admin td{padding:6px 4px;font-size:13px}}
+.ad-tabs i[hidden]{display:none}
