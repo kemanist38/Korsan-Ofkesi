@@ -12,3 +12,8 @@ export async function onAppLink(cb:(url:string)=>void){if(!isNativeApp())return;
   App.addListener('appUrlOpen',e=>cb(e.url));const l=await App.getLaunchUrl();if(l?.url)cb(l.url);}
 // Dış bağlantı: uygulamada uygulama içi tarayıcıda, sitede yeni sekmede
 export async function openExternal(url:string){if(isNativeApp()){const {Browser}=await import('@capacitor/browser');await Browser.open({url});}else window.open(url,'_blank','noopener');}
+// Uygulama kabuğu: Android geri tuşu ve arka plana alma. back() true dönerse geri tuşu bir pencere kapattı demektir;
+// açık pencere yoksa çıkmadan önce sorulur. Arka planda ses susturulur, öne gelince bağlantı hemen yenilenir.
+export async function setupAppShell(o:{back:()=>boolean;pause:()=>void;resume:()=>void}){if(!isNativeApp())return;const {App}=await import('@capacitor/app');
+  App.addListener('backButton',()=>{if(o.back())return;if(confirm('Oyundan çıkılsın mı?'))void App.exitApp();});
+  App.addListener('pause',o.pause);App.addListener('resume',o.resume);}

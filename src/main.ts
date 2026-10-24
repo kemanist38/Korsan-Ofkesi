@@ -13,7 +13,7 @@ import './style.css';
 import './rage-ui.css';
 import './hud-v2.css';
 import {ACTIONS,loadSettings,saveSettings,keyLabel,normalizeKey,DEFAULT_BINDS,type ActionId} from './settings';
-import {playBossMusic,stopBossMusic,playBossHorn,setAudio,unlockAudio,playCannon,playEnemyCannon,playHit,playExplosion,playCoins,playSpeed,playRage,playShield,playSplash,playLevelUp,playMapJump,playSink,playHeal,playClick} from './audio';
+import {playBossMusic,stopBossMusic,playBossHorn,setAudio,unlockAudio,playCannon,playEnemyCannon,playHit,playExplosion,playCoins,playSpeed,playRage,playShield,playSplash,playLevelUp,playMapJump,playSink,playHeal,playClick,pauseAudio} from './audio';
 import {drawSeaSparkle,drawNpcShip,drawChestSprite,drawIslandSprite,drawFleetBase,drawBastion,drawBuiltTower,drawMineSprite,seaTilePattern,islandSheetUrl,shipLabelOffset,shipDrawSize,portraitStyle,preload,fleetBaseUrl,fleetTowerUrl,setTowerTheme,TOWER_LABEL_OFFSET,FLEET_ART,drawFleetOccluder} from './sprites';
 import {MAPS,GRID,THEMES,NPCS,QUESTS,QUEST_COOLDOWN_MS,FLEET,FLEET_SCALE,WORLD_WIDTH,WORLD_HEIGHT,MAX_LEVEL,xpNeed,neighbor,bossFor,BOSS_KILLS,BOSS_ATLAS,BOSS_ATLAS_COLS,MAP_KEYS,type BossDef,type MapDef,tierOf,fleetTower,fleetReward,PORTRAIT_COUNT,PORTRAIT_COLS,PORTRAIT_ATLAS,coordLabel,GRID_COLS,GRID_ROWS,CELL_W,CELL_H,colName,rowName,type MapKey,type WorldIsland,type NpcDef,type Dir,type QuestDef} from './campaign';
 import {ACHIEVEMENTS,loadAchievements,saveAchievements,unlockReached,achievementBonus,bonusText,badgeStyle,MAIN_COLLECTION,type AchStat} from './achievements';
@@ -21,7 +21,7 @@ import {loadDaily,saveDaily,dailyStatus,claimDaily,dailyReward,dayKey} from './d
 import {TREASURE_PARTS,PART_CHANCE,DIG_RADIUS,DIG_SECONDS,TREASURE_ICON,loadTreasure,saveTreasure,treasureReward} from './treasure';
 import {EQUIPMENT,EQUIP_SLOTS,RARITY_NAMES,equipById,equipStatText,equipTotals,equipIconStyle,type EquipSlot} from './equipment';
 import {PEARL_PACKS,SHOPIER_LINKS,packTotal,priceText} from './pearlShop';
-import {isNativeApp,openExternal,SITE_URL} from './native';
+import {isNativeApp,openExternal,SITE_URL,setupAppShell} from './native';
 import {iapAvailable,iapInit,iapPrice,iapBuy} from './iap';
 import {BOARDS,rankRows,rankPage,RANK_PAGE_SIZE,type BoardId,type RankPlayer,type RankFleet,type RankRow} from './leaderboard';
 import {rewardText,normalizeCode,type CouponReward} from './coupons';
@@ -29,7 +29,7 @@ import {supa} from './supabase';
 import {newPvpBudget,pvpClamp,type PvpBudget} from './pvp';
 import {loadLevelQuest,saveLevelQuest,levelQuestDone,levelQuestKill,levelQuestGoal,needsLevelQuest,levelQuestMap} from './level-quest';
 import {SPY_COST,SPY_SHIELD_PRICE,loadSpy,sendSpy,type SpyRival} from './spy';
-import {sendFriend,sendPm,sendDied,sendReport,sendLs,sendDom,netStatus,netError,startNet,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,sendSalvo,sendUse,sendQuestDone,sendChest,sendDig,sendSparkle,sendNpcHits,sendLoadout,sendAttack,type NetNpc,type NetLootSpots,type NetTreasure,type NetDig,type NetLoot,type NetSiegeEnd,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
+import {sendFriend,sendPm,sendDied,sendReport,sendLs,sendDom,netStatus,netError,startNet,netWake,joinSea,sendState,sendFire,sendSunk,sendChat,sendBid,sendKnownBids,myNetId,sharedBosses,sendBossKill,sendBossHit,sendTowerHit,sendTowerBuilt,sendGuildRefresh,sendSiegeHit,sendSpyNet,sendKill,sendSalvo,sendUse,sendQuestDone,sendChest,sendDig,sendSparkle,sendNpcHits,sendLoadout,sendAttack,type NetNpc,type NetLootSpots,type NetTreasure,type NetDig,type NetLoot,type NetSiegeEnd,type NetSpy,type NetState,type NetHandlers,type NetBoss,type NetIsland,type NetSiege,type NetBid} from './net';
 import {AUCTION_MS,loadAuction,saveAuction,emptyAuction,auctionHour,auctionEnds,lotsFor,minNextBid,applyBid,wonLots,auctionId,type LotDef,type Bid} from './auction';
 import {loadMentorship,saveMentorship,canMentor,apprenticeBlock,pairBlock,acceptRequest,rejectRequest,removeApprentice,onOwnLevel,claimReward,GRADUATE_LEVEL,MAX_APPRENTICES,TOGETHER_XP_BONUS,APPRENTICE_MAX_LEVEL} from './mentorship';
 import {loadRivalSinks,saveRivalSinks} from './rival-sinks';
@@ -661,7 +661,11 @@ const netHandlers:NetHandlers={
   bidAsk:hour=>{auctionTick();const bids=Object.values(auction.top);if(hour===auction.hour&&bids.length)sendKnownBids(bids);},
   bidKnown:bids=>{for(const b of bids)receiveBid(b);},
 };
-startNet(netHandlers);if(session.account)setTimeout(()=>{void refreshCloudGuild();},2000);
+startNet(netHandlers);
+// Android geri tuşu: önce açık pencereyi kapatır (menü, market, posta…); hiçbiri açık değilse çıkış sorulur
+void setupAppShell({back:()=>{const open=[...document.querySelectorAll<HTMLElement>('[class*="overlay"].open')];if(!open.length)return false;
+  closeAllOverlays();for(const el of document.querySelectorAll<HTMLElement>('[class*="overlay"].open'))el.classList.remove('open');syncShopTabs();return true;},
+  pause:()=>pauseAudio(true),resume:()=>{pauseAudio(false);netWake();}});if(session.account)setTimeout(()=>{void refreshCloudGuild();},2000);
 let netClock=0,netFullClock=0,netHp=0,netIdent='',shipDir16=8;const netPrev={x:0,y:0},netVel={x:0,y:0},netSent={x:0,y:0};let ldKey='',ldClock=0;
 function netTick(dt:number){joinSea(siege?(sharedBosses()?'siege':null):dom?`dom-${dom.id}`:ls?`ls-${ls.id}`:currentMap);{const ix=(player.x-netPrev.x)/Math.max(dt,1e-3),iy=(player.y-netPrev.y)/Math.max(dt,1e-3),ok=Math.hypot(ix,iy)<600;netVel.x=netVel.x*.8+(ok?ix:0)*.2;netVel.y=netVel.y*.8+(ok?iy:0)*.2;}netPrev.x=player.x;netPrev.y=player.y;
   // 16 yönlü tasarımlar: görünüş ortalama gidiş yönünden (çapraz adımlar yumuşatılmış hız). Ekranda dikey hız yarı ölçekli → ×2
