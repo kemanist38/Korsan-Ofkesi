@@ -49,8 +49,10 @@ async function main(){
   document.getElementById('fRefresh')!.onclick=()=>void flagsLoad();
   const statsLoad=async()=>{const {data:ss}=await sb.auth.getSession();const el=document.getElementById('stats')!;
     try{const r=await fetch('https://game.piraterage.com/stats',{headers:{authorization:`Bearer ${ss.session?.access_token??''}`}});if(!r.ok)throw new Error(String(r.status));
-      const d=await r.json() as {online:number;seas:Record<string,number>;uptime:number};
-      el.innerHTML=`<b>${d.online}</b> kaptan çevrim içi · sunucu ${Math.floor(d.uptime/3600)} sa ${Math.floor(d.uptime%3600/60)} dk açık<br>${Object.entries(d.seas).map(([k,v])=>`${esc(k.replace(/^sea-/,''))}: ${v}`).join(' · ')||'Denizlerde kimse yok'}`;}
+      const d=await r.json() as {online:number;seas:Record<string,number>;uptime:number;mem?:number;heap?:number;lastBackup?:number;ops?:{at:number;kind:string;text:string}[]};
+      el.innerHTML=`<b>${d.online}</b> kaptan çevrim içi · sunucu ${Math.floor(d.uptime/3600)} sa ${Math.floor(d.uptime%3600/60)} dk açık<br>${Object.entries(d.seas).map(([k,v])=>`${esc(k.replace(/^sea-/,''))}: ${v}`).join(' · ')||'Denizlerde kimse yok'}`
+        +(d.mem!==undefined?`<br>Bellek: <b>${d.mem} MB</b> (oyun verisi ${d.heap} MB) · son yedek: ${d.lastBackup?new Date(d.lastBackup).toLocaleString('tr-TR'):'bu açılışta henüz yok'}`:'')
+        +(d.ops?.length?`<table class="ops"><tbody>${d.ops.map(o=>`<tr><td>${new Date(o.at).toLocaleString('tr-TR')}</td><td>${esc(o.kind)}</td><td>${esc(o.text)}</td></tr>`).join('')}</tbody></table>`:'<br><small>Son olay yok (istemci hatası, reddedilen test ödemesi, yedek)</small>');}
     catch(e){el.textContent=`Oyun sunucusuna ulaşılamadı (${(e as Error).message})`;}};
   type Order={order_id:string;email:string|null;note:string|null;price:number;pack:string|null;pearls:number|null;status:string;at:string};
   const ordersLoad=async()=>{const {data,error}=await sb.from('shopier_orders').select('order_id,email,note,price,pack,pearls,status,at').order('at',{ascending:false}).limit(100);

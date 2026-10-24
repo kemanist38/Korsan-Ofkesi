@@ -3795,6 +3795,8 @@ __export(game_server_exports, {
   onDuel: () => onDuel,
   onGroup: () => onGroup,
   onLand: () => onLand,
+  opLog: () => opLog,
+  ops: () => ops,
   osbMatch: () => osbMatch,
   parseDuration: () => parseDuration,
   parseForm: () => parseForm,
@@ -4749,6 +4751,7 @@ async function handleRevenueCat(body) {
   const rpc = (fn, args) => fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, { method: "POST", headers: { apikey: SUPABASE_ANON, authorization: `Bearer ${SUPABASE_ANON}`, "content-type": "application/json" }, body: JSON.stringify({ p_secret: SERVER_SECRET, ...args }) });
   if (IAP_GRANT.has(e.type) && e.sandbox && !sandboxAllowed(e.uid)) {
     log("IAP test \xF6demesi reddedildi", e.store, e.product, e.tx);
+    opLog("test \xF6demesi", `reddedildi \xB7 ${e.store} ${e.product} \xB7 ${e.uid ?? "?"}`);
     return true;
   }
   if (IAP_GRANT.has(e.type)) {
@@ -5486,6 +5489,12 @@ async function applyUsage(c, salvo, item, now) {
 var seas = /* @__PURE__ */ new Map();
 var all = /* @__PURE__ */ new Set();
 var log = (...a) => console.log((/* @__PURE__ */ new Date()).toISOString(), ...a);
+var ops = [];
+var opLog = (kind, text) => {
+  ops.push({ at: Date.now(), kind, text: String(text).slice(0, 240) });
+  if (ops.length > 60) ops.shift();
+};
+var lastBackup = 0;
 var FLAG_FILE = process.env.FLAG_FILE || "/opt/game/flags.jsonl";
 var flags = [];
 try {
@@ -7684,7 +7693,7 @@ var httpServer = import_node_http.default.createServer(async (q, r) => {
       return;
     }
     r.writeHead(200, cors);
-    r.end(JSON.stringify({ online: [...all].filter((c) => c.uid).length, seas: Object.fromEntries([...seas].map(([k, v]) => [k, v.size])), uptime: Math.round((Date.now() - started) / 1e3) }));
+    r.end(JSON.stringify({ online: [...all].filter((c) => c.uid).length, seas: Object.fromEntries([...seas].map(([k, v]) => [k, v.size])), uptime: Math.round((Date.now() - started) / 1e3), mem: Math.round(process.memoryUsage().rss / 1048576), heap: Math.round(process.memoryUsage().heapUsed / 1048576), lastBackup, ops: [...ops].reverse() }));
     return;
   }
   r.writeHead(200, cors);
@@ -8143,6 +8152,7 @@ wss.on("connection", (ws) => {
         if (now - (c.cerrAt || 0) < 1e4) return;
         c.cerrAt = now;
         log("\u0130STEMC\u0130 HATASI", c.nick, String(m.d?.msg || "").slice(0, 200), String(m.d?.at || "").slice(0, 120));
+        opLog("istemci hatas\u0131", `${c.nick}: ${String(m.d?.msg || "").slice(0, 160)} (${String(m.d?.at || "").slice(0, 60)})`);
         return;
       }
       case "report": {
@@ -8265,18 +8275,31 @@ function backupData(now = Date.now(), dir = DATA_DIR) {
 if (process.env.NODE_ENV !== "test") {
   setInterval(() => {
     const n = pruneMemory();
-    if (n) log("BAKIM", `${n} eski kay\u0131t temizlendi`);
+    if (n) {
+      log("BAKIM", `${n} eski kay\u0131t temizlendi`);
+      opLog("bak\u0131m", `${n} eski kay\u0131t temizlendi`);
+    }
     try {
-      if (backupData()) log("YEDEK", "g\xFCnl\xFCk yedek al\u0131nd\u0131");
+      if (backupData()) {
+        lastBackup = Date.now();
+        log("YEDEK", "g\xFCnl\xFCk yedek al\u0131nd\u0131");
+        opLog("yedek", "g\xFCnl\xFCk yedek al\u0131nd\u0131");
+      }
     } catch (e) {
       log("YEDEK hata", e?.message);
+      opLog("yedek hatas\u0131", e?.message);
     }
   }, 36e5).unref();
   setTimeout(() => {
     try {
-      if (backupData()) log("YEDEK", "g\xFCnl\xFCk yedek al\u0131nd\u0131");
+      if (backupData()) {
+        lastBackup = Date.now();
+        log("YEDEK", "g\xFCnl\xFCk yedek al\u0131nd\u0131");
+        opLog("yedek", "g\xFCnl\xFCk yedek al\u0131nd\u0131");
+      }
     } catch (e) {
       log("YEDEK hata", e?.message);
+      opLog("yedek hatas\u0131", e?.message);
     }
   }, 3e4).unref();
 }
@@ -8432,6 +8455,8 @@ if (process.env.NODE_ENV !== "test") {
   onDuel,
   onGroup,
   onLand,
+  opLog,
+  ops,
   osbMatch,
   parseDuration,
   parseForm,
