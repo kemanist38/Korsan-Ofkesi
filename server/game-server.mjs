@@ -86,8 +86,12 @@ export function rcAuthOk(header,secret){if(!secret||!header)return false;const a
 export function parseRcEvent(body){let o;try{o=JSON.parse(body);}catch{return null;}const e=o?.event;if(!e||typeof e!=='object')return null;
   const uid=String(e.app_user_id||'');const tx=String(e.transaction_id||e.id||'');if(!tx)return null;
   return{type:String(e.type||''),uid:/^[0-9a-f-]{36}$/i.test(uid)?uid:null,product:String(e.product_id||''),tx,store:String(e.store||'').toLowerCase()||'store',sandbox:e.environment==='SANDBOX'};}
+export function sandboxAllowed(uid,testUids=process.env.IAP_TEST_UIDS||'',online=all){if(!uid)return false;
+  if(testUids.split(',').map(x=>x.trim()).includes(uid))return true;for(const c of online)if(c.uid===uid&&c.admin)return true;return false;}
 async function handleRevenueCat(body){const e=parseRcEvent(body);if(!e){log('IAP okunamadı');return true;}
   const rpc=(fn,args)=>fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:'POST',headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`,'content-type':'application/json'},body:JSON.stringify({p_secret:SERVER_SECRET,...args})});
+  // Test (sandbox) ödemesi gerçek para değildir: yalnız yöneticiye ve .env'deki IAP_TEST_UIDS listesindeki hesaplara (ör. Apple inceleme hesabı) inci verir
+  if(IAP_GRANT.has(e.type)&&e.sandbox&&!sandboxAllowed(e.uid)){log('IAP test ödemesi reddedildi',e.store,e.product,e.tx);return true;}
   if(IAP_GRANT.has(e.type)){const r=await rpc('iap_credit',{p_tx:e.tx,p_store:e.store,p_product:e.product,p_uid:e.uid});const st=r.ok?await r.json():null;log('IAP',e.type,e.store,e.product,e.tx,e.sandbox?'(test)':'',st??`hata ${r.status}`);return r.ok;}
   if(e.type==='CANCELLATION'){const r=await rpc('iap_refund',{p_tx:e.tx});log('IAP iade',e.tx,r.ok?await r.json():`hata ${r.status}`);return r.ok;}
   log('IAP olay',e.type);return true;}
