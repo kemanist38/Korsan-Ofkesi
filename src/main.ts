@@ -675,7 +675,7 @@ function netTick(dt:number){joinSea(siege?(sharedBosses()?'siege':null):dom?`dom
   netClock=moving?Math.min(.35,.1*crowd):1;
   const f=isoFace,ship=activeShip==='starter'?'starter':String(activeShip),ident=`${profile.nick}|${guild?.tag??''}|${ship}|${effectiveMaxHp()}|${battleRank(state.battlePoints).index}|${state.level}`;
   const msg:NetState={id:myNetId,x:Math.round(player.x),y:Math.round(player.y),east:f.east,north:f.north,hp,t:Date.now(),vx:Math.round(netVel.x),vy:Math.round(netVel.y),d16};
-  if(netFullClock<=0||ident!==netIdent){netFullClock=2;netIdent=ident;Object.assign(msg,{nick:profile.nick,tag:guild?.tag??null,ship,maxHp:effectiveMaxHp(),sp:state.battlePoints,level:state.level});}
+  if(netFullClock<=0||ident!==netIdent){netFullClock=2;netIdent=ident;Object.assign(msg,{nick:profile.nick,tag:guild?.tag??null,ship,maxHp:effectiveMaxHp(),level:state.level});}
   // Donanım: değişince ya da 10 sn'de bir sunucuya (atış hasarını sunucu bununla hesaplar)
   {const ld={mt:mountedCannons,type:state.cannonType,eq:equipped,act:crew.active,hero:!!heroTitle,ach:!!ach.collectionComplete,tal:crew.talents},k=JSON.stringify(ld);ldClock-=1;if(k!==ldKey||ldClock<=0){ldKey=k;ldClock=30;sendLoadout(ld);}}
   // Yeniden doğma, liman ya da harita geçişi gibi ani konum değişimi: sunucuya ışınlanma olarak bildirilir

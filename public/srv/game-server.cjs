@@ -3821,6 +3821,7 @@ __export(game_server_exports, {
   seaNpcs: () => seaNpcs,
   seaTier: () => seaTier,
   seas: () => seas,
+  serverIdent: () => serverIdent,
   shipAllowed: () => shipAllowed,
   shotCheck: () => shotCheck,
   siegeCredit: () => siegeCredit,
@@ -5916,12 +5917,24 @@ function siegeTick(now) {
 var NEAR = 1800;
 var TICK_MS = 100;
 var FAR_EVERY = 20;
-var IDENT = ["nick", "tag", "ship", "maxHp", "sp", "level", "adm", "tm", "sk"];
+var IDENT = ["nick", "tag", "ship", "maxHp", "sp", "level", "adm", "tm", "sk", "tr"];
+function serverIdent(c, s, k) {
+  if (k === "nick") s.nick = c.nick;
+  else if (k === "tag") s.tag = c.tag || null;
+  else if (k === "level") s.level = Number(c.econ?.level) || 1;
+  else if (k === "sk") s.sk = c.sinks ?? 0;
+  else if (k === "tr") s.tr = tpRanks.get(c.uid) ?? 0;
+  else if (k === "sp" || k === "adm" && !c.admin) {
+    delete s[k];
+    return false;
+  }
+  return true;
+}
 function queueState(c, s) {
   const id = {};
   let changed = false;
   for (const k of IDENT) if (k in s) {
-    if (k === "nick") s.nick = c.nick;
+    if (!serverIdent(c, s, k)) continue;
     if (JSON.stringify(c.ident?.[k]) !== JSON.stringify(s[k])) changed = true;
     id[k] = s[k];
     delete s[k];
@@ -7695,6 +7708,7 @@ wss.on("connection", (ws) => {
       }
       for (const x of all) if (x.uid === who.uid && x !== c) x.ws.close(4004, "ba\u015Fka yerden ba\u011Flan\u0131ld\u0131");
       Object.assign(c, who);
+      c.tag = await guildTag(c.guildId).catch(() => null);
       c.admin = await isAdminToken(String(m.token || "")).catch(() => false);
       c.netId = String(m.netId || "").slice(0, 16) || Math.random().toString(36).slice(2, 10);
       clearTimeout(authTimer);
@@ -8069,6 +8083,7 @@ wss.on("connection", (ws) => {
       case "gref": {
         if (!c.rKill.hit(now)) return;
         c.guildId = await guildOf(c.uid).catch(() => c.guildId);
+        c.tag = await guildTag(c.guildId).catch(() => c.tag);
         return;
       }
       // Gemi battı (NPC, kule, mayın ya da rakip): yeniden doğma noktasını sunucu seçer; ışınlanma yalnız oraya kabul edilir
@@ -8369,6 +8384,7 @@ if (process.env.NODE_ENV !== "test") httpServer.listen(PORT, "127.0.0.1", () => 
   seaNpcs,
   seaTier,
   seas,
+  serverIdent,
   shipAllowed,
   shotCheck,
   siegeCredit,
