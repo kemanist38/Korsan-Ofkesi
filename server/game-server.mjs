@@ -91,7 +91,7 @@ export function sandboxAllowed(uid,testUids=process.env.IAP_TEST_UIDS||'',online
 async function handleRevenueCat(body){const e=parseRcEvent(body);if(!e){log('IAP okunamadı');return true;}
   const rpc=(fn,args)=>fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`,{method:'POST',headers:{apikey:SUPABASE_ANON,authorization:`Bearer ${SUPABASE_ANON}`,'content-type':'application/json'},body:JSON.stringify({p_secret:SERVER_SECRET,...args})});
   // Test (sandbox) ödemesi gerçek para değildir: yalnız yöneticiye ve .env'deki IAP_TEST_UIDS listesindeki hesaplara (ör. Apple inceleme hesabı) inci verir
-  if(IAP_GRANT.has(e.type)&&e.sandbox&&!sandboxAllowed(e.uid)){log('IAP test ödemesi reddedildi',e.store,e.product,e.tx);return true;}
+  if(IAP_GRANT.has(e.type)&&e.sandbox&&!sandboxAllowed(e.uid)){log('IAP test ödemesi reddedildi',e.store,e.product,e.tx);opLog('test ödemesi',`reddedildi · ${e.store} ${e.product} · ${e.uid??'?'}`);return true;}
   if(IAP_GRANT.has(e.type)){const r=await rpc('iap_credit',{p_tx:e.tx,p_store:e.store,p_product:e.product,p_uid:e.uid});const st=r.ok?await r.json():null;log('IAP',e.type,e.store,e.product,e.tx,e.sandbox?'(test)':'',st??`hata ${r.status}`);return r.ok;}
   if(e.type==='CANCELLATION'){const r=await rpc('iap_refund',{p_tx:e.tx});log('IAP iade',e.tx,r.ok?await r.json():`hata ${r.status}`);return r.ok;}
   log('IAP olay',e.type);return true;}
@@ -376,6 +376,9 @@ export const seas=new Map(); // ad → Set<Client>
 export const all=new Set();
 const log=(...a)=>console.log(new Date().toISOString(),...a);
 // Şüpheli kayıtları: bellekte son 500, ayrıca dosyaya (yönetici paneli /flags ile okur)
+// Yönetim paneli için son olaylar (istemci hataları, reddedilen test ödemeleri, yedek, bakım); yalnız bellekte, son 60
+export const ops=[];export const opLog=(kind,text)=>{ops.push({at:Date.now(),kind,text:String(text).slice(0,240)});if(ops.length>60)ops.shift();};
+let lastBackup=0;
 const FLAG_FILE=process.env.FLAG_FILE||'/opt/game/flags.jsonl';const flags=[];
 try{for(const l of fs.readFileSync(FLAG_FILE,'utf8').trim().split('\n').slice(-500))if(l)flags.push(JSON.parse(l));}catch{}
 function addFlag(c,why,extra){const now=Date.now(),f=flags.findLast?.(x=>x.playerNo===c.playerNo&&x.reason===why&&now-x.last<60000);
@@ -1035,7 +1038,7 @@ const httpServer=http.createServer(async(q,r)=>{const cors={'access-control-allo
   // Oyuncu sayıları herkese açık değil: yalnızca yönetici oturumuyla /stats
   if(q.url?.startsWith('/stats')){const token=String(q.headers.authorization||'').replace(/^Bearer /,'');
     if(!token||!(await isAdminToken(token).catch(()=>false))){r.writeHead(403,cors);r.end('{"error":"yetki yok"}');return;}
-    r.writeHead(200,cors);r.end(JSON.stringify({online:[...all].filter(c=>c.uid).length,seas:Object.fromEntries([...seas].map(([k,v])=>[k,v.size])),uptime:Math.round((Date.now()-started)/1000)}));return;}
+    r.writeHead(200,cors);r.end(JSON.stringify({online:[...all].filter(c=>c.uid).length,seas:Object.fromEntries([...seas].map(([k,v])=>[k,v.size])),uptime:Math.round((Date.now()-started)/1000),mem:Math.round(process.memoryUsage().rss/1048576),heap:Math.round(process.memoryUsage().heapUsed/1048576),lastBackup,ops:[...ops].reverse()}));return;}
   r.writeHead(200,cors);r.end(JSON.stringify({ok:true,name:'Pirate Rage oyun sunucusu'}));});
 // Sıkıştırma: 256 bayttan büyük paketler (durum paketleri) deflate ile ~4–5 kat küçülür
 const wss=new WebSocketServer({server:httpServer,path:'/ws',maxPayload:16*1024,perMessageDeflate:{threshold:256,zlibDeflateOptions:{level:3},serverNoContextTakeover:false,clientNoContextTakeover:true}});
@@ -1119,7 +1122,7 @@ wss.on('connection',ws=>{
         const text=c.admin?raw:filterChat(raw);toAll(c,{t:'chat',d:{nick:c.nick,tag:m.d?.tag??null,text,at:now,...(c.admin?{adm:true}:{})}});
         c.chatLog=[...(c.chatLog||[]),`${new Date(now).toISOString().slice(11,16)} ${raw}`].slice(-5);return;}
       // Oyuncu bildirimi: bildirilen oyuncunun son mesajlarıyla yönetim paneline (Şüpheli kayıtlar) düşer
-      case'cerr':{if(now-(c.cerrAt||0)<10_000)return;c.cerrAt=now;log('İSTEMCİ HATASI',c.nick,String(m.d?.msg||'').slice(0,200),String(m.d?.at||'').slice(0,120));return;}
+      case'cerr':{if(now-(c.cerrAt||0)<10_000)return;c.cerrAt=now;log('İSTEMCİ HATASI',c.nick,String(m.d?.msg||'').slice(0,200),String(m.d?.at||'').slice(0,120));opLog('istemci hatası',`${c.nick}: ${String(m.d?.msg||'').slice(0,160)} (${String(m.d?.at||'').slice(0,60)})`);return;}
       case'report':{if(!c.rKill.hit(now)||now-(c.reportAt||0)<20_000)return;c.reportAt=now;const nick=String(m.d?.nick||'').slice(0,40),why=String(m.d?.why||'').slice(0,120);
         const t=[...all].find(x=>x.nick&&x.nick.toLocaleLowerCase('tr')===nick.toLocaleLowerCase('tr'));
         addFlag({playerNo:t?.playerNo??0,nick:t?.nick??nick},'oyuncu bildirimi',`bildiren #${c.playerNo} ${c.nick}: ${why}${t?.chatLog?.length?` · son mesajlar: ${t.chatLog.join(' | ')}`:''}`);
@@ -1160,5 +1163,5 @@ export function backupData(now=Date.now(),dir=DATA_DIR){const day=new Date(now+3
   for(const f of fs.readdirSync(dir))if(/\.(json|jsonl)$/.test(f))fs.copyFileSync(`${dir}/${f}`,`${to}/${f}`);
   const old=fs.readdirSync(root).filter(d=>/^\d{4}-\d{2}-\d{2}$/.test(d)).sort().slice(0,-BACKUP_KEEP);for(const d of old)fs.rmSync(`${root}/${d}`,{recursive:true,force:true});
   return true;}
-if(process.env.NODE_ENV!=='test'){setInterval(()=>{const n=pruneMemory();if(n)log('BAKIM',`${n} eski kayıt temizlendi`);try{if(backupData())log('YEDEK','günlük yedek alındı');}catch(e){log('YEDEK hata',e?.message);}},3600_000).unref();
-  setTimeout(()=>{try{if(backupData())log('YEDEK','günlük yedek alındı');}catch(e){log('YEDEK hata',e?.message);}},30_000).unref();}
+if(process.env.NODE_ENV!=='test'){setInterval(()=>{const n=pruneMemory();if(n){log('BAKIM',`${n} eski kayıt temizlendi`);opLog('bakım',`${n} eski kayıt temizlendi`);}try{if(backupData()){lastBackup=Date.now();log('YEDEK','günlük yedek alındı');opLog('yedek','günlük yedek alındı');}}catch(e){log('YEDEK hata',e?.message);opLog('yedek hatası',e?.message);}},3600_000).unref();
+  setTimeout(()=>{try{if(backupData()){lastBackup=Date.now();log('YEDEK','günlük yedek alındı');opLog('yedek','günlük yedek alındı');}}catch(e){log('YEDEK hata',e?.message);opLog('yedek hatası',e?.message);}},30_000).unref();}
