@@ -484,3 +484,10 @@ test('TP sıralama madalyası: 1 kral, 2-3 kollar, 4-20 amiral, 21-50 kaptan, 51
   const T=await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
   assert.deepEqual([0,1,2,3,4,20,21,50,51,100,101].map(T.tpMedal),[-1,0,1,2,3,3,4,4,5,5,-1]);
 });
+
+test('kimlik alanlarını sunucu belirler: seviye, etiket, yönetici işareti taklit edilemez',()=>{
+  const c={nick:'Ali',tag:'ABC',econ:{level:3},sinks:7,uid:'u1',admin:false};
+  const s={nick:'Sahte',tag:'XXX',level:8,adm:1,sp:999,sk:500,tr:1};
+  for(const k of Object.keys(s))S.serverIdent(c,s,k);
+  assert.deepEqual(s,{nick:'Ali',tag:'ABC',level:3,sk:7,tr:0});
+});

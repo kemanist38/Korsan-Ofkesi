@@ -524,8 +524,11 @@ function siegeTick(now){const r=siegeRun;if(!r)return;siegeTickNo++;const room=s
 // Yakındakiler (NEAR birim) her turda, uzaktakiler saniyede bir güncellenir. Kimlik alanları (ad, gemi, rütbe…) yalnızca
 // değiştiğinde ya da alıcı ilk kez gördüğünde gönderilir.
 export const NEAR=1800,TICK_MS=100,FAR_EVERY=20;
-const IDENT=['nick','tag','ship','maxHp','sp','level','adm','tm','sk'];
-function queueState(c,s){const id={};let changed=false;for(const k of IDENT)if(k in s){if(k==='nick')s.nick=c.nick;if(JSON.stringify(c.ident?.[k])!==JSON.stringify(s[k]))changed=true;id[k]=s[k];delete s[k];}
+const IDENT=['nick','tag','ship','maxHp','sp','level','adm','tm','sk','tr'];
+// Kimlik alanlarını oyuncu değil sunucu belirler: ad, filo etiketi, seviye, yönetici işareti, batırma sayısı ve TP sırası (sp artık yok)
+export function serverIdent(c,s,k){if(k==='nick')s.nick=c.nick;else if(k==='tag')s.tag=c.tag||null;else if(k==='level')s.level=Number(c.econ?.level)||1;
+  else if(k==='sk')s.sk=c.sinks??0;else if(k==='tr')s.tr=tpRanks.get(c.uid)??0;else if(k==='sp'||k==='adm'&&!c.admin){delete s[k];return false;}return true;}
+function queueState(c,s){const id={};let changed=false;for(const k of IDENT)if(k in s){if(!serverIdent(c,s,k))continue;if(JSON.stringify(c.ident?.[k])!==JSON.stringify(s[k]))changed=true;id[k]=s[k];delete s[k];}
   if(changed){c.ident={...c.ident,...id};c.identVer=(c.identVer||0)+1;}c.state=s;c.stateVer=(c.stateVer||0)+1;}
 let tickNo=0;
 export function buildBatch(rec,room,tick){const out=[];if(!rec.seen)rec.seen=new Map();const far=tick%FAR_EVERY===0;
@@ -1040,7 +1043,7 @@ wss.on('connection',ws=>{
     if(m.t==='auth'){if(c.uid)return;const who=await verifyToken(String(m.token||'')).catch(()=>null);
       if(!who){ws.close(4001,'giriş geçersiz');return;}if(who.banned){ws.close(4002,'hesap kapalı');return;}
       for(const x of all)if(x.uid===who.uid&&x!==c)x.ws.close(4004,'başka yerden bağlanıldı');
-      Object.assign(c,who);c.admin=await isAdminToken(String(m.token||'')).catch(()=>false);c.netId=String(m.netId||'').slice(0,16)||Math.random().toString(36).slice(2,10);clearTimeout(authTimer);
+      Object.assign(c,who);c.tag=await guildTag(c.guildId).catch(()=>null);c.admin=await isAdminToken(String(m.token||'')).catch(()=>false);c.netId=String(m.netId||'').slice(0,16)||Math.random().toString(36).slice(2,10);clearTimeout(authTimer);
       await loadEcon(c);if(!c.econ){ws.close(4003,'hesap verisi yüklenemedi');return;}
       void sinkAdd(c,0);send(c,{t:'hello',id:c.netId,nick:c.nick,playerNo:c.playerNo});log('GİRİŞ',`#${c.playerNo}`,c.nick);void loadFriends(c).then(()=>{send(c,{t:'fr',d:{k:'list',list:friendView(c)}});friendPing(c);});void rpcTry('mail_box',{p_uid:c.uid,p_box:'in'}).then(r=>{if(r.data)send(c,{t:'mail',d:{k:'box',box:'in',list:r.data.list,unread:r.data.unread}});});treaty.seen[c.uid]=Date.now();treatyDirty=true;send(c,{t:'treaty',d:treatyInfo(c)});send(c,{t:'fw',d:fwInfo(c)});send(c,{t:'tpr',d:{rank:tpRanks.get(c.uid)??0}});if(!qkByUid.has(c.uid))qkByUid.set(c.uid,{});c.qk=qkByUid.get(c.uid);{const t=treasures.get(c.uid);if(t)send(c,{t:'tstate',d:{parts:t.parts,spot:t.spot}});}return;}
     if(!c.uid||!c.econ)return;
@@ -1101,7 +1104,7 @@ wss.on('connection',ws=>{
       // Kule dikildi (veritabanında): önce canlar yazılır, sonra ada yeniden okunup denize gönderilir
       case'tbuilt':{const key=String(m.d?.key||'');const i=islands.get(key);if(!i||!c.rKill.hit(now))return;await saveIslandHp({...i,hpDirty:true});const n=await loadIsland(key).catch(()=>null);if(n)sendRoom(key,{t:'isle',d:islandInfo(n)});return;}
       // Filoya girme/çıkma sonrası filo bilgisi yenilenir
-      case'gref':{if(!c.rKill.hit(now))return;c.guildId=await guildOf(c.uid).catch(()=>c.guildId);return;}
+      case'gref':{if(!c.rKill.hit(now))return;c.guildId=await guildOf(c.uid).catch(()=>c.guildId);c.tag=await guildTag(c.guildId).catch(()=>c.tag);return;}
       // Gemi battı (NPC, kule, mayın ya da rakip): yeniden doğma noktasını sunucu seçer; ışınlanma yalnız oraya kabul edilir
       case'died':{if(!c.sea||!c.rKill.hit(now))return;const p=respawnPoint(c);if(!p)return;c.tpTo={x:p.x,y:p.y,until:now+15_000};pvpReset(c);send(c,{t:'respawn',d:{x:p.x,y:p.y}});return;}
       case'dom':{if(!c.rUse.hit(now))return;onDom(c,m.d,now);return;}
