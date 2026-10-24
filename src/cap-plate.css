@@ -156,3 +156,11 @@ html #couponRedeem,html [data-quest],html [data-confirm-cancel]{border:1px solid
 html [data-quest]:disabled{border-color:#5a4632!important;background:var(--btn-off)!important;color:#8a7a62!important}
 html .rank-row.me{border-color:var(--brass)!important;background:linear-gradient(90deg,#3a2614,#1a110d)!important}
 html .development-menu,html .market-menu,html .ship-menu,html .loadout-menu{border:14px solid transparent!important;border-image:url(/assets/win-frame-v1.webp) 64 / 14px stretch!important;background:var(--panel)!important;background-clip:padding-box!important;border-radius:0!important;box-shadow:0 12px 30px #000c!important}
+/* Sıralama: sıra numarası okunaklı yazı tipiyle; TP tablosunda ilk 100'e madalya */
+html .rank-row>b{font-family:Inter,sans-serif!important;font-weight:900!important}
+html .rank-row>b.rank-medal-cell{display:grid!important;place-items:center;width:34px!important;height:34px!important;background:none!important;box-shadow:none!important;position:relative}
+.rank-medal-cell img{width:30px;height:30px;object-fit:contain;filter:drop-shadow(0 1px 2px #000c)}
+.rank-medal-cell small{position:absolute;right:-4px;bottom:-3px;font:800 9px Inter,sans-serif;color:#f3e2bd;text-shadow:0 1px 2px #000}
+/* Pirinç düğmelerde yazı okunaklı: daha büyük, kalın, koyu */
+html .market-item button,html .buy-row button,html .buy-confirm button,html .daily-day button,html .spy-dialog button,html .chat-form button,html .mail-win button,html .social-win button,html .social-ask button,html .coord-go button,html #menuLogout,html .cp-spy button,html #couponRedeem,html [data-quest],html [data-confirm-cancel],html [data-keep-quest],html .rank-tabs button,html .rank-pager button{font-family:Inter,sans-serif!important;font-size:12px!important;font-weight:800!important;letter-spacing:.04em!important}
+html .market-item button,html .buy-row button,html #couponRedeem,html [data-quest],html .daily-day button,html .rank-tabs button.active{color:#1e0f04!important;text-shadow:0 1px 0 #ffe9b088!important}
