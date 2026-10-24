@@ -3685,6 +3685,7 @@ __export(game_server_exports, {
   TOWER_SLOTS: () => TOWER_SLOTS,
   USE_COOLDOWN: () => USE_COOLDOWN,
   addCredit: () => addCredit,
+  adminAction: () => adminAction,
   adminChatCommand: () => adminChatCommand,
   aevHit: () => aevHit,
   aevOpen: () => aevOpen,
@@ -7631,7 +7632,12 @@ setInterval(() => {
   for (const c of /* @__PURE__ */ new Set([...all, ...pendingCredits.values()])) if (c.credit || c.grant) void flushCredit(c);
 }, 2e4).unref();
 var httpServer = import_node_http.default.createServer(async (q, r) => {
-  const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization", "content-type": "application/json" };
+  const cors = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization,content-type", "access-control-allow-methods": "GET,POST,OPTIONS", "content-type": "application/json" };
+  if (q.method === "OPTIONS") {
+    r.writeHead(204, cors);
+    r.end();
+    return;
+  }
   if (q.method === "OPTIONS") {
     r.writeHead(204, cors);
     r.end();
@@ -7693,7 +7699,31 @@ var httpServer = import_node_http.default.createServer(async (q, r) => {
       return;
     }
     r.writeHead(200, cors);
-    r.end(JSON.stringify({ online: [...all].filter((c) => c.uid).length, seas: Object.fromEntries([...seas].map(([k, v]) => [k, v.size])), uptime: Math.round((Date.now() - started) / 1e3), mem: Math.round(process.memoryUsage().rss / 1048576), heap: Math.round(process.memoryUsage().heapUsed / 1048576), lastBackup, ops: [...ops].reverse() }));
+    r.end(JSON.stringify({ online: [...all].filter((c) => c.uid).length, seas: Object.fromEntries([...seas].map(([k, v]) => [k, v.size])), uptime: Math.round((Date.now() - started) / 1e3), mem: Math.round(process.memoryUsage().rss / 1048576), heap: Math.round(process.memoryUsage().heapUsed / 1048576), lastBackup, ops: [...ops].reverse(), players: [...all].filter((c) => c.uid).map((c) => ({ no: c.playerNo, nick: c.nick, sea: c.sea || "", level: Number(c.econ?.level) || 1, admin: !!c.admin })) }));
+    return;
+  }
+  if (q.method === "POST" && (q.url?.startsWith("/announce") || q.url?.startsWith("/kick"))) {
+    const token = String(q.headers.authorization || "").replace(/^Bearer /, "");
+    if (!token || !await isAdminToken(token).catch(() => false)) {
+      r.writeHead(403, cors);
+      r.end('{"error":"yetki yok"}');
+      return;
+    }
+    let body = "";
+    q.on("data", (d) => {
+      body += d;
+      if (body.length > 4e3) q.destroy();
+    });
+    q.on("end", () => {
+      let d = {};
+      try {
+        d = JSON.parse(body);
+      } catch {
+      }
+      const out = adminAction(q.url.startsWith("/kick") ? "kick" : "announce", d);
+      r.writeHead(out.error ? 400 : 200, cors);
+      r.end(JSON.stringify(out));
+    });
     return;
   }
   r.writeHead(200, cors);
@@ -8303,6 +8333,30 @@ if (process.env.NODE_ENV !== "test") {
     }
   }, 3e4).unref();
 }
+function adminAction(kind, d, now = Date.now()) {
+  if (kind === "announce") {
+    const text = String(d?.text || "").trim().slice(0, 300);
+    if (!text) return { error: "Duyuru bo\u015F" };
+    const msg = JSON.stringify({ t: "chat", d: { nick: "Duyuru", tag: null, adm: true, text: `\u{1F4E2} ${text}`, at: now } });
+    let n = 0;
+    for (const x of all) if (x.uid) {
+      send(x, msg);
+      n++;
+    }
+    log("DUYURU", text);
+    opLog("duyuru", text);
+    return { ok: true, sent: n };
+  }
+  if (kind === "kick") {
+    const no = Number(d?.no);
+    const t = [...all].find((x) => x.uid && x.playerNo === no);
+    if (!t) return { error: "Oyuncu \xE7evrim i\xE7i de\u011Fil" };
+    t.ws.close(d?.ban ? 4002 : 4005, "y\xF6netici");
+    opLog("oyundan at\u0131ld\u0131", `#${no} ${t.nick}`);
+    return { ok: true };
+  }
+  return { error: "bilinmeyen i\u015Flem" };
+}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   ADMIN_SHIP,
@@ -8345,6 +8399,7 @@ if (process.env.NODE_ENV !== "test") {
   TOWER_SLOTS,
   USE_COOLDOWN,
   addCredit,
+  adminAction,
   adminChatCommand,
   aevHit,
   aevOpen,

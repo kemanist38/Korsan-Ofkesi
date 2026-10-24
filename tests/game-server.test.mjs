@@ -518,3 +518,9 @@ test('günlük yedek: json dosyaları gün klasörüne kopyalanır, 14 günden e
   assert.equal(fs.readdirSync(dir+'/backup').length,14);assert.equal(S.backupData(Date.parse('2026-10-24T13:00:00Z'),dir),false,'aynı gün ikinci kez alınmaz');
   fs.rmSync(dir,{recursive:true,force:true});
 });
+
+test('yönetim: boş duyuru ve çevrim dışı oyuncuyu atma reddedilir',()=>{
+  assert.equal(S.adminAction('announce',{text:'  '}).error,'Duyuru boş');
+  assert.equal(S.adminAction('kick',{no:999999}).error,'Oyuncu çevrim içi değil');
+  assert.equal(S.adminAction('announce',{text:'Bakım 10 dk sonra'}).ok,true);
+});
