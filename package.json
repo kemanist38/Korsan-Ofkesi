@@ -9,7 +9,8 @@
     "preview": "vite preview --host 0.0.0.0",
     "test": "node --test tests/*.test.mjs",
     "build:server": "esbuild server/game-server.mjs --bundle --platform=node --target=node20 --format=cjs --outfile=public/srv/game-server.cjs",
-    "build:app": "npm run build && node tools/app/build-app.mjs && npx cap sync"
+    "build:app": "npm run build && node tools/app/build-app.mjs && npx cap sync",
+    "app:version": "node tools/app/bump-version.mjs"
   },
   "devDependencies": {
     "@capacitor/assets": "3.0.5",

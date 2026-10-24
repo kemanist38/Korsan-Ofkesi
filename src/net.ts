@@ -47,7 +47,8 @@ export const netMode=()=>'VPS';
 // ---------------------------------------------------------------- VPS oyun sunucusu (WebSocket)
 let ws:WebSocket|null=null,wsReady=false,wsSea='',wsTries=0;
 const wsSend=(t:string,d?:unknown)=>{if(ws&&wsReady)ws.send(JSON.stringify({t,d}));};
-async function connectWs(){const sb=supa();if(!sb||!session.account){netStatus='off';return;}
+let retryTimer=0;
+async function connectWs(){if(ws&&ws.readyState<=WebSocket.OPEN)return;const sb=supa();if(!sb||!session.account){netStatus='off';return;}
   const {data}=await sb.auth.getSession();const token=data.session?.access_token;if(!token){netStatus='error';netError='Oturum bulunamadı';setTimeout(()=>{void connectWs();},5000);return;}
   let opened=false;const sock=new WebSocket(GAME_WS);ws=sock;netStatus='connecting';
   const timer=setTimeout(()=>{if(!opened){sock.close();}},6000);
@@ -118,9 +119,11 @@ async function connectWs(){const sb=supa();if(!sb||!session.account){netStatus='
     if(ev.code===4004){netStatus='error';netError='Hesabına başka bir yerden bağlanıldı';return;}
     // Bağlantı kurulamadı ya da koptu: artan aralıklarla (en çok 15 sn) sürekli yeniden dene
     if(!was){wsTries++;vpsError=netError=`Sunucuya bağlanılamıyor (${ev.code}${ev.reason?' '+ev.reason:''})`;netStatus='error';}else netStatus='connecting';
-    setTimeout(()=>{void connectWs();},Math.min(15000,1000*2**Math.min(4,wsTries)));};
+    retryTimer=window.setTimeout(()=>{void connectWs();},Math.min(15000,1000*2**Math.min(4,wsTries)));};
 }
 export function startNet(h:NetHandlers){handlers=h;void connectWs();}
+// Uygulama öne gelince: bağlantı kopmuşsa bekleme süresini atlayıp hemen yeniden bağlan
+export function netWake(){if(!handlers||ws)return;clearTimeout(retryTimer);wsTries=0;void connectWs();}
 // Haritaya katıl (harita değişince eski kanaldan çıkılır). Siege gibi özel alanlarda null verilir.
 // Haritaya katıl (harita değişince eski denizden çıkılır); kuşatmada 'siege'
 export function joinSea(map:string|null){

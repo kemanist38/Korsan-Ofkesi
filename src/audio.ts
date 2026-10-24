@@ -25,6 +25,8 @@ function audio(){
   return ctx;
 }
 export function setAudio(on:boolean,vol:number,musicVol=musicVolume){enabled=on;volume=vol;musicVolume=musicVol;if(master&&ctx)master.gain.setTargetAtTime(on?vol:0,ctx.currentTime,.05);if(musicBus&&ctx)musicBus.gain.setTargetAtTime(on?musicVol:0,ctx.currentTime,.05);}
+// Uygulama arka plana alınınca ses tamamen durur, öne gelince sürer
+export function pauseAudio(paused:boolean){if(!ctx)return;void(paused?ctx.suspend():ctx.resume());}
 // Tarayıcılar sesi ilk kullanıcı etkileşiminden sonra açar.
 export function unlockAudio(){audio();}
 // ---- örnek (sample) çalar

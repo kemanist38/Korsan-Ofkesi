@@ -3,6 +3,17 @@
   "appName": "Pirate Rage: Korsan Öfkesi",
   "webDir": "dist-app",
   "backgroundColor": "#000000",
-  "android": { "allowMixedContent": false },
-  "ios": { "contentInset": "never", "backgroundColor": "#000000" }
+  "android": {
+    "allowMixedContent": false
+  },
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#000000"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "native",
+      "hidden": true
+    }
+  }
 }
