@@ -139,10 +139,6 @@ html .combat-controls .combat-action.rage>b img{border-radius:50%}
 /* ===== 10. Yardımcılar ===== */
 /* Kapalı pencerenin hiçbir parçası tıklanamaz (menüdeki casus formu görünmezken de tıklanıyordu) */
 .captain-overlay:not(.open) *,.quest-overlay:not(.open) *{pointer-events:none!important}
-/* Savaş rütbesi (SP) kaldırıldı: profildeki rütbe madalyaları gizli */
-.rank-medals{display:none!important}
-/* SP kaldırıldı: profildeki Savaş Puanı kutusu gizli */
-article:has(>#profileBattle){display:none!important}
 /* Yeni level mühürleri (level-badges-v3): rakam mührün alt kısmına yazılır */
 .cc-level,.lu-badge{position:relative;display:inline-grid;place-items:end center}
 .cc-level>b,.lu-badge>b{font:900 0.9em/1 Cinzel,serif;color:#fff4d0;text-shadow:0 1px 2px #000,0 0 4px #000;padding-bottom:6%}
